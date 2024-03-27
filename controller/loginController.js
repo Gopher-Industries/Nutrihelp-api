@@ -1,6 +1,6 @@
-// dbClient = require('../dbConnection.js');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+let getUserCredentials = require('../model/getUserCredentials.js')
 
 const login = async (req, res) => {
     const { username, password } = req.body;
@@ -9,8 +9,8 @@ const login = async (req, res) => {
         if (!username || !password) {
             return res.status(400).json({ error: 'Username and password are required' });
          }
-        const user = await getUser(username);
-        if (!user) {
+        const user = await getUserCredentials(username, password);
+        if (user.length === 0) {
             return res.status(401).json({ error: 'Invalid username or password' });
         }
 
@@ -19,7 +19,7 @@ const login = async (req, res) => {
             return res.status(401).json({ error: 'Invalid username or password' });
         }
 
-        const token = jwt.sign({ userId: user.id }, 'a_secret_key_thats_not_this', { expiresIn: '1h' });
+        const token = jwt.sign({ userId: user.user_id }, 'a_secret_key_thats_not_this', { expiresIn: '1h' });
 
         res.json({ token });
     } catch (error) {
@@ -28,9 +28,5 @@ const login = async (req, res) => {
     }
     return res.status(200).json('Placeholder');
 };
-
-const getUser = async (username) => {
-    //Add db query to check for user
-}
 
 module.exports = { login };
