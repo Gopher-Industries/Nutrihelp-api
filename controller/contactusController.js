@@ -1,4 +1,4 @@
-// dbClient = require('../dbConnection.js');
+let addContactUsMsg = require('../model/addContactUsMsg.js')
 
 const contactus = async (req, res) => {
   try {
@@ -14,7 +14,8 @@ const contactus = async (req, res) => {
     if (!message) {
       return res.status(400).send('Message is required');
     }      
-    //TODO Connect to DB to add contact records
+    
+    await addContactUsMsg(name, email, message)
 
     res.status(201).json({ message: 'Data received successfully!' });
   } catch (error) {
