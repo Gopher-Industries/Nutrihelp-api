@@ -12,7 +12,7 @@ const signup = async (req, res) => {
         }
 
         const userExists = await getUser(username);
-        
+
         if (userExists.username) {
             return res.status(400).json({ error: 'User already exists' });
         }
@@ -21,13 +21,10 @@ const signup = async (req, res) => {
 
         await addUser(username, hashedPassword)
 
-        res.status(201).json({ message: 'User created successfully' });
-
-        
-
+        return res.status(201).json({ message: 'User created successfully' });
     } catch (error) {
         console.error('Error creating user:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        return res.status(500).json({ error: 'Internal server error' });
     }
 };
 
