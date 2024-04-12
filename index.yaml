@@ -1,0 +1,153 @@
+openapi: 3.0.0
+info:
+  title: NutriHelp API
+  version: 1.0.0
+servers:
+  - url: http://localhost:3000/api
+paths:
+  /contactus:
+    post:
+      summary: Contact us
+      description: Receives a contact request
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContactRequest'
+      responses:
+        '201':
+          description: Data received successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          description: Bad request - missing required fields
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /signup:
+    post:
+      summary: User signup
+      description: Registers a new user with a username and password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UsernamePassword'
+      responses:
+        '201':
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          description: Bad request - either missing username/password or user already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /login:
+    post:
+      summary: User login
+      description: Authenticates user and returns a JWT token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UsernamePassword'
+      responses:
+        '200':
+          description: Login successful, JWT token returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JWTToken'
+        '400':
+          description: Username and password are required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Invalid username or password
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+components:
+  schemas:
+    UsernamePassword:
+      type: object
+      properties:
+        username:
+          type: string
+          example: user123
+        password:
+          type: string
+          format: password
+          example: pass123
+      required:
+        - username
+        - password
+    JWTToken:
+      type: object
+      properties:
+        token:
+          type: string
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiIxMjM0NTY3ODkwIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c
+    ContactRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          description: The user's name
+          example: Jane Doe
+        email:
+          type: string
+          format: email
+          description: The user's email address
+          example: jane.doe@example.com
+        message:
+          type: string
+          description: The user's message
+          example: Hello, I have a question about...
+      required:
+        - name
+        - email
+        - message
+    SuccessResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: Data received successfully!
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          example: Internal server error
