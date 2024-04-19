@@ -19,7 +19,7 @@ const signup = async (req, res) => {
 
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        await addUser(username, hashedPassword)
+        await addUser(username, hashedPassword, true);
 
         return res.status(201).json({ message: 'User created successfully' });
     } catch (error) {
