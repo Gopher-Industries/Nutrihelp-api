@@ -1,5 +1,6 @@
 
-{"username":"bogdan",
+{
+ "user_id":15,
  "recipe_name":"Tomato pesto chicken pasta",
  "cuisine":"Italian",
  "total_servings":3,

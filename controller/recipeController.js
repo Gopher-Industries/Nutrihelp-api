@@ -3,16 +3,16 @@ let createRecipe = require('../model/createRecipe.js');
 //let getUserRecipes = require('../model/getUserRecipes.js');
 
 const createAndSaveRecipe = async (req, res) => {
-    const { username, ingredient_id, ingredient_quantity,
+    const { user_id, ingredient_id, ingredient_quantity,
         recipe_name, cuisine, total_servings, preparation_time, instuctions } = req.body;
 
     try {
-        if (!username || !ingredient_id || !ingredient_quantity ||
+        if (!user_id || !ingredient_id || !ingredient_quantity ||
             !recipe_name || !cuisine || !total_servings || !preparation_time || !instuctions) {
             return res.status(400).json({ error: 'Recipe parameters are missed', statusCode: 400 });
         }
 
-        const recipe = await createRecipe(username, ingredient_id, ingredient_quantity,
+        const recipe = await createRecipe(user_id, ingredient_id, ingredient_quantity,
             recipe_name, cuisine, total_servings, preparation_time, instuctions);
 
         //await saveRecipe(recipe);
@@ -25,14 +25,14 @@ const createAndSaveRecipe = async (req, res) => {
 };
 
 const getRecipes = async (req, res) => {
-    const username = req.body.username;
+    const user_id = req.body.user_id;
 
     try {
-        if (!username) {
-            return res.status(400).json({ error: 'Username is required', statusCode: 400 });
+        if (!user_id) {
+            return res.status(400).json({ error: 'User Id is required', statusCode: 400 });
         }
 
-        const recipes = await getUserRecipes(username);
+        const recipes = await getUserRecipes(user_id);
         if (recipes.length === 0) {
             return res.status(404).json({ error: 'Recipes not found', statusCode: 404 });
         }
