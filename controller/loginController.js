@@ -1,7 +1,7 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 let getUserCredentials = require('../model/getUserCredentials.js');
-let addMfaToken = require('../model/addMfaToken.js');
+let {addMfaToken, verifyMfaToken } = require('../model/addMfaToken.js');
 const sgMail = require('@sendgrid/mail');
 
 
@@ -33,6 +33,7 @@ const login = async (req, res) => {
             //Create and Send out MFA Token
         }
 
+        
 
         const token = jwt.sign({ userId: user.user_id }, process.env.JWT_TOKEN, { expiresIn: '1h' });
 
@@ -44,12 +45,15 @@ const login = async (req, res) => {
 };
 
 const loginMfa = async (req, res) => {
-    const { username, password, token } = req.body;
+    const { username, password, mfa_token } = req.body;
     
     try {
         if (!username || !password) {
             return res.status(400).json({ error: 'Username and password are required' });
-         }
+        }
+         if (!mfa_token) {
+            return res.status(400).json({ error: 'Token is required' });
+        }
         const user = await getUserCredentials(username, password);
         if (user.length === 0) {
             return res.status(401).json({ error: 'Invalid username or password' });
@@ -60,6 +64,9 @@ const loginMfa = async (req, res) => {
             return res.status(401).json({ error: 'Invalid username or password' });
         }
 
+        const tokenValid = await verifyMfaToken(user.user_id, mfa_token);
+        if (!tokenValid) return res.status(401).json({ error: 'Token is invalid or has expired' });           
+       
         const token = jwt.sign({ userId: user.user_id }, process.env.JWT_TOKEN, { expiresIn: '1h' });
 
         return res.status(200).json({ token });
@@ -70,7 +77,6 @@ const loginMfa = async (req, res) => {
 };
 
 async function sendEmail(user) {
-     console.log(user)
      sgMail.setApiKey(process.env.SENDGRID_KEY);
     try {
         // Define the email content
