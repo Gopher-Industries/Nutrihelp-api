@@ -28,7 +28,7 @@ const login = async (req, res) => {
 
             await addMfaToken(user.user_id, token);
 
-            await sendEmail(user);
+            await sendEmail(user, token);
             return res.status(200).json({ message: 'An MFA Token has been sent to your email address', token: token });
             //Create and Send out MFA Token
         }
@@ -52,7 +52,7 @@ const loginMfa = async (req, res) => {
             return res.status(400).json({ error: 'Token is required' });
         }
         const user = await getUserCredentials(username, password);
-        if (user.length === 0) {
+        if (!user || user.length === 0) {
             return res.status(401).json({ error: 'Invalid username or password' });
         }
 
@@ -73,16 +73,16 @@ const loginMfa = async (req, res) => {
     }
 };
 
-async function sendEmail(user) {
+async function sendEmail(user, token) {
      sgMail.setApiKey(process.env.SENDGRID_KEY);
     try {
         // Define the email content
         const msg = {
         to: user.username, // Replace with recipient's email
         from: 'estudley@deakin.edu.au', // Replace with sender's email
-        subject: 'Test Email from Node.js',
-        text: 'This is a test email sent from Node.js using SendGrid!',
-        html: '<strong>This is a test email sent from Node.js using SendGrid!</strong>',
+        subject: 'Nutrihelp login Token',
+        text: `Your token to log in is ${token}`,
+        html: `Your token to log in is ${token}`,
         };
 
         // Send the email
