@@ -98,6 +98,155 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /appointments:
+    post:
+      summary: Save appointment data
+      description: Receives a user ID, date, time, and description, and saves the appointment data
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Appointment'
+      responses:
+        '201':
+          description: Appointment saved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          description: Bad request - missing required fields
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    get:
+      summary: Retrieve all appointment data
+      description: Returns a JSON array containing all appointments
+      responses:
+        '200':
+          description: Appointments fetched successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Appointment'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /foodpreferences/dietaryrequirements:
+    get:
+      summary: Get dietary requirements
+      description: Retrieves a list of dietary requirements
+      responses:
+        '200':
+          description: List of dietary requirements
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IDNamePair'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /foodpreferences/cuisines:
+    get:
+      summary: Get cuisines
+      description: Retrieves a list of cuisines
+      responses:
+        '200':
+          description: List of cuisines
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IDNamePair'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /foodpreferences/allergies:
+    get:
+      summary: Get allergies
+      description: Retrieves a list of allergies
+      responses:
+        '200':
+          description: List of allergies
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IDNamePair'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /foodpreferences/foodtypes:
+    get:
+      summary: Get food types
+      description: Retrieves a list of food types
+      responses:
+        '200':
+          description: List of food types
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IDNamePair'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /foodpreferences/cookingmethods:
+    get:
+      summary: Get cooking methods
+      description: Retrieves a list of cooking methods
+      responses:
+        '200':
+          description: List of cooking methods
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IDNamePair'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /foodpreferences/spicelevels:
+    get:
+      summary: Get spice levels
+      description: Retrieves a list of spice levels
+      responses:
+        '200':
+          description: List of spice levels
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IDNamePair'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 components:
   schemas:
     UsernamePassword:
@@ -139,6 +288,27 @@ components:
         - name
         - email
         - message
+    IDNamePair:
+      type: object
+      properties:
+        id:
+          type: string
+          example: 1
+        name:
+          type: string
+          example: Vegetarian
+    Appointment:
+      type: object
+      properties:
+        userId:
+          type: integer
+        date:
+          type: string
+          format: date-time
+        time:
+          type: string
+        description:
+          type: string
     SuccessResponse:
       type: object
       properties:
