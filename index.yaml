@@ -145,7 +145,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-  /foodpreferences/dietaryrequirements:
+  /fooddata/dietaryrequirements:
     get:
       summary: Get dietary requirements
       description: Retrieves a list of dietary requirements
@@ -162,7 +162,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-  /foodpreferences/cuisines:
+  /fooddata/cuisines:
     get:
       summary: Get cuisines
       description: Retrieves a list of cuisines
@@ -179,7 +179,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-  /foodpreferences/allergies:
+  /fooddata/allergies:
     get:
       summary: Get allergies
       description: Retrieves a list of allergies
@@ -196,7 +196,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-  /foodpreferences/foodtypes:
+  /fooddata/foodtypes:
     get:
       summary: Get food types
       description: Retrieves a list of food types
@@ -213,7 +213,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-  /foodpreferences/cookingmethods:
+  /fooddata/cookingmethods:
     get:
       summary: Get cooking methods
       description: Retrieves a list of cooking methods
@@ -230,7 +230,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-  /foodpreferences/spicelevels:
+  /fooddata/spicelevels:
     get:
       summary: Get spice levels
       description: Retrieves a list of spice levels
