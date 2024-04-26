@@ -1,6 +1,6 @@
 const supabase = require('../dbConnection.js');
 
-async function createRecipe(username, ingredient_category, ingredient_name, ingredient_quantity,
+async function createRecipe(username, ingredient_id, ingredient_quantity,
     recipe_name, cuisine, total_servings, preparation_time, instuctions) {
 
     recipe = {
@@ -9,10 +9,8 @@ async function createRecipe(username, ingredient_category, ingredient_name, ingr
         "cuisine": cuisine,
         "total_servings": total_servings,
         "preparation_time": preparation_time,
-        "ingredient_category": ingredient_category,
-        "ingredient_name": ingredient_name,
+        "ingredient_id":ingredient_id,
         "ingredient_quantity": ingredient_quantity,
-        "instuctions": instuctions
     };
 
     let calories = 0;
@@ -26,16 +24,20 @@ async function createRecipe(username, ingredient_category, ingredient_name, ingr
     let vitamin_d = 0.0;
     let sodium = 0.0;
     let sugar = 0.0;
+    let ingredient_category = [];
+    let ingredient_name = [];
 
     try {
         let { data, error } = await supabase
             .from('ingredients')
             .select('*')
-            .in('ingredient_name', ingredient_name)
+            .in('id', ingredient_id)
 
-        for (let i = 0; i < ingredient_name.length; i++) {
+        for (let i = 0; i < ingredient_id.length; i++) {
             for (let j = 0; j < data.length; j++) {
-                if (data[j].ingredient_name === ingredient_name[i]) {
+                if (data[j].id === ingredient_id[i]) {
+                    ingredient_name.push(data[j].ingredient_name)
+                    ingredient_category.push(data[j].ingredient_category)
                     calories = calories + data[j].calories / 100 * ingredient_quantity[i]
                     fat = fat + data[j].fat / 100 * ingredient_quantity[i]
                     carbohydrates = carbohydrates + data[j].carbohydrates / 100 * ingredient_quantity[i]
@@ -51,6 +53,9 @@ async function createRecipe(username, ingredient_category, ingredient_name, ingr
             }
         }
 
+        recipe.ingredient_name = ingredient_name;
+        recipe.ingredient_category = ingredient_category;
+        recipe.instuctions = instuctions;
         recipe.calories = calories;
         recipe.fat = fat;
         recipe.carbohydrates = carbohydrates;
