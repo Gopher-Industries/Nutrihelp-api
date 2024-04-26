@@ -26,15 +26,12 @@ const login = async (req, res) => {
         if (user.mfa_enabled) {
             let token = Math.floor(100000 + Math.random() * 900000);
 
-            addMfaToken(user.user_id, token);
+            await addMfaToken(user.user_id, token);
 
             await sendEmail(user);
             return res.status(200).json({ message: 'An MFA Token has been sent to your email address', token: token });
             //Create and Send out MFA Token
         }
-
-        
-
         const token = jwt.sign({ userId: user.user_id }, process.env.JWT_TOKEN, { expiresIn: '1h' });
 
         return res.status(200).json({ token });
