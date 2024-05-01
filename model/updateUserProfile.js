@@ -12,6 +12,7 @@ async function updateUser(username, first_name, last_name, email) {
       .from('users')
       .update(attributes)  // e.g { email: "sample@email.com" }
       .eq('username', username)
+      .select('user_id,username,first_name,last_name,email,mfa_enabled')
     return data
   } catch (error) {
       throw error;

@@ -1,19 +1,36 @@
-let updateUserProfile = require('../model/updateUserProfile.js')
+let updateUser = require('../model/updateUserProfile.js')
+let getUser = require('../model/getUserProfile.js')
 
-const userProfile = async (req, res) => {
+const updateUserProfile = async (req, res) => {
   try {
     const { username, first_name, last_name, email } = req.body;
     if (!username) {
       return res.status(400).send('Username is required');
-    }    
-    
-    await updateUserProfile(username, first_name, last_name, email )
+    }
 
-    res.status(200).json({ message: 'Data received successfully!' });
+    const user_profile = await updateUser(username, first_name, last_name, email)
+
+    res.status(200).json(user_profile);
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Internal server error' });
   }
 };
 
-module.exports = { userProfile };
+const getUserProfile = async (req, res) => {
+  try {
+    const { username } = req.body;
+    if (!username) {
+      return res.status(400).send('Username is required');
+    }
+
+    const userprofile = await getUser(username);
+
+    res.status(200).json(userprofile);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+module.exports = { updateUserProfile, getUserProfile };
