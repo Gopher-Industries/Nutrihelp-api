@@ -2,7 +2,7 @@
 {
  "user_id":15,
  "recipe_name":"Tomato pesto chicken pasta",
- "cuisine":"Italian",
+ "cuisine_id":3,
  "total_servings":3,
  "preparation_time":45,
  "ingredient_id":[2,3,4,5,6,7,8],

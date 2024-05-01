@@ -1,12 +1,12 @@
 const supabase = require('../dbConnection.js');
 
 async function createRecipe(user_id, ingredient_id, ingredient_quantity,
-    recipe_name, cuisine, total_servings, preparation_time, instuctions) {
+    recipe_name, cuisine_id, total_servings, preparation_time, instuctions) {
 
     recipe = {
         "user_id": user_id,
         "recipe_name": recipe_name,
-        "cuisine": cuisine,
+        "cuisine_id": cuisine_id,
         "total_servings": total_servings,
         "preparation_time": preparation_time,
         "ingredient_id":ingredient_id,
