@@ -29,8 +29,8 @@ const login = async (req, res) => {
             await addMfaToken(user.user_id, token);
 
             await sendEmail(user, token);
-            return res.status(200).json({ message: 'An MFA Token has been sent to your email address', token: token });
-            //Create and Send out MFA Token
+            return res.status(202).json({ message: 'An MFA Token has been sent to your email address' });
+            
         }
         const token = jwt.sign({ userId: user.user_id }, process.env.JWT_TOKEN, { expiresIn: '1h' });
 
@@ -78,8 +78,8 @@ async function sendEmail(user, token) {
     try {
         // Define the email content
         const msg = {
-        to: user.username, // Replace with recipient's email
-        from: 'estudley@deakin.edu.au', // Replace with sender's email
+        to: user.username,
+        from: 'estudley@deakin.edu.au',
         subject: 'Nutrihelp login Token',
         text: `Your token to log in is ${token}`,
         html: `Your token to log in is ${token}`,
