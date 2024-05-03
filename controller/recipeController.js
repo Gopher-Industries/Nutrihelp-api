@@ -3,16 +3,16 @@ let getUserRecipes = require('../model/getUserRecipes.js');
 
 const createAndSaveRecipe = async (req, res) => {
     const { user_id, ingredient_id, ingredient_quantity,
-        recipe_name, cuisine_id, total_servings, preparation_time, instuctions } = req.body;
+        recipe_name, cuisine_id, total_servings, preparation_time, instructions } = req.body;
 
     try {
         if (!user_id || !ingredient_id || !ingredient_quantity ||
-            !recipe_name || !cuisine_id || !total_servings || !preparation_time || !instuctions) {
+            !recipe_name || !cuisine_id || !total_servings || !preparation_time || !instructions) {
             return res.status(400).json({ error: 'Recipe parameters are missed', statusCode: 400 });
         }
 
         const recipe = await createRecipe.createRecipe(user_id, ingredient_id, ingredient_quantity,
-            recipe_name, cuisine_id, total_servings, preparation_time, instuctions);
+            recipe_name, cuisine_id, total_servings, preparation_time, instructions);
 
         let savedData = await createRecipe.saveRecipe(recipe);
         await createRecipe.saveRecipeRelation(recipe, savedData[0].id)

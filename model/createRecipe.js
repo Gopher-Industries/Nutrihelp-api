@@ -1,7 +1,7 @@
 const supabase = require('../dbConnection.js');
 
 async function createRecipe(user_id, ingredient_id, ingredient_quantity,
-    recipe_name, cuisine_id, total_servings, preparation_time, instuctions) {
+    recipe_name, cuisine_id, total_servings, preparation_time, instructions) {
 
     recipe = {
         "user_id": user_id,
@@ -51,7 +51,7 @@ async function createRecipe(user_id, ingredient_id, ingredient_quantity,
             }
         }
 
-        recipe.instuctions = instuctions;
+        recipe.instructions = instructions;
         recipe.calories = calories;
         recipe.fat = fat;
         recipe.carbohydrates = carbohydrates;
@@ -103,7 +103,7 @@ async function saveRecipeRelation(recipe, savedDataId) {
             .insert(insert_object)
             .select()
             return data
-            
+
     } catch (error) {
         throw error;
     }
