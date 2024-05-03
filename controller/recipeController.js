@@ -1,5 +1,6 @@
 let createRecipe = require('../model/createRecipe.js');
 let getUserRecipes = require('../model/getUserRecipes.js');
+let deleteUserRecipes = require('../model/deleteUserRecipes.js');
 
 const createAndSaveRecipe = async (req, res) => {
     const { user_id, ingredient_id, ingredient_quantity,
@@ -99,4 +100,21 @@ const getRecipes = async (req, res) => {
     }
 };
 
-module.exports = { createAndSaveRecipe, getRecipes };
+const deleteRecipe = async (req, res) => {
+    const { user_id, recipe_id } = req.body;
+
+    try {
+        if (!user_id || !recipe_id) {
+            return res.status(400).json({ error: 'User Id or Recipe Id is required', statusCode: 400 });
+        }
+
+        await deleteUserRecipes.deleteUserRecipes(user_id, recipe_id)
+
+        return res.status(200).json({ message: 'success', statusCode: 204 });
+    } catch (error) {
+        console.error('Error logging in:', error);
+        return res.status(500).json({ error: 'Internal server error', statusCode: 500 });
+    }
+};
+
+module.exports = { createAndSaveRecipe, getRecipes, deleteRecipe };
