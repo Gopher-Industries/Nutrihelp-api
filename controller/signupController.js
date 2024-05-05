@@ -4,11 +4,11 @@ let addUser = require('../model/addUser.js')
 
 
 const signup = async (req, res) => {
-    const { username, password } = req.body;
+    const { username, password, contact_number } = req.body;
 
     try {
-        if (!username || !password) {
-            return res.status(400).json({ error: 'Username and password are required' });
+        if (!username || !password || !contact_number) {
+            return res.status(400).json({ error: 'Username, password, and contact number are required' });
         }
 
         const userExists = await getUser(username);
@@ -19,7 +19,7 @@ const signup = async (req, res) => {
 
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        await addUser(username, hashedPassword, true);
+        await addUser(username, hashedPassword, contact_number)
 
         return res.status(201).json({ message: 'User created successfully' });
     } catch (error) {
