@@ -1,7 +1,6 @@
 const supabase = require('../dbConnection.js');
 
 async function updateUser(username, first_name, last_name, email, contact_number) {
-  console.log(first_name, last_name, email, contact_number);
   let attributes = {};
   attributes['first_name'] = first_name || undefined;
   attributes['last_name'] = last_name || undefined;

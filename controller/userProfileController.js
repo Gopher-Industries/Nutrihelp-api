@@ -3,12 +3,17 @@ let getUser = require('../model/getUserProfile.js')
 
 const updateUserProfile = async (req, res) => {
   try {
-    const { username, first_name, last_name, email, contact_number } = req.body;
-    if (!username) {
+    if (!req.body.username) {
       return res.status(400).send('Username is required');
     }
 
-    const user_profile = await updateUser(username, first_name, last_name, email, contact_number)
+    const user_profile = await updateUser(
+      req.body.username, 
+      req.body.first_name, 
+      req.body.last_name, 
+      req.body.email, 
+      req.body.contact_number
+    )
 
     res.status(200).json(user_profile);
   } catch (error) {
