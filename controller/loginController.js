@@ -79,7 +79,7 @@ async function sendEmail(user, token) {
         // Define the email content
         const msg = {
         to: user.username,
-        from: 'estudley@deakin.edu.au',
+        from: "nutrihelpnoreply@gmail.com",
         subject: 'Nutrihelp login Token',
         text: `Your token to log in is ${token}`,
         html: `Your token to log in is ${token}`,
