@@ -6,4 +6,5 @@ module.exports = app => {
     app.use("/api/recipe", require('./recipe'));
     app.use("/api/appointments", require('./appointment'));
     app.use("/api/fooddata", require('./fooddata'));
+    app.use("/api/user/preferences", require('./userPreferences'));
 };

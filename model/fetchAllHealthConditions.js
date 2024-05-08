@@ -1,9 +1,9 @@
 const supabase = require('../dbConnection.js');
 
-async function fetchAllCuisines() {
+async function fetchAllHealthConditions() {
     try {
         let { data, error } = await supabase
-            .from('cuisines')
+            .from('health_conditions')
             .select('*');
 
         if (error) {
@@ -16,4 +16,4 @@ async function fetchAllCuisines() {
     }
 }
 
-module.exports = fetchAllCuisines;
+module.exports = fetchAllHealthConditions;

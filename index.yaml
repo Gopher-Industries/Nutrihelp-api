@@ -3,7 +3,7 @@ info:
   title: NutriHelp API
   version: 1.0.0
 servers:
-  - url: http://localhost:3000/api
+  - url: http://localhost/api
 paths:
   /contactus:
     post:
@@ -196,13 +196,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-  /fooddata/foodtypes:
+  /fooddata/ingredients:
     get:
-      summary: Get food types
-      description: Retrieves a list of food types
+      summary: Get ingredients
+      description: Retrieves a list of ingredients (name and ID only)
       responses:
         '200':
-          description: List of food types
+          description: List of ingredients
           content:
             application/json:
               schema:
@@ -247,7 +247,184 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /fooddata/healthconditions:
+    get:
+      summary: Get health conditions
+      description: Retrieves a list of health conditions
+      responses:
+        '200':
+          description: List of health conditions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IDNamePair'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /user/preferences:
+    get:
+      summary: Get user preferences
+      description: Retrieves a list of user preferences
+      security:
+        - BearerAuth: [ ]
+      responses:
+        '200':
+          description: List of user preferences
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  dietary_requirements:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/IDNamePair'
+                  allergies:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/IDNamePair'
+                  cuisines:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/IDNamePair'
+                  dislikes:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/IDNamePair'
+                  health_conditions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/IDNamePair'
+                  spice_levels:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/IDNamePair'
+                  cooking_methods:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/IDNamePair'
+              examples:
+                userPreferences:
+                  value:
+                    dietary_requirements:
+                      - id: 1
+                        name: "Vegetarian"
+                    allergies:
+                      - id: 1
+                        name: "Peanuts"
+                    cuisines:
+                      - id: 2
+                        name: "French"
+                      - id: 5
+                        name: "Italian"
+                    dislikes:
+                      - id: 4
+                        name: "Chicken Thigh Fillets"
+                    health_conditions: [ ]
+                    spice_levels:
+                      - id: 1
+                        name: "Mild"
+                      - id: 2
+                        name: "Medium"
+                    cooking_methods:
+                      - id: 1
+                        name: "Bake"
+                      - id: 4
+                        name: "Grill"
+        '400':
+          description: User ID is required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: User preferences not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    put:
+      summary: Update user preferences
+      description: Updates the user's preferences
+      security:
+        - BearerAuth: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                dietary_requirements:
+                  type: array
+                  items:
+                    type: integer
+                allergies:
+                  type: array
+                  items:
+                    type: integer
+                cuisines:
+                  type: array
+                  items:
+                    type: integer
+                dislikes:
+                  type: array
+                  items:
+                    type: integer
+                health_conditions:
+                  type: array
+                  items:
+                    type: integer
+                spice_levels:
+                  type: array
+                  items:
+                    type: integer
+                cooking_methods:
+                  type: array
+                  items:
+                    type: integer
+            example:
+              dietary_requirements: [ 1, 2, 4 ]
+              allergies: [ 1 ]
+              cuisines: [ 2, 5 ]
+              dislikes: [ 4 ]
+              health_conditions: [ ]
+              spice_levels: [ 1, 2 ]
+              cooking_methods: [ 1, 4, 5 ]
+      responses:
+        '204':
+          description: User preferences updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          description: User IS is required or Request body is required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
   schemas:
     UsernamePassword:
       type: object
