@@ -1,7 +1,7 @@
 const supabase = require('../dbConnection.js');
 
 async function createRecipe(user_id, ingredient_id, ingredient_quantity,
-    recipe_name, cuisine_id, total_servings, preparation_time, instuctions) {
+    recipe_name, cuisine_id, total_servings, preparation_time, instructions) {
 
     recipe = {
         "user_id": user_id,
@@ -9,8 +9,10 @@ async function createRecipe(user_id, ingredient_id, ingredient_quantity,
         "cuisine_id": cuisine_id,
         "total_servings": total_servings,
         "preparation_time": preparation_time,
-        "ingredient_id":ingredient_id,
-        "ingredient_quantity": ingredient_quantity,
+        "ingredients": {
+            "id": ingredient_id,
+            "quantity": ingredient_quantity
+        }
     };
 
     let calories = 0;
@@ -24,8 +26,6 @@ async function createRecipe(user_id, ingredient_id, ingredient_quantity,
     let vitamin_d = 0.0;
     let sodium = 0.0;
     let sugar = 0.0;
-    let ingredient_category = [];
-    let ingredient_name = [];
 
     try {
         let { data, error } = await supabase
@@ -36,8 +36,6 @@ async function createRecipe(user_id, ingredient_id, ingredient_quantity,
         for (let i = 0; i < ingredient_id.length; i++) {
             for (let j = 0; j < data.length; j++) {
                 if (data[j].id === ingredient_id[i]) {
-                    ingredient_name.push(data[j].ingredient_name)
-                    ingredient_category.push(data[j].ingredient_category)
                     calories = calories + data[j].calories / 100 * ingredient_quantity[i]
                     fat = fat + data[j].fat / 100 * ingredient_quantity[i]
                     carbohydrates = carbohydrates + data[j].carbohydrates / 100 * ingredient_quantity[i]
@@ -53,9 +51,7 @@ async function createRecipe(user_id, ingredient_id, ingredient_quantity,
             }
         }
 
-        recipe.ingredient_name = ingredient_name;
-        recipe.ingredient_category = ingredient_category;
-        recipe.instuctions = instuctions;
+        recipe.instructions = instructions;
         recipe.calories = calories;
         recipe.fat = fat;
         recipe.carbohydrates = carbohydrates;
@@ -68,8 +64,6 @@ async function createRecipe(user_id, ingredient_id, ingredient_quantity,
         recipe.sodium = sodium;
         recipe.sugar = sugar;
 
-        console.log(recipe)
-
         return recipe
 
     } catch (error) {
@@ -78,4 +72,40 @@ async function createRecipe(user_id, ingredient_id, ingredient_quantity,
 
 }
 
-module.exports = createRecipe;
+async function saveRecipe(recipe) {
+
+    try {
+        let { data, error } = await supabase
+            .from('recipes')
+            .insert(recipe)
+            .select()
+        return data
+
+    } catch (error) {
+        throw error;
+    }
+}
+
+async function saveRecipeRelation(recipe, savedDataId) {
+
+    try {
+        insert_object = [];
+        for (let i = 0; i < recipe.ingredients.id.length; i++) {
+            insert_object.push({
+                "ingredient_id": recipe.ingredients.id[i],
+                "recipe_id": savedDataId,
+                "user_id": recipe.user_id,
+                "cuisine_id": recipe.cuisine_id
+            })
+        }
+        let { data, error } = await supabase
+            .from('recipe_ingredient')
+            .insert(insert_object)
+            .select()
+            return data
+
+    } catch (error) {
+        throw error;
+    }
+}
+module.exports = { createRecipe, saveRecipe, saveRecipeRelation };
