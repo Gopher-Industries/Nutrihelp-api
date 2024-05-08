@@ -105,7 +105,7 @@ const deleteRecipe = async (req, res) => {
 
     try {
         if (!user_id || !recipe_id) {
-            return res.status(400).json({ error: 'User Id or Recipe Id is required', statusCode: 400 });
+            return res.status(400).json({ error: 'User Id or Recipe Id is required', statusCode: 404 });
         }
 
         await deleteUserRecipes.deleteUserRecipes(user_id, recipe_id)
