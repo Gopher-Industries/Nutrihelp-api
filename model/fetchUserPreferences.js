@@ -22,7 +22,7 @@ async function fetchUserPreferences(userId) {
 
         const { data: dislikes, error: dError } = await supabase
             .from('user_dislikes')
-            .select('...dislike_id(id, name:ingredient_name)')
+            .select('...dislike_id(id, name)')
             .eq('user_id', userId);
         if (dError) throw dError;
 
