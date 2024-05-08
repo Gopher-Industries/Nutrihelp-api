@@ -1,9 +1,10 @@
 const fetchAllDietaryRequirements = require("../model/fetchAllDietaryRequirements.js");
-const fetchAllCuisines = require("../model/fetchAllCuisines.js");
-const fetchAllAllergies = require("../model/fetchAllAllergies.js");
-const fetchAllFoodTypes = require("../model/fetchAllFoodTypes.js");
-const fetchAllCookingMethods = require("../model/fetchAllCookingMethods.js");
-const fetchAllSpiceLevels = require("../model/fetchAllSpiceLevels.js");
+const fetchAllCuisines            = require("../model/fetchAllCuisines.js");
+const fetchAllAllergies           = require("../model/fetchAllAllergies.js");
+const fetchAllIngredients         = require("../model/fetchAllIngredients.js");
+const fetchAllCookingMethods      = require("../model/fetchAllCookingMethods.js");
+const fetchAllSpiceLevels         = require("../model/fetchAllSpiceLevels.js");
+const fetchAllHealthConditions = require("../model/fetchAllHealthConditions");
 
 const getAllDietaryRequirements = async (req, res) => {
     try {
@@ -35,9 +36,9 @@ const getAllAllergies = async (req, res) => {
     }
 };
 
-const getAllFoodTypes = async (req, res) => {
+const getAllIngredients = async (req, res) => {
     try {
-        const foodTypes = await fetchAllFoodTypes();
+        const foodTypes = await fetchAllIngredients();
         return res.status(200).json(foodTypes);
     } catch (error) {
         console.error(error);
@@ -65,11 +66,22 @@ const getAllSpiceLevels = async (req, res) => {
     }
 };
 
+const getAllHealthConditions = async (req, res) => {
+    try {
+        const healthConditions = await fetchAllHealthConditions();
+        return res.status(200).json(healthConditions);
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({error: "Internal server error"});
+    }
+};
+
 module.exports = {
     getAllDietaryRequirements,
     getAllCuisines,
     getAllAllergies,
-    getAllFoodTypes,
+    getAllIngredients,
     getAllCookingMethods,
-    getAllSpiceLevels
+    getAllSpiceLevels,
+    getAllHealthConditions
 };

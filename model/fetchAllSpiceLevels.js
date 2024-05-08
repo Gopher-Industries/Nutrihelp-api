@@ -2,23 +2,15 @@ const supabase = require('../dbConnection.js');
 
 async function fetchAllSpiceLevels() {
     try {
-        // TODO query database here when implemented
-        let dummyData = [
-            {
-                "id": 1,
-                "name": "Mild"
-            },
-            {
-                "id": 2,
-                "name": "Medium"
-            },
-            {
-                "id": 3,
-                "name": "Hot"
-            }
-        ]
+        let { data, error } = await supabase
+            .from('spice_levels')
+            .select('*');
 
-        return dummyData;
+        if (error) {
+            throw error;
+        }
+
+        return data;
     } catch (error) {
         throw error;
     }
