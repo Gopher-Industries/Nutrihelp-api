@@ -4,7 +4,7 @@ async function fetchAllIngredients() {
     try {
         let { data, error } = await supabase
             .from('ingredients')
-            .select('id, name');
+            .select('id, name, category');
 
         if (error) {
             throw error;
