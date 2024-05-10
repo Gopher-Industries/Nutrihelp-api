@@ -15,7 +15,7 @@ const predictImage = (req, res) => {
     }
 
     // Execute Python script using child_process.spawn
-    const pythonProcess = spawn('python', ['model/prediction.py']);
+    const pythonProcess = spawn('python', ['model/imageClassification.py']);
 
     // Pass image data to Python script via stdin
     pythonProcess.stdin.write(imageData);
