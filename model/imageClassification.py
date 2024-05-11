@@ -1,11 +1,15 @@
 #!/usr/bin/env python3.10
 #coding: utf-8
 
-## IMPORTANT: MAKE SURE TO DONLOAD THE MODEL FROM https://drive.google.com/drive/folddirers/1rnW4RQY1RkY97ipSTpMgX9LSAFhR02Ej?usp=sharing BEFORE RUNNING THE CODE. DOWNLOAD DATASET FROM https://www.kaggle.com/datasets/moltean/fruits FOR REFERENCES
-import sys
-import os
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+#------------------------PLEASE READ INSTRUCTIONS BELOW----------------
 
+## IMPORTANT: MAKE SURE TO DONLOAD THE MODEL FROM https://drive.google.com/file/d/1B9igX3eR1PdxGOmoa_teZnNjYf5guMuc/view?usp=drivesdk  BEFORE RUNNING THE CODE.
+## DOWNLOAD DATASET FROM https://www.kaggle.com/datasets/moltean/fruits FOR REFERENCES
+## Downgrade python to python3.10
+## you might have to pip install matplotlib, pandas, seaborn, numpy, keras, scikit-learn
+## pip install tensorflow<11 (downgrade to a version lower than 11)
+
+import sys
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sn
@@ -21,6 +25,9 @@ from sklearn.model_selection import train_test_split
 from tensorflow.keras.models import load_model
 from PIL import Image
 import io
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+
 # Load the pre-trained model
 #model = load_model('modeltt.h5')
 

@@ -1,5 +1,5 @@
 const express = require('express');
-const predictionController = require('../controller/predictionController.js');
+const predictionController = require('../controller/imageClassificationController.js');
 const router = express.Router();
 const multer = require('multer');
 const fs = require('fs');
