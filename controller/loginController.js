@@ -34,7 +34,7 @@ const login = async (req, res) => {
         }
         const token = jwt.sign({ userId: user.user_id }, process.env.JWT_TOKEN, { expiresIn: '1h' });
 
-        return res.status(200).json({ token });
+        return res.status(200).json({ user, token });
     } catch (error) {
         console.error('Error logging in:', error);
         return res.status(500).json({ error: 'Internal server error' });
@@ -66,7 +66,7 @@ const loginMfa = async (req, res) => {
        
         const token = jwt.sign({ userId: user.user_id }, process.env.JWT_TOKEN, { expiresIn: '1h' });
 
-        return res.status(200).json({ token });
+        return res.status(200).json({ user, token });
     } catch (error) {
         console.error('Error logging in:', error);
         return res.status(500).json({ error: 'Internal server error' });
