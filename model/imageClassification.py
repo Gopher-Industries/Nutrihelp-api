@@ -8,6 +8,8 @@
 ## Downgrade python to python3.10
 ## you might have to pip install matplotlib, pandas, seaborn, numpy, keras, scikit-learn
 ## pip install tensorflow<11 (downgrade to a version lower than 11)
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 import sys
 import matplotlib.pyplot as plt
@@ -25,8 +27,7 @@ from sklearn.model_selection import train_test_split
 from tensorflow.keras.models import load_model
 from PIL import Image
 import io
-import os
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+
 
 # Load the pre-trained model
 #model = load_model('modeltt.h5')
