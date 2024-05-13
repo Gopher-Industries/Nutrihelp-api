@@ -37,9 +37,10 @@ const getMealPlan = async (req, res) => {
 
     let meal_plan = await get(id, user_id);
 
-    if (plan){
-      return res.status(200).json({ message: 'success', statusCode: 200, meal_plan: meal_plan });
+    if (meal_plan){
+      return res.status(200).json({ meal_plan: meal_plan });
     }
+     return res.status(403).send({ error: 'Meal Plan not found.' });
    
   } catch (error) {
     console.error({ error: 'error' });
