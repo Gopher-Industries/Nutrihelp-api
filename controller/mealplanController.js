@@ -14,10 +14,9 @@ const addMealPlan = async (req, res) => {
     if (!user_id) {
       return res.status(400).send({ error: 'UserId is required' });
     }
-    const parsedRecipeIds = JSON.parse(recipe_ids);
-    await add(user_id, parsedRecipeIds, meal_type);
+    let meal_plan = await add(user_id, {recipe_ids: recipe_ids}, meal_type);
 
-    return res.status(201).json({ message: 'success', statusCode: 201 });
+    return res.status(201).json({ message: 'success', statusCode: 201, meal_plan: meal_plan });
 
   } catch (error) {
     console.error({ error: 'error' });
@@ -40,7 +39,7 @@ const getMealPlan = async (req, res) => {
     if (meal_plan){
       return res.status(200).json({ meal_plan: meal_plan });
     }
-     return res.status(403).send({ error: 'Meal Plan not found.' });
+     return res.status(404).send({ error: 'Meal Plan not found.' });
    
   } catch (error) {
     console.error({ error: 'error' });

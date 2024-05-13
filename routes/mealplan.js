@@ -11,7 +11,7 @@ router.route('/').get(function(req,res) {
 });
 
 router.route('/').delete(function(req,res) {
-    controller.delete(req, res);
+    controller.deleteMealPlan(req, res);
 });
 
 module.exports = router;
