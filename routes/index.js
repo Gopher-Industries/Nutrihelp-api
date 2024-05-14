@@ -9,4 +9,5 @@ module.exports = app => {
     app.use("/api/userprofile", require('./userprofile'));
     app.use("/api/fooddata", require('./fooddata'));
     app.use("/api/user/preferences", require('./userPreferences'));
+    app.use("/api/mealplan", require('./mealplan'));
 };
