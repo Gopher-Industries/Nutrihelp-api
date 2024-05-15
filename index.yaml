@@ -5,99 +5,6 @@ info:
 servers:
   - url: http://localhost/api
 paths:
-  /contactus:
-    post:
-      summary: Contact us
-      description: Receives a contact request
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ContactRequest'
-      responses:
-        '201':
-          description: Data received successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SuccessResponse'
-        '400':
-          description: Bad request - missing required fields
-          content:
-            text/plain:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-  /signup:
-    post:
-      summary: User signup
-      description: Registers a new user with a username and password
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/UsernamePassword'
-      responses:
-        '201':
-          description: User created successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SuccessResponse'
-        '400':
-          description: Bad request - either missing username/password or user already exists
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-  /login:
-    post:
-      summary: User login
-      description: Authenticates user and returns a JWT token
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/UsernamePassword'
-      responses:
-        '200':
-          description: Login successful, JWT token returned
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/JWTToken'
-        '400':
-          description: Username and password are required
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '401':
-          description: Invalid username or password
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
   /appointments:
     post:
       summary: Save appointment data
@@ -139,6 +46,35 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Appointment'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /contactus:
+    post:
+      summary: Contact us
+      description: Receives a contact request
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContactRequest'
+      responses:
+        '201':
+          description: Data received successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          description: Bad request - missing required fields
+          content:
+            text/plain:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '500':
           description: Internal server error
           content:
@@ -258,6 +194,374 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/IDNamePair'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/imageClassification:
+    post:
+      summary: Image classification
+      description: Receives an image and classifies it
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                image:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Image classified successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  prediction:
+                    type: string
+                    example: "Avocado:~160 calories per 100 grams"
+        '400':
+          description: Bad request - missing image
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /login:
+    post:
+      summary: User login
+      description: Authenticates user and returns a JWT token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful, JWT token returned
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    $ref: '#/components/schemas/JWTResponse'
+                  user:
+                    $ref: '#/components/schemas/UserResponse'
+        '400':
+          description: Username and password are required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Invalid username or password
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /login/mfa:
+    post:
+      summary: Multi-factor authentication
+      description: Authenticates user with multi-factor authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginWithMFARequest'
+      responses:
+        '200':
+          description: MFA successful, JWT token returned
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    $ref: '#/components/schemas/JWTResponse'
+                  user:
+                    $ref: '#/components/schemas/UserResponse'
+        '400':
+          description: Username and password are required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Invalid username or password
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /mealplan:
+    get:
+      summary: Get meal plan
+      description: Retrieves a meal plan for the user
+      # TODO should not use requestBody for GET
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: integer
+                user_id:
+                  type: integer
+      responses:
+        '200':
+          description: Meal plan fetched successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateMealPlanRequest'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      summary: Save meal plan
+      description: Receives a meal plan and saves it
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MealPlanResponse'
+      responses:
+        '201':
+          description: Meal plan saved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          description: Bad request - missing required fields
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      summary: Delete meal plan
+      description: Deletes the user's meal plan
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: integer
+                user_id:
+                  type: integer
+      responses:
+        '204':
+          description: Meal plan deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          description: Bad request - missing required fields
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /recipe:
+    get:
+      summary: Get all recipes
+      description: Retrieves recipes for a given user ID
+      # TODO should not use requestBody for GET
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                user_id:
+                  type: integer
+      responses:
+        '200':
+          description: Recipe fetched successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  recipes:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                        created_at:
+                          type: string
+                        recipe_name:
+                          type: string
+                        cuisine_id:
+                          type: integer
+                        total_servings:
+                          type: integer
+                        preparation_time:
+                          type: integer
+                        ingredients:
+                          type: object
+                          properties:
+                            id:
+                              type: array
+                              items:
+                                type: integer
+                            quantity:
+                              type: array
+                              items:
+                                type: integer
+                            category:
+                              type: array
+                              items:
+                                type: string
+                            name:
+                              type: array
+                              items:
+                                type: string
+                        instructions:
+                          type: string
+                        calories:
+                          type: number
+                        fat:
+                          type: number
+                        carbohydrates:
+                          type: number
+                        protein:
+                          type: number
+                        fiber:
+                          type: number
+                        vitamin_a:
+                          type: number
+                        vitamin_b:
+                          type: number
+                        vitamin_c:
+                          type: number
+                        vitamin_d:
+                          type: number
+                        sodium:
+                          type: number
+                        sugar:
+                          type: number
+                        cuisine_name:
+                          type: string
+
+        '400':
+          description: User ID is required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Recipes, ingredients, or cuisines not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /signup:
+    post:
+      summary: User signup
+      description: Registers a new user with a username and password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignupRequest'
+      responses:
+        '201':
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          description: Bad request - either missing username/password or user already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /userfeedback:
+    post:
+      summary: User feedback
+      description: Receives user feedback
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FeedbackRequest'
+      responses:
+        '201':
+          description: Feedback received successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          description: Bad request - missing required fields
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '500':
           description: Internal server error
           content:
@@ -419,6 +723,68 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /userprofile:
+    get:
+      summary: Get user profile
+      description: Retrieves the user's profile
+      # TODO should not use requestBody for GET
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+      responses:
+        '200':
+          description: User profile fetched successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfileResponse'
+        '400':
+          description: Username is required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    put:
+      summary: Update user profile
+      description: Updates the user's profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserUpdateRequest'
+      responses:
+        '204':
+          description: User profile updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          description: User ID is required or Request body is required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
 components:
   securitySchemes:
     BearerAuth:
@@ -426,7 +792,7 @@ components:
       scheme: bearer
       bearerFormat: JWT
   schemas:
-    UsernamePassword:
+    LoginRequest:
       type: object
       properties:
         username:
@@ -434,46 +800,127 @@ components:
           example: user123
         password:
           type: string
-          format: password
-          example: pass123
+          example: test123
       required:
         - username
         - password
-    JWTToken:
+    SignupRequest:
       type: object
       properties:
-        token:
+        username:
           type: string
-          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiIxMjM0NTY3ODkwIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c
+        password:
+          type: string
+        email:
+          type: string
+          format: email
+        contact_number:
+          type: string
+      required:
+        - username
+        - password
+        - email
+        - contact_number
+    LoginWithMFARequest:
+      type: object
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+          format: password
+        mfa_token:
+          type: string
+      required:
+        - username
+        - password
+        - mfa_token
+    UserResponse:
+      type: object
+      properties:
+        user_id:
+          type: integer
+        username:
+          type: string
+        password:
+          type: string
+        mfa_enabled:
+          type: boolean
+    UserUpdateRequest:
+      type: object
+      properties:
+        username:
+          type: string
+        first_name:
+          type: string
+        last_name:
+          type: string
+        email:
+          type: string
+          format: email
+        contact_number:
+          type: string
+    UserProfileResponse:
+      type: object
+      properties:
+        user_id:
+          type: integer
+        username:
+          type: string
+        first_name:
+          type: string
+        last_name:
+          type: string
+        email:
+          type: string
+          format: email
+        contact_number:
+          type: string
+        mfa_enabled:
+          type: boolean
+    JWTResponse:
+      type: string
     ContactRequest:
       type: object
       properties:
         name:
           type: string
-          description: The user's name
-          example: Jane Doe
         email:
           type: string
           format: email
-          description: The user's email address
-          example: jane.doe@example.com
         message:
           type: string
-          description: The user's message
-          example: Hello, I have a question about...
       required:
         - name
         - email
+        - message
+    FeedbackRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        contact_number:
+          type: string
+        email:
+          type: string
+          format: email
+        experience:
+          type: string
+        message:
+          type: string
+      required:
+        - name
+        - contact_number
+        - email
+        - experience
         - message
     IDNamePair:
       type: object
       properties:
         id:
           type: string
-          example: 1
         name:
           type: string
-          example: Vegetarian
     Appointment:
       type: object
       properties:
@@ -491,10 +938,76 @@ components:
       properties:
         message:
           type: string
-          example: Data received successfully!
     ErrorResponse:
       type: object
       properties:
         error:
           type: string
-          example: Internal server error
+    Recipe:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        ingredients:
+          type: array
+          items:
+            type: string
+        cooking_method:
+          type: string
+        cuisine:
+          type: string
+        spice_level:
+          type: string
+        health_condition:
+          type: string
+        dietary_requirement:
+          type: string
+        allergy:
+          type: string
+        dislikes:
+          type: string
+    MealPlanRecipe:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+        details:
+          type: object
+          properties:
+            calories:
+              type: number
+            fats:
+              type: number
+            proteins:
+              type: number
+            vitamins:
+              type: number
+            sodium:
+              type: number
+    CreateMealPlanRequest:
+      type: object
+      properties:
+        id:
+          type: integer
+        meal_type:
+          type: string
+        recipes:
+          type: array
+          items:
+            $ref: '#/components/schemas/MealPlanRecipe'
+    MealPlanResponse:
+      type: object
+      properties:
+        user_id:
+          type: integer
+        meal_type:
+          type: string
+        recipe_ids:
+          type: array
+          items:
+            type: integer
