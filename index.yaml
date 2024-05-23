@@ -656,7 +656,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-    put:
+    post:
       summary: Update user preferences
       description: Updates the user's preferences
       security:
