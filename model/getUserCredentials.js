@@ -1,6 +1,6 @@
 const supabase = require('../dbConnection.js');
 
-async function getUserCredentials(username, password) {
+async function getUserCredentials(username) { //removed password from this, not using it anyway
     try {
         let { data, error } = await supabase
             .from('users')

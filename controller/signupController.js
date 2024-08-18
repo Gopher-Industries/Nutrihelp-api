@@ -13,7 +13,7 @@ const signup = async (req, res) => {
 
         const userExists = await getUser(username);
 
-        if (userExists.username) {
+        if (userExists.length > 0) { //this was not checking the value of userexists correctly, now its checking the length of the array returned
             return res.status(400).json({ error: 'User already exists' });
         }
 
@@ -22,6 +22,7 @@ const signup = async (req, res) => {
         await addUser(username, hashedPassword, true, contact_number)
 
         return res.status(201).json({ message: 'User created successfully' });
+
     } catch (error) {
         console.error('Error creating user:', error);
         return res.status(500).json({ error: 'Internal server error' });
