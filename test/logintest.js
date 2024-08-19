@@ -4,7 +4,7 @@ const chaiHttp = require("chai-http");
 const { expect } = chai;
 chai.use(chaiHttp);
 
-describe("Test No Username/Password Entered", () => {
+describe("Login: Test login - No Username/Password Entered", () => {
     it("should return 400 Username and password are required", (done) => {
         chai.request("http://localhost:80")
             .post("/api/login")
@@ -23,7 +23,7 @@ describe("Test No Username/Password Entered", () => {
     });
 });
 
-describe("Test Invalid Username", () => {
+describe("Login: Test login - Invalid Username", () => {
     it("should return 401 Invalid username", (done) => {
         chai.request("http://localhost:80")
             .post("/api/login")
@@ -42,7 +42,7 @@ describe("Test Invalid Username", () => {
     });
 });
 
-describe("Test Invalid Password", () => {
+describe("Login: Test login - Invalid Password", () => {
     it("should return 401 Invalid password", (done) => {
         chai.request("http://localhost:80")
             .post("/api/login")
@@ -61,7 +61,7 @@ describe("Test Invalid Password", () => {
     });
 });
 
-describe("Test Successful Login No MFA", () => {
+describe("Login: Test login - Successful Login No MFA", () => {
     it("should return 200", (done) => {
         chai.request("http://localhost:80")
             .post("/api/login")

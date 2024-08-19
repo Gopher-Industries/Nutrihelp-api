@@ -5,7 +5,7 @@ const { expect } = chai;
 const deleteAppointment = require("../model/deleteAppointment");
 chai.use(chaiHttp);
 
-describe("Test Required Fields Not Entered", () => {
+describe("Appointment: Test saveAppointment - Required Fields Not Entered", () => {
     it("should return 400, Missing required fields", (done) => {
         chai.request("http://localhost:80")
             .post("/api/appointments")
@@ -21,7 +21,7 @@ describe("Test Required Fields Not Entered", () => {
     });
 });
 
-describe("Test Appointment Saved Successfully", () => {
+describe("Appointment: Test saveAppointment - Appointment Saved Successfully", () => {
     it("should return 201, Appointment saved successfully", (done) => {
         chai.request("http://localhost:80")
             .post("/api/appointments")
@@ -43,7 +43,7 @@ describe("Test Appointment Saved Successfully", () => {
     });
 });
 
-describe("Test Get All Appointments", () => {
+describe("Appointment: Test getAppointments - Success", () => {
     it("should return 200, with an array of appointments", (done) => {
         chai.request("http://localhost:80")
             .get("/api/appointments")

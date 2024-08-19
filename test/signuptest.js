@@ -6,7 +6,7 @@ const getUser = require("../model/getUser");
 const { expect } = chai;
 chai.use(chaiHttp);
 
-describe("Test No Credentials Entered", () => {
+describe("Signup: Test signup - No Credentials Entered", () => {
     it("should return 400, Username, password, email and contact number are required", (done) => {
         chai.request("http://localhost:80")
             .post("/api/signup")
@@ -22,7 +22,7 @@ describe("Test No Credentials Entered", () => {
     });
 });
 
-describe("Test User Already Exists", () => {
+describe("Signup: Test signup - User Already Exists", () => {
     it("should return 400, User already exists", (done) => {
         chai.request("http://localhost:80")
             .post("/api/signup")
@@ -43,7 +43,7 @@ describe("Test User Already Exists", () => {
     });
 });
 
-describe("Test Successful Sign Up", () => {
+describe("Signup: Test signup - Successful Sign Up", () => {
     it("should return 201, User created successfully", (done) => {
         chai.request("http://localhost:80")
             .post("/api/signup")

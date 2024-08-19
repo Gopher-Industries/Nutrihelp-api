@@ -4,7 +4,7 @@ const chaiHttp = require("chai-http");
 const { expect } = chai;
 chai.use(chaiHttp);
 
-describe("Test Name Not Entered", () => {
+describe("Contactus: Test contactus - Name Not Entered", () => {
     it("should return 400, Name is required", (done) => {
         chai.request("http://localhost:80")
             .post("/api/contactus")
@@ -25,7 +25,7 @@ describe("Test Name Not Entered", () => {
     });
 });
 
-describe("Test Email Not Entered", () => {
+describe("Contactus: Test contactus - Email Not Entered", () => {
     it("should return 400, Email is required", (done) => {
         chai.request("http://localhost:80")
             .post("/api/contactus")
@@ -46,7 +46,7 @@ describe("Test Email Not Entered", () => {
     });
 });
 
-describe("Test Subject Not Entered", () => {
+describe("Contactus: Test contactus - Subject Not Entered", () => {
     it("should return 400, Subject is required", (done) => {
         chai.request("http://localhost:80")
             .post("/api/contactus")
@@ -67,7 +67,7 @@ describe("Test Subject Not Entered", () => {
     });
 });
 
-describe("Test Name Not Entered", () => {
+describe("Contactus: Test contactus - Name Not Entered", () => {
     it("should return 400, Message is required", (done) => {
         chai.request("http://localhost:80")
             .post("/api/contactus")
@@ -88,7 +88,7 @@ describe("Test Name Not Entered", () => {
     });
 });
 
-describe("Test Message Sent Successfully", () => {
+describe("Contactus: Test contactus - Message Sent Successfully", () => {
     it("should return 201, Data recieved successfully", (done) => {
         chai.request("http://localhost:80")
             .post("/api/contactus")
