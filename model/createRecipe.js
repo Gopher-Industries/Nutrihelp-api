@@ -110,6 +110,8 @@ async function saveRecipe(recipe) {
 
 async function saveImage(image, recipe_id) {
 	let file_name = `recipe_image_${recipe_id}.png`;
+	if (image === undefined || image === null) return null;
+
 	try {
 		await supabase.storage
 			.from("recipe_image")
