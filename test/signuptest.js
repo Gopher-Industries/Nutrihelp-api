@@ -70,6 +70,5 @@ async function deleteCreatedUserFromDB(username) {
     let user = await getUser(username);
     if (user) {
         deleteUser(user[0].user_id); //becuase get user returns an array, need to set index, because we are only allowing unique users this should be fine
-        console.log("user deleted successfully");
     }
 };
