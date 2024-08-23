@@ -25,7 +25,6 @@ describe("Recipe: Test createAndSaveRecipe - Parameters Are Missing", () => {
     });
 });
 
-//this is not adding data to relation table, not sure why
 describe("Recipe: Test createAndSaveRecipe - Successfully created recipe", () => {
     it("should return 201, Successfully created recipe", (done) => {
         chai.request("http://localhost:80")
@@ -68,7 +67,6 @@ describe("Recipe: Test getRecipes - No UserId Entered", () => {
     });
 });
 
-//this only tests one case, need to also test recipes, ingredients, and cuisines not found
 describe("Recipe: Test getRecipes - No recipes saved to user in database", () => {
     it("should return 404, Recipes not found", (done) => {
         chai.request("http://localhost:80")
