@@ -1,10 +1,9 @@
 require("dotenv").config();
 const chai = require("chai");
-const sinon = require("sinon");
 const chaiHttp = require("chai-http");
-
 const { expect } = chai;
 chai.use(chaiHttp);
+
 describe("UserFeedback Tests", () => {
 	it("should return 400, Name is Required", (done) => {
 		chai.request("http://localhost:80")

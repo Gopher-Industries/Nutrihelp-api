@@ -1,11 +1,10 @@
 require("dotenv").config();
 const chai = require("chai");
-const sinon = require("sinon");
 const chaiHttp = require("chai-http");
 const { addTestUser, deleteTestUser, getToken } = require("./test-helpers");
-
 const { expect } = chai;
 chai.use(chaiHttp);
+
 describe("User Profile Tests", () => {
 	let testUser;
 
@@ -28,7 +27,6 @@ describe("User Profile Tests", () => {
 			.send(req)
 			.end((err, res) => {
 				if (err) return done(err);
-				console.log(res.body);
 				expect(res).to.have.status(200);
 				expect(res.body[0]).to.have.property(
 					"first_name",

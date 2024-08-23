@@ -3,8 +3,17 @@ const chai = require("chai");
 const chaiHttp = require("chai-http");
 const deleteUser = require("../model/deleteUser");
 const getUser = require("../model/getUser");
+const { addTestUser, deleteTestUser } = require("./test-helpers");
 const { expect } = chai;
 chai.use(chaiHttp);
+
+before(async function () {
+    testUser = await addTestUser();
+});
+
+after(async function () {
+    await deleteTestUser(testUser.user_id);
+});
 
 describe("Signup: Test signup - No Credentials Entered", () => {
     it("should return 400, Username, password, email and contact number are required", (done) => {
@@ -16,7 +25,9 @@ describe("Signup: Test signup - No Credentials Entered", () => {
                 expect(res).to.have.status(400);
                 expect(res.body)
                     .to.have.property("error")
-                    .that.equals("Username, password, email and contact number are required");
+                    .that.equals(
+                        "Username, password, email and contact number are required"
+                    );
                 done();
             });
     });
@@ -27,10 +38,10 @@ describe("Signup: Test signup - User Already Exists", () => {
         chai.request("http://localhost:80")
             .post("/api/signup")
             .send({
-                username: "test",
-                password: "signuptestpassword",
-                email: "signuptest@gmail.com",
-                contact_number: "0412345678"
+                username: testUser.username,
+                password: testUser.password,
+                email: testUser.email,
+                contact_number: testUser.contact_number,
             })
             .end((err, res) => {
                 if (err) return done(err);
@@ -48,10 +59,10 @@ describe("Signup: Test signup - Successful Sign Up", () => {
         chai.request("http://localhost:80")
             .post("/api/signup")
             .send({
-                username: "signuptestuser",
+                username: `testuser${Math.random().toString()}@test.com`,
                 password: "signuptestpassword",
-                email: "signuptest@gmail.com",
-                contact_number: "0412345678"
+                email: `testuser${Math.random().toString()}@test.com`,
+                contact_number: "0412345678",
             })
             .end((err, res) => {
                 if (err) return done(err);
@@ -69,6 +80,6 @@ describe("Signup: Test signup - Successful Sign Up", () => {
 async function deleteCreatedUserFromDB(username) {
     let user = await getUser(username);
     if (user) {
-        deleteUser(user[0].user_id); //becuase get user returns an array, need to set index, because we are only allowing unique users this should be fine
+        deleteUser(user[0].user_id); //because get user returns an array, need to set index, because we are only allowing unique users this should be fine
     }
-};
+}

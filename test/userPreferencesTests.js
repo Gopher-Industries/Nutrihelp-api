@@ -1,13 +1,11 @@
 require("dotenv").config();
 const chai = require("chai");
-const sinon = require("sinon");
 const chaiHttp = require("chai-http");
 const { addTestUser, deleteTestUser, getToken } = require("./test-helpers");
-const { login } = require("../controller/loginController");
-
 const { expect } = chai;
 chai.use(chaiHttp);
-describe("GET UserPreference Tests", () => {
+
+describe("userPreferences Tests", () => {
 	let testUser;
 	let token;
 	let req;
@@ -66,7 +64,6 @@ describe("GET UserPreference Tests", () => {
 			.set("Authorization", `Bearer ${token}`)
 			.end((err, res) => {
 				if (err) return done(err);
-				console.log(res.body);
 				expect(res).to.have.status(204);
 				done();
 			});

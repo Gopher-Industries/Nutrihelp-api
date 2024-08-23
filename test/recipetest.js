@@ -2,8 +2,12 @@ require("dotenv").config();
 const chai = require("chai");
 const chaiHttp = require("chai-http");
 const { expect } = chai;
-const getRecipes = require("../model/getUserRecipes");
+const { addTestRecipe } = require("./test-helpers");
 chai.use(chaiHttp);
+
+before(async function () {
+    testRecipe = await addTestRecipe();
+});
 
 describe("Recipe: Test createAndSaveRecipe - Parameters Are Missing", () => {
     it("should return 400, Recipe parameters are missing", (done) => {
@@ -118,17 +122,13 @@ describe("Recipe: Test deleteRecipe - User Id or Recipe Id not entered", () => {
     });
 });
 
-//this is deleting the recipe created with the test previously
-//test passes but its not getting deleted from the DB
-//because previous test is not adding to the recipe ingredient table, so it cant get the id
 describe("Recipe: Test deleteRecipe - Success", () => {
-    //get recipe id for recipe created in previous test
     it("should return 200, Success", (done) => {
         chai.request("http://localhost:80")
             .delete("/api/recipe")
             .send({
                 user_id: "1",
-                recipe_id: getRecipeId()
+                recipe_id: testRecipe.id
             })
             .end((err, res) => {
                 if (err) return done(err);
@@ -140,10 +140,3 @@ describe("Recipe: Test deleteRecipe - Success", () => {
             });
     });
 });
-
-async function getRecipeId() {
-    let recipe = await getRecipes.getUserRecipesRelation(1);
-    console.log(recipe);
-    let id = recipe[0].recipe_id;
-    return id;
-}
