@@ -168,7 +168,7 @@ const deleteRecipe = async (req, res) => {
 
 		return res.status(200).json({ message: "success", statusCode: 204 });
 	} catch (error) {
-		console.error("Error logging in:", error);
+		console.error(error);
 		return res
 			.status(500)
 			.json({ error: "Internal server error", statusCode: 500 });

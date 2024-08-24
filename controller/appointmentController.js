@@ -32,7 +32,7 @@ const getAppointments = async (req, res) => {
         const appointments = await getAllAppointments();
 
         // Respond with the retrieved appointment data
-        res.json(appointments);
+        res.status(200).json(appointments);
     } catch (error) {
         console.error('Error retrieving appointments:', error);
         res.status(500).json({ error: 'Internal server error' });
