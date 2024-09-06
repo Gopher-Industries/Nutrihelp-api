@@ -1,18 +1,18 @@
--- Update allergy BOOL for recipes relation
-create function update_allergies()
+-- Update recipes allergy BOOL
+create function update_recipe_allergies()
 returns trigger
 language plpgsql
 as $$
 begin
-    UPDATE recipe_ingredient t1
+    UPDATE recipes t1
     SET allergy = TRUE
-    FROM user_allergies t2
-    WHERE t1.user_id = t2.user_id AND t1.ingredient_id = t2.allergy_id;
+    FROM recipe_ingredient t2
+    WHERE t1.user_id = t2.user_id AND t1.id = t2.recipe_id AND t2.allergy = TRUE;
     RETURN NULL;
 end;
 $$;
 
-create trigger allergy_update_trigger
-after insert on recipe_ingredient
+create trigger allergy_recipe_update_trigger
+after update on recipe_ingredient
 for each row
-execute function update_allergies();
+execute function update_recipe_allergies();

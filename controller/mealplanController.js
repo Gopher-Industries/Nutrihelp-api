@@ -1,5 +1,5 @@
 
-let {add, get, deletePlan } = require('../model/mealPlan.js');
+let {add, get, deletePlan, saveMealRelation } = require('../model/mealPlan.js');
 
 
 const addMealPlan = async (req, res) => {
@@ -15,6 +15,8 @@ const addMealPlan = async (req, res) => {
       return res.status(400).send({ error: 'UserId is required' });
     }
     let meal_plan = await add(user_id, {recipe_ids: recipe_ids}, meal_type);
+
+    await saveMealRelation(user_id, recipe_ids, meal_plan[0].id);
 
     return res.status(201).json({ message: 'success', statusCode: 201, meal_plan: meal_plan });
 
