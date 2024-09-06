@@ -16,7 +16,7 @@ after(async function () {
 });
 
 describe("Signup: Test signup - No Credentials Entered", () => {
-    it("should return 400, Username, password, email and contact number are required", (done) => {
+    it("should return 400, Name, password, email and contact number are required", (done) => {
         chai.request("http://localhost:80")
             .post("/api/signup")
             .send()
@@ -25,9 +25,7 @@ describe("Signup: Test signup - No Credentials Entered", () => {
                 expect(res).to.have.status(400);
                 expect(res.body)
                     .to.have.property("error")
-                    .that.equals(
-                        "Username, password, email and contact number are required"
-                    );
+                    .that.equals("Name, email, password, contact number and address are required");
                 done();
             });
     });
@@ -38,10 +36,11 @@ describe("Signup: Test signup - User Already Exists", () => {
         chai.request("http://localhost:80")
             .post("/api/signup")
             .send({
-                username: testUser.username,
-                password: testUser.password,
+                name: testUser.name,
                 email: testUser.email,
+                password: testUser.password,
                 contact_number: testUser.contact_number,
+                address: testUser.address
             })
             .end((err, res) => {
                 if (err) return done(err);
@@ -59,10 +58,11 @@ describe("Signup: Test signup - Successful Sign Up", () => {
         chai.request("http://localhost:80")
             .post("/api/signup")
             .send({
-                username: `testuser${Math.random().toString()}@test.com`,
-                password: "signuptestpassword",
+                name: `test user success`,
                 email: `testuser${Math.random().toString()}@test.com`,
+                password: "signuptestpassword",
                 contact_number: "0412345678",
+                address: "address"
             })
             .end((err, res) => {
                 if (err) return done(err);

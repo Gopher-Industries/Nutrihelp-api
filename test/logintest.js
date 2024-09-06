@@ -15,12 +15,12 @@ after(async function () {
     await deleteTestUser(testUserMFA.user_id);
 });
 
-describe("Login: Test login - No Username/Password Entered", () => {
-    it("should return 400 Username and password are required", (done) => {
+describe("Login: Test login - No Email/Password Entered", () => {
+    it("should return 400 Email and password are required", (done) => {
         chai.request("http://localhost:80")
             .post("/api/login")
             .send({
-                username: "",
+                email: "",
                 password: "",
             })
             .end((err, res) => {
@@ -28,18 +28,18 @@ describe("Login: Test login - No Username/Password Entered", () => {
                 expect(res).to.have.status(400);
                 expect(res.body)
                     .to.have.property("error")
-                    .that.equals("Username and password are required");
+                    .that.equals("Email and password are required");
                 done();
             });
     });
 });
 
-describe("Login: Test login - Invalid Username", () => {
-    it("should return 401 Invalid username", (done) => {
+describe("Login: Test login - Invalid email", () => {
+    it("should return 401 Invalid email", (done) => {
         chai.request("http://localhost:80")
             .post("/api/login")
             .send({
-                username: "invaliduser",
+                email: "invaliduser@test.com",
                 password: "passworddoesntmatter",
             })
             .end((err, res) => {
@@ -47,7 +47,7 @@ describe("Login: Test login - Invalid Username", () => {
                 expect(res).to.have.status(401);
                 expect(res.body)
                     .to.have.property("error")
-                    .that.equals("Invalid username");
+                    .that.equals("Invalid email");
                 done();
             });
     });
@@ -58,7 +58,7 @@ describe("Login: Test login - Invalid Password", () => {
         chai.request("http://localhost:80")
             .post("/api/login")
             .send({
-                username: "test",
+                email: testUser.email,
                 password: "invalidpassword",
             })
             .end((err, res) => {
@@ -77,7 +77,7 @@ describe("Login: Test login - Successful Login No MFA", () => {
         chai.request("http://localhost:80")
             .post("/api/login")
             .send({
-                username: testUser.username,
+                email: testUser.email,
                 password: "testuser123",
             })
             .end((err, res) => {
@@ -93,7 +93,7 @@ describe("Login: Test login - Login MFA ENABLED Email Sent", () => {
         chai.request("http://localhost:80")
             .post("/api/login")
             .send({
-                username: testUserMFA.username,
+                email: testUserMFA.email,
                 password: "testuser123"
             })
             .end((err, res) => {

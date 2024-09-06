@@ -1,16 +1,15 @@
 const supabase = require('../dbConnection.js');
 
-async function getUser(username) {
+async function getUser(email) {
     try {
         let { data, error } = await supabase
             .from('users')
-            .select('*') //now gets full user row instead of just username
-            .eq('username', username)
+            .select('*')
+            .eq('email', email)
         return data
     } catch (error) {
         throw error;
     }
-
 }
 
 module.exports = getUser;

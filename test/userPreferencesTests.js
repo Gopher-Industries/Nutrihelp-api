@@ -28,7 +28,7 @@ describe("userPreferences Tests", () => {
 
 	beforeEach(async function () {
 		let loginRequest = {
-			username: testUser.username,
+			email: testUser.email,
 			password: "testuser123",
 		};
 		const res = await chai

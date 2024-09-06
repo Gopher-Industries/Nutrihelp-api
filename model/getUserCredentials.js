@@ -1,14 +1,11 @@
-//i have changed getUser to get all rows from DB instead of just username, which makes this obsolete, its not being used anywhere anyway
-//will probably delete it soon
-
 const supabase = require('../dbConnection.js');
 
-async function getUserCredentials(username) { //removed password from this, not using it anyway
+async function getUserCredentials(email) {
     try {
         let { data, error } = await supabase
             .from('users')
-            .select('user_id,username,password,mfa_enabled')
-            .eq('username', username)
+            .select('user_id,email,password,mfa_enabled')
+            .eq('email', email)
         return data[0]
     } catch (error) {
         throw error;

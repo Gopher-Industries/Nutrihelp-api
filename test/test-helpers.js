@@ -9,11 +9,12 @@ async function addTestUser() {
 		let { data, error } = await supabase
 			.from("users")
 			.insert({
-				username: testUser,
-				password: hashedPassword,
+				name: "test user",
 				email: testUser,
+				password: hashedPassword,
 				mfa_enabled: false,
 				contact_number: "000000000",
+				address: "address"
 			})
 			.select();
 
@@ -34,11 +35,12 @@ async function addTestUserMFA() {
 		let { data, error } = await supabase
 			.from("users")
 			.insert({
-				username: testUser,
-				password: hashedPassword,
+				name: "test user",
 				email: testUser,
+				password: hashedPassword,
 				mfa_enabled: true,
 				contact_number: "000000000",
+				address: "address"
 			})
 			.select();
 
