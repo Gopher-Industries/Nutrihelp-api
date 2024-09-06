@@ -16,11 +16,10 @@ describe("User Profile Tests", () => {
 	});
 	it("should return 200, Update user profile Successful", (done) => {
 		let req = {
-			username: testUser.username,
+			email: testUser.email,
 			first_name: "updated_name",
 			last_name: "updated_last_name",
-			email: "updatedemail@test.com",
-			contact_number: "111111111",
+			contact_number: "111111111"
 		};
 		chai.request("http://localhost:80")
 			.put("/api/userprofile")
@@ -30,7 +29,7 @@ describe("User Profile Tests", () => {
 				expect(res).to.have.status(200);
 				expect(res.body[0]).to.have.property(
 					"first_name",
-					"updated_name"
+					req.first_name
 				);
 				expect(res.body[0]).to.have.property(
 					"last_name",

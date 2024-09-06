@@ -5,27 +5,27 @@ let { addMfaToken, verifyMfaToken } = require("../model/addMfaToken.js");
 const sgMail = require("@sendgrid/mail");
 
 const login = async (req, res) => {
-    const { username, password } = req.body;
+    const { email, password } = req.body;
 
     try {
-        if (!username || !password) {
+        if (!email || !password) {
             return res
                 .status(400)
-                .json({ error: "Username and password are required" });
+                .json({ error: "Email and password are required" });
         }
 
-        const user = await getUserCredentials(username, password); //dont think this function needs password passed in, just username
+        const user = await getUserCredentials(email); 
         if (!user || user.length === 0) {
             return res
                 .status(401)
-                .json({ error: "Invalid username" }); //just changed these temporarily for testing
+                .json({ error: "Invalid email" }); 
         }
 
         const isPasswordValid = await bcrypt.compare(password, user.password);
         if (!isPasswordValid) {
             return res
                 .status(401)
-                .json({ error: "Invalid password" }); //just changed these temporarily for testing
+                .json({ error: "Invalid password" });
         }
 
         if (user.mfa_enabled) {
@@ -54,29 +54,29 @@ const login = async (req, res) => {
 };
 
 const loginMfa = async (req, res) => {
-    const { username, password, mfa_token } = req.body;
+    const { email, password, mfa_token } = req.body;
 
     try {
-        if (!username || !password) {
+        if (!email || !password) {
             return res
                 .status(400)
-                .json({ error: "Username and password are required" });
+                .json({ error: "Email and password are required" });
         }
         if (!mfa_token) {
             return res.status(400).json({ error: "Token is required" });
         }
-        const user = await getUserCredentials(username, password);
+        const user = await getUserCredentials(email);
         if (!user || user.length === 0) {
             return res
                 .status(401)
-                .json({ error: "Invalid username or password" });
+                .json({ error: "Invalid email or password" });
         }
 
         const isPasswordValid = await bcrypt.compare(password, user.password);
         if (!isPasswordValid) {
             return res
                 .status(401)
-                .json({ error: "Invalid username or password" });
+                .json({ error: "Invalid email or password" });
         }
 
         const tokenValid = await verifyMfaToken(user.user_id, mfa_token);
@@ -103,7 +103,7 @@ async function sendEmail(user, token) {
     try {
         // Define the email content
         const msg = {
-            to: user.username,
+            to: user.email,
             from: "nutrihelpnoreply@gmail.com",
             subject: "Nutrihelp login Token",
             text: `Your token to log in is ${token}`,

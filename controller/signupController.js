@@ -4,22 +4,22 @@ let addUser = require('../model/addUser.js')
 
 
 const signup = async (req, res) => {
-    const { username, password, email, contact_number } = req.body;
+    const { name, email, password, contact_number, address } = req.body;
 
     try {
-        if (!username || !password || !email || !contact_number) {
-            return res.status(400).json({ error: 'Username, password, email and contact number are required' });
+        if (!name || !email || !password || !contact_number || !address) {
+            return res.status(400).json({ error: 'Name, email, password, contact number and address are required' });
         }
 
-        const userExists = await getUser(username);
+        const userExists = await getUser(email);
 
-        if (userExists.length > 0) { //this was not checking the value of userexists correctly, now its checking the length of the array returned
+        if (userExists.length > 0) {
             return res.status(400).json({ error: 'User already exists' });
         }
 
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        await addUser(username, hashedPassword, true, contact_number)
+        await addUser(name, email, hashedPassword, true, contact_number, address)
 
         return res.status(201).json({ message: 'User created successfully' });
 
