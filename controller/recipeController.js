@@ -42,8 +42,7 @@ const createAndSaveRecipe = async (req, res) => {
 			cuisine_id,
 			total_servings,
 			preparation_time,
-			instructions,
-			cooking_method_id
+			instructions
 		);
 
 		let savedData = await createRecipe.saveRecipe(recipe);
