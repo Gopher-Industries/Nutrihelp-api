@@ -109,16 +109,14 @@ async function saveRecipe(recipe) {
 }
 
 async function saveImage(image, recipe_id) {
-	let file_name = `recipe_image_${recipe_id}.png`;
+	let file_name = `recipe/${recipe_id}.png`;
 	if (image === undefined || image === null) return null;
 
 	try {
-		await supabase.storage
-			.from("recipe_image")
-			.upload(file_name, decode(image), {
-				cacheControl: "3600",
-				upsert: false,
-			});
+		await supabase.storage.from("images").upload(file_name, decode(image), {
+			cacheControl: "3600",
+			upsert: false,
+		});
 		const test = {
 			file_name: file_name,
 			display_name: file_name,

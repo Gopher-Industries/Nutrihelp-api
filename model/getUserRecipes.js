@@ -55,13 +55,9 @@ async function getImageUrl(image_id) {
 			.from("images")
 			.select("*")
 			.eq("id", image_id);
-		console.log(error);
-		console.log(data);
 
 		if (data[0] != null) {
-			console.log("RETURN");
 			let x = `${process.env.SUPABASE_STORAGE_URL}${data[0].file_name}`;
-			console.log(x);
 			return x;
 		}
 		return data;
