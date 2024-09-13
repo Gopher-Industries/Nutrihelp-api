@@ -9,7 +9,8 @@ async function createRecipe(
 	cuisine_id,
 	total_servings,
 	preparation_time,
-	instructions
+	instructions,
+	cooking_method_id
 ) {
 	recipe = {
 		user_id: user_id,
@@ -21,6 +22,7 @@ async function createRecipe(
 			id: ingredient_id,
 			quantity: ingredient_quantity,
 		},
+		cooking_method_id: cooking_method_id,
 	};
 
 	let calories = 0;
@@ -162,6 +164,7 @@ async function saveRecipeRelation(recipe, savedDataId) {
 				recipe_id: savedDataId,
 				user_id: recipe.user_id,
 				cuisine_id: recipe.cuisine_id,
+				cooking_method_id: recipe.ingredients.cooking_method_id[i],
 			});
 		}
 		let { data, error } = await supabase

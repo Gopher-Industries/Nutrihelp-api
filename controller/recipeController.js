@@ -13,6 +13,7 @@ const createAndSaveRecipe = async (req, res) => {
 		preparation_time,
 		instructions,
 		recipe_image,
+		cooking_method_id,
 	} = req.body;
 
 	try {
@@ -24,7 +25,8 @@ const createAndSaveRecipe = async (req, res) => {
 			!cuisine_id ||
 			!total_servings ||
 			!preparation_time ||
-			!instructions
+			!instructions ||
+			!cooking_method_id
 		) {
 			return res.status(400).json({
 				error: "Recipe parameters are missed",
@@ -40,7 +42,8 @@ const createAndSaveRecipe = async (req, res) => {
 			cuisine_id,
 			total_servings,
 			preparation_time,
-			instructions
+			instructions,
+			cooking_method_id
 		);
 
 		let savedData = await createRecipe.saveRecipe(recipe);
