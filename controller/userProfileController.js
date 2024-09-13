@@ -1,4 +1,4 @@
-let updateUser = require("../model/updateUserProfile.js");
+let { updateUser, saveImage } = require("../model/updateUserProfile.js");
 let getUser = require("../model/getUserProfile.js");
 
 const updateUserProfile = async (req, res) => {
@@ -6,7 +6,6 @@ const updateUserProfile = async (req, res) => {
 		if (!req.body.email) {
 			return res.status(400).send("Email is required");
 		}
-
 		const user_profile = await updateUser(
 			req.body.name,
 			req.body.first_name,
@@ -15,6 +14,9 @@ const updateUserProfile = async (req, res) => {
 			req.body.contact_number,
 			req.body.address
 		);
+
+		var url = await saveImage(req.body.user_image, user_profile[0].user_id);
+		user_profile[0].image_url = url;
 
 		res.status(200).json(user_profile);
 	} catch (error) {
