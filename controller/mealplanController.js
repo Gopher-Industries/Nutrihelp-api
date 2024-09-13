@@ -1,5 +1,5 @@
 
-let {add, get, deletePlan } = require('../model/mealPlan.js');
+let {add, get, deletePlan, saveMealRelation } = require('../model/mealPlan.js');
 
 
 const addMealPlan = async (req, res) => {
@@ -16,6 +16,8 @@ const addMealPlan = async (req, res) => {
     }
     let meal_plan = await add(user_id, {recipe_ids: recipe_ids}, meal_type);
 
+    await saveMealRelation(user_id, recipe_ids, meal_plan[0].id);
+
     return res.status(201).json({ message: 'success', statusCode: 201, meal_plan: meal_plan });
 
   } catch (error) {
@@ -26,20 +28,17 @@ const addMealPlan = async (req, res) => {
 
 const getMealPlan = async (req, res) => {
   try {
-    const { id, user_id } = req.body;
-    if (!id) {
-      return res.status(400).send({ error: 'Id is required' });
-    }
+    const { user_id } = req.body;
      if (!user_id) {
       return res.status(400).send({ error: 'UserId is required' });
     }
 
-    let meal_plan = await get(id, user_id);
+    let meal_plans = await get(user_id);
 
-    if (meal_plan){
-      return res.status(200).json({ meal_plan: meal_plan });
+    if (meal_plans){
+      return res.status(200).json({ message: 'success', statusCode: 200, meal_plans: meal_plans });
     }
-     return res.status(404).send({ error: 'Meal Plan not found.' });
+     return res.status(404).send({ error: 'Meal Plans not found for user.' });
    
   } catch (error) {
     console.error({ error: 'error' });
