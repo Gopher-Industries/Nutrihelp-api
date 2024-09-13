@@ -260,13 +260,13 @@ paths:
                   user:
                     $ref: '#/components/schemas/UserResponse'
         '400':
-          description: Username and password are required
+          description: Email and password are required
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '401':
-          description: Invalid username or password
+          description: Invalid email or password
           content:
             application/json:
               schema:
@@ -300,13 +300,13 @@ paths:
                   user:
                     $ref: '#/components/schemas/UserResponse'
         '400':
-          description: Username and password are required
+          description: Email and password are required
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '401':
-          description: Invalid username or password
+          description: Invalid email or password
           content:
             application/json:
               schema:
@@ -513,7 +513,7 @@ paths:
   /signup:
     post:
       summary: User signup
-      description: Registers a new user with a username and password
+      description: Registers a new user with an email and password
       requestBody:
         required: true
         content:
@@ -528,7 +528,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/SuccessResponse'
         '400':
-          description: Bad request - either missing username/password or user already exists
+          description: Bad request - either missing email/password or user already exists
           content:
             application/json:
               schema:
@@ -712,7 +712,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/SuccessResponse'
         '400':
-          description: User IS is required or Request body is required
+          description: User ID is required or Request body is required
           content:
             application/json:
               schema:
@@ -735,7 +735,7 @@ paths:
             schema:
               type: object
               properties:
-                username:
+                email:
                   type: string
       responses:
         '200':
@@ -745,7 +745,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/UserProfileResponse'
         '400':
-          description: Username is required
+          description: Email is required
           content:
             application/json:
               schema:
@@ -795,36 +795,38 @@ components:
     LoginRequest:
       type: object
       properties:
-        username:
+        email:
           type: string
-          example: user123
+          example: test@email.com
         password:
           type: string
           example: test123
       required:
-        - username
+        - email
         - password
     SignupRequest:
       type: object
       properties:
-        username:
-          type: string
-        password:
+        name:
           type: string
         email:
           type: string
-          format: email
+        password:
+          type: string
         contact_number:
           type: string
+        address:
+          type: string
       required:
-        - username
-        - password
+        - name
         - email
+        - password
         - contact_number
+        - address
     LoginWithMFARequest:
       type: object
       properties:
-        username:
+        email:
           type: string
         password:
           type: string
@@ -832,7 +834,7 @@ components:
         mfa_token:
           type: string
       required:
-        - username
+        - email
         - password
         - mfa_token
     UserResponse:
@@ -840,7 +842,7 @@ components:
       properties:
         user_id:
           type: integer
-        username:
+        email:
           type: string
         password:
           type: string
@@ -865,7 +867,7 @@ components:
       properties:
         user_id:
           type: integer
-        username:
+        name:
           type: string
         first_name:
           type: string
