@@ -3,27 +3,151 @@ let getUserRecipes = require('../model/getUserRecipes.js');
 let deleteUserRecipes = require('../model/deleteUserRecipes.js');
 
 const createAndSaveRecipe = async (req, res) => {
-    const { user_id, ingredient_id, ingredient_quantity,
-        recipe_name, cuisine_id, total_servings, preparation_time, instructions } = req.body;
+  const {
+    user_id,
+    ingredient_id,
+    ingredient_quantity,
+    recipe_name,
+    cuisine_id,
+    total_servings,
+    preparation_time,
+    instructions,
+  } = req.body;
 
-    try {
-        if (!user_id || !ingredient_id || !ingredient_quantity ||
-            !recipe_name || !cuisine_id || !total_servings || !preparation_time || !instructions) {
-            return res.status(400).json({ error: 'Recipe parameters are missed', statusCode: 400 });
-        }
-
-        const recipe = await createRecipe.createRecipe(user_id, ingredient_id, ingredient_quantity,
-            recipe_name, cuisine_id, total_servings, preparation_time, instructions);
-
-        let savedData = await createRecipe.saveRecipe(recipe);
-        await createRecipe.saveRecipeRelation(recipe, savedData[0].id)
-
-        return res.status(201).json({ message: 'success', statusCode: 201 });
-    } catch (error) {
-        console.error('Error logging in:', error);
-        return res.status(500).json({ error: 'Internal server error', statusCode: 500 });
+  try {
+    // Validate presence of required fields
+    if (
+      !user_id ||
+      !ingredient_id ||
+      !ingredient_quantity ||
+      !recipe_name ||
+      !cuisine_id ||
+      !total_servings ||
+      !preparation_time ||
+      !instructions
+    ) {
+      return res
+        .status(400)
+        .json({ error: "All fields are required", statusCode: 400 });
     }
+
+    // Validate data types
+    if (typeof user_id !== "string" || user_id.length !== 24) {
+      return res
+        .status(400)
+        .json({
+          error: "Invalid user_id, must be a 24-character string",
+          statusCode: 400,
+        });
+    }
+
+    if (!Array.isArray(ingredient_id) || ingredient_id.length === 0) {
+      return res
+        .status(400)
+        .json({
+          error: "ingredient_id must be a non-empty array",
+          statusCode: 400,
+        });
+    }
+
+    if (
+      !Array.isArray(ingredient_quantity) ||
+      ingredient_quantity.length === 0 ||
+      ingredient_quantity.some((q) => typeof q !== "number" || q <= 0)
+    ) {
+      return res
+        .status(400)
+        .json({
+          error:
+            "ingredient_quantity must be a non-empty array of positive numbers",
+          statusCode: 400,
+        });
+    }
+
+    if (
+      typeof recipe_name !== "string" ||
+      recipe_name.length < 3 ||
+      recipe_name.length > 100
+    ) {
+      return res
+        .status(400)
+        .json({
+          error: "recipe_name must be a string between 3 and 100 characters",
+          statusCode: 400,
+        });
+    }
+
+    if (typeof cuisine_id !== "string" || cuisine_id.length !== 24) {
+      return res
+        .status(400)
+        .json({
+          error: "Invalid cuisine_id, must be a 24-character string",
+          statusCode: 400,
+        });
+    }
+
+    if (typeof total_servings !== "number" || total_servings <= 0) {
+      return res
+        .status(400)
+        .json({
+          error: "total_servings must be a positive number",
+          statusCode: 400,
+        });
+    }
+
+    if (typeof preparation_time !== "number" || preparation_time <= 0) {
+      return res
+        .status(400)
+        .json({
+          error: "preparation_time must be a positive number (in minutes)",
+          statusCode: 400,
+        });
+    }
+
+    if (
+      !Array.isArray(instructions) ||
+      instructions.length === 0 ||
+      instructions.some((step) => typeof step !== "string" || step.length < 5)
+    ) {
+      return res
+        .status(400)
+        .json({
+          error:
+            "instructions must be a non-empty array of strings with at least 5 characters each",
+          statusCode: 400,
+        });
+    }
+
+    // Create the recipe
+    const recipe = await createRecipe.createRecipe(
+      user_id,
+      ingredient_id,
+      ingredient_quantity,
+      recipe_name,
+      cuisine_id,
+      total_servings,
+      preparation_time,
+      instructions
+    );
+
+    // Save recipe and its relation
+    let savedData = await createRecipe.saveRecipe(recipe);
+    await createRecipe.saveRecipeRelation(recipe, savedData[0].id);
+
+    return res
+      .status(201)
+      .json({
+        message: "Recipe created and saved successfully",
+        statusCode: 201,
+      });
+  } catch (error) {
+    console.error("Error creating and saving recipe:", error);
+    return res
+      .status(500)
+      .json({ error: "Internal server error", statusCode: 500 });
+  }
 };
+
 
 const getRecipes = async (req, res) => {
     const user_id = req.body.user_id;
