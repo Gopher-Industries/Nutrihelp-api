@@ -26,3 +26,7 @@ You can now access the API at `http://localhost:80`.
 ## Endpoints
 The API is documented using OpenAPI 3.0, located in `index.yaml`.
 You can view the documentation by navigating to `http://localhost:80/api-docs` in your browser.
+
+
+/\ Please refer to the "PatchNotes_VersionControl" file for  /\
+/\ recent updates and changes made through each version.     /\
