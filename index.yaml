@@ -408,10 +408,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
   /recipe:
-    get:
+    post:
       summary: Get all recipes
       description: Retrieves recipes for a given user ID
-      # TODO should not use requestBody for GET
       requestBody:
         required: true
         content:

@@ -162,7 +162,7 @@ async function saveRecipeRelation(recipe, savedDataId) {
 				recipe_id: savedDataId,
 				user_id: recipe.user_id,
 				cuisine_id: recipe.cuisine_id,
-				cooking_method_id: recipe.ingredients.cooking_method_id[i],
+				cooking_method_id: recipe.cooking_method_id[i],
 			});
 		}
 		let { data, error } = await supabase
