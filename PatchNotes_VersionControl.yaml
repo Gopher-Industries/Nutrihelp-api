@@ -1,33 +1,28 @@
 Nutrihelp API Backend Version Control
-
-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-V2024.2.4-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#
-  ChangeLog:
-  - 
-
-
-
-
+### All changelog additions were completed via the Backend API team as a whole ###
 
 #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-V2024.2.3-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#
   ChangeLog:
   - Added 5 new vulnerability pattens to Vulnerability scanner - Changed version to V1.1
   - Added Vulnerability Report
-
-
-
+  - Upgraded POST Meal Planning API
+  -	Upgraded GET meal planning API
+  - Updated / Refactored login API's to use email instead of username
+  - Began development of recipe image classification api
 
 #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-V2024.2.2-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#
   ChangeLog:
   - Implmented V1.0 Vulnerability scanner
-
-
+  - Added user ID and set up relationship in feedback API endpoint
+  - Added cooking method ID to the relation table/recipe API endpoint
+  - Added User Change Password API
+  - Added Image to User profile API
 
 #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-V2024.2.1-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#
   ChangeLog:
   - Added Version Control
-  - 
-
-
+  - Added additional input Fields to the New user Sign Up Form
+  - Added images to Recipe API
 
 #-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-V2024.2.0-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#
 Current pages and applicaitons present before trimester commenced
