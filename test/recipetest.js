@@ -12,7 +12,7 @@ before(async function () {
 describe("Recipe: Test createAndSaveRecipe - Parameters Are Missing", () => {
 	it("should return 400, Recipe parameters are missing", (done) => {
 		chai.request("http://localhost:80")
-			.post("/api/recipe")
+			.post("/api/recipe/createRecipe")
 			.send()
 			.end((err, res) => {
 				if (err) return done(err);
@@ -28,7 +28,7 @@ describe("Recipe: Test createAndSaveRecipe - Parameters Are Missing", () => {
 describe("Recipe: Test createAndSaveRecipe - Successfully created recipe", () => {
 	it("should return 201, Successfully created recipe", (done) => {
 		chai.request("http://localhost:80")
-			.post("/api/recipe")
+			.post("/api/recipe/createRecipe")
 			.send({
 				user_id: 1,
 				ingredient_id: [14], //this needs to be an array
@@ -55,7 +55,7 @@ describe("Recipe: Test createAndSaveRecipe - Successfully created recipe", () =>
 describe("Recipe: Test getRecipes - No UserId Entered", () => {
 	it("should return 400, User Id is required", (done) => {
 		chai.request("http://localhost:80")
-			.get("/api/recipe")
+			.post("/api/recipe")
 			.send()
 			.end((err, res) => {
 				if (err) return done(err);
@@ -71,7 +71,7 @@ describe("Recipe: Test getRecipes - No UserId Entered", () => {
 describe("Recipe: Test getRecipes - No recipes saved to user in database", () => {
 	it("should return 404, Recipes not found", (done) => {
 		chai.request("http://localhost:80")
-			.get("/api/recipe")
+			.post("/api/recipe")
 			.send({
 				user_id: "1",
 			})
@@ -89,7 +89,7 @@ describe("Recipe: Test getRecipes - No recipes saved to user in database", () =>
 describe("Recipe: Test getRecipes - Success", () => {
 	it("should return 200, Success", (done) => {
 		chai.request("http://localhost:80")
-			.get("/api/recipe")
+			.post("/api/recipe")
 			.send({
 				user_id: "15",
 			})
