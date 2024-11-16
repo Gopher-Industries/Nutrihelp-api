@@ -114,3 +114,36 @@ exports.deleteNotificationById = async (req, res) => {
 };
 
 
+// Mark all unread notifications as read for a specific user
+exports.markAllUnreadNotificationsAsRead = async (req, res) => {
+    try {
+        
+        const { user_id } = req.params;
+
+       
+        if (!user_id) {
+            return res.status(400).json({ message: "User ID is required" });
+        }
+
+        
+        const { data, error } = await supabase
+            .from('notifications')
+            .update({ status: 'read' })
+            .eq('user_id', user_id)
+            .eq('status', 'unread'); 
+
+    
+        if (error) throw error;
+
+      
+        if (data.length === 0) {
+            return res.status(404).json({ message: 'No unread notifications found for this user' });
+        }
+
+
+        res.status(200).json({ message: 'All unread notifications marked as read', updatedNotifications: data });
+    } catch (error) {
+        console.error('Error marking notifications as read:', error);
+        res.status(500).json({ error: 'An error occurred while marking notifications as read' });
+    }
+};
