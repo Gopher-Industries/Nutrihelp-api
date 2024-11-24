@@ -3,6 +3,7 @@ const jwt = require("jsonwebtoken");
 let getUserCredentials = require("../model/getUserCredentials.js");
 let { addMfaToken, verifyMfaToken } = require("../model/addMfaToken.js");
 const sgMail = require("@sendgrid/mail");
+const crypto = require("crypto");
 
 const login = async (req, res) => {
     const { email, password } = req.body;
@@ -27,9 +28,9 @@ const login = async (req, res) => {
                 .status(401)
                 .json({ error: "Invalid password" });
         }
-
+// changed the MFA to use crypto, as it is more secure then the current MFA setup
         if (user.mfa_enabled) {
-            let token = Math.floor(100000 + Math.random() * 900000);
+            let token = crypto.randomInt(100000, 999999);
 
             await addMfaToken(user.user_id, token);
 

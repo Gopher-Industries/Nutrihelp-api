@@ -4,8 +4,11 @@ const router = express.Router();
 const multer = require('multer');
 const fs = require('fs');
 
-// Define multer configuration for file upload
-const upload = multer({ dest: 'uploads/' });
+// Define multer configuration for file upload / setting up to allow png or jpeg only
+const upload = multer({
+  dest: 'uploads/', 
+  fileFilter: (req, file, cb) => cb(null, ['image/jpeg', 'image/png'].includes(file.mimetype))
+});
 
 // Define route for receiving input data and returning predictions
 router.post('/', upload.single('image'), (req, res) => {
