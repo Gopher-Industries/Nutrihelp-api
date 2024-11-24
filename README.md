@@ -11,9 +11,10 @@ git clone https://github.com/Gopher-Industries/Nutrihelp-api
 ```bash
 cd Nutrihelp-api
 ```
-4. Install the required dependencies:
+4. Install the required dependencies (including python dependencies):
 ```bash
 npm install
+pip install -r requirements.txt
 ```
 5. Contact a project maintainer to get the `.env` file that contains the necessary environment variables and place it in the root of the project directory.
 6. Start the server:

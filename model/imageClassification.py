@@ -10,20 +10,8 @@
 ## pip install tensorflow<11 (downgrade to a version lower than 11)
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
-
 import sys
-import matplotlib.pyplot as plt
-import pandas as pd
-import seaborn as sn
 import numpy as np
-from tensorflow.keras.preprocessing.image import ImageDataGenerator
-from tensorflow.keras.applications import VGG19, VGG16
-from tensorflow.keras.layers import AveragePooling2D, Conv2D, MaxPooling2D, Dropout, Dense, Input, Flatten
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.utils import load_img, img_to_array
-from sklearn.metrics import confusion_matrix
-from sklearn.model_selection import train_test_split
-
 from tensorflow.keras.models import load_model
 from PIL import Image
 import io
@@ -33,7 +21,7 @@ import io
 #model = load_model('modeltt.h5')
 
 # Get the relative path to the model file
-model_path = os.path.join('model', 'modeltt.h5')
+model_path = os.path.join('prediction_models', 'modeltt.h5')
 
 try:
     # Load the pre-trained model
@@ -41,11 +29,6 @@ try:
 except Exception as e:
     print("Error loading model:", e)
     sys.exit(1)
-
-
-from tensorflow.keras.preprocessing.image import load_img, img_to_array
-
-
 
 cal_values = """Apple Braeburn:~52 calories per 100 grams
 Apple Crimson Snow:~52 calories per 100 grams

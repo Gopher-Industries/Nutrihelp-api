@@ -2,7 +2,7 @@ const { spawn } = require('child_process');
 const fs = require('fs');
 
 // Function to handle prediction logic
-const predictImage = (req, res) => {
+const predictRecipeImage = (req, res) => {
   // Path to the uploaded image file
   const imagePath = req.file.path;
 
@@ -10,11 +10,11 @@ const predictImage = (req, res) => {
   fs.readFile(imagePath, (err, imageData) => {
     if (err) {
       console.error('Error reading image file:', err);
-      return res.status(500).json({ error: 'Internal server error' });
+      return res.status(500).json({ error: 'Internal server error this one' });
     }
 
     // Execute Python script using child_process.spawn
-    const pythonProcess = spawn('python', ['model/imageClassification.py']);
+    const pythonProcess = spawn('python', ['model/recipeImageClassification.py']);
 
     // Pass image data to Python script via stdin
     pythonProcess.stdin.write(imageData);
@@ -24,13 +24,14 @@ const predictImage = (req, res) => {
     let prediction = '';
     pythonProcess.stdout.on('data', (data) => {
       prediction += data.toString();
+      console.log(data);
     });
 
     // Handle errors
-    pythonProcess.stderr.on('data', (data) => {
-      console.error('Error executing Python script:', data.toString());
-      res.status(500).json({ error: 'Internal server error' });
-    });
+    // pythonProcess.stderr.on('data', (data) => {
+    //   console.error('Error executing Python script:', data.toString());
+    //   res.status(500).json({ error: 'Internal server error' });
+    // });
 
     // When Python script finishes execution
     pythonProcess.on('close', (code) => {
@@ -56,7 +57,6 @@ const predictImage = (req, res) => {
         // Example usage:
         //const prediction = "\r\n1/1 [==============================] - ETA: 0s\r\n1/1 [==============================] - 0s 332ms/step\r\n14 Avocado:~160 calories per 100 grams\r\n";
         
-        //console.log(cleanedPrediction); // Output: "Avocado:~160 calories per 100 grams"
         const cleanedPrediction = cleanPrediction(prediction);
         //-------------------------------------------------------
         // Send prediction back to the client
@@ -70,5 +70,5 @@ const predictImage = (req, res) => {
 };
 
 module.exports = {
-  predictImage
+  predictRecipeImage
 };
