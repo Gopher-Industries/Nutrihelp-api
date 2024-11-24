@@ -783,6 +783,186 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  
+  /notifications:
+    post:
+      summary: Create a new notification
+      description: Creates a new notification for a specific user.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                user_id:
+                  type: integer
+                  description: Unique identifier of the user.
+                type:
+                  type: string
+                  description: Type of notification (e.g., Email, Server, Phone).
+                content:
+                  type: string
+                  description: Content of the notification.
+              required:
+                - user_id
+                - type
+                - content
+            example:
+              user_id: 123
+              type: "Email"
+              content: "This is a test notification"
+      responses:
+        201:
+          description: Notification created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  notification:
+                    type: object
+                    properties:
+                      simple_id:
+                        type: integer
+                      user_id:
+                        type: integer
+                      type:
+                        type: string
+                      content:
+                        type: string
+                      status:
+                        type: string
+                      timestamp:
+                        type: string
+                        format: date-time
+        400:
+          description: Bad Request - Missing required fields
+        500:
+          description: Internal Server Error
+
+  /notifications/{user_id}:
+    get:
+      summary: Get all notifications for a specific user
+      description: Retrieves all notifications associated with a specific `user_id`.
+      parameters:
+        - in: path
+          name: user_id
+          required: true
+          schema:
+            type: integer
+          description: Unique identifier of the user.
+      responses:
+        200:
+          description: List of notifications for the user
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    simple_id:
+                      type: integer
+                    user_id:
+                      type: integer
+                    type:
+                      type: string
+                    content:
+                      type: string
+                    status:
+                      type: string
+                    timestamp:
+                      type: string
+                      format: date-time
+        404:
+          description: No notifications found for the user
+        500:
+          description: Internal Server Error
+
+  /notifications/{simple_id}:
+    delete:
+      summary: Delete a specific notification by simple ID
+      description: Deletes a notification identified by its `simple_id` (integer).
+      parameters:
+        - in: path
+          name: simple_id
+          required: true
+          schema:
+            type: integer
+          description: Simple identifier (integer) of the notification.
+      responses:
+        200:
+          description: Notification deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Notification deleted successfully"
+        404:
+          description: Notification not found
+        500:
+          description: Internal Server Error
+
+    put:
+      summary: Update notification status by simple ID
+      description: Updates the status of a notification identified by its `simple_id` (integer).
+      parameters:
+        - in: path
+          name: simple_id
+          required: true
+          schema:
+            type: integer
+          description: Simple identifier (integer) of the notification.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  description: New status for the notification (e.g., "read" or "unread").
+              required:
+                - status
+            example:
+              status: "read"
+      responses:
+        200:
+          description: Notification updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  notification:
+                    type: object
+                    properties:
+                      simple_id:
+                        type: integer
+                      user_id:
+                        type: integer
+                      type:
+                        type: string
+                      content:
+                        type: string
+                      status:
+                        type: string
+                      timestamp:
+                        type: string
+                        format: date-time
+        404:
+          description: Notification not found
+        500:
+          description: Internal Server Error
 
 components:
   securitySchemes:
