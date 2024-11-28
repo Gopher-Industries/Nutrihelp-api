@@ -9,6 +9,7 @@ from PIL import Image
 
 # Loading the best saved model to make predictions
 K.clear_session()
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 model_path = os.path.join('prediction_models','best_model_class.hdf5')
 model_best = load_model(model_path, compile=False)
 
@@ -27,11 +28,7 @@ def predict_class(model, img):
     
   return pred_value
 
-# Read image data from stdin
-# image_data = sys.stdin.buffer.read()
-# Load image using PIL
-# img = Image.open(io.BytesIO(image_data))
-img = Image.open('./uploads/lasagna.jpg')
+img = Image.open('./uploads/image.jpg')
 # Predict img and return result
 result = predict_class(model_best, img)
 print(result)

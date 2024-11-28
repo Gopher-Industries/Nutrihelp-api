@@ -14,19 +14,8 @@ router.post('/', upload.single('image'), (req, res) => {
     return res.status(400).json({ error: 'No image uploaded' });
   }
 
-  
-
   // Call the predictImage function from the controller with req and res objects
   predictionController.predictRecipeImage(req, res);
-
-  // Delete the uploaded file after processing
-  fs.unlink(req.file.path, (err) => {
-    if (err) {
-      console.error('Error deleting file:', err);
-    } else {
-      //console.log('File deleted successfully');
-    }
-  });
 });
 
 module.exports = router;
