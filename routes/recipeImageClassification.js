@@ -1,3 +1,7 @@
+//FOR THIS API TO WORK, YOU MUST HAVE THE AI MODEL FILE SAVED TO THE PREDICTION_MODELS FOLDER
+//THIS FILE CAN BE FOUND UPLOADED TO THE NUTRIHELP TEAMS SITE
+//IT IS CALLED BEST_MODEL_CLASS.HDF5
+
 const express = require('express');
 const predictionController = require('../controller/recipeImageClassificationController.js');
 const router = express.Router();

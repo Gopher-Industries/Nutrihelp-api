@@ -1,8 +1,17 @@
+//FOR THIS API TO WORK, YOU MUST HAVE THE AI MODEL FILE SAVED TO THE PREDICTION_MODELS FOLDER
+//THIS FILE CAN BE FOUND UPLOADED TO THE NUTRIHELP TEAMS SITE
+// IT IS CALLED BEST_MODEL_CLASS.HDF5
+
 const { spawn } = require("child_process");
 const fs = require("fs");
 
 // Function to handle prediction logic
 const predictRecipeImage = (req, res) => {
+    
+    if (!req.file || !req.file.path) {
+        return res.status(400).json({ error: "No file uploaded" });
+    }
+    
     // Path to the uploaded image file
     const imagePath = req.file.path;
     const newImageName = "uploads/image.jpg";
