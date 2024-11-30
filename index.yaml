@@ -200,7 +200,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-  /api/imageClassification:
+  /imageClassification:
     post:
       summary: Image classification
       description: Receives an image and classifies it
@@ -225,6 +225,43 @@ paths:
                   prediction:
                     type: string
                     example: "Avocado:~160 calories per 100 grams"
+        '400':
+          description: Bad request - missing image
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /recipeImageClassification:
+    post:
+      summary: Recipe image classification
+      description: Receives an image of a recipe and classifies it
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                image:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Image classified successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  prediction:
+                    type: string
+                    example: "Lasagna"
         '400':
           description: Bad request - missing image
           content:
