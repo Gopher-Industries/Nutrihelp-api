@@ -4,6 +4,7 @@
 
 const { spawn } = require("child_process");
 const fs = require("fs");
+const path = require("path")
 
 // Function to handle prediction logic
 const predictRecipeImage = (req, res) => {
@@ -15,6 +16,20 @@ const predictRecipeImage = (req, res) => {
     // Path to the uploaded image file
     const imagePath = req.file.path;
     const newImageName = "uploads/image.jpg";
+
+    // Validate file type
+    const fileExtension = path.extname(req.file.originalname)
+    const allowedExtensions = [".jpg", ".jpeg", ".png"];
+
+    if (!allowedExtensions.includes(fileExtension)) {
+        // Delete the uploaded file if it doesn't meet requirements
+        fs.unlink(req.file.path, (err) => {
+            if (err) console.error("Error deleting invalid file:", err);
+        });
+
+        return res.status(400).json({ error: "Invalid file type. Only JPG/PNG files are allowed." });
+    }
+    
 
     // Read the image file from disk
     fs.readFile(imagePath, (err, imageData) => {
