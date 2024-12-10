@@ -1000,7 +1000,81 @@ paths:
           description: Notification not found
         500:
           description: Internal Server Error
-
+  /filter:
+    get:
+      summary: Filter recipes
+      description: Retrieve recipes filtered by dietary preferences and allergens.
+      tags:
+        - Recipes
+      parameters:
+        - name: allergies
+          in: query
+          description: List of allergens to exclude from the recipes. Pass as a comma-separated string or array.
+          required: false
+          schema:
+            type: string
+            example: Peanut,Soy
+        - name: dietary
+          in: query
+          description: Dietary preference to filter by (e.g., vegan, vegetarian).
+          required: false
+          schema:
+            type: string
+            example: vegan
+      responses:
+        '200':
+          description: Filtered recipes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                      description: Recipe ID
+                      example: 1
+                    name:
+                      type: string
+                      description: Name of the recipe
+                      example: Vegan Salad
+                    recipe_ingredients:
+                      type: array
+                      description: Ingredients used in the recipe
+                      items:
+                        type: object
+                        properties:
+                          ingredient_id:
+                            type: integer
+                            description: ID of the ingredient
+                            example: 3
+                          ingredients:
+                            type: object
+                            properties:
+                              name:
+                                type: string
+                                description: Name of the ingredient
+                                example: Lettuce
+                              allergen:
+                                type: string
+                                description: Allergen associated with the ingredient
+                                example: null
+                              dietary_flag:
+                                type: string
+                                description: Dietary classification of the ingredient
+                                example: vegan
+        '400':
+          description: Error in filtering recipes
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    description: Error message
+                    example: "Allergy type not found"
 components:
   securitySchemes:
     BearerAuth:
