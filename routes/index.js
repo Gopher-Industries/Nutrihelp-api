@@ -12,4 +12,6 @@ module.exports = app => {
     app.use("/api/user/preferences", require('./userPreferences'));
     app.use("/api/mealplan", require('./mealplan'));
     app.use("/api/account", require('./account'));
+    app.use('/api/notifications', require('./notifications'));
+    app.use('/api/filter', require('./filter'));
 };
