@@ -14,4 +14,5 @@ module.exports = app => {
     app.use("/api/account", require('./account'));
     app.use('/api/notifications', require('./notifications'));
     app.use('/api/filter', require('./filter'));
+    app.use('/api/auth', require('./auth'));
 };
