@@ -1106,6 +1106,30 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /recipe/cost/{recipe_id}:
+    get:
+      summary: Calculate estimated cost for a recipe
+      description: Returns JSON array containing total cost and corresponding ingredients price
+      parameters:
+        - in: path
+          name: recipe_id
+          required: true
+          schema:
+            type: integer
+          description: Integer ID of the recipe for cost calculation
+      responses:
+        '200':
+          description: Calculate cost successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EstimatedCost'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
                     
 components:
   securitySchemes:
@@ -1362,4 +1386,42 @@ components:
         - ip_address
         - created_at
 
-            
+    EstimatedCost:
+        type: object
+        properties:
+          minimum_cost:
+            type: number
+          maximum_cost:
+            type: number
+          include_all_ingredients:
+            type: boolean
+          low_cost_ingredients:
+            type: array
+            items:
+              type: object
+              properties:
+                ingredient_id: 
+                  type: integer
+                product_name: 
+                  type: string
+                quantity: 
+                  type: string
+                purchase_quantity: 
+                  type: integer
+                total_cost: 
+                  type: number
+          high_cost_ingredients:
+            type: array
+            items:
+              type: object
+              properties:
+                ingredient_id: 
+                  type: integer
+                product_name: 
+                  type: string
+                quantity: 
+                  type: string
+                purchase_quantity: 
+                  type: integer
+                total_cost: 
+                  type: number
