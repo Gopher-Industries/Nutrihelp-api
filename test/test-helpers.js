@@ -78,4 +78,15 @@ async function addTestRecipe() {
 	}
 };
 
+async function getTestServer() {
+	const app = express();
+	app.use(express.json());
+	
+	const routes = require("../routes");
+	routes(app);
+	
+	return app;
+}
+
+
 module.exports = { addTestUser, deleteTestUser, addTestUserMFA, addTestRecipe };
