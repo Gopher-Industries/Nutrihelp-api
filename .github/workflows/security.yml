@@ -41,7 +41,7 @@ jobs:
           fi
           for file in $MODIFIED_FILES; do
             echo "Scanning $file..."
-            python3 Vulnerability_Tool/Vulnerability_Scanner_CI.py "$file" >> security_scan_report.txt
+            python3 Vulnerability_Tool/py_js_docx_vulScan_CI.py "$file" >> security_scan_report.txt
           done
 
       - name: Save scan results as an artifact
