@@ -65,6 +65,8 @@ const getCost = async (req, res) => {
       estimatedCost.maximum_cost += ingre.estimation.total_cost;
       highPriceID.push(ingre.ingredient_id);
     })
+    estimatedCost.minimum_cost = Math.round(estimatedCost.minimum_cost);
+    estimatedCost.maximum_cost = Math.round(estimatedCost.maximum_cost);
 
     // Check if missing ingredient
     if(lowPriceID.length < ingredients.id.length || highPriceID.length < ingredients.id.length){
@@ -103,25 +105,30 @@ function estimateIngredientsCost(ingredients, ingredients_price) {
       let target_measurement = ingredients.measurement[i];
 
       let ingre = groupedIngredientsPrice[target_id];
-
-      ingre = ingre.filter((item) => {
-        try {
-          let convertedUnit = convertUnits(item.unit, item.measurement, target_measurement);
-          let estimatedPurchase = 1;
-          while (convertedUnit * estimatedPurchase < target_qty) {
-            estimatedPurchase += 1;
+      
+      // If target ingredient not found in the price table -> skip this ingredient
+      if (ingre) {
+        ingre = ingre.filter((item) => {
+          try {
+            let convertedUnit = convertUnits(item.unit, item.measurement, target_measurement);
+            let estimatedPurchase = 1;
+            while (convertedUnit * estimatedPurchase < target_qty) {
+              estimatedPurchase += 1;
+            }
+            item.estimation = {
+              "unit": convertedUnit,
+              "measurement": target_measurement,
+              "purchase": estimatedPurchase,
+              "total_cost": estimatedPurchase * item.price
+            }
+            return true;
+          } catch (error) {
+            return false;
           }
-          item.estimation = {
-            "unit": convertedUnit,
-            "measurement": target_measurement,
-            "purchase": estimatedPurchase,
-            "total_cost": estimatedPurchase * item.price
-          }
-          return true;
-        } catch (error) {
-          return false;
-        }
-      }).map(function(item) { return item; });
+        }).map(function(item) { return item; });
+      } else {
+        ingre = [];
+      }
 
       if (ingre.length > 0) {
         // Find min price
