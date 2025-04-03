@@ -16,4 +16,5 @@ module.exports = app => {
     app.use('/api/notifications', require('./notifications'));
     app.use('/api/filter', require('./filter'));
     app.use('/api/substitution', require('./ingredientSubstitution'));
+    app.use('/api/auth', require('./auth'));
 };

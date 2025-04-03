@@ -1131,7 +1131,39 @@ paths:
                   error:
                     type: string
                     description: Error message
-                    example: "Allergy type not found"
+                    example: "Allergy type not found"    
+
+  /auth/log-login-attempt:
+    post:
+      summary: Log a login attempt
+      description: Records a login attempt in the auth_logs table with email, user ID (optional), IP, timestamp, and success status.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginLog'
+      responses:
+        '201':
+          description: Login attempt logged successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          description: Bad request - missing required fields
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+                    
 components:
   securitySchemes:
     BearerAuth:
@@ -1360,3 +1392,31 @@ components:
           type: array
           items:
             type: integer
+                
+    LoginLog:
+      type: object
+      properties:
+        email:
+          type: string
+          example: user@example.com
+        user_id:
+          type: integer
+          nullable: true
+          example: 123
+        success:
+          type: boolean
+          example: true
+        ip_address:
+          type: string
+          example: "192.168.1.1"
+        created_at:
+          type: string
+          format: date-time
+          example: "2025-03-23T13:45:00Z"
+      required:
+        - email
+        - success
+        - ip_address
+        - created_at
+
+            
