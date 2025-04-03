@@ -1000,6 +1000,63 @@ paths:
           description: Notification not found
         500:
           description: Internal Server Error
+  /substitution/ingredient/{ingredientId}:
+    get:
+      summary: Get ingredient substitutions
+      description: Retrieves substitution options for a specific ingredient, with optional filtering by allergies, dietary requirements, and health conditions.
+      parameters:
+        - name: ingredientId
+          in: path
+          required: true
+          description: ID of the ingredient to find substitutions for
+          schema:
+            type: integer
+        - name: allergies
+          in: query
+          required: false
+          description: List of allergy IDs to exclude from substitutions. Pass as a comma-separated string.
+          schema:
+            type: string
+            example: "2,3"
+        - name: dietaryRequirements
+          in: query
+          required: false
+          description: List of dietary requirement IDs to filter substitutions by. Pass as a comma-separated string.
+          schema:
+            type: string
+            example: "1,4"
+        - name: healthConditions
+          in: query
+          required: false
+          description: List of health condition IDs to consider for substitutions. Pass as a comma-separated string.
+          schema:
+            type: string
+            example: "2,5"
+      responses:
+        '200':
+          description: Substitution options retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IngredientSubstitutionResponse'
+        '400':
+          description: Bad request - missing ingredient ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Ingredient not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /filter:
     get:
       summary: Filter recipes
