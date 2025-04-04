@@ -1,0 +1,51 @@
+name: SecurityScanWorkflow
+
+on:
+  push:
+    branches:
+      - '**'
+  pull_request:
+    branches:
+      - '**'
+
+jobs:
+  run-security-scan:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Get list of changed files (new and modified)
+        id: changed-files
+        run: |
+          git fetch origin master --depth=1
+          MODIFIED_FILES=$(git diff --name-only origin/master ${{ github.sha }} | tr '\n' ' ')
+          echo "MODIFIED_FILES=${MODIFIED_FILES}" >> $GITHUB_ENV
+
+      - name: Set up Python environment
+        uses: actions/setup-python@v3
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run Vulnerability Scanner on all changed files
+        run: |
+          if [[ -z "$MODIFIED_FILES" ]]; then
+            echo "No modified files to scan."
+            exit 0
+          fi
+          for file in $MODIFIED_FILES; do
+            echo "Scanning $file..."
+            python3 Vulnerability_Tool/Vulnerability_Scanner_V1.4.py "$file" >> security_scan_report.txt
+          done
+
+      - name: Save scan results as an artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-scan-report
+          path: security_scan_report.txt
