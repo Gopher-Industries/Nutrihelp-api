@@ -1187,6 +1187,34 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+
+  /upload:
+    post:
+      tags:
+        - Upload
+      summary: Upload a file
+      description: Upload a file to Supabase Storage
+      operationId: uploadFile
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                user_id:
+                  type: string
+                  example: "12345"
+      responses:
+        '201':
+          description: File uploaded successfully
+        '400':
+          description: Bad request
+        '500':
+          description: Internal server error
+
                     
 components:
   securitySchemes:
