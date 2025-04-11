@@ -1,6 +1,6 @@
 let getEstimatedCost = require('../model/getEstimatedCost');
 
-const getCost = async (req, res) => {
+const getFullCost = async (req, res) => {
   // const recipe_id = parseInt(req.query.recipe_id);
   const recipe_id = req.params.recipe_id;
 
@@ -34,39 +34,7 @@ const getCost = async (req, res) => {
     };
 
     // Prepare response data
-    const estimatedCost = {
-      minimum_cost: 0,
-      maximum_cost: 0,
-      include_all_ingredients: true,
-      low_cost_ingredients: [],
-      high_cost_ingredients: []
-    };
-    
-    let lowPriceID = [], highPriceID = [];
-    lowPriceRequiredIngredients.forEach((ingre) => {
-      estimatedCost.low_cost_ingredients.push({
-        ingredient_id: ingre.ingredient_id,
-        product_name: ingre.name,
-        quantity: ingre.estimation.unit + ingre.estimation.measurement,
-        purchase_quantity: ingre.estimation.purchase,
-        total_cost: ingre.estimation.total_cost
-      })
-      estimatedCost.minimum_cost += ingre.estimation.total_cost;
-      lowPriceID.push(ingre.ingredient_id);
-    })
-    highPriceRequiredIngredients.forEach((ingre) => {
-      estimatedCost.high_cost_ingredients.push({
-        ingredient_id: ingre.ingredient_id,
-        product_name: ingre.name,
-        quantity: ingre.estimation.unit + ingre.estimation.measurement,
-        purchase_quantity: ingre.estimation.purchase,
-        total_cost: ingre.estimation.total_cost
-      })
-      estimatedCost.maximum_cost += ingre.estimation.total_cost;
-      highPriceID.push(ingre.ingredient_id);
-    })
-    estimatedCost.minimum_cost = Math.round(estimatedCost.minimum_cost);
-    estimatedCost.maximum_cost = Math.round(estimatedCost.maximum_cost);
+    const { estimatedCost, lowPriceID, highPriceID } = prepareResponseData(lowPriceRequiredIngredients, highPriceRequiredIngredients);
 
     // Check if missing ingredient
     if(lowPriceID.length < ingredients.id.length || highPriceID.length < ingredients.id.length){
@@ -82,7 +50,49 @@ const getCost = async (req, res) => {
   }
 }
 
+const getPartialCost = async (req, res) => {
+
+}
+
 // Support function
+function prepareResponseData(lowPriceRequiredIngredients, highPriceRequiredIngredients) {
+  const estimatedCost = {
+    minimum_cost: 0,
+    maximum_cost: 0,
+    include_all_ingredients: true,
+    low_cost_ingredients: [],
+    high_cost_ingredients: []
+  };
+  
+  let lowPriceID = [], highPriceID = [];
+  lowPriceRequiredIngredients.forEach((ingre) => {
+    estimatedCost.low_cost_ingredients.push({
+      ingredient_id: ingre.ingredient_id,
+      product_name: ingre.name,
+      quantity: ingre.estimation.unit + ingre.estimation.measurement,
+      purchase_quantity: ingre.estimation.purchase,
+      total_cost: ingre.estimation.total_cost
+    })
+    estimatedCost.minimum_cost += ingre.estimation.total_cost;
+    lowPriceID.push(ingre.ingredient_id);
+  })
+  highPriceRequiredIngredients.forEach((ingre) => {
+    estimatedCost.high_cost_ingredients.push({
+      ingredient_id: ingre.ingredient_id,
+      product_name: ingre.name,
+      quantity: ingre.estimation.unit + ingre.estimation.measurement,
+      purchase_quantity: ingre.estimation.purchase,
+      total_cost: ingre.estimation.total_cost
+    })
+    estimatedCost.maximum_cost += ingre.estimation.total_cost;
+    highPriceID.push(ingre.ingredient_id);
+  })
+  estimatedCost.minimum_cost = Math.round(estimatedCost.minimum_cost);
+  estimatedCost.maximum_cost = Math.round(estimatedCost.maximum_cost);
+
+  return { estimatedCost, lowPriceID, highPriceID };
+}
+
 function estimateIngredientsCost(ingredients, ingredients_price) {
   // Group ingredients by their id
   var groupedIngredientsPrice = {};
@@ -172,5 +182,6 @@ function convertUnits(value, fromUnit, toUnit) {
 }
 
 module.exports = {
-  getCost
+  getFullCost,
+  getPartialCost
 }
