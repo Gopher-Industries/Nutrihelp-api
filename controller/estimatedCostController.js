@@ -39,6 +39,8 @@ const getFullCost = async (req, res) => {
     // Check if missing ingredient
     if(lowPriceID.length < ingredients.id.length || highPriceID.length < ingredients.id.length){
       estimatedCost.include_all_ingredients = false;
+    } else {
+      estimatedCost.include_all_ingredients = true;
     }
 
     return res.status(200).json(estimatedCost);
@@ -51,7 +53,65 @@ const getFullCost = async (req, res) => {
 }
 
 const getPartialCost = async (req, res) => {
+  const { recipe_id, exclude_ids } = req.params;
 
+  try {
+    const exclude_ingre_ids = exclude_ids.split(",").map(id => parseInt(id));
+
+    // Get recipe data
+    const data = await getEstimatedCost.getRecipeIngredients(recipe_id);
+    if (data.length === 0) {
+      return res.status(404).json({
+        error: "Invalid recipe id, ingredients not found"
+      })
+    };
+
+    // Get recipe's ingredients
+    const ingredients = data[0].ingredients;
+
+    // Filter out the unwanted ingredients
+    const exclude_indices = ingredients.id
+                                .filter(id => exclude_ingre_ids.includes(id))
+                                .map(id => ingredients.id.indexOf(id));
+    ingredients.id = ingredients.id.filter((id, i) => !exclude_indices.includes(i))
+    ingredients.quantity = ingredients.quantity.filter((id, i) => !exclude_indices.includes(i))
+    ingredients.measurement = ingredients.measurement.filter((id, i) => !exclude_indices.includes(i))
+
+    if (!ingredients || !ingredients.id || !ingredients.quantity || !ingredients.measurement) {
+      return res.status(404).json({
+        error: "Recipe contains invalid ingredients data, can not estimate cost"
+      })
+    }
+
+    // Get ingredients price
+    const ingredients_price = await getEstimatedCost.getIngredientsPrice(ingredients.id);
+    
+    // Calculate ingredients price
+    const { lowPriceRequiredIngredients, highPriceRequiredIngredients } = estimateIngredientsCost(ingredients, ingredients_price);
+
+    if (lowPriceRequiredIngredients.length === 0 && highPriceRequiredIngredients.length === 0) {
+      return res.status(404).json({
+        error: "There was an error in estimation process"
+      })
+    };
+
+    // Prepare response data
+    const { estimatedCost, lowPriceID, highPriceID } = prepareResponseData(lowPriceRequiredIngredients, highPriceRequiredIngredients);
+
+    // Check if missing ingredient
+    if(lowPriceID.length < ingredients.id.length || highPriceID.length < ingredients.id.length){
+      estimatedCost.include_all_ingredients = false;
+    } else {
+      estimatedCost.include_all_ingredients = true;
+    }
+
+    return res.status(200).json(estimatedCost);
+  } catch (error) {
+    console.error("Error logging in: ", error);
+    return res.status(500).json({
+      error: "Internal server error"
+    })
+  }
 }
 
 // Support function
@@ -59,7 +119,6 @@ function prepareResponseData(lowPriceRequiredIngredients, highPriceRequiredIngre
   const estimatedCost = {
     minimum_cost: 0,
     maximum_cost: 0,
-    include_all_ingredients: true,
     low_cost_ingredients: [],
     high_cost_ingredients: []
   };
