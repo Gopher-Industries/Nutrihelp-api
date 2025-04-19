@@ -19,14 +19,20 @@ describe("Test basic Cost Estimation", () => {
                 expect(res).to.have.status(200);
                 expect(res.body)
                     .to.have.all.keys(
-                      'minimum_cost', 
-                      'maximum_cost',
-                      'include_all_ingredients',
-                      'low_cost_ingredients',
-                      'high_cost_ingredients');
-                expect(res.body.minimum_cost).to.equal(18);
-                expect(res.body.maximum_cost).to.equal(42);
-                expect(res.body.include_all_ingredients).to.equal(true);
+                      'info', 
+                      'low_cost',
+                      'high_cost');
+                expect(res.body.info)
+                    .to.have.all.keys(
+                      'estimation_type',
+                      'include_all_wanted_ingredients',
+                      'minimum_cost',
+                      'maximum_cost'
+                    );
+                expect(res.body.info.estimation_type).to.equal("full");
+                expect(res.body.info.minimum_cost).to.equal(18);
+                expect(res.body.info.maximum_cost).to.equal(42);
+                expect(res.body.info.include_all_wanted_ingredients).to.equal(true);
                 done();
             });
       });
@@ -40,14 +46,20 @@ describe("Test basic Cost Estimation", () => {
                   expect(res).to.have.status(200);
                   expect(res.body)
                       .to.have.all.keys(
-                        'minimum_cost', 
-                        'maximum_cost',
-                        'include_all_ingredients',
-                        'low_cost_ingredients',
-                        'high_cost_ingredients');
-                  expect(res.body.minimum_cost).to.equal(28);
-                  expect(res.body.maximum_cost).to.equal(39);
-                  expect(res.body.include_all_ingredients).to.equal(true);
+                        'info', 
+                        'low_cost',
+                        'high_cost');
+                  expect(res.body.info)
+                      .to.have.all.keys(
+                        'estimation_type',
+                        'include_all_wanted_ingredients',
+                        'minimum_cost',
+                        'maximum_cost'
+                      );
+                  expect(res.body.info.estimation_type).to.equal("full");
+                  expect(res.body.info.minimum_cost).to.equal(28);
+                  expect(res.body.info.maximum_cost).to.equal(39);
+                  expect(res.body.info.include_all_wanted_ingredients).to.equal(true);
                   done();
               });
       });
@@ -119,7 +131,7 @@ describe("Test basic Cost Estimation", () => {
 })
 
 
-describe("Test customized Cost Estimation: excluding ingredients", () => {
+describe("Test Customized Cost Estimation: excluding ingredients", () => {
   describe("Exclude ingredients: Test valid recipe", () => {
     it("should return 200, return minimum/maximum cost and ingredients for recipe 261", (done) => {
       const recipe_id = 261;  
@@ -131,14 +143,20 @@ describe("Test customized Cost Estimation: excluding ingredients", () => {
                 expect(res).to.have.status(200);
                 expect(res.body)
                     .to.have.all.keys(
-                      'minimum_cost', 
-                      'maximum_cost',
-                      'include_all_ingredients',
-                      'low_cost_ingredients',
-                      'high_cost_ingredients');
-                expect(res.body.minimum_cost).to.equal(11);
-                expect(res.body.maximum_cost).to.equal(12);
-                expect(res.body.include_all_ingredients).to.equal(true);
+                      'info', 
+                      'low_cost',
+                      'high_cost');
+                expect(res.body.info)
+                    .to.have.all.keys(
+                      'estimation_type',
+                      'include_all_wanted_ingredients',
+                      'minimum_cost',
+                      'maximum_cost'
+                    );
+                expect(res.body.info.estimation_type).to.equal("partial");
+                expect(res.body.info.minimum_cost).to.equal(11);
+                expect(res.body.info.maximum_cost).to.equal(12);
+                expect(res.body.info.include_all_wanted_ingredients).to.equal(true);
                 done();
             });
       });
@@ -152,14 +170,20 @@ describe("Test customized Cost Estimation: excluding ingredients", () => {
                   expect(res).to.have.status(200);
                   expect(res.body)
                       .to.have.all.keys(
-                        'minimum_cost', 
-                        'maximum_cost',
-                        'include_all_ingredients',
-                        'low_cost_ingredients',
-                        'high_cost_ingredients');
-                  expect(res.body.minimum_cost).to.equal(17);
-                  expect(res.body.maximum_cost).to.equal(27);
-                  expect(res.body.include_all_ingredients).to.equal(true);
+                        'info', 
+                        'low_cost',
+                        'high_cost');
+                  expect(res.body.info)
+                      .to.have.all.keys(
+                        'estimation_type',
+                        'include_all_wanted_ingredients',
+                        'minimum_cost',
+                        'maximum_cost'
+                      );
+                  expect(res.body.info.estimation_type).to.equal("partial");
+                  expect(res.body.info.minimum_cost).to.equal(17);
+                  expect(res.body.info.maximum_cost).to.equal(27);
+                  expect(res.body.info.include_all_wanted_ingredients).to.equal(true);
                   done();
               });
       });
@@ -198,7 +222,7 @@ describe("Test customized Cost Estimation: excluding ingredients", () => {
   });
 
   
-  describe("Cost Estimation: Test valid recipe with invalid ingredients", () => {
+  describe("Exclude ingredients: Test valid recipe with invalid ingredients", () => {
     it("should return 404 for ingredient not found in store", (done) => {
       const recipe_id = 267; 
       const exclude_id = [2];
@@ -210,7 +234,6 @@ describe("Test customized Cost Estimation: excluding ingredients", () => {
                 expect(res).to.have.status(404);
                 expect(res.body)
                   .to.have.property("error")
-                  // .that.equals("There was an error in estimation process");
                   .that.equals("There was an error in estimation process");
                 done();
             });

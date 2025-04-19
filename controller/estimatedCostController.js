@@ -38,10 +38,13 @@ const getFullCost = async (req, res) => {
 
     // Check if missing ingredient
     if(lowPriceID.length < ingredients.id.length || highPriceID.length < ingredients.id.length){
-      estimatedCost.include_all_ingredients = false;
+      estimatedCost.info.include_all_wanted_ingredients = false;
     } else {
-      estimatedCost.include_all_ingredients = true;
+      estimatedCost.info.include_all_wanted_ingredients = true;
     }
+
+    // Add estimation info
+    estimatedCost.info.estimation_type = "full";
 
     return res.status(200).json(estimatedCost);
   } catch (error) {
@@ -111,10 +114,13 @@ const getPartialCost = async (req, res) => {
 
     // Check if missing ingredient
     if(lowPriceID.length < ingredients.id.length || highPriceID.length < ingredients.id.length){
-      estimatedCost.include_all_ingredients = false;
+      estimatedCost.info.include_all_wanted_ingredients = false;
     } else {
-      estimatedCost.include_all_ingredients = true;
+      estimatedCost.info.include_all_wanted_ingredients = true;
     }
+
+    // Add estimation info
+    estimatedCost.info.estimation_type = "partial";
 
     return res.status(200).json(estimatedCost);
   } catch (error) {
@@ -128,38 +134,54 @@ const getPartialCost = async (req, res) => {
 // Support function
 function prepareResponseData(lowPriceRequiredIngredients, highPriceRequiredIngredients) {
   const estimatedCost = {
-    minimum_cost: 0,
-    maximum_cost: 0,
-    low_cost_ingredients: [],
-    high_cost_ingredients: []
+    info: {
+      estimation_type: "",
+      include_all_wanted_ingredients: true,
+      minimum_cost: 0,
+      maximum_cost: 0
+    },
+    low_cost: {
+      price: 0,
+      count: 0,
+      ingredients: []
+    },
+    high_cost: {
+      price: 0,
+      count: 0,
+      ingredients: []
+    }
   };
   
   let lowPriceID = [], highPriceID = [];
   lowPriceRequiredIngredients.forEach((ingre) => {
-    estimatedCost.low_cost_ingredients.push({
+    estimatedCost.low_cost.ingredients.push({
       ingredient_id: ingre.ingredient_id,
       product_name: ingre.name,
       quantity: ingre.estimation.unit + ingre.estimation.measurement,
       purchase_quantity: ingre.estimation.purchase,
       total_cost: ingre.estimation.total_cost
     })
-    estimatedCost.minimum_cost += ingre.estimation.total_cost;
+    estimatedCost.info.minimum_cost += ingre.estimation.total_cost;
     lowPriceID.push(ingre.ingredient_id);
   })
   highPriceRequiredIngredients.forEach((ingre) => {
-    estimatedCost.high_cost_ingredients.push({
+    estimatedCost.high_cost.ingredients.push({
       ingredient_id: ingre.ingredient_id,
       product_name: ingre.name,
       quantity: ingre.estimation.unit + ingre.estimation.measurement,
       purchase_quantity: ingre.estimation.purchase,
       total_cost: ingre.estimation.total_cost
     })
-    estimatedCost.maximum_cost += ingre.estimation.total_cost;
+    estimatedCost.info.maximum_cost += ingre.estimation.total_cost;
     highPriceID.push(ingre.ingredient_id);
   })
-  estimatedCost.minimum_cost = Math.round(estimatedCost.minimum_cost);
-  estimatedCost.maximum_cost = Math.round(estimatedCost.maximum_cost);
+  estimatedCost.info.minimum_cost = Math.round(estimatedCost.info.minimum_cost);
+  estimatedCost.info.maximum_cost = Math.round(estimatedCost.info.maximum_cost);
 
+  estimatedCost.low_cost.price =  estimatedCost.info.minimum_cost;
+  estimatedCost.low_cost.count =  estimatedCost.low_cost.ingredients.length;
+  estimatedCost.high_cost.price = estimatedCost.info.maximum_cost;
+  estimatedCost.high_cost.count =  estimatedCost.high_cost.ingredients.length;
   return { estimatedCost, lowPriceID, highPriceID };
 }
 
