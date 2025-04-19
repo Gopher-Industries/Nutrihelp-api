@@ -58,17 +58,34 @@ const getPartialCost = async (req, res) => {
   try {
     const exclude_ingre_ids = exclude_ids.split(",").map(id => parseInt(id));
 
-    // Get recipe data
+    // Get recipe's ingredients
     const data = await getEstimatedCost.getRecipeIngredients(recipe_id);
     if (data.length === 0) {
       return res.status(404).json({
         error: "Invalid recipe id, ingredients not found"
       })
     };
-
-    // Get recipe's ingredients
     const ingredients = data[0].ingredients;
 
+    // Validate recipe's ingredients data
+    if (!ingredients || !ingredients.id || !ingredients.quantity || !ingredients.measurement) {
+      return res.status(404).json({
+        error: "Recipe contains invalid ingredients data, can not estimate cost"
+      })
+    }
+
+    // Return error if the excluding ingredients not included in recipe
+    const invalid_exclude = exclude_ingre_ids.filter((id) => {
+      if (!ingredients.id.includes(id)) {
+        return true;
+      }
+    })
+    if (invalid_exclude.length > 0) {
+      return res.status(404).json({
+        error: `Ingredient ${invalid_exclude.toString()} not found in recipe, can not exclude`
+      })
+    }
+    
     // Filter out the unwanted ingredients
     const exclude_indices = ingredients.id
                                 .filter(id => exclude_ingre_ids.includes(id))
@@ -76,13 +93,7 @@ const getPartialCost = async (req, res) => {
     ingredients.id = ingredients.id.filter((id, i) => !exclude_indices.includes(i))
     ingredients.quantity = ingredients.quantity.filter((id, i) => !exclude_indices.includes(i))
     ingredients.measurement = ingredients.measurement.filter((id, i) => !exclude_indices.includes(i))
-
-    if (!ingredients || !ingredients.id || !ingredients.quantity || !ingredients.measurement) {
-      return res.status(404).json({
-        error: "Recipe contains invalid ingredients data, can not estimate cost"
-      })
-    }
-
+    
     // Get ingredients price
     const ingredients_price = await getEstimatedCost.getIngredientsPrice(ingredients.id);
     
