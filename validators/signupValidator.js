@@ -32,3 +32,7 @@ exports.registerValidation = [
         .isLength({ min: 10 })
         .withMessage('Address should be at least 10 characters long'),
 ];
+
+module.exports = {
+    registerValidation
+};
