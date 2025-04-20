@@ -1214,6 +1214,80 @@ paths:
           description: Bad request
         '500':
           description: Internal server error
+     
+  /userprofile/update-by-identifier:
+    put:
+      summary: Update user profile by identifier
+      description: Updates the user's profile using either email or username as the identifier.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - identifier
+                - updates
+              properties:
+                identifier:
+                  type: test@example.com
+                  description: Email or username of the user
+                updates:
+                  type: object
+                  properties:
+                    theme:
+                      type: string
+                      enum: [light, dark, system]
+                    language:
+                      type: string
+                    timezone:
+                      type: string
+                    notification_email:
+                      type: boolean
+                    notification_push:
+                      type: boolean
+                    privacy_profile:
+                      type: string
+                      enum: [public, friends, private]
+                    interests:
+                      type: array
+                      items:
+                        type: string
+                    bio:
+                      type: string
+                    avatar_url:
+                      type: string
+      responses:
+        '200':
+          description: User profile updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  updatedProfile:
+                    type: object
+        '400':
+          description: Bad request - missing identifier or updates
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: User not found with provided identifier
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
 
                     
 components:
