@@ -4,8 +4,17 @@ let getUserCredentials = require("../model/getUserCredentials.js");
 let { addMfaToken, verifyMfaToken } = require("../model/addMfaToken.js");
 const sgMail = require("@sendgrid/mail");
 const crypto = require("crypto");
+const { validationResult } = require('express-validator');
+const { loginValidator } = require('../validators/loginValidator.js');
 
 const login = async (req, res) => {
+
+    // Check validation result
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+    }
+
     const { email, password } = req.body;
 
     try {
@@ -15,11 +24,11 @@ const login = async (req, res) => {
                 .json({ error: "Email and password are required" });
         }
 
-        const user = await getUserCredentials(email); 
+        const user = await getUserCredentials(email);
         if (!user || user.length === 0) {
             return res
                 .status(401)
-                .json({ error: "Invalid email" }); 
+                .json({ error: "Invalid email" });
         }
 
         const isPasswordValid = await bcrypt.compare(password, user.password);
@@ -28,7 +37,7 @@ const login = async (req, res) => {
                 .status(401)
                 .json({ error: "Invalid password" });
         }
-// changed the MFA to use crypto, as it is more secure then the current MFA setup
+        // changed the MFA to use crypto, as it is more secure then the current MFA setup
         if (user.mfa_enabled) {
             let token = crypto.randomInt(100000, 999999);
 
@@ -55,6 +64,13 @@ const login = async (req, res) => {
 };
 
 const loginMfa = async (req, res) => {
+
+    // Check validation result
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+    }
+
     const { email, password, mfa_token } = req.body;
 
     try {
