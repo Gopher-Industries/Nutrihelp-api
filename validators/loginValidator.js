@@ -1,4 +1,5 @@
 const { body } = require('express-validator');
+
 // Login validation
 const loginValidator = [
     body('email')
@@ -11,6 +12,7 @@ const loginValidator = [
         .notEmpty()
         .withMessage('Password is required')
 ];
+
 // MFA login validation
 const mfaloginValidator = [
     body('email')
