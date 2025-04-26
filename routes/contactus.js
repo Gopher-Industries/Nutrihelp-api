@@ -1,8 +1,9 @@
 const express = require("express");
-const router  = express.Router();
+const router = express.Router();
 const controller = require('../controller/contactusController.js');
+const { formLimiter } = require('../middleware/rateLimiter'); 
 
-router.route('/').post(function(req,res) {
+router.post('/', formLimiter, function(req, res) {
     controller.contactus(req, res);
 });
 
