@@ -21,4 +21,6 @@ module.exports = app => {
     pp.use("/api/articles", require('./articles'));
     app.use('/api/chatbot', require('./chatbot'));
     app.use('/api/obesity', require('./obesityPrediction'));
+    app.use('/api/recipe/nutritionlog', require('./recipeNutritionlog'));
+
 };

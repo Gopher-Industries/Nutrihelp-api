@@ -5,6 +5,25 @@ info:
 servers:
   - url: http://localhost/api
 paths:
+  /upload:
+    post:
+      summary: Upload a file
+      description: Upload JPG, PNG, or PDF (max 5MB)
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: File uploaded successfully
+        '400':
+          description: Upload failed due to size/type restriction
   /appointments:
     post:
       summary: Save appointment data
@@ -1188,7 +1207,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-
     /healthArticles:
     get:
       summary: Search health articles
@@ -1237,11 +1255,28 @@ paths:
       responses:
         '200':
           description: Successful search
+
+  /recipe/nutritionlog:
+    get:
+      summary: Get full nutrition info for a recipe by name
+      description: Returns nutritional values of a recipe based on recipe_name
+      parameters:
+        - in: query
+          name: name
+          schema:
+            type: string
+          required: true
+          description: The name of the recipe to search (case-insensitive)
+      responses:
+        '200':
+          description: Nutritional info returned successfully
+
           content:
             application/json:
               schema:
                 type: object
                 properties:
+
                   articles:
                     type: array
                     items:
@@ -1275,6 +1310,37 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+                  recipe_name:
+                    type: string
+                  calories:
+                    type: number
+                  fat:
+                    type: number
+                  carbohydrates:
+                    type: number
+                  protein:
+                    type: number
+                  fiber:
+                    type: number
+                  vitamin_a:
+                    type: number
+                  vitamin_b:
+                    type: number
+                  vitamin_c:
+                    type: number
+                  vitamin_d:
+                    type: number
+                  sodium:
+                    type: number
+                  sugar:
+                    type: number
+        '400':
+          description: Missing recipe name query parameter
+        '404':
+          description: Recipe not found
+        '500':
+          description: Internal server error                  
+
   /recipe/cost/{recipe_id}/{exclude_ids}:
     get:
       summary: Calculate estimated cost for a recipe, with option for excluding ingredients
@@ -1305,7 +1371,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-
 
 components:
   securitySchemes:
