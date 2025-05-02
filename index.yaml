@@ -1206,7 +1206,78 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-
+  /upload:
+    post:
+      tags:
+        - Upload
+      summary: Upload a file
+      description: Upload a file to Supabase Storage
+      operationId: uploadFile
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                user_id:
+                  type: string
+                  example: "12345"
+      responses:
+        '201':
+          description: File uploaded successfully
+        '400':
+          description: Bad request
+        '500':
+          description: Internal server error
+     
+  /userprofile/update-by-identifier:
+    put:
+      summary: Update user profile by identifier
+      description: Updates the user's profile using either email or username as the identifier.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - identifier
+                - updates
+              properties:
+                identifier:
+                  type: test@example.com
+                  description: Email or username of the user
+                updates:
+                  type: object
+                  properties:
+                    theme:
+                      type: string
+                      enum: [light, dark, system]
+                    language:
+                      type: string
+                    timezone:
+                      type: string
+                    notification_email:
+                      type: boolean
+                    notification_push:
+                      type: boolean
+                    privacy_profile:
+                      type: string
+                      enum: [public, friends, private]
+                    interests:
+                      type: array
+                      items:
+                        type: string
+                    bio:
+                      type: string
+                    avatar_url:
+                      type: string
+      responses:
+        '200':
+          description: User profile updated successfully
     /healthArticles:
     get:
       summary: Search health articles
@@ -1270,13 +1341,23 @@ paths:
       responses:
         '200':
           description: Nutritional info returned successfully
-
           content:
             application/json:
               schema:
                 type: object
                 properties:
-
+                  message:
+                    type: string
+                  updatedProfile:
+                    type: object
+        '400':
+          description: Bad request - missing identifier or updates
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: User not found with provided identifier
                   articles:
                     type: array
                     items:
@@ -1309,7 +1390,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-
                   recipe_name:
                     type: string
                   calories:
@@ -1340,7 +1420,6 @@ paths:
           description: Recipe not found
         '500':
           description: Internal server error                  
-
   /recipe/cost/{recipe_id}/{exclude_ids}:
     get:
       summary: Calculate estimated cost for a recipe, with option for excluding ingredients
@@ -1371,7 +1450,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-
 components:
   securitySchemes:
     BearerAuth:
