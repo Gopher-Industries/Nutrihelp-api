@@ -1187,7 +1187,37 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-                    
+  /recipe/cost/{recipe_id}/{exclude_ids}:
+    get:
+      summary: Calculate estimated cost for a recipe, with option for excluding ingredients
+      description: Returns JSON array containing total cost and corresponding ingredients price
+      parameters:
+        - in: path
+          name: recipe_id
+          required: true
+          schema:
+            type: integer
+          description: Integer ID of the recipe for cost calculation
+        - in: path
+          name: exclude_ids
+          required: true
+          schema:
+            type: string
+          description: List of ingredient ids to be excluded, separated by commas
+      responses:
+        '200':
+          description: Calculate cost successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EstimatedCost'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
 components:
   securitySchemes:
     BearerAuth:
@@ -1446,39 +1476,58 @@ components:
     EstimatedCost:
         type: object
         properties:
-          minimum_cost:
-            type: number
-          maximum_cost:
-            type: number
-          include_all_ingredients:
-            type: boolean
-          low_cost_ingredients:
-            type: array
-            items:
-              type: object
-              properties:
-                ingredient_id: 
-                  type: integer
-                product_name: 
-                  type: string
-                quantity: 
-                  type: string
-                purchase_quantity: 
-                  type: integer
-                total_cost: 
-                  type: number
-          high_cost_ingredients:
-            type: array
-            items:
-              type: object
-              properties:
-                ingredient_id: 
-                  type: integer
-                product_name: 
-                  type: string
-                quantity: 
-                  type: string
-                purchase_quantity: 
-                  type: integer
-                total_cost: 
-                  type: number
+          info: 
+            type: object
+            properties:
+              estimation_type:
+                type: string
+              include_all_wanted_ingredients:
+                type: boolean
+              minimum_cost:
+                type: number
+              maximum_cost:
+                type: number
+          low_cost:
+            type: object
+            properties:
+              price:
+                type: number
+              count:
+                type: number
+              ingredients:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    ingredient_id: 
+                      type: integer
+                    product_name: 
+                      type: string
+                    quantity: 
+                      type: string
+                    purchase_quantity: 
+                      type: integer
+                    total_cost: 
+                      type: number
+          high_cost:
+            type: object
+            properties:
+              price:
+                type: number
+              count:
+                type: number
+              ingredients:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    ingredient_id: 
+                      type: integer
+                    product_name: 
+                      type: string
+                    quantity: 
+                      type: string
+                    purchase_quantity: 
+                      type: integer
+                    total_cost: 
+                      type: number

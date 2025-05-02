@@ -4,6 +4,7 @@
   "description": "nutrihelp-api",
   "main": "server.js",
   "scripts": {
+    "test:rce": "mocha ./test/costEstimationTest.js",
     "test": "concurrently -k \"node server.js\" \"mocha --timeout 10000 --exit\""
   },
   "keywords": [
