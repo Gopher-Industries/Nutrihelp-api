@@ -18,6 +18,7 @@ module.exports = app => {
     app.use('/api/substitution', require('./ingredientSubstitution'));
     app.use('/api/auth', require('./auth'));
     app.use('/api/recipe/cost', require('./costEstimation'));
+    pp.use("/api/articles", require('./articles'));
     app.use('/api/chatbot', require('./chatbot'));
     app.use('/api/obesity', require('./obesityPrediction'));
     app.use('/api/recipe/nutritionlog', require('./recipeNutritionlog'));
