@@ -5,6 +5,25 @@ info:
 servers:
   - url: http://localhost/api
 paths:
+  /upload:
+    post:
+      summary: Upload a file
+      description: Upload JPG, PNG, or PDF (max 5MB)
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: File uploaded successfully
+        '400':
+          description: Upload failed due to size/type restriction
   /appointments:
     post:
       summary: Save appointment data
