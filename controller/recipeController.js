@@ -1,6 +1,7 @@
 let createRecipe = require("../model/createRecipe.js");
 let getUserRecipes = require("../model/getUserRecipes.js");
 let deleteUserRecipes = require("../model/deleteUserRecipes.js");
+const { validationResult } = require('express-validator');
 
 const createAndSaveRecipe = async (req, res) => {
 	const {
@@ -17,21 +18,26 @@ const createAndSaveRecipe = async (req, res) => {
 	} = req.body;
 
 	try {
-		if (
-			!user_id ||
-			!ingredient_id ||
-			!ingredient_quantity ||
-			!recipe_name ||
-			!cuisine_id ||
-			!total_servings ||
-			!preparation_time ||
-			!instructions ||
-			!cooking_method_id
-		) {
-			return res.status(400).json({
-				error: "Recipe parameters are missed",
-				statusCode: 400,
-			});
+		// if (
+		// 	!user_id ||
+		// 	!ingredient_id ||
+		// 	!ingredient_quantity ||
+		// 	!recipe_name ||
+		// 	!cuisine_id ||
+		// 	!total_servings ||
+		// 	!preparation_time ||
+		// 	!instructions ||
+		// 	!cooking_method_id
+		// ) {
+		// 	return res.status(400).json({
+		// 		error: "Recipe parameters are missed",
+		// 		statusCode: 400,
+		// 	});
+		// }
+
+		const errors = validationResult(req);
+		if (!errors.isEmpty()) {
+			return res.status(400).json({ errors: errors.array() });
 		}
 
 		const recipe = await createRecipe.createRecipe(
@@ -48,7 +54,9 @@ const createAndSaveRecipe = async (req, res) => {
 
 		let savedData = await createRecipe.saveRecipe(recipe);
 
-		await createRecipe.saveImage(recipe_image, savedData[0].id);
+		if (recipe_image) {
+			await createRecipe.saveImage(recipe_image, savedData[0].id);
+		}
 
 		await createRecipe.saveRecipeRelation(recipe, savedData[0].id);
 
