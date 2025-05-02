@@ -1,24 +1,13 @@
+const { validationResult } = require('express-validator');
 let addUserFeedback = require("../model/addUserFeedback.js");
 
 const userfeedback = async (req, res) => {
 	try {
-		const { user_id, name, contact_number, email, experience, message } =
-			req.body;
-		if (!name) {
-			return res.status(400).send({ error: "Name is required" });
-		}
-
-		if (!email) {
-			return res.status(400).send({ error: "Email is required" });
-		}
-
-		if (!experience) {
-			return res.status(400).send({ error: "Experience is required" });
-		}
-
-		if (!message) {
-			return res.status(400).send({ error: "Message is required" });
-		}
+		const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            return res.status(400).json({ errors: errors.array() });
+        }
+		const { user_id, name, contact_number, email, experience, message } = req.body;
 
 		await addUserFeedback(
 			user_id,

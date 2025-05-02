@@ -1,16 +1,20 @@
 const bcrypt = require('bcryptjs');
-let getUser = require('../model/getUser.js')
-let addUser = require('../model/addUser.js')
-
+let getUser = require('../model/getUser.js');
+let addUser = require('../model/addUser.js');
+const { validationResult } = require('express-validator');
+const { registerValidation } = require('../validators/signupValidator.js');
 
 const signup = async (req, res) => {
+    
+    // Check for validation errors
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+    }
+
     const { name, email, password, contact_number, address } = req.body;
 
     try {
-        if (!name || !email || !password || !contact_number || !address) {
-            return res.status(400).json({ error: 'Name, email, password, contact number and address are required' });
-        }
-
         const userExists = await getUser(email);
 
         if (userExists.length > 0) {
@@ -28,6 +32,5 @@ const signup = async (req, res) => {
         return res.status(500).json({ error: 'Internal server error' });
     }
 };
-
 
 module.exports = { signup };
