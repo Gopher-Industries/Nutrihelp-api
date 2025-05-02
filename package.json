@@ -4,6 +4,7 @@
   "description": "nutrihelp-api",
   "main": "server.js",
   "scripts": {
+    "test:rce": "mocha ./test/costEstimationTest.js",
     "test": "concurrently -k \"node server.js\" \"mocha --timeout 10000 --exit\""
   },
   "keywords": [
@@ -24,10 +25,13 @@
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.19.1",
+    "express-validator": "^7.2.1",
+    "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.2",
     "mocha": "^10.7.0",
     "multer": "^1.4.5-lts.1",
     "mysql2": "^3.9.2",
+    "nutrihelp-api": "file:",
     "sinon": "^18.0.0",
     "swagger-ui-express": "^5.0.0",
     "yamljs": "^0.3.0"

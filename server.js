@@ -1,5 +1,6 @@
 require("dotenv").config();
 const express = require("express");
+const helmet = require('helmet');
 const cors = require("cors");
 const swaggerUi = require("swagger-ui-express");
 const yaml = require("yamljs");
@@ -15,6 +16,19 @@ let db = require("./dbConnection");
 
 app.options("*", cors({ origin: "http://localhost:3000" }));
 app.use(cors({ origin: "http://localhost:3000" }));
+
+app.use(helmet({
+	contentSecurityPolicy: {
+		directives: {
+			defaultSrc: ["'self'"],
+			scriptSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net"],
+			styleSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net"],
+			objectSrc: ["'none'"],
+		},
+	},
+	crossOriginEmbedderPolicy: true,
+	referrerPolicy: { policy: "strict-origin-when-cross-origin" },
+}));
 
 const swaggerDocument = yaml.load("./index.yaml");
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
