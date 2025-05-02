@@ -7,7 +7,7 @@ module.exports = app => {
     app.use("/api/appointments", require('./appointment'));
     app.use("/api/imageClassification", require('./imageClassification'));
     app.use("/api/recipeImageClassification", require('./recipeImageClassification'));
-    app.use("/api/userprofile", require('./userprofile'));
+    app.use("/api/userprofile", require('./userprofile')); // get profile, update profile, update by identifier (email or username)
     app.use("/api/userpassword", require('./userpassword'));
     app.use("/api/fooddata", require('./fooddata'));
     app.use("/api/user/preferences", require('./userPreferences'));
@@ -20,4 +20,5 @@ module.exports = app => {
     app.use('/api/recipe/cost', require('./costEstimation'));
     app.use('/api/chatbot', require('./chatbot'));
     app.use('/api/obesity', require('./obesityPrediction'));
+    app.use('/api/upload', require('./upload'));
 };
