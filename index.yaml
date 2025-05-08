@@ -8,7 +8,7 @@ paths:
   /upload:
     post:
       summary: Upload a file
-      description: Upload JPG, PNG, or PDF (max 5MB)
+      description: Upload JPG, PNG, or PDF (max 5MB, limited to 5 uploads per 10 minutes)
       requestBody:
         required: true
         content:
@@ -24,6 +24,8 @@ paths:
           description: File uploaded successfully
         '400':
           description: Upload failed due to size/type restriction
+        '429':
+          description: Too many uploads from this IP (rate limit exceeded)
   /appointments:
     post:
       summary: Save appointment data
