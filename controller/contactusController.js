@@ -1,24 +1,17 @@
 let addContactUsMsg = require("../model/addContactUsMsg.js");
+const { validationResult } = require('express-validator');
+const { contactusValidator } = require('../validators/contactusValidator.js');
 
 const contactus = async (req, res) => {
+    // Check for validation errors
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { name, email, subject, message } = req.body;
+
     try {
-        const {name, email, subject, message } = req.body;
-        if (!name) {
-            return res.status(400).send({ error: 'Name is required' });
-        }
-
-        if (!email) {
-            return res.status(400).send({ error: 'Email is required' });
-        }
-        
-        if (!subject) {
-            return res.status(400).send({ error: 'Subject is required' });
-        }
-
-        if (!message) {
-            return res.status(400).send({ error: 'Message is required' });
-        }
-
         await addContactUsMsg(name, email, subject, message);
 
         return res.status(201).json({ message: 'Data received successfully!' });
