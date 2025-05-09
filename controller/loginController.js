@@ -58,7 +58,7 @@ const login = async (req, res) => {
 
       if (failureCount === 9) {
         return res.status(429).json({
-          warning: "⚠️ You have one attempt left before your account is temporarily locked."
+          warning: "⚠ You have one attempt left before your account is temporarily locked."
         });
       }
 

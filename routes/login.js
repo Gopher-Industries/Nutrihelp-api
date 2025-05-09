@@ -4,7 +4,7 @@ const controller = require('../controller/loginController.js');
 
 // Import validation rules and middleware
 const { loginValidator, mfaloginValidator } = require('../validators/loginValidator');
-const validate = require('../middleware/validateRequest');
+const validate = require('../middleware/ValidateRequest');
 const { loginLimiter } = require('../middleware/rateLimiter'); // ✅ rate limiter added
 
 // POST /login
