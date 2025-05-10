@@ -3,10 +3,9 @@ const router            = express.Router();
 const controller        = require("../controller/userPreferencesController");
 const authenticateToken = require("../middleware/authenticateToken");
 const { validateUserPreferences } = require("../validators/userPreferencesValidator");
-const ValidateRequest = require("../middleware/ValidateRequest");
+const ValidateRequest = require("../middleware/validateRequest");
 
 router.route("/").get(authenticateToken, controller.getUserPreferences);
-// router.route("/").post(authenticateToken, controller.postUserPreferences);
 router.post(
     "/",
     authenticateToken,
