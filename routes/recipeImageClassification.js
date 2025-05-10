@@ -1,25 +1,64 @@
-//FOR THIS API TO WORK, YOU MUST HAVE THE AI MODEL FILE SAVED TO THE PREDICTION_MODELS FOLDER
-//THIS FILE CAN BE FOUND UPLOADED TO THE NUTRIHELP TEAMS SITE
-//IT IS CALLED BEST_MODEL_CLASS.HDF5
-
 const express = require('express');
 const predictionController = require('../controller/recipeImageClassificationController.js');
 const router = express.Router();
 const multer = require('multer');
 const fs = require('fs');
+const path = require('path');
 
-// Define multer configuration for file upload
-const upload = multer({ dest: './uploads/' });
+// Ensure uploads directory exists
+if (!fs.existsSync('./uploads')) {
+  fs.mkdirSync('./uploads', { recursive: true });
+}
 
-// Define route for receiving input data and returning predictions
-router.post('/', upload.single('image'), (req, res) => {
-  // Check if a file was uploaded
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, './uploads/temp/');  
+  },
+  filename: function (req, file, cb) {
+    const uniquePrefix = Date.now() + '-';
+    cb(null, uniquePrefix + file.originalname);
+  }
+});
+
+// Create temp directory for uploads
+if (!fs.existsSync('./uploads/temp')) {
+  fs.mkdirSync('./uploads/temp', { recursive: true });
+}
+
+const fileFilter = (req, file, cb) => {
+  if (file.mimetype === 'image/jpeg' || file.mimetype === 'image/png') {
+    cb(null, true);
+  } else {
+    cb(new Error('Only JPG and PNG image files are allowed'), false);
+  }
+};
+
+const upload = multer({ 
+  storage: storage,
+  fileFilter: fileFilter,
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB max file size
+  }
+});
+
+router.post('/', upload.single('image'), (req, res, next) => {
   if (!req.file) {
     return res.status(400).json({ error: 'No image uploaded' });
   }
 
-  // Call the predictImage function from the controller with req and res objects
-  predictionController.predictRecipeImage(req, res);
+  predictionController(req, res);
+});
+
+router.use((err, req, res, next) => {
+  if (err instanceof multer.MulterError) {
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({ error: 'File size exceeds 5MB limit' });
+    }
+    return res.status(400).json({ error: `Upload error: ${err.message}` });
+  } else if (err) {
+    return res.status(400).json({ error: err.message });
+  }
+  next();
 });
 
 module.exports = router;
