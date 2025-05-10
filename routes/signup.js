@@ -4,7 +4,7 @@ const controller = require('../controller/signupController.js');
 
 // Import the validation rule and middleware
 const { registerValidation } = require('../validators/signupValidator.js');
-const validate = require('../middleware/ValidateRequest');
+const validate = require('../middleware/validateRequest');
 const { signupLimiter } = require('../middleware/rateLimiter'); // rate limiter added
 
 // Apply rate limiter and validation before the controller

@@ -2,15 +2,37 @@ const path = require('path');
 const { spawn } = require('child_process');
 const fs = require('fs');
 
+// Utility to delete the uploaded file
+const deleteFile = (filePath) => {
+  fs.unlink(filePath, (err) => {
+    if (err) {
+      console.error('Error deleting file:', err);
+    }
+  });
+};
+
+// Function to clean the raw prediction output
+const cleanPrediction = (prediction) => {
+  const lines = prediction.split('\n');
+  const lastLine = lines[lines.length - 2]; // Skip the last empty line
+  const startIndex = lastLine.indexOf(' ') + 1;
+  return lastLine.slice(startIndex).trim();
+};
+
 // Function to handle prediction logic
 const predictImage = (req, res) => {
   // Path to the uploaded image file
   const imagePath = req.file.path;
 
+  if (!imagePath) {
+    return res.status(400).json({ error: 'Image path is missing.' });
+  }
+
   // Read the image file from disk
   fs.readFile(imagePath, (err, imageData) => {
     if (err) {
       console.error('Error reading image file:', err);
+      deleteFile(imagePath);
       return res.status(500).json({ error: 'Internal server error' });
     }
 
@@ -30,39 +52,22 @@ const predictImage = (req, res) => {
     // Handle errors
     pythonProcess.stderr.on('data', (data) => {
       console.error('Error executing Python script:', data.toString());
+      deleteFile(imagePath);
       res.status(500).json({ error: 'Internal server error' });
     });
 
     // When Python script finishes execution
     pythonProcess.on('close', (code) => {
-      if (code === 0) {
+      deleteFile(imagePath);
 
-        //OUTPUT CLEANING
-        //-----------------------------------------------------
-        function cleanPrediction(prediction) {
-          // Split the prediction string by line breaks
-          const lines = prediction.split('\n');
-          
-          // Extract the relevant prediction from the last line
-          const lastLine = lines[lines.length - 2]; // Skip the last empty line
-          
-          // Extract the food name and calorie information
-          const startIndex = lastLine.indexOf(' ') + 1; // Start index after the first space
-          const predictionText = lastLine.slice(startIndex); // Extract text after the space
-          
-          // Return the cleaned prediction
-          return predictionText.trim(); // Trim any leading/trailing whitespace
-        }
-        
-        // Example usage:
-        //const prediction = "\r\n1/1 [==============================] - ETA: 0s\r\n1/1 [==============================] - 0s 332ms/step\r\n14 Avocado:~160 calories per 100 grams\r\n";
-        
-        //console.log(cleanedPrediction); // Output: "Avocado:~160 calories per 100 grams"
+      if (code !== 0) {
+        console.error('Python script exited with code:', code);
+        return res.status(500).json({ error: 'Model execution failed.' });
+      }       
+      try{
         const cleanedPrediction = cleanPrediction(prediction);
-        //-------------------------------------------------------
-        // Send prediction back to the client
         res.status(200).json({ prediction: cleanedPrediction });
-      } else {
+      } catch (e) {
         console.error('Python script exited with code:', code);
         res.status(500).json({ error: 'Internal server error' });
       }

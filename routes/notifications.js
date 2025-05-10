@@ -1,17 +1,39 @@
 const express = require('express');
 const router = express.Router();
 const notificationController = require('../controller/notificationController');
+const {
+  validateCreateNotification,
+  validateUpdateNotification,
+  validateDeleteNotification
+} = require('../validators/notificationValidator');
+
+const validateResult = require('../middleware/validateRequest.js');
 
 // Create a new notification
-router.post('/', notificationController.createNotification);
+router.post(
+  '/',
+  validateCreateNotification,
+  validateResult,
+  notificationController.createNotification
+);
 
 // Get notifications by user_id
 router.get('/:user_id', notificationController.getNotificationsByUserId);
 
-// PUT /api/notifications/:id
-router.put('/:id', notificationController.updateNotificationStatusById);
+// Update notification status by ID
+router.put(
+  '/:id',
+  validateUpdateNotification,
+  validateResult,
+  notificationController.updateNotificationStatusById
+);
 
-
-router.delete('/:id', notificationController.deleteNotificationById);
+// Delete notification by ID
+router.delete(
+  '/:id',
+  validateDeleteNotification,
+  validateResult,
+  notificationController.deleteNotificationById
+);
 
 module.exports = router;

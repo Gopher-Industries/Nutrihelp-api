@@ -5,13 +5,6 @@ exports.createNotification = async (req, res) => {
     try {
         const { user_id, type, content } = req.body;
 
-        if (!user_id) {
-            return res.status(400).json({ message: "User ID is required" });
-        }
-        if (!type || !content) {
-            return res.status(400).json({ message: "Notification type and content are required" });
-        }
-
         const { data, error } = await supabase
             .from('notifications')
             .insert([{ user_id, type, content, status: 'unread' }]);
@@ -29,10 +22,6 @@ exports.createNotification = async (req, res) => {
 exports.getNotificationsByUserId = async (req, res) => {
     try {
         const { user_id } = req.params;
-
-        if (!user_id) {
-            return res.status(400).json({ message: "User ID is required" });
-        }
 
         const { data, error } = await supabase
             .from('notifications')
@@ -58,10 +47,6 @@ exports.updateNotificationStatusById = async (req, res) => {
         const { id } = req.params; // Extract id from the URL parameters
         const { status } = req.body; // Extract status from the request body
 
-        if (!status) {
-            return res.status(400).json({ error: 'Status is required' });
-        }
-
         const { data, error } = await supabase
             .from('notifications')
             .update({ status }) 
@@ -73,7 +58,7 @@ exports.updateNotificationStatusById = async (req, res) => {
             return res.status(500).json({ error: 'Failed to update notification' });
         }
 
-        if (!data) {
+        if (!data || data.length === 0) {
             // If no data is returned, the notification was not found
             return res.status(404).json({ error: 'Notification not found' });
         }
@@ -101,7 +86,7 @@ exports.deleteNotificationById = async (req, res) => {
             return res.status(500).json({ error: 'Failed to delete notification' });
         }
 
-        if (!data) {
+        if (!data || data.length === 0) {
             // If no data is returned, the notification was not found
             return res.status(404).json({ error: 'Notification not found' });
         }
@@ -119,12 +104,6 @@ exports.markAllUnreadNotificationsAsRead = async (req, res) => {
     try {
         
         const { user_id } = req.params;
-
-       
-        if (!user_id) {
-            return res.status(400).json({ message: "User ID is required" });
-        }
-
         
         const { data, error } = await supabase
             .from('notifications')
@@ -139,8 +118,7 @@ exports.markAllUnreadNotificationsAsRead = async (req, res) => {
         if (data.length === 0) {
             return res.status(404).json({ message: 'No unread notifications found for this user' });
         }
-
-
+        
         res.status(200).json({ message: 'All unread notifications marked as read', updatedNotifications: data });
     } catch (error) {
         console.error('Error marking notifications as read:', error);
