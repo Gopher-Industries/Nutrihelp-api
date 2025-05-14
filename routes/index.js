@@ -21,7 +21,7 @@ module.exports = app => {
     app.use('/api/upload', require('./upload'));
     app.use("/api/articles", require('./articles'));
     app.use('/api/chatbot', require('./chatbot'));
-    app.use('/api/obesity', require('./obesityPrediction'));
+    app.use('/api/medical-report', require('./medicalPrediction'));
     app.use('/api/recipe/nutritionlog', require('./recipeNutritionlog'));
 
 };
