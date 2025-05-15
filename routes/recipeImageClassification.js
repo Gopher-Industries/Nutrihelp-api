@@ -1,5 +1,6 @@
 const express = require('express');
 const predictionController = require('../controller/recipeImageClassificationController.js');
+const { validateRecipeImageUpload } = require('../validators/recipeImageValidator.js');
 const router = express.Router();
 const multer = require('multer');
 const fs = require('fs');
@@ -33,6 +34,15 @@ const fileFilter = (req, file, cb) => {
   }
 };
 
+// Define route for receiving input data and returning predictions
+// Route with middleware and controller
+router.post(
+  '/',
+  upload.single('image'),
+  validateRecipeImageUpload,  // 👈 validate image file
+  predictionController.predictRecipeImage
+);
+
 const upload = multer({ 
   storage: storage,
   fileFilter: fileFilter,
@@ -60,5 +70,6 @@ router.use((err, req, res, next) => {
   }
   next();
 });
+
 
 module.exports = router;

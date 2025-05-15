@@ -1750,15 +1750,95 @@ paths:
         '200':
           description: Successful search
 
+  /chatbot/query:
+    post:
+      summary: Get chatbot response
+
   /water-intake:
     post:
       summary: Update the number of glasses of water consumed
       description: Updates the user's daily water intake by adding the number of glasses consumed.
+
       requestBody:
         required: true
         content:
           application/json:
             schema:
+
+              $ref: '#/components/schemas/ChatbotQueryRequest'
+      responses:
+        '200':
+          description: Successful chatbot response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatbotQueryResponse'
+        '500':
+          description: Internal server error
+        '400':
+          description: Bad Request - Invalid input data.
+        '401':
+          description: Unauthorized - Authentication credentials missing or invalid.
+
+  /chatbot/history:
+    post:
+      summary: Get chat history
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserIdRequest'
+      responses:
+        '200':
+          description: Chat history retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatHistoryResponse'
+        '500':
+          description: Internal server error
+
+    delete:
+      summary: Clear chat history
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserIdRequest'
+      responses:
+        '200':
+          description: Chat history cleared successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenericSuccessResponse'
+        '500':
+          description: Internal server error
+
+  /medical-report/retrieve:
+    post:
+      summary: Predict obesity level and diabetes risks
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MedicalReportRequest'
+      responses:
+        '200':
+          description: Obesity level and diabetes risk result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MedicalReportResponse'
+        '400':
+          description: Bad Request - Invalid input data.
+        '401':
+          description: Unauthorized - Authentication credentials missing or invalid.
+        '500':
+          description: Internal Server Error - Something went wrong on the server.
               type: object
               properties:
                 user_id:
@@ -2128,6 +2208,7 @@ components:
                       type: integer
                     total_cost: 
                       type: number
+
           minimum_cost:
             type: number
           maximum_cost:
@@ -2275,3 +2356,180 @@ components:
         name:
           type: string
           example: "Weight Loss"
+
+    # Chatbot-related Schemas
+    ChatbotQueryRequest:
+      type: object
+      properties:
+        user_id:
+          type: integer
+        user_input:
+          type: string
+
+    ChatbotQueryResponse:
+      type: object
+      properties:
+        response_text:
+          type: string
+        # optional message field
+        message:
+          type: string
+
+    ChatHistoryResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        chat_history:
+          type: array
+          items:
+            type: object
+            properties:
+              user_input:
+                type: string
+              response_text:
+                type: string
+              timestamp:
+                type: string
+                format: date-time
+
+    GenericSuccessResponse:
+      type: object
+      properties:
+        message:
+          type: string
+
+    UserIdRequest:
+      type: object
+      properties:
+        user_id:
+          type: integer
+
+    MedicalReportRequest:
+      MedicalReportRequest:
+      type: object
+      required:
+        - Gender
+        - Age
+        - Height
+        - Weight
+        - Any family history of overweight (yes/no)
+        - Frequent High Calorie Food Consumption (yes/no)
+        - Consumption of vegetables in meals
+        - Consumption of Food Between Meals
+        - Number of Main Meals
+        - Daily Water Intake
+        - Do you Smoke?
+        - Do you monitor your daily calories?
+        - Physical Activity Frequency
+        - Time Using Technology Devices Daily
+        - Alcohol Consumption Rate
+        - Mode of Transportation you use
+      properties:
+        Gender:
+          type: string
+          description: Gender of the individual.
+          example: "Male"
+        Age:
+          type: number
+          format: float
+          description: Age in years.
+          example: 24.443011
+        Height:
+          type: number
+          format: float
+          description: Height in meters.
+          example: 1.699998
+        Weight:
+          type: number
+          format: float
+          description: Weight in kilograms.
+          example: 81.66995
+        Any family history of overweight (yes/no):
+          type: string
+          enum: ["yes", "no"]
+          description: Indicates if there is a family history of being overweight.
+          example: "yes"
+        Frequent High Calorie Food Consumption (yes/no):
+          type: string
+          enum: ["yes", "no"]
+          description: Indicates frequent consumption of high-calorie food.
+          example: "yes"
+        Consumption of vegetables in meals:
+          type: number
+          format: float
+          description: Frequency of vegetable consumption in meals.
+          example: 2.7
+        Consumption of Food Between Meals:
+          type: string
+          enum: ["no", "Sometimes", "Frequently", "Always"]
+          description: Frequency of consuming food between meals.
+          example: "Sometimes"
+        Number of Main Meals:
+          type: number
+          format: float
+          description: Number of main meals per day.
+          example: 2.983297
+        Daily Water Intake:
+          type: number
+          format: float
+          description: Daily water intake in liters.
+          example: 2.763573
+        Do you Smoke?:
+          type: string
+          enum: ["yes", "no"]
+          description: Indicates if the individual smokes.
+          example: "no"
+        Do you monitor your daily calories?:
+          type: string
+          enum: ["yes", "no"]
+          description: Indicates if the person monitors their daily calorie intake.
+          example: "no"
+        Physical Activity Frequency:
+          type: number
+          format: float
+          description: Frequency of physical activity per week.
+          example: 0
+        Time Using Technology Devices Daily:
+          type: number
+          format: float
+          description: Time spent using technological devices daily (in hours).
+          example: 0.976473
+        Alcohol Consumption Rate:
+          type: string
+          enum: ["no", "never", "Sometimes", "Frequently", "Always"]
+          description: Frequency of alcohol consumption.
+          example: "Sometimes"
+        Mode of Transportation you use:
+          type: string
+          enum: ["Car", "Motorbike", "Bike", "Public_Transportation", "Walking"]
+          description: Common mode of transportation used.
+          example: "Public_Transportation"
+
+    MedicalReportResponse:
+      type: object
+      properties:
+        medical_report:
+          type: object
+          description: Report containing obesity and diabetes predictions.
+          properties:
+            obesity_prediction:
+              type: object
+              properties:
+                obesity_level:
+                  type: string
+                  description: Predicted obesity level.
+                  example: "Obese"
+            diabetes_prediction:
+              type: object
+              properties:
+                diabetes:
+                  type: boolean
+                  description: Indicates if diabetes is predicted (true or false).
+                  example: true
+                confidence:
+                  type: number
+                  format: float
+                  description: Model confidence score for diabetes prediction.
+                  example: 0.798
+

@@ -25,13 +25,6 @@ const getUserPreferences = async (req, res) => {
 const postUserPreferences = async (req, res) => {
 	try {
 		const { user } = req.body;
-		if (!user) {
-			return res.status(400).json({ error: "User ID is required" });
-		}
-
-		if (!req.body) {
-			return res.status(400).json({ error: "Request body is required" });
-		}
 
 		await updateUserPreferences(user.userId, req.body);
 		return res
