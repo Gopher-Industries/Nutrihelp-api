@@ -1208,6 +1208,36 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /recipe/cost/{recipe_id}/{exclude_ids}:
+    get:
+      summary: Calculate estimated cost for a recipe, with option for excluding ingredients
+      description: Returns JSON array containing total cost and corresponding ingredients price
+      parameters:
+        - in: path
+          name: recipe_id
+          required: true
+          schema:
+            type: integer
+          description: Integer ID of the recipe for cost calculation
+        - in: path
+          name: exclude_ids
+          required: true
+          schema:
+            type: string
+          description: List of ingredient ids to be excluded, separated by commas
+      responses:
+        '200':
+          description: Calculate cost successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EstimatedCost'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /recipe/nutritionlog:
     get:
       summary: Get full nutrition info for a recipe by name
@@ -1339,11 +1369,18 @@ paths:
   /chatbot/query:
     post:
       summary: Get chatbot response
+
+  /water-intake:
+    post:
+      summary: Update the number of glasses of water consumed
+      description: Updates the user's daily water intake by adding the number of glasses consumed.
+
       requestBody:
         required: true
         content:
           application/json:
             schema:
+
               $ref: '#/components/schemas/ChatbotQueryRequest'
       responses:
         '200':
@@ -1418,6 +1455,61 @@ paths:
           description: Unauthorized - Authentication credentials missing or invalid.
         '500':
           description: Internal Server Error - Something went wrong on the server.
+              type: object
+              properties:
+                user_id:
+                  type: string
+                  format: uuid
+                  description: The unique ID of the user
+                glasses_consumed:
+                  type: integer
+                  description: Number of glasses consumed
+              required:
+                - user_id
+                - glasses_consumed
+            example:
+              user_id: "15"
+              glasses_consumed: 5
+      responses:
+        '200':
+          description: Water intake updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Water intake updated successfully"
+                  data:
+                    type: object
+                    properties:
+                      user_id:
+                        type: string
+                        example: "15"
+                      date:
+                        type: string
+                        format: date
+                        example: "2025-05-10"
+                      glasses_consumed:
+                        type: integer
+                        example: 5
+                      updated_at:
+                        type: string
+                        format: date-time
+                        example: "2025-05-10T12:00:00Z"
+        '400':
+          description: Bad request - missing or invalid fields
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
 components:
   securitySchemes:
@@ -1732,6 +1824,7 @@ components:
                       type: integer
                     total_cost: 
                       type: number
+
     # Chatbot-related Schemas
     ChatbotQueryRequest:
       type: object
@@ -1907,3 +2000,4 @@ components:
                   format: float
                   description: Model confidence score for diabetes prediction.
                   example: 0.798
+

@@ -1,13 +1,5 @@
 #!/usr/bin/env python3.10
-#coding: utf-8
 
-#------------------------PLEASE READ INSTRUCTIONS BELOW----------------
-
-## IMPORTANT: MAKE SURE TO DONLOAD THE MODEL FROM https://drive.google.com/file/d/1B9igX3eR1PdxGOmoa_teZnNjYf5guMuc/view?usp=drivesdk  BEFORE RUNNING THE CODE.
-## DOWNLOAD DATASET FROM https://www.kaggle.com/datasets/moltean/fruits FOR REFERENCES
-## Downgrade python to python3.10
-## you might have to pip install matplotlib, pandas, seaborn, numpy, keras, scikit-learn
-## pip install tensorflow<11 (downgrade to a version lower than 11)
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
@@ -28,10 +20,6 @@ from tensorflow.keras.models import load_model
 from PIL import Image
 import io
 
-
-# Load the pre-trained model
-#model = load_model('modeltt.h5')
-
 # Get the relative path to the model file
 model_path = os.path.join('model', 'modeltt.h5')
 
@@ -42,10 +30,7 @@ except Exception as e:
     print("Error loading model:", e)
     sys.exit(1)
 
-
 from tensorflow.keras.preprocessing.image import load_img, img_to_array
-
-
 
 cal_values = """Apple Braeburn:~52 calories per 100 grams
 Apple Crimson Snow:~52 calories per 100 grams
