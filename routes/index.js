@@ -26,6 +26,6 @@ module.exports = app => {
     app.use('/api/chatbot', require('./chatbot'));
     app.use('/api/medical-report', require('./medicalPrediction'));
     app.use('/api/recipe/nutritionlog', require('./recipeNutritionlog'));
+    app.use('/api/recipe/scale', require('./recipeScaling'));
     app.use('/api/water-intake', require('./waterIntake'));
-
 };
