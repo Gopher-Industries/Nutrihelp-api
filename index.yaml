@@ -1365,6 +1365,72 @@ paths:
       responses:
         '200':
           description: Successful search
+
+  /water-intake:
+    post:
+      summary: Update the number of glasses of water consumed
+      description: Updates the user's daily water intake by adding the number of glasses consumed.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                user_id:
+                  type: string
+                  format: uuid
+                  description: The unique ID of the user
+                glasses_consumed:
+                  type: integer
+                  description: Number of glasses consumed
+              required:
+                - user_id
+                - glasses_consumed
+            example:
+              user_id: "15"
+              glasses_consumed: 5
+      responses:
+        '200':
+          description: Water intake updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Water intake updated successfully"
+                  data:
+                    type: object
+                    properties:
+                      user_id:
+                        type: string
+                        example: "15"
+                      date:
+                        type: string
+                        format: date
+                        example: "2025-05-10"
+                      glasses_consumed:
+                        type: integer
+                        example: 5
+                      updated_at:
+                        type: string
+                        format: date-time
+                        example: "2025-05-10T12:00:00Z"
+        '400':
+          description: Bad request - missing or invalid fields
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
 components:
   securitySchemes:
     BearerAuth:
