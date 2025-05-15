@@ -1099,6 +1099,14 @@ paths:
           schema:
             type: string
             example: vegan
+        - name: include_details
+          in: query
+          required: false
+          description: Whether to include full relationship details
+          schema:
+            type: string
+            enum: [true, false]
+            default: true
       responses:
         '200':
           description: Filtered recipes
@@ -1185,23 +1193,399 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
 
   /recipe/cost/{recipe_id}:
+  /recipe/cost:
+    post:
+      summary: Estimate recipe cost
+      description: Estimates the cost of a given recipe
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecipeCostEstimationRequest'
+      responses:
+        '200':
+          description: Cost estimation successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecipeCostEstimationResponse'
+        '400':
+          description: Bad request - invalid recipe data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /health-news:
     get:
       summary: Calculate estimated cost for a recipe
       description: Returns JSON array containing total cost and corresponding ingredients price
+      summary: Unified Health News API
+      description: Comprehensive API for health news management with multiple actions and flexible filtering
       parameters:
         - in: path
           name: recipe_id
           required: true
+        - name: action
+          in: query
+          required: false
+          description: |
+            Action to perform (optional - API will auto-detect based on provided parameters):
+              - "filter" (default): Filter health news articles using flexible criteria
+              - "getById": Get specific health news by ID (requires id parameter)
+              - "getByCategory": Get news by category (requires categoryId parameter)
+              - "getByAuthor": Get news by author (requires authorId parameter)
+              - "getByTag": Get news by tag (requires tagId parameter)
+              - "getAllCategories": Get all categories
+              - "getAllAuthors": Get all authors
+              - "getAllTags": Get all tags
+          schema:
+            type: string
+            enum: [filter, getAll, getById, getByCategory, getByAuthor, getByTag, getAllCategories, getAllAuthors, getAllTags]
+            default: filter
+        - name: id
+          in: query
+          required: false
+          description: Health news ID
+          schema:
+            type: string
+            format: uuid
+        - name: categoryId
+          in: query
+          required: false
+          description: Category ID
+          schema:
+            type: string
+            format: uuid
+        - name: authorId
+          in: query
+          required: false
+          description: Author ID
+          schema:
+            type: string
+            format: uuid
+        - name: tagId
+          in: query
+          required: false
+          description: Tag ID
+          schema:
+            type: string
+            format: uuid
+        - name: title
+          in: query
+          required: false
+          description: Filter news by title (partial match)
+          schema:
+            type: string
+        - name: content
+          in: query
+          required: false
+          description: Filter news by content (partial match)
+          schema:
+            type: string
+        - name: author_name
+          in: query
+          required: false
+          description: Filter news by author name (partial match)
+          schema:
+            type: string
+        - name: category_name
+          in: query
+          required: false
+          description: Filter news by category name (partial match)
+          schema:
+            type: string
+        - name: tag_name
+          in: query
+          required: false
+          description: Filter news by tag name (partial match)
+          schema:
+            type: string
+        - name: start_date
+          in: query
+          required: false
+          description: Filter news published on or after this date (ISO format)
+          schema:
+            type: string
+            format: date-time
+        - name: end_date
+          in: query
+          required: false
+          description: Filter news published on or before this date (ISO format)
+          schema:
+            type: string
+            format: date-time
+        - name: sort_by
+          in: query
+          required: false
+          description: Field to sort by
+          schema:
+            type: string
+            default: published_at
+        - name: sort_order
+          in: query
+          required: false
+          description: Sort order
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
+        - name: limit
+          in: query
+          required: false
+          description: Number of records to return
           schema:
             type: integer
           description: Integer ID of the recipe for cost calculation
+            default: 20
+        - name: page
+          in: query
+          required: false
+          description: Page number for pagination
+          schema:
+            type: integer
+            default: 1
+        - name: include_details
+          in: query
+          required: false
+          description: Whether to include full relationship details
+          schema:
+            type: string
+            enum: [true, false]
+            default: true
       responses:
         '200':
           description: Calculate cost successfully
+          description: Successfully retrieved requested data
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/EstimatedCost'
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    oneOf:
+                      - type: array
+                        items:
+                          $ref: '#/components/schemas/HealthNews'
+                      - $ref: '#/components/schemas/HealthNews'
+                      - type: array
+                        items:
+                          $ref: '#/components/schemas/Category'
+                      - type: array
+                        items:
+                          $ref: '#/components/schemas/Author'
+                      - type: array
+                        items:
+                          $ref: '#/components/schemas/Tag'
+                  pagination:
+                    type: object
+                    properties:
+                      total:
+                        type: integer
+                        example: 48
+                      page:
+                        type: integer
+                        example: 1
+                      limit:
+                        type: integer
+                        example: 20
+                      total_pages:
+                        type: integer
+                        example: 3
+    post:
+      summary: Unified Health News Creation API
+      description: Create health news articles and related entities
+      parameters:
+        - name: action
+          in: query
+          required: false
+          description: |
+            Action to perform:
+              - "createNews" (default): Create a new health news article
+              - "createCategory": Create a new category
+              - "createAuthor": Create a new author
+              - "createTag": Create a new tag
+          schema:
+            type: string
+            enum: [createNews, createCategory, createAuthor, createTag]
+            default: createNews
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - type: object
+                  properties:
+                    title:
+                      type: string
+                      example: "Diet and Health: How to Plan Your Daily Meals"
+                    summary:
+                      type: string
+                      example: "This article explains how to maintain health through proper meal planning"
+                    content:
+                      type: string
+                      example: "Proper eating habits are essential for health."
+                    author_id:
+                      type: string
+                      format: uuid
+                      example: "123e4567-e89b-12d3-a456-426614174001"
+                    category_id:
+                      type: string
+                      format: uuid
+                      example: "123e4567-e89b-12d3-a456-426614174003"
+                  required:
+                    - title
+                    - content
+                - type: object
+                  properties:
+                    name:
+                      type: string
+                      example: "Nutrition"
+                    description:
+                      type: string
+                      example: "Articles about food nutrition"
+                  required:
+                    - name
+                - type: object
+                  properties:
+                    name:
+                      type: string
+                      example: "Dr. Smith"
+                    bio:
+                      type: string
+                      example: "Nutrition expert with 20 years of experience"
+                  required:
+                    - name
+                - type: object
+                  properties:
+                    name:
+                      type: string
+                      example: "Weight Loss"
+                  required:
+                    - name
+      responses:
+        '201':
+          description: Resource created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        example: "123e4567-e89b-12d3-a456-426614174000"
+                      title:
+                        type: string
+                        example: "Diet and Health: How to Plan Your Daily Meals"
+    put:
+      summary: Update Health News
+      description: Update health news articles
+      parameters:
+        - name: id
+          in: query
+          required: true
+          description: Health news ID
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  example: "Diet and Health: How to Plan Your Daily Meals (Updated)"
+                summary:
+                  type: string
+                  example: "This article explains how to maintain health through proper meal planning"
+      responses:
+        '200':
+          description: Health news updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/HealthNews'
+        '400':
+          description: Bad request - missing required parameter
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Health news not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      summary: Delete Health News
+      description: Delete health news articles
+      parameters:
+        - name: id
+          in: query
+          required: true
+          description: Health news ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Health news deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Health news successfully deleted
+        '400':
+          description: Bad request - missing required parameter
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Health news not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '500':
           description: Internal server error
           content:
@@ -1824,6 +2208,154 @@ components:
                       type: integer
                     total_cost: 
                       type: number
+
+          minimum_cost:
+            type: number
+          maximum_cost:
+            type: number
+          include_all_ingredients:
+            type: boolean
+          low_cost_ingredients:
+            type: array
+            items:
+              type: object
+              properties:
+                ingredient_id: 
+                  type: integer
+                product_name: 
+                  type: string
+                quantity: 
+                  type: string
+                purchase_quantity: 
+                  type: integer
+                total_cost: 
+                  type: number
+          high_cost_ingredients:
+            type: array
+            items:
+              type: object
+              properties:
+                ingredient_id: 
+                  type: integer
+                product_name: 
+                  type: string
+                quantity: 
+                  type: string
+                purchase_quantity: 
+                  type: integer
+                total_cost: 
+                  type: number
+
+    HealthNews:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        title:
+          type: string
+          example: "Diet and Health: How to Plan Your Daily Meals"
+        summary:
+          type: string
+          example: "This article explains how to maintain health through proper meal planning"
+        author:
+          type: object
+          properties:
+            name:
+              type: string
+              example: "Dr. Smith"
+        category:
+          type: object
+          properties:
+            name:
+              type: string
+              example: "Nutrition"
+        image_url:
+          type: string
+          format: url
+          example: "https://example.com/images/healthy-eating.jpg"
+        published_at:
+          type: string
+          format: date-time
+          example: "2023-09-15T10:30:00Z"
+
+    HealthNewsCreateRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          example: "Diet and Health: How to Plan Your Daily Meals"
+        summary:
+          type: string
+          example: "This article explains how to maintain health through proper meal planning"
+        content:
+          type: string
+          example: "Proper eating habits are essential for health."
+        author_id:
+          type: string
+          format: uuid
+          example: "123e4567-e89b-12d3-a456-426614174001"
+        category_id:
+          type: string
+          format: uuid
+          example: "123e4567-e89b-12d3-a456-426614174003"
+        image_url:
+          type: string
+          format: url
+          example: "https://example.com/images/healthy-eating.jpg"
+
+    HealthNewsUpdateRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          example: "Diet and Health: How to Plan Your Daily Meals (Updated)"
+        summary:
+          type: string
+          example: "This article explains how to maintain health through proper meal planning"
+        category_id:
+          type: string
+          format: uuid
+          example: "123e4567-e89b-12d3-a456-426614174003"
+
+    Author:
+      type: object
+      properties:
+        name:
+          type: string
+          example: "Dr. Smith"
+        bio:
+          type: string
+          example: "Nutrition expert with 20 years of experience"
+
+    Source:
+      type: object
+      properties:
+        name:
+          type: string
+          example: "Health Times"
+        base_url:
+          type: string
+          format: url
+          example: "https://health-news.com"
+
+    Category:
+      type: object
+      properties:
+        name:
+          type: string
+          example: "Nutrition"
+        description:
+          type: string
+          example: "Articles about food nutrition"
+
+    Tag:
+      type: object
+      properties:
+        name:
+          type: string
+          example: "Weight Loss"
 
     # Chatbot-related Schemas
     ChatbotQueryRequest:
