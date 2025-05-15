@@ -1,7 +1,11 @@
-const { body } = require("express-validator");
+const { body } = require('express-validator');
+
+// Helper to validate that an array only contains integers
+const isArrayOfIntegers = (value) => {
+  return Array.isArray(value) && value.every(Number.isInteger);
+};
 
 exports.validateUserPreferences = [
-  // Validate user object and userId
   body('user')
     .notEmpty().withMessage('User object is required')
     .isObject().withMessage('User must be an object'),
@@ -10,26 +14,31 @@ exports.validateUserPreferences = [
     .notEmpty().withMessage('User ID is required')
     .isInt().withMessage('User ID must be an integer'),
 
-  // Optional: dietary restrictions should be an array of strings
-  body('dietary_restrictions')
+  body('dietary_requirements')
     .optional()
-    .isArray().withMessage('Dietary restrictions must be an array of strings')
-    .custom((arr) => arr.every(item => typeof item === 'string')).withMessage('Each dietary restriction must be a string'),
+    .custom(isArrayOfIntegers).withMessage('Dietary requirements must be an array of integers'),
 
-  // Optional: cuisine preferences should be an array of strings
-  body('cuisine_preferences')
+  body('allergies')
     .optional()
-    .isArray().withMessage('Cuisine preferences must be an array of strings')
-    .custom((arr) => arr.every(item => typeof item === 'string')).withMessage('Each cuisine preference must be a string'),
+    .custom(isArrayOfIntegers).withMessage('Allergies must be an array of integers'),
 
-  // Optional: allergens should be an array of strings
-  body('allergens')
+  body('cuisines')
     .optional()
-    .isArray().withMessage('Allergens must be an array of strings')
-    .custom((arr) => arr.every(item => typeof item === 'string')).withMessage('Each allergen must be a string'),
+    .custom(isArrayOfIntegers).withMessage('Cuisines must be an array of integers'),
 
-  // Optional: goal should be a string
-  body('goal')
+  body('dislikes')
     .optional()
-    .isString().withMessage('Goal must be a string'),
+    .custom(isArrayOfIntegers).withMessage('Dislikes must be an array of integers'),
+
+  body('health_conditions')
+    .optional()
+    .custom(isArrayOfIntegers).withMessage('Health conditions must be an array of integers'),
+
+  body('spice_levels')
+    .optional()
+    .custom(isArrayOfIntegers).withMessage('Spice levels must be an array of integers'),
+
+  body('cooking_methods')
+    .optional()
+    .custom(isArrayOfIntegers).withMessage('Cooking methods must be an array of integers'),
 ];
