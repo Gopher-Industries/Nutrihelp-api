@@ -1,4 +1,6 @@
-tensorflow
-numpy
-keras
+tensorflow==2.13.0
+keras==2.13.1
+numpy==1.23.5
+pillow==9.5.0
+h5py==3.8.0
 python-docx
