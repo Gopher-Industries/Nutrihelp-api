@@ -9,69 +9,6 @@ const bodyParser = require("body-parser");
 const multer = require("multer");
 const rateLimit = require('express-rate-limit'); // ✅ added
 const uploadRoutes = require('./routes/uploadRoutes');
-const fs = require("fs");
-const path = require("path");
-
-// Ensure uploads directory exists
-const uploadsDir = path.join(__dirname, 'uploads');
-if (!fs.existsSync(uploadsDir)) {
-	try {
-		fs.mkdirSync(uploadsDir, { recursive: true });
-		console.log("Created uploads directory");
-	} catch (err) {
-		console.error("Error creating uploads directory:", err);
-	}
-}
-
-// Create temp directory for uploads
-const tempDir = path.join(__dirname, 'uploads', 'temp');
-if (!fs.existsSync(tempDir)) {
-	try {
-		fs.mkdirSync(tempDir, { recursive: true });
-		console.log("Created temp uploads directory");
-	} catch (err) {
-		console.error("Error creating temp uploads directory:", err);
-	}
-}
-
-// Function to clean up old temporary files
-function cleanupOldFiles() {
-	const now = Date.now();
-	const ONE_DAY = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
-	
-	// Clean temporary files
-	try {
-		const tempFiles = fs.readdirSync(tempDir);
-		console.log(`Checking ${tempFiles.length} temporary files for cleanup`);
-		
-		let deletedCount = 0;
-		tempFiles.forEach(file => {
-			const filePath = path.join(tempDir, file);
-			try {
-				const stats = fs.statSync(filePath);
-				// Delete files older than 1 day
-				if (now - stats.mtimeMs > ONE_DAY) {
-					fs.unlinkSync(filePath);
-					deletedCount++;
-				}
-			} catch (err) {
-				console.error(`Error checking file ${filePath}:`, err);
-			}
-		});
-		
-		if (deletedCount > 0) {
-			console.log(`Cleaned up ${deletedCount} old temporary files`);
-		}
-	} catch (err) {
-		console.error("Error during file cleanup:", err);
-	}
-}
-
-// Clean up temporary files on startup
-cleanupOldFiles();
-
-// Schedule cleanup to run every 3 hours
-setInterval(cleanupOldFiles, 3 * 60 * 60 * 1000);
 
 const app = express();
 const port = process.env.PORT || 80;
@@ -131,32 +68,6 @@ app.use((err, req, res, next) => {
     } else {
         next();
     }
-// Set up Swagger documentation
-try {
-	const swaggerDocument = yaml.load("./index.yaml");
-	app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
-} catch (err) {
-	console.error("Error loading Swagger documentation:", err);
-}
-
-// Increase request size limits for image uploads
-app.use(express.json({ limit: "50mb" }));
-app.use(express.urlencoded({ limit: "50mb", extended: true }));
-
-// Global error handler
-app.use((err, req, res, next) => {
-	console.error("Unhandled error:", err);
-	res.status(500).json({ error: "Internal server error" });
-});
-
-// Load routes
-const routes = require("./routes");
-routes(app);
-
-// Start server
-app.listen(port, async () => {
-	console.log(`Server is running on port ${port}`);
-	exec(`start http://localhost:${port}/api-docs`);
 });
 
 app.listen(port, async () => {
