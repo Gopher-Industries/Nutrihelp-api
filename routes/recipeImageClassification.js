@@ -1,5 +1,5 @@
 const express = require('express');
-const { predictRecipeImage } = require('../controller/recipeImageClassificationController.js');
+const predictionController = require('../controller/recipeImageClassificationController.js');
 const { validateRecipeImageUpload } = require('../validators/recipeImageValidator.js');
 const router = express.Router();
 const multer = require('multer');
@@ -34,6 +34,7 @@ const fileFilter = (req, file, cb) => {
   }
 };
 
+// Initialize multer upload middleware
 const upload = multer({ 
   storage: storage,
   fileFilter: fileFilter,
@@ -47,9 +48,10 @@ router.post(
   '/',
   upload.single('image'),
   validateRecipeImageUpload,  // 👈 validate image file
-  predictRecipeImage
+  predictionController.predictRecipeImage
 );
 
+// Error handling middleware
 router.use((err, req, res, next) => {
   if (err instanceof multer.MulterError) {
     if (err.code === 'LIMIT_FILE_SIZE') {
