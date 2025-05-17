@@ -1,5 +1,5 @@
 const express = require('express');
-const predictionController = require('../controller/recipeImageClassificationController.js');
+const { predictRecipeImage } = require('../controller/recipeImageClassificationController.js');
 const { validateRecipeImageUpload } = require('../validators/recipeImageValidator.js');
 const router = express.Router();
 const multer = require('multer');
@@ -9,6 +9,11 @@ const path = require('path');
 // Ensure uploads directory exists
 if (!fs.existsSync('./uploads')) {
   fs.mkdirSync('./uploads', { recursive: true });
+}
+
+// Create temp directory for uploads
+if (!fs.existsSync('./uploads/temp')) {
+  fs.mkdirSync('./uploads/temp', { recursive: true });
 }
 
 const storage = multer.diskStorage({
@@ -21,11 +26,6 @@ const storage = multer.diskStorage({
   }
 });
 
-// Create temp directory for uploads
-if (!fs.existsSync('./uploads/temp')) {
-  fs.mkdirSync('./uploads/temp', { recursive: true });
-}
-
 const fileFilter = (req, file, cb) => {
   if (file.mimetype === 'image/jpeg' || file.mimetype === 'image/png') {
     cb(null, true);
@@ -33,15 +33,6 @@ const fileFilter = (req, file, cb) => {
     cb(new Error('Only JPG and PNG image files are allowed'), false);
   }
 };
-
-// Define route for receiving input data and returning predictions
-// Route with middleware and controller
-router.post(
-  '/',
-  upload.single('image'),
-  validateRecipeImageUpload,  // 👈 validate image file
-  predictionController.predictRecipeImage
-);
 
 const upload = multer({ 
   storage: storage,
@@ -51,13 +42,13 @@ const upload = multer({
   }
 });
 
-router.post('/', upload.single('image'), (req, res, next) => {
-  if (!req.file) {
-    return res.status(400).json({ error: 'No image uploaded' });
-  }
-
-  predictionController(req, res);
-});
+// Define route for receiving input data and returning predictions
+router.post(
+  '/',
+  upload.single('image'),
+  validateRecipeImageUpload,  // 👈 validate image file
+  predictRecipeImage
+);
 
 router.use((err, req, res, next) => {
   if (err instanceof multer.MulterError) {
@@ -70,6 +61,5 @@ router.use((err, req, res, next) => {
   }
   next();
 });
-
 
 module.exports = router;

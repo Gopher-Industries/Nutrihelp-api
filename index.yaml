@@ -1851,7 +1851,7 @@ paths:
               required:
                 - user_id
                 - glasses_consumed
-            example:
+              example:
               user_id: "15"
               glasses_consumed: 5
       responses:
