@@ -173,6 +173,4 @@ async function cleanupFiles(tempFilePath) {
     }
 }
 
-module.exports = {
-    predictRecipeImage
-};
+module.exports = { predictRecipeImage };
