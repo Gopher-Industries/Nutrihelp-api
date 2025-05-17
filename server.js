@@ -131,17 +131,7 @@ app.use((err, req, res, next) => {
     } else {
         next();
     }
-// Set up Swagger documentation
-try {
-	const swaggerDocument = yaml.load("./index.yaml");
-	app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
-} catch (err) {
-	console.error("Error loading Swagger documentation:", err);
-}
-
-// Increase request size limits for image uploads
-app.use(express.json({ limit: "50mb" }));
-app.use(express.urlencoded({ limit: "50mb", extended: true }));
+});
 
 // Global error handler
 app.use((err, req, res, next) => {
@@ -149,17 +139,8 @@ app.use((err, req, res, next) => {
 	res.status(500).json({ error: "Internal server error" });
 });
 
-// Load routes
-const routes = require("./routes");
-routes(app);
-
 // Start server
 app.listen(port, async () => {
 	console.log(`Server is running on port ${port}`);
 	exec(`start http://localhost:${port}/api-docs`);
-});
-
-app.listen(port, async () => {
-    console.log(`Server is running on port ${port}`);
-    exec(`start http://localhost:${port}/api-docs`);
 });

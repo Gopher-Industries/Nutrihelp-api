@@ -7,20 +7,6 @@ const fs = require("fs");
 const path = require("path");
 const { promisify } = require("util");
 
-
-// Function to handle prediction logic
-const predictRecipeImage = (req, res) => {
-
-    // Path to the uploaded image file
-    const imagePath = req.file.path;
-    const newImageName = "uploads/image.jpg";
-
-    // Read the image file from disk
-    fs.readFile(imagePath, (err, imageData) => {
-        if (err) {
-            console.error("Error reading image file:", err);
-            return res.status(500).json({ error: "Internal server error" });
-
 // Convert fs callbacks to promises
 const readFileAsync = promisify(fs.readFile);
 const writeFileAsync = promisify(fs.writeFile);
@@ -70,7 +56,6 @@ const predictRecipeImage = async (req, res) => {
         } catch (err) {
             console.error("Error preparing image file:", err);
             // Continue anyway
-
         }
 
         return new Promise((resolve, reject) => {
@@ -85,45 +70,6 @@ const predictRecipeImage = async (req, res) => {
             
             console.log(`Running Python script: ${scriptPath}`);
             const pythonProcess = spawn('python', [scriptPath], { encoding: 'utf-8' });
-
-
-    // Rename the image file to a standard name
-    fs.rename(imagePath, newImageName, (err) => {
-        if (err) {
-            console.error("Error renaming image:", err);
-            return res.status(500).json({ error: "Internal server error while renaming image." });
-        }
-
-        const scriptPath = './model/recipeImageClassification.py'
-        const pythonProcess = spawn('python', [scriptPath], { encoding: 'utf-8' });
-
-        let output = '';
-
-        pythonProcess.stdout.on('data', (data) => {
-            output += data.toString();
-        });
-
-        pythonProcess.stderr.on('data', (data) => {
-            console.error(`Error: ${data}`);
-        });
-
-        pythonProcess.on("close", (code) => {
-            if (code === 0) {
-                // Clean the output
-                const cleanOutput = output.replace(/\x1b\[[0-9;]*m/g, '');
-
-                // Split the cleaned output into lines and get the last line
-                const lines = cleanOutput.split('\r\n').filter(line => line.trim() !== '');
-                const result = lines[lines.length - 1].trim();
-
-                // Send prediction back to the client
-                res.status(200).json({ prediction: result });
-            } else {
-                console.error("Python script exited with code:", code);
-                res.status(500).json({ error: "Internal server error" });
-            }
-        });
-    });
 
             let output = '';
             let errorOutput = '';
@@ -212,7 +158,6 @@ const predictRecipeImage = async (req, res) => {
             cleanupFiles(req.file.path);
         }
     }
-
 };
 
 // Helper function to clean up temporary files
@@ -228,4 +173,6 @@ async function cleanupFiles(tempFilePath) {
     }
 }
 
-module.exports = predictRecipeImage;
+module.exports = {
+    predictRecipeImage
+};
