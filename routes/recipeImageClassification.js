@@ -11,6 +11,11 @@ if (!fs.existsSync('./uploads')) {
   fs.mkdirSync('./uploads', { recursive: true });
 }
 
+// Create temp directory for uploads
+if (!fs.existsSync('./uploads/temp')) {
+  fs.mkdirSync('./uploads/temp', { recursive: true });
+}
+
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     cb(null, './uploads/temp/');  
@@ -21,11 +26,6 @@ const storage = multer.diskStorage({
   }
 });
 
-// Create temp directory for uploads
-if (!fs.existsSync('./uploads/temp')) {
-  fs.mkdirSync('./uploads/temp', { recursive: true });
-}
-
 const fileFilter = (req, file, cb) => {
   if (file.mimetype === 'image/jpeg' || file.mimetype === 'image/png') {
     cb(null, true);
@@ -34,15 +34,7 @@ const fileFilter = (req, file, cb) => {
   }
 };
 
-// Define route for receiving input data and returning predictions
-// Route with middleware and controller
-router.post(
-  '/',
-  upload.single('image'),
-  validateRecipeImageUpload,  // 👈 validate image file
-  predictionController.predictRecipeImage
-);
-
+// Initialize multer upload middleware
 const upload = multer({ 
   storage: storage,
   fileFilter: fileFilter,
@@ -51,14 +43,15 @@ const upload = multer({
   }
 });
 
-router.post('/', upload.single('image'), (req, res, next) => {
-  if (!req.file) {
-    return res.status(400).json({ error: 'No image uploaded' });
-  }
+// Define route for receiving input data and returning predictions
+router.post(
+  '/',
+  upload.single('image'),
+  validateRecipeImageUpload,  // 👈 validate image file
+  predictionController.predictRecipeImage
+);
 
-  predictionController(req, res);
-});
-
+// Error handling middleware
 router.use((err, req, res, next) => {
   if (err instanceof multer.MulterError) {
     if (err.code === 'LIMIT_FILE_SIZE') {
@@ -70,6 +63,5 @@ router.use((err, req, res, next) => {
   }
   next();
 });
-
 
 module.exports = router;
