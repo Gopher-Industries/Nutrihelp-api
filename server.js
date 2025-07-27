@@ -144,3 +144,6 @@ app.listen(port, async () => {
 	console.log(`Server is running on port ${port}`);
 	exec(`start http://localhost:${port}/api-docs`);
 });
+
+const verifyRoutes = require('./routes/verifyRoutes');
+app.use('/', verifyRoutes);

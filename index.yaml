@@ -1929,6 +1929,33 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /verify-email:
+    get:
+      summary: Verify user email
+      description: Verifies a user's email address using a verification token.
+      parameters:
+        - name: token
+          in: query
+          description: Verification token sent via email
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Email verified successfully
+          content:
+            text/plain:
+              schema:
+                type: string
+        '400':
+          description: Invalid or expired token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MailErrorResponse'
+
+
+
 components:
   securitySchemes:
     BearerAuth:
@@ -2567,3 +2594,8 @@ components:
                   description: Model confidence score for diabetes prediction.
                   example: 0.798
 
+    MailErrorResponse:
+      type: object
+      properties:
+        message:
+          type: string

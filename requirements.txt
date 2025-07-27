@@ -4,3 +4,5 @@ numpy>=1.26.0
 pillow==9.5.0
 h5py>=3.10.0
 python-docx
+bcrypt
+crypto
