@@ -34,7 +34,7 @@ const getFullCost = async (req, res) => {
     };
 
     // Prepare response data
-    const { estimatedCost, lowPriceID, highPriceID } = prepareResponseData(lowPriceRequiredIngredients, highPriceRequiredIngredients);
+    const { estimatedCost, lowPriceID, highPriceID } = getEstimatedCost.prepareResponseData(lowPriceRequiredIngredients, highPriceRequiredIngredients);
 
     // Check if missing ingredient
     if(lowPriceID.length < ingredients.id.length || highPriceID.length < ingredients.id.length){
