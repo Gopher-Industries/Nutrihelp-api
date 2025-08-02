@@ -1,20 +1,26 @@
 let getEstimatedCost = require('../model/getEstimatedCost');
 
 async function CostEstimation(recipe_id, exclude_ids, isFull){
+    const result = {
+      status: 404,
+      error: "",
+      estimatedCost: {}
+    }
+
     // Get recipe's ingredients
     const data = await getEstimatedCost.getRecipeIngredients(recipe_id);
     if (data.length === 0) {
-      return res.status(404).json({
-        error: "Invalid recipe id, ingredients not found"
-      })
+      result.error = "Invalid recipe id, ingredients not found";
+      return result;
     };
     const ingredients = data[0].ingredients;
 
     // Validate recipe's ingredients data
     if (!ingredients || !ingredients.id || !ingredients.quantity || !ingredients.measurement) {
-      return res.status(404).json({
+      return {
+        status: 404,
         error: "Recipe contains invalid ingredients data, can not estimate cost"
-      })
+      }
     }
 
     // Return error if the excluding ingredients not included in recipe
@@ -26,9 +32,8 @@ async function CostEstimation(recipe_id, exclude_ids, isFull){
         }
       })
       if (invalid_exclude.length > 0) {
-        return res.status(404).json({
-          error: `Ingredient ${invalid_exclude.toString()} not found in recipe, can not exclude`
-        })
+        result.error = `Ingredient ${invalid_exclude.toString()} not found in recipe, can not exclude`
+        return result;
       }
     
       // Filter out the unwanted ingredients
@@ -47,25 +52,27 @@ async function CostEstimation(recipe_id, exclude_ids, isFull){
     const { lowPriceRequiredIngredients, highPriceRequiredIngredients } = getEstimatedCost.estimateIngredientsCost(ingredients, ingredients_price);
 
     if (lowPriceRequiredIngredients.length === 0 && highPriceRequiredIngredients.length === 0) {
-      return res.status(404).json({
-        error: "There was an error in estimation process"
-      })
+      result.error = "There was an error in estimation process";
+      return result;
     };
 
     // Prepare response data
     const { estimatedCost, lowPriceID, highPriceID } = getEstimatedCost.prepareResponseData(lowPriceRequiredIngredients, highPriceRequiredIngredients);
 
     // Check if missing ingredient
-    if(lowPriceID.length < ingredients.id.length || highPriceID.length < ingredients.id.length){
+    if (lowPriceID.length < ingredients.id.length || highPriceID.length < ingredients.id.length) {
       estimatedCost.info.include_all_wanted_ingredients = false;
     } else {
       estimatedCost.info.include_all_wanted_ingredients = true;
     }
 
     // Add estimation info
-    if(isFull){estimatedCost.info.estimation_type = "full";}
-    else{estimatedCost.info.estimation_type = "partial";}
-    return{estimatedCost};
+    if (isFull) { estimatedCost.info.estimation_type = "full"; }
+    else { estimatedCost.info.estimation_type = "partial"; }
+
+    result.status = 200;
+    result.estimatedCost = estimatedCost;
+    return result;
 }
 
 module.exports ={

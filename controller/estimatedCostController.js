@@ -5,10 +5,17 @@ const getFullCost = async (req, res) => {
   const recipe_id = req.params.recipe_id;
 
   try {
-    const {estimatedCost} = await getFullorPartialCost.CostEstimation(recipe_id,0,true);
-    return res.status(200).json(estimatedCost);
+    const result = await getFullorPartialCost.CostEstimation(recipe_id,0,true);
+    
+    if (result.status != 200) {
+      return res.status(result.status).json({
+        error: result.error
+      });
+    }
+
+    return res.status(200).json(result.estimatedCost);
   } catch (error) {
-    console.error("Error logging in: ", error);
+    console.error("Error in estimation process: ", error);
     return res.status(500).json({
       error: "Internal server error"
     })
@@ -19,11 +26,17 @@ const getPartialCost = async (req, res) => {
   const { recipe_id, exclude_ids } = req.params;
 
   try {
+    const result = await getFullorPartialCost.CostEstimation(recipe_id,exclude_ids,false);
 
-    const {estimatedCost} = await getFullorPartialCost.CostEstimation(recipe_id,exclude_ids,false);
-    return res.status(200).json(estimatedCost);
+    if (result.status != 200) {
+      return res.status(result.status).json({
+        error: result.error
+      });
+    }
+
+    return res.status(200).json(result.estimatedCost);
   } catch (error) {
-    console.error("Error logging in: ", error);
+    console.error("Error in estimation process: ", error);
     return res.status(500).json({
       error: "Internal server error"
     })
