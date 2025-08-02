@@ -109,8 +109,8 @@ function estimateIngredientsCost(ingredients, ingredients_price) { //return grou
       }
     }
   }
-  console.log("Low Price: ",lowPriceRequiredIngredients);
-  console.log("High Price: ",highPriceRequiredIngredients);
+  // console.log("Low Price: ",lowPriceRequiredIngredients);
+  // console.log("High Price: ",highPriceRequiredIngredients);
 
   return {
     lowPriceRequiredIngredients,
