@@ -130,3 +130,6 @@ dist
 
 .vscode
 .idea
+package.json
+package-lock.json
+package-lock.json
