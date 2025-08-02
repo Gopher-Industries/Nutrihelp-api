@@ -7,6 +7,18 @@ const crypto = require("crypto");
 const supabase = require("../dbConnection");
 const { validationResult } = require("express-validator");
 
+ // Install nodemailer and add the following details to the .env file 
+ //ALERT_EMAIL=nutrihelpnoreply1234@gmail.com
+ //ALERT_PASSWORD=yzzbfcnmemvneiqp
+const nodemailer = require("nodemailer");
+ 
+const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: process.env.ALERT_EMAIL,
+    pass: process.env.ALERT_PASSWORD,
+  },
+});
 const login = async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -56,14 +68,23 @@ const login = async (req, res) => {
         created_at: new Date().toISOString()
       }]);
 
+      await sendFailedLoginAlert(email, clientIp);
+
       if (failureCount === 9) {
         return res.status(429).json({
           warning: "⚠ You have one attempt left before your account is temporarily locked."
         });
       }
 
-      if (!userExists) return res.status(401).json({ error: "Invalid email" });
-      if (!isPasswordValid) return res.status(401).json({ error: "Invalid password" });
+      if (!userExists || !isPasswordValid) {
+        await sendFailedLoginAlert(email, clientIp);
+ 
+        if (!userExists) {
+          return res.status(401).json({ error: "Invalid email" });
+        }
+ 
+        return res.status(401).json({ error: "Invalid password" });
+      }
     }
 
     // Log successful login
@@ -169,4 +190,24 @@ async function sendEmail(user, token) {
   }
 }
 
+async function sendFailedLoginAlert(email, ip) {
+  try {
+    await transporter.sendMail({
+      from: process.env.ALERT_EMAIL,
+      to: email,
+      subject: "Failed Login Attempt on NutriHelp",
+      text: `Hi,
+ 
+Someone tried to log in to NutriHelp using your email address from IP: ${ip}.
+ 
+If this wasn't you, please ignore this message. But if you're concerned, consider resetting your password or contacting support.
+ 
+– NutriHelp Security Team`,
+    });
+    console.log(`Failed login alert sent to ${email}`);
+  } catch (err) {
+    console.error("Failed to send alert email:", err.message);
+  }
+}
+ 
 module.exports = { login, loginMfa };
