@@ -15,6 +15,7 @@ cd Nutrihelp-api
 ```bash
 npm install
 pip install -r requirements.txt
+npm install node-fetch
 ```
 5. Contact a project maintainer to get the `.env` file that contains the necessary environment variables and place it in the root of the project directory.
 6. Start the server:
