@@ -28,7 +28,7 @@ const signup = async (req, res) => {
             // Log signup failure due to duplicate
             await logLoginEvent({
                 userId: null,
-                eventType: 'SIGNUP_FAILED',
+                eventType: 'EXISTING_USER',
                 ip: clientIp,
                 userAgent,
                 details: {
