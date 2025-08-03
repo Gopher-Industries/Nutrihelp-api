@@ -1197,12 +1197,18 @@ paths:
       summary: Calculate estimated cost for a recipe
       description: Returns JSON object containing estimated cost information and corresponding ingredients price
       parameters:
-        - in: path
-          name: recipe_id
+        - name: recipe_id
+          in: path
           required: true
           schema:
             type: integer
           description: Integer ID of the recipe for cost calculation
+        - name: desired_servings
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: Number of serving would like to scale
       responses:
         '200':
           description: Calculate cost successfully
@@ -1602,6 +1608,7 @@ paths:
           required: true
           schema:
             type: string
+            example: "1,2"
           description: List of ingredient ids to be excluded, separated by commas
       responses:
         '200':
