@@ -1,7 +1,7 @@
 let getRecipeIngredients = require('../model/getRecipeIngredients')
 let getEstimatedCost = require('../model/getEstimatedCost');
 
-async function estimateCost(recipe_id, desired_servings, exclude_ids, isFull){
+async function estimateCost(recipe_id, desired_servings, exclude_ids){
     const result = {
       status: 404,
       error: "",
@@ -36,6 +36,7 @@ async function estimateCost(recipe_id, desired_servings, exclude_ids, isFull){
     }
 
     // Return error if the excluding ingredients not included in recipe
+    let isFull = exclude_ids === "";
     if(!isFull){
       const exclude_ingre_ids = exclude_ids.split(",").map(id => parseInt(id));
       const invalid_exclude = exclude_ingre_ids.filter((id) => {
