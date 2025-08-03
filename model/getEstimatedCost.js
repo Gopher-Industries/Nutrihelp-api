@@ -1,18 +1,5 @@
 const supabase = require("../dbConnection.js");
 
-//For getting the recipe ingredients from the DB
-async function getRecipeIngredients(recipe_id) {
-  try {
-		let { data, error } = await supabase
-			.from("recipes")
-			.select("ingredients")
-      .eq("id", recipe_id);
-		return data;
-	} catch (error) {
-		throw error;
-	}
-}
-
 //For getting the ingredients price from the DB
 async function getIngredientsPrice(ingredient_id) {
   try {
@@ -198,7 +185,6 @@ function prepareResponseData(lowPriceRequiredIngredients, highPriceRequiredIngre
 }
 
 module.exports = {
-  getRecipeIngredients,
   getIngredientsPrice,
   convertUnits,
   estimateIngredientsCost,
