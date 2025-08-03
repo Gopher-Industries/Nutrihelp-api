@@ -16,11 +16,16 @@ async function CostEstimation(recipe_id, exclude_ids, isFull){
     const ingredients = data[0].ingredients;
 
     // Validate recipe's ingredients data
-    if (!ingredients || !ingredients.id || !ingredients.quantity || !ingredients.measurement) {
+    // if (!ingredients || !ingredients.id || !ingredients.quantity || !ingredients.measurement) {
+    if (!ingredients || !ingredients.id || !ingredients.quantity) {
       return {
         status: 404,
         error: "Recipe contains invalid ingredients data, can not estimate cost"
       }
+    }
+
+    if (!ingredients.measurement) {
+      ingredients.measurement = new Array(ingredients.quantity.length).fill("N/A");
     }
 
     // Return error if the excluding ingredients not included in recipe
