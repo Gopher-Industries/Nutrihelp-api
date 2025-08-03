@@ -51,7 +51,8 @@ async function getScaledIngredientsByServing(recipe_id, desired_servings) {
   const result = {
     status: 404,
     error: "",
-    scaled_ingredients: {}
+    ingredients: {},
+    scaling_detail: {}
   }
 
   // Get recipe data
@@ -76,21 +77,20 @@ async function getScaledIngredientsByServing(recipe_id, desired_servings) {
 
   // Scale 
   const ratio = desired_servings / recipe_serving;
-  const scaled_recipe = {
+
+  result.status = 200
+  result.ingredients = {
+    id: recipe_ingredients.id,
+    quantity: recipe_ingredients.quantity.map(qty => qty * ratio),
+    measurement: recipe_ingredients.measurement
+  };
+  result.scaling_detail = {
     id: recipe_id,
     scale_ratio: ratio,
     desired_servings: desired_servings,
-    scaled_ingredients: {
-      id: recipe_ingredients.id,
-      quantity: recipe_ingredients.quantity.map(qty => qty * ratio),
-      measurement: recipe_ingredients.measurement
-    },
     original_serving: recipe_serving,
     original_ingredients: recipe_ingredients
   };
-
-  result.status = 200
-  result.scaled_recipe = scaled_recipe;
   return result;
 }
 
