@@ -1,5 +1,6 @@
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const logLoginEvent = require("../Monitor_&_Logging/loginLogger");
 const getUserCredentials = require("../model/getUserCredentials.js");
 const { addMfaToken, verifyMfaToken } = require("../model/addMfaToken.js");
 const sgMail = require("@sendgrid/mail");
@@ -67,10 +68,8 @@ const login = async (req, res) => {
         success: false,
         created_at: new Date().toISOString()
       }]);
-
-      await sendFailedLoginAlert(email, clientIp);
-
-      if (failureCount === 9) {
+      
+      if (failureCount === 4) {
         return res.status(429).json({
           warning: "⚠ You have one attempt left before your account is temporarily locked."
         });
@@ -114,6 +113,14 @@ const login = async (req, res) => {
         message: "An MFA Token has been sent to your email address"
       });
     }
+
+    // Log the Successful Login
+    await logLoginEvent({
+      userId: user.user_id,
+      eventType: "LOGIN_SUCCESS",
+      ip: clientIp,
+      userAgent: req.headers["user-agent"]
+    });
 
     // JWT generation
     const token = jwt.sign(
