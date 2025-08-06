@@ -6,7 +6,7 @@ chai.use(chaiHttp);
 
 // Tests may not work if the table data is updated
 // => Remove all equal assertions
-describe("Test basic Cost Estimation", () => {
+describe("Test Full Cost Estimation", () => {
 
   describe("Cost Estimation: Test valid recipe", () => {
     it("should return 200, return minimum/maximum cost and ingredients for recipe 261", (done) => {
@@ -131,12 +131,12 @@ describe("Test basic Cost Estimation", () => {
 })
 
 
-describe("Test Customized Cost Estimation: excluding ingredients", () => {
+describe("Test Partial Cost Estimation: excluding ingredients", () => {
   describe("Exclude ingredients: Test valid recipe", () => {
     it("should return 200, return minimum/maximum cost and ingredients for recipe 261", (done) => {
       const recipe_id = 261;  
       chai.request("http://localhost:80")
-            .get(`/api/recipe/cost/${recipe_id}/275`)
+            .get(`/api/recipe/cost/${recipe_id}?exclude_ids=275`)
             .send()
             .end((err, res) => {
                 if (err) return done(err);
@@ -163,7 +163,7 @@ describe("Test Customized Cost Estimation: excluding ingredients", () => {
       it("should return 200, return minimum/maximum cost and ingredients for recipe 262", (done) => {
         const recipe_id = 262;  
         chai.request("http://localhost:80")
-              .get(`/api/recipe/cost/${recipe_id}/3,5`)
+              .get(`/api/recipe/cost/${recipe_id}?exclude_ids=3,5`)
               .send()
               .end((err, res) => {
                   if (err) return done(err);
@@ -193,7 +193,7 @@ describe("Test Customized Cost Estimation: excluding ingredients", () => {
     it("should return 404 for invalid recipe", (done) => {
       const recipe_id = 11111;  
       chai.request("http://localhost:80")
-            .get(`/api/recipe/cost/${recipe_id}/1`)
+            .get(`/api/recipe/cost/${recipe_id}?exclude_ids=1`)
             .send()
             .end((err, res) => {
                 if (err) return done(err);
@@ -208,7 +208,7 @@ describe("Test Customized Cost Estimation: excluding ingredients", () => {
       const recipe_id = 262;
       const exclude_id = [275];  
       chai.request("http://localhost:80")
-            .get(`/api/recipe/cost/${recipe_id}/${exclude_id.toString()}`)
+            .get(`/api/recipe/cost/${recipe_id}?exclude_ids=${exclude_id.toString()}`)
             .send()
             .end((err, res) => {
                 if (err) return done(err);
@@ -227,7 +227,7 @@ describe("Test Customized Cost Estimation: excluding ingredients", () => {
       const recipe_id = 267; 
       const exclude_id = [2];
       chai.request("http://localhost:80")
-            .get(`/api/recipe/cost/${recipe_id}/${exclude_id.toString()}`)
+            .get(`/api/recipe/cost/${recipe_id}?exclude_ids=${exclude_id.toString()}`)
             .send()
             .end((err, res) => {
                 if (err) return done(err);
@@ -243,7 +243,7 @@ describe("Test Customized Cost Estimation: excluding ingredients", () => {
       const recipe_id = 25;  
       const exclude_id = [22];
       chai.request("http://localhost:80")
-            .get(`/api/recipe/cost/${recipe_id}/${exclude_id.toString()}`)
+            .get(`/api/recipe/cost/${recipe_id}?exclude_ids=${exclude_id.toString()}`)
             .send()
             .end((err, res) => {
                 if (err) return done(err);
@@ -259,7 +259,7 @@ describe("Test Customized Cost Estimation: excluding ingredients", () => {
       const recipe_id = 19;  
       const exclude_id = [22];
       chai.request("http://localhost:80")
-            .get(`/api/recipe/cost/${recipe_id}/${exclude_id.toString()}`)
+            .get(`/api/recipe/cost/${recipe_id}?exclude_ids=${exclude_id.toString()}`)
             .send()
             .end((err, res) => {
                 if (err) return done(err);
