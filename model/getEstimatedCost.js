@@ -1,18 +1,5 @@
 const supabase = require("../dbConnection.js");
 
-//For getting the recipe ingredients from the DB
-async function getRecipeIngredients(recipe_id) {
-  try {
-		let { data, error } = await supabase
-			.from("recipes")
-			.select("ingredients")
-      .eq("id", recipe_id);
-		return data;
-	} catch (error) {
-		throw error;
-	}
-}
-
 //For getting the ingredients price from the DB
 async function getIngredientsPrice(ingredient_id) {
   try {
@@ -27,24 +14,53 @@ async function getIngredientsPrice(ingredient_id) {
 }
 
 //To convert the units
-function convertUnits(value, fromUnit, toUnit) {
+function convertUnits(value, fromMeasurement, toMeasurement) {
+  const result = {
+    unit: 0,
+    measurement: toMeasurement
+  }
+
   const conversions = {
     weight: { g: 1, kg: 0.001 },
     liquid: { l: 1, ml: 1000 }
   };
 
-  if (fromUnit === "ea" && toUnit === "ea") {
-    return value;
+  if (fromMeasurement === "ea") {
+    if (toMeasurement === "ea") {
+      result.unit = value;
+      return result;
+    } else {
+      throw new Error("Invalid unit conversion");
+    }
   }
 
-  if (conversions.weight[fromUnit] && conversions.weight[toUnit]) {
-      return value * (conversions.weight[toUnit] / conversions.weight[fromUnit]);
-  } else if (conversions.liquid[fromUnit] && conversions.liquid[toUnit]) {
-      return value * (conversions.liquid[toUnit] / conversions.liquid[fromUnit]);
-  } else {
+  if (toMeasurement === "N/A") {
+    // Use g/ml as default
+    if (conversions.weight[fromMeasurement]) {
+      result.unit = value * (conversions.weight["g"] / conversions.weight[fromMeasurement]);
+      result.measurement = "g";
+      return result;
+    } else if (conversions.liquid[fromMeasurement]) {
+      result.unit = value * (conversions.liquid["ml"] / conversions.liquid[fromMeasurement]);
+      result.measurement = "ml";
+      return result;
+    } else {
       throw new Error("Invalid unit conversion");
+    }
+  } else {
+    if (conversions.weight[fromMeasurement] && conversions.weight[toMeasurement]) {
+      result.unit = value * (conversions.weight[toMeasurement] / conversions.weight[fromMeasurement]);
+      return result;
+    } else if (conversions.liquid[fromMeasurement] && conversions.liquid[toMeasurement]) {
+      result.unit = value * (conversions.liquid[toMeasurement] / conversions.liquid[fromMeasurement]);
+      return result;
+    } else {
+      throw new Error("Invalid unit conversion");
+    }
   }
 }
+
+
 
 //To estimate the Ingredients Cost(lowest and highest)
 function estimateIngredientsCost(ingredients, ingredients_price) { //return grouped data initially.
@@ -69,19 +85,18 @@ function estimateIngredientsCost(ingredients, ingredients_price) { //return grou
       let target_measurement = ingredients.measurement[i];
 
       let ingre = groupedIngredientsPrice[target_id];
-      
       // If target ingredient not found in the price table -> skip this ingredient
       if (ingre) {
         ingre = ingre.filter((item) => {
           try {
-            let convertedUnit = convertUnits(item.unit, item.measurement, target_measurement);
+            let convertedResult = convertUnits(item.unit, item.measurement, target_measurement);
             let estimatedPurchase = 1;
-            while (convertedUnit * estimatedPurchase < target_qty) {
+            while (convertedResult.unit * estimatedPurchase < target_qty) {
               estimatedPurchase += 1;
             }
             item.estimation = {
-              "unit": convertedUnit,
-              "measurement": target_measurement,
+              "unit": convertedResult.unit,
+              "measurement": convertedResult.measurement,
               "purchase": estimatedPurchase,
               "total_cost": estimatedPurchase * item.price
             }
@@ -109,8 +124,6 @@ function estimateIngredientsCost(ingredients, ingredients_price) { //return grou
       }
     }
   }
-  console.log("Low Price: ",lowPriceRequiredIngredients);
-  console.log("High Price: ",highPriceRequiredIngredients);
 
   return {
     lowPriceRequiredIngredients,
@@ -172,7 +185,6 @@ function prepareResponseData(lowPriceRequiredIngredients, highPriceRequiredIngre
 }
 
 module.exports = {
-  getRecipeIngredients,
   getIngredientsPrice,
   convertUnits,
   estimateIngredientsCost,
