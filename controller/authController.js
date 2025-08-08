@@ -1,9 +1,6 @@
 const { createClient } = require('@supabase/supabase-js')
 
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_ANON_KEY
-)
+const sendVerificationEmail = require('../new_utils/sendVerificationEmail');
 
 exports.logLoginAttempt = async (req, res) => {
   const { email, user_id, success, ip_address, created_at } = req.body
@@ -31,3 +28,23 @@ exports.logLoginAttempt = async (req, res) => {
 
   return res.status(201).json({ message: 'Login attempt logged successfully' })
 }
+
+exports.requestEmailVerification = async (req, res) => {
+  const { email } = req.body;
+  if (!email) {
+    return res.status(400).json({ error: 'Email is required.' });
+  }
+
+  try {
+    await sendVerificationEmail(email);
+    res.json({ message: `Verification email sent to ${email}` });
+  } catch (err) {
+    console.error('❌ Error sending verification email:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_ANON_KEY
+)

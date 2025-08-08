@@ -75,6 +75,36 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /request-email-verification:
+    post:
+      tags:
+        - Authentication
+      summary: Send email verification request
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  example: testuser@example.com
+      responses:
+        '200':
+          description: Verification email sent
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Verification email sent to testuser@example.com
+        '400':
+          description: Bad request – email missing
+        '500':
+          description: Internal server error
   /contactus:
     post:
       summary: Contact us
@@ -2517,4 +2547,4 @@ components:
                   format: float
                   description: Model confidence score for diabetes prediction.
                   example: 0.798
-
+ 

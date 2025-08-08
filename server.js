@@ -166,6 +166,24 @@ app.use((err, req, res, next) => {
 	res.status(500).json({ error: "Internal server error" });
 });
 
+// Dummy Email Verification Page for Testing
+app.get('/verify-email/:token', (req, res) => {
+	const token = req.params.token;
+	res.send(`
+		<html>
+		<head>
+			<title>Email Verification</title>
+		</head>
+		<body style="font-family: Arial; text-align: center; padding-top: 50px;">
+			<h1>✅ Email Verification</h1>
+			<p>Your token:</p>
+			<code style="background:#eee;padding:10px;font-size:1.2em;">${token}</code>
+			<p>This is a dummy page for development testing only.</p>
+		</body>
+		</html>
+	`);
+});
+
 // Start server
 app.listen(port, async () => {
 	console.log(`Server is running on port ${port}`);
