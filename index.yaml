@@ -9,6 +9,8 @@ paths:
     post:
       summary: Upload a file
       description: Upload JPG, PNG, or PDF (max 5MB, limited to 5 uploads per 10 minutes)
+      security:
+        - BearerAuth: []
       requestBody:
         required: true
         content:
