@@ -4,7 +4,54 @@ info:
   version: 1.0.0
 servers:
   - url: http://localhost/api
+tags:
+  - name: System
+    description: System and security monitoring endpoints
 paths:
+  /system/generate-baseline:
+    post:
+      tags:
+        - System
+      summary: Regenerate baseline hash data for file integrity checks
+      description: Re-creates the baseline.json file to update file integrity data.
+      responses:
+        '200':
+          description: Baseline regenerated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Baseline regenerated successfully
+                  fileCount:
+                    type: integer
+                    example: 4
+        '500':
+          description: Server error while regenerating baseline
+  /system/integrity-check:
+    get:
+      tags:
+        - System
+      summary: Run file integrity and anomaly check
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  anomalies:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        file:
+                          type: string
+                        issue:
+                          type: string
   /upload:
     post:
       summary: Upload a file
