@@ -1,5 +1,8 @@
 require("dotenv").config();
 const express = require("express");
+
+const FRONTEND_ORIGIN =  "http://localhost:3000";
+
 const helmet = require('helmet');
 const cors = require("cors");
 const swaggerUi = require("swagger-ui-express");
@@ -74,13 +77,34 @@ cleanupOldFiles();
 setInterval(cleanupOldFiles, 3 * 60 * 60 * 1000);
 
 const app = express();
+
 const port = process.env.PORT || 80;
 
 let db = require("./dbConnection");
 
 // CORS
-app.options("*", cors({ origin: "http://localhost:3000" }));
-app.use(cors({ origin: "http://localhost:3000" }));
+//app.options("*", cors({ origin: "http://localhost:3000" }));
+//app.use(cors({ origin: "http://localhost:3000" }));
+
+
+app.use(cors({
+  origin: FRONTEND_ORIGIN,
+  credentials: true,
+  methods: ["GET","POST","PUT","PATCH","DELETE","OPTIONS"],
+  allowedHeaders: ["Content-Type","Authorization"]
+}));
+
+app.options("*", cors({
+  origin: FRONTEND_ORIGIN,
+  credentials: true,                      
+}));
+
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Credentials", "true");
+  next();
+});
+
+app.set("trust proxy", 1);
 
 // Helmet Security
 app.use(helmet({
@@ -123,6 +147,9 @@ routes(app);
 
 app.use("/api", uploadRoutes);
 app.use("/uploads", express.static("uploads"));
+
+//signup
+app.use("/api/signup", require("./routes/signup"));
 
 // Error handler
 app.use((err, req, res, next) => {
