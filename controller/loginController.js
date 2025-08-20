@@ -3,7 +3,7 @@ const jwt = require("jsonwebtoken");
 const logLoginEvent = require("../Monitor_&_Logging/loginLogger");
 const getUserCredentials = require("../model/getUserCredentials.js");
 const { addMfaToken, verifyMfaToken } = require("../model/addMfaToken.js");
-const sgMail = require("@sendgrid/mail");
+// const sgMail = require("@sendgrid/mail");
 const crypto = require("crypto");
 const supabase = require("../dbConnection");
 const { validationResult } = require("express-validator");
@@ -57,7 +57,7 @@ const login = async (req, res) => {
 
     // Validate credentials
     const user = await getUserCredentials(email);
-    const userExists = user && user.length !== 0;
+    const userExists = user;
     const isPasswordValid = userExists ? await bcrypt.compare(password, user.password) : false;
     const isLoginValid = userExists && isPasswordValid;
 
@@ -181,12 +181,29 @@ const loginMfa = async (req, res) => {
   }
 };
 
+// Send email with sendgrid
+// async function sendEmail(user, token) {
+//   sgMail.setApiKey(process.env.SENDGRID_KEY);
+//   try {
+//     await sgMail.send({
+//       to: user.email,
+//       from: "nutrihelpnoreply@gmail.com",
+//       subject: "Nutrihelp login Token",
+//       text: `Your token to log in is ${token}`,
+//       html: `Your token to log in is <strong>${token}</strong>`
+//     });
+//     console.log("Email sent successfully!");
+//   } catch (err) {
+//     console.error("Error sending email:", err);
+//   }
+// }
+
+// Send email with nodemail
 async function sendEmail(user, token) {
-  sgMail.setApiKey(process.env.SENDGRID_KEY);
   try {
-    await sgMail.send({
+    await transporter.sendMail({
+      from: process.env.ALERT_EMAIL,
       to: user.email,
-      from: "nutrihelpnoreply@gmail.com",
       subject: "Nutrihelp login Token",
       text: `Your token to log in is ${token}`,
       html: `Your token to log in is <strong>${token}</strong>`
