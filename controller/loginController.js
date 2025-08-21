@@ -8,18 +8,9 @@ const crypto = require("crypto");
 const supabase = require("../dbConnection");
 const { validationResult } = require("express-validator");
 
- // Install nodemailer and add the following details to the .env file 
- //ALERT_EMAIL=nutrihelpnoreply1234@gmail.com
- //ALERT_PASSWORD=yzzbfcnmemvneiqp
-const nodemailer = require("nodemailer");
- 
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: process.env.ALERT_EMAIL,
-    pass: process.env.ALERT_PASSWORD,
-  },
-});
+// ✅ Set SendGrid API key once globally
+sgMail.setApiKey(process.env.SENDGRID_KEY);
+
 const login = async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -39,7 +30,7 @@ const login = async (req, res) => {
   const tenMinutesAgoISO = new Date(Date.now() - 10 * 60 * 1000).toISOString();
 
   try {
-    // Count failed login attempts in the past 10 minutes
+    // Count failed login attempts
     const { data: failuresByEmail } = await supabase
       .from("brute_force_logs")
       .select("id")
@@ -68,7 +59,7 @@ const login = async (req, res) => {
         success: false,
         created_at: new Date().toISOString()
       }]);
-      
+
       if (failureCount === 4) {
         return res.status(429).json({
           warning: "⚠ You have one attempt left before your account is temporarily locked."
@@ -77,44 +68,36 @@ const login = async (req, res) => {
 
       if (!userExists || !isPasswordValid) {
         await sendFailedLoginAlert(email, clientIp);
- 
+
         if (!userExists) {
           return res.status(401).json({ error: "Invalid email" });
         }
- 
+
         return res.status(401).json({ error: "Invalid password" });
       }
     }
 
-    // Log successful login
+    // Log successful login attempt
     await supabase.from("brute_force_logs").insert([{
       email,
       success: true,
       created_at: new Date().toISOString()
     }]);
 
-    // ✅ Delete all failed attempts for this email
-    const { error: deleteError } = await supabase
-      .from("brute_force_logs")
-      .delete()
+    await supabase.from("brute_force_logs").delete()
       .eq("email", email)
       .eq("success", false);
-
-    if (deleteError) {
-      console.error("Failed to delete failed logs:", deleteError);
-    }
 
     // MFA handling
     if (user.mfa_enabled) {
       const token = crypto.randomInt(100000, 999999);
       await addMfaToken(user.user_id, token);
-      await sendEmail(user, token);
+      await sendOtpEmail(user.email, token);
       return res.status(202).json({
         message: "An MFA Token has been sent to your email address"
       });
     }
 
-    // Log the Successful Login
     await logLoginEvent({
       userId: user.user_id,
       eventType: "LOGIN_SUCCESS",
@@ -122,9 +105,12 @@ const login = async (req, res) => {
       userAgent: req.headers["user-agent"]
     });
 
-    // JWT generation
+    // ✅ RBAC-aware JWT generation
     const token = jwt.sign(
-      { userId: user.user_id },
+      { 
+        userId: user.user_id,
+        role: user.user_roles?.role_name || "unknown"
+      },
       process.env.JWT_TOKEN,
       { expiresIn: "1h" }
     );
@@ -167,8 +153,12 @@ const loginMfa = async (req, res) => {
       return res.status(401).json({ error: "Token is invalid or has expired" });
     }
 
+    // ✅ RBAC-aware JWT
     const token = jwt.sign(
-      { userId: user.user_id },
+      { 
+        userId: user.user_id,
+        role: user.user_roles?.role_name || "unknown"
+      },
       process.env.JWT_TOKEN,
       { expiresIn: "1h" }
     );
@@ -181,40 +171,41 @@ const loginMfa = async (req, res) => {
   }
 };
 
-async function sendEmail(user, token) {
-  sgMail.setApiKey(process.env.SENDGRID_KEY);
+// ✅ Send OTP email via SendGrid
+async function sendOtpEmail(email, token) {
   try {
     await sgMail.send({
-      to: user.email,
-      from: "nutrihelpnoreply@gmail.com",
-      subject: "Nutrihelp login Token",
+      to: email,
+      from: process.env.SENDGRID_FROM,
+      subject: "NutriHelp Login Token",
       text: `Your token to log in is ${token}`,
       html: `Your token to log in is <strong>${token}</strong>`
     });
-    console.log("Email sent successfully!");
+    console.log("OTP email sent successfully to", email);
   } catch (err) {
-    console.error("Error sending email:", err);
+    console.error("Error sending OTP email:", err.response?.body || err.message);
   }
 }
 
+// ✅ Send failed login alert via SendGrid
 async function sendFailedLoginAlert(email, ip) {
   try {
-    await transporter.sendMail({
-      from: process.env.ALERT_EMAIL,
+    await sgMail.send({
+      from: process.env.SENDGRID_FROM,
       to: email,
       subject: "Failed Login Attempt on NutriHelp",
       text: `Hi,
- 
+
 Someone tried to log in to NutriHelp using your email address from IP: ${ip}.
- 
+
 If this wasn't you, please ignore this message. But if you're concerned, consider resetting your password or contacting support.
- 
-– NutriHelp Security Team`,
+
+– NutriHelp Security Team`
     });
     console.log(`Failed login alert sent to ${email}`);
   } catch (err) {
-    console.error("Failed to send alert email:", err.message);
+    console.error("Failed to send alert email:", err.response?.body || err.message);
   }
 }
- 
+
 module.exports = { login, loginMfa };
