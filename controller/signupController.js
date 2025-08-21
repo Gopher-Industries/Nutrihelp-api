@@ -1,6 +1,6 @@
-//const bcrypt = require('bcryptjs');
-//let getUser = require('../model/getUser.js');
-//let addUser = require('../model/addUser.js');
+const bcrypt = require('bcryptjs');
+let getUser = require('../model/getUser.js');
+let addUser = require('../model/addUser.js');
 const { validationResult } = require('express-validator');
 const { registerValidation } = require('../validators/signupValidator.js');
 // const supabase = require('../dbConnection');
@@ -24,77 +24,168 @@ const signup = async (req, res) => {
   const userAgent = req.get("User-Agent") || "";
 
   try {
-    
-    const { data, error } = await supabase.auth.signUp({
-      email: emailNormalized,
-      password,
-      options: {
-        data: { name, contact_number: contact_number || null, address: address || null },
-        
-        emailRedirectTo: process.env.APP_ORIGIN ? `${process.env.APP_ORIGIN}/login` : undefined,
-      },
-    });
-
-    if (error) {
-      const msg = (error.message || "").toLowerCase();
-
-      if (msg.includes("already") && msg.includes("registered")) {
-        await safeLog({ userId: null, eventType: "EXISTING_USER", ip: clientIp, userAgent,
-          details: { email: emailNormalized }});
-        return res.status(400).json({ error: "User already exists" });
-      }
-      if (msg.includes("password")) {
-        return res.status(400).json({ error: error.message });
-      }
-   
-      return res.status(400).json({ error: error.message || "Unable to create user" });
+    const authTableResult = await signupAuthTable(name, emailNormalized, password, contact_number, address, clientIp, userAgent);
+    // If not success
+    if (!authTableResult.success) {
+      return res.status(authTableResult.status).json(authTableResult.result);
     }
 
-    const userId = data.user?.id || null;
-
-
-    if (data.session?.access_token) {
-      try {
-        const authed = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY, {
-          global: { headers: { Authorization: `Bearer ${data.session.access_token}` } },
-        });
-
-        await authed.from("profiles").upsert(
-          {
-            id: userId,
-            email: emailNormalized,
-            name,
-            contact_number: contact_number || null,
-            address: address || null,
-          },
-          { onConflict: "id" }
-        );
-      } catch (e) {
-        console.warn("profile upsert (authed) failed:", e.message);
-        
-      }
+    const publicTableResult = await signupPublicTable(name, emailNormalized, password, contact_number, address, clientIp, userAgent);
+    // If not success
+    if (!publicTableResult.success) {
+      return res.status(publicTableResult.status).json(publicTableResult.result);
     }
     
-    await safeLog({
-      userId,
-      eventType: "SIGNUP_SUCCESS",
-      ip: clientIp,
-      userAgent,
-      details: { email: emailNormalized },
-    });
-
+    // Signup successfully
     return res.status(201).json({
-      message: "User created successfully. Please check your email to verify your account.",
+      message: 'User created successfully'
     });
-  } catch (err) {
-    console.error("Unexpected signup error:", err);
+  } catch (error) {
+    console.error('Error creating user: ', error);
     await safeLog({
-      userId: null, eventType: "SIGNUP_FAILED", ip: clientIp, userAgent,
-      details: { reason: "Internal server error", error_message: err.message, email: emailNormalized },
+      userId: null,
+        eventType: 'SIGNUP_FAILED',
+        ip: clientIp,
+        userAgent,
+        details: {
+            reason: 'Internal server error',
+            error_message: error.message,
+            email: emailNormalized
+        }
     });
     return res.status(500).json({ error: "Internal server error" });
   }
 };
 
+// Add data to public.users table
+const signupPublicTable = async (name, emailNormalized, password, contact_number, address, clientIp, userAgent) => {
+  const userExists = await getUser(emailNormalized);
+    if (userExists.length > 0) {
+      // Log signup failure due to duplicate
+      await safeLog({
+        userId: null,
+        eventType: 'EXISTING_USER',
+        ip: clientIp,
+        userAgent,
+        details: {
+          reason: 'User already exists',
+          email: emailNormalized
+        }
+      });
+
+      return {
+        success: false,
+        status: 400,
+        result: { error: 'User already exists' }
+      } 
+      // return res.status(400).json({ error: 'User already exists' });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const result = await addUser(name, emailNormalized, hashedPassword, true, contact_number, address);
+    const user_id = result.user_id;
+    
+    await safeLog({
+      userId: user_id,
+      eventType: 'SIGNUP_SUCCESS',
+      ip: clientIp,
+      userAgent,
+      details: { email: emailNormalized }
+    });
+
+    return {
+      success: true,
+      status: 201,
+      result: { message: 'User created successfully' }
+    } 
+    // return res.status(201).json({ message: 'User created successfully' });
+}
+
+// Add data to auth.users table
+const signupAuthTable = async (name, emailNormalized, password, contact_number, address, clientIp, userAgent) => {
+  const { data, error } = await supabase.auth.signUp({
+    email: emailNormalized,
+    password,
+    options: {
+      data: { name, contact_number: contact_number || null, address: address || null },
+      
+      emailRedirectTo: process.env.APP_ORIGIN ? `${process.env.APP_ORIGIN}/login` : undefined,
+    },
+  });
+
+  if (error) {
+    const msg = (error.message || "").toLowerCase();
+
+    if (msg.includes("already") && msg.includes("registered")) {
+      await safeLog({ userId: null, eventType: "EXISTING_USER", ip: clientIp, userAgent,
+        details: { email: emailNormalized }});
+      return {
+        success: false,
+        status: 400,
+        result: { error: "User already exists" }
+      } 
+      // res.status(400).json({ error: "User already exists" });
+    }
+    if (msg.includes("password")) {
+      return {
+        success: false,
+        status: 400,
+        result: { error: error.message }
+      } 
+      // return res.status(400).json({ error: error.message });
+    }
+  
+    return {
+      success: false,
+      status: 400,
+      result: { error: error.message || "Unable to create user" }
+    } 
+    // return res.status(400).json({ error: error.message || "Unable to create user" });
+  }
+
+  const userId = data.user?.id || null;
+
+  if (data.session?.access_token) {
+    try {
+      const authed = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY, {
+        global: { headers: { Authorization: `Bearer ${data.session.access_token}` } },
+      });
+
+      await authed.from("profiles").upsert(
+        {
+          id: userId,
+          email: emailNormalized,
+          name,
+          contact_number: contact_number || null,
+          address: address || null,
+        },
+        { onConflict: "id" }
+      );
+    } catch (e) {
+      console.warn("profile upsert (authed) failed:", e.message);
+      
+    }
+  }
+  
+  await safeLog({
+    userId,
+    eventType: "SIGNUP_SUCCESS",
+    ip: clientIp,
+    userAgent,
+    details: { email: emailNormalized },
+  });
+
+  
+  return {
+    success: true,
+    status: 201,
+    result: {
+      message: "User created successfully. Please check your email to verify your account.",
+    }
+  } 
+  // return res.status(201).json({
+  //   message: "User created successfully. Please check your email to verify your account.",
+  // });
+}
 
 module.exports = { signup };
