@@ -14,7 +14,7 @@ const rateLimit = require('express-rate-limit'); // ✅ added
 const uploadRoutes = require('./routes/uploadRoutes');
 const fs = require("fs");
 const path = require("path");
-
+const systemRoutes = require('./routes/systemRoutes');
 // Ensure uploads directory exists
 const uploadsDir = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadsDir)) {
@@ -81,6 +81,9 @@ const app = express();
 const port = process.env.PORT || 80;
 
 let db = require("./dbConnection");
+
+app.use('/api/system', systemRoutes)
+
 
 // CORS
 //app.options("*", cors({ origin: "http://localhost:3000" }));
