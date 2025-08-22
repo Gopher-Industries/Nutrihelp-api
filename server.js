@@ -174,3 +174,6 @@ app.listen(port, async () => {
 	console.log(`Server is running on port ${port}`);
 	exec(`start http://localhost:${port}/api-docs`);
 });
+
+const smsRoutes = require('./routes/sms');
+app.use('/api/sms', smsRoutes);

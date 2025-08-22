@@ -40,6 +40,7 @@
     "nutrihelp-api": "file:",
     "sinon": "^18.0.0",
     "swagger-ui-express": "^5.0.0",
+    "twilio": "^5.8.0",
     "yamljs": "^0.3.0"
   },
   "devDependencies": {
