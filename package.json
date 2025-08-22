@@ -43,7 +43,7 @@
     "yamljs": "^0.3.0"
   },
   "devDependencies": {
-    "axios": "^1.8.4",
+    "axios": "^1.11.0",
     "concurrently": "^8.2.2",
     "form-data": "^4.0.2",
     "nodemon": "^3.1.10",
