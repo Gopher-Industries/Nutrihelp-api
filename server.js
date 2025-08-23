@@ -141,6 +141,11 @@ app.use((err, req, res, next) => {
 
 // Start server
 app.listen(port, async () => {
+    console.log('\n🎉 NutriHelp API launched successfully!');
+    console.log('='.repeat(50));
 	console.log(`Server is running on port ${port}`);
+	console.log(`📚 Swagger UI: http://localhost/api-docs`);
+	console.log('='.repeat(50));
+	console.log('💡 Press Ctrl+C to stop the server \n');
 	exec(`start http://localhost:${port}/api-docs`);
 });
