@@ -1,17 +1,27 @@
-const express           = require("express");
-const router            = express.Router();
-const controller        = require("../controller/userPreferencesController");
-const {authenticateToken} = require("../middleware/authenticateToken");
+const express = require("express");
+const router = express.Router();
+const controller = require("../controller/userPreferencesController");
+const authenticateToken = require("../middleware/authenticateToken");
+const authorizeRoles = require("../middleware/authorizeRoles");
 const { validateUserPreferences } = require("../validators/userPreferencesValidator");
 const ValidateRequest = require("../middleware/validateRequest");
 
-router.route("/").get(authenticateToken, controller.getUserPreferences);
-router.post(
-    "/",
+// ✅ GET: Admin-only
+router
+  .route("/")
+  .get(
     authenticateToken,
-    validateUserPreferences,
-    ValidateRequest,
-    controller.postUserPreferences
+    authorizeRoles("admin"),  // 👈 RBAC check restored
+    controller.getUserPreferences
   );
+
+// ✅ POST: Any logged-in user can post their own preferences
+router.post(
+  "/",
+  authenticateToken,
+  validateUserPreferences,
+  ValidateRequest,
+  controller.postUserPreferences
+);
 
 module.exports = router;

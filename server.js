@@ -1,5 +1,8 @@
 require("dotenv").config();
 const express = require("express");
+
+const FRONTEND_ORIGIN =  "http://localhost:3000";
+
 const helmet = require('helmet');
 const cors = require("cors");
 const swaggerUi = require("swagger-ui-express");
@@ -11,7 +14,7 @@ const rateLimit = require('express-rate-limit'); // ✅ added
 const uploadRoutes = require('./routes/uploadRoutes');
 const fs = require("fs");
 const path = require("path");
-
+const systemRoutes = require('./routes/systemRoutes');
 // Ensure uploads directory exists
 const uploadsDir = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadsDir)) {
@@ -74,13 +77,37 @@ cleanupOldFiles();
 setInterval(cleanupOldFiles, 3 * 60 * 60 * 1000);
 
 const app = express();
+
 const port = process.env.PORT || 80;
 
 let db = require("./dbConnection");
 
+app.use('/api/system', systemRoutes)
+
+
 // CORS
-app.options("*", cors({ origin: "http://localhost:3000" }));
-app.use(cors({ origin: "http://localhost:3000" }));
+//app.options("*", cors({ origin: "http://localhost:3000" }));
+//app.use(cors({ origin: "http://localhost:3000" }));
+
+
+app.use(cors({
+  origin: FRONTEND_ORIGIN,
+  credentials: true,
+  methods: ["GET","POST","PUT","PATCH","DELETE","OPTIONS"],
+  allowedHeaders: ["Content-Type","Authorization"]
+}));
+
+app.options("*", cors({
+  origin: FRONTEND_ORIGIN,
+  credentials: true,                      
+}));
+
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Credentials", "true");
+  next();
+});
+
+app.set("trust proxy", 1);
 
 // Helmet Security
 app.use(helmet({
@@ -123,6 +150,9 @@ routes(app);
 
 app.use("/api", uploadRoutes);
 app.use("/uploads", express.static("uploads"));
+
+//signup
+app.use("/api/signup", require("./routes/signup"));
 
 // Error handler
 app.use((err, req, res, next) => {
