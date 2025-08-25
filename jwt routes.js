@@ -1,38 +1,34 @@
 const express = require('express');
-const bcrypt = require('bcrypt');
-const jwt = require('jsonwebtoken');
-const { users } = require('../users');
-const authenticateToken = require('../middleware/authMiddleware');
-
 const router = express.Router();
+const authController = require('../controller/authController');
+const { authenticateToken } = require('../middleware/authenticateToken');
 
-// Register
-router.post('/register', async (req, res) => {
-  const { username, password } = req.body;
-  const userExists = users.find(u => u.username === username);
-  if (userExists) return res.status(409).json({ message: 'User already exists' });
+// Register and login
+router.post('/register', authController.register);
+router.post('/login', authController.login);
 
-  const hashedPassword = await bcrypt.hash(password, 10);
-  users.push({ username, password: hashedPassword });
-  res.status(201).json({ message: 'User registered' });
-});
+// Token management
+router.post('/refresh', authController.refreshToken);
+router.post('/logout', authController.logout);
+router.post('/logout-all', authenticateToken, authController.logoutAll);
 
-// Login
-router.post('/login', async (req, res) => {
-  const { username, password } = req.body;
-  const user = users.find(u => u.username === username);
+// User information
+router.get('/profile', authenticateToken, authController.getProfile);
 
-  if (!user || !(await bcrypt.compare(password, user.password))) {
-    return res.status(401).json({ message: 'Invalid credentials' });
-  }
+// Keep existing logging endpoint
+router.post('/log-login', authController.logLoginAttempt);
 
-  const token = jwt.sign({ username: user.username }, process.env.JWT_SECRET, { expiresIn: '1h' });
-  res.json({ token });
-});
-
-// Protected route
+// Protected route example (replace existing dashboard)
 router.get('/dashboard', authenticateToken, (req, res) => {
-  res.json({ message: `Welcome to NutriHelp, ${req.user.username}` });
+    res.json({
+        success: true,
+        message: `Welcome to NutriHelp, ${req.user.email}`,
+        user: {
+            id: req.user.userId,
+            email: req.user.email,
+            role: req.user.role
+        }
+    });
 });
 
 module.exports = router;
