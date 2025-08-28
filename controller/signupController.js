@@ -30,7 +30,8 @@ const signup = async (req, res) => {
       return res.status(authTableResult.status).json(authTableResult.result);
     }
 
-    const publicTableResult = await signupPublicTable(name, emailNormalized, password, contact_number, address, clientIp, userAgent);
+    const publicTableResult = await signupPublicTable(authTableResult.result.user_uuid, 
+                              name, emailNormalized, password, contact_number, address, clientIp, userAgent);
     // If not success
     if (!publicTableResult.success) {
       return res.status(publicTableResult.status).json(publicTableResult.result);
@@ -58,7 +59,7 @@ const signup = async (req, res) => {
 };
 
 // Add data to public.users table
-const signupPublicTable = async (name, emailNormalized, password, contact_number, address, clientIp, userAgent) => {
+const signupPublicTable = async (user_uuid, name, emailNormalized, password, contact_number, address, clientIp, userAgent) => {
   const userExists = await getUser(emailNormalized);
     if (userExists.length > 0) {
       // Log signup failure due to duplicate
@@ -83,10 +84,11 @@ const signupPublicTable = async (name, emailNormalized, password, contact_number
 
     const hashedPassword = await bcrypt.hash(password, 10);
     const result = await addUser(name, emailNormalized, hashedPassword, true, contact_number, address);
-    const user_id = result.user_id;
+    const user_id = result.user_id; // UserID in int8 type (public table)
     
     await safeLog({
-      userId: user_id,
+      // userId: result.user_id,
+      userId: user_uuid,
       eventType: 'SIGNUP_SUCCESS',
       ip: clientIp,
       userAgent,
@@ -167,19 +169,11 @@ const signupAuthTable = async (name, emailNormalized, password, contact_number, 
     }
   }
   
-  await safeLog({
-    userId,
-    eventType: "SIGNUP_SUCCESS",
-    ip: clientIp,
-    userAgent,
-    details: { email: emailNormalized },
-  });
-
-  
   return {
     success: true,
     status: 201,
     result: {
+      user_uuid: userId,
       message: "User created successfully. Please check your email to verify your account.",
     }
   } 
