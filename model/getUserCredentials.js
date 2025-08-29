@@ -15,17 +15,17 @@ async function getUserCredentials(email) {
           role_name
         )
       `)
-      .eq('email', email.trim())
+      .eq('email', email.trim().toLowerCase())
       .maybeSingle();
 
     if (error) {
-      console.error("Supabase error in getUserCredentials:", error);
+      console.error("Supabase error in getUserCredentials:", error.message || error);
       return null;
     }
 
     return data || null;
-  } catch (error) {
-    console.error("getUserCredentials failed:", error);
+  } catch (err) {
+    console.error("getUserCredentials failed:", err.message);
     return null;
   }
 }
