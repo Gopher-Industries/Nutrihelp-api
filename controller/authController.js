@@ -54,21 +54,19 @@ exports.logLoginAttempt = async (req, res) => {
  * Will call new_utils/sendVerificationEmail(email) and return/log whatever it returns.
  */
 exports.requestEmailVerification = async (req, res) => {
-  try {
-    console.log('[requestEmailVerification] called with body:', req.body);
-    const { email } = req.body;
-    if (!email) {
-      console.warn('[requestEmailVerification] missing email in request body');
-      return res.status(400).json({ error: 'Email is required.' });
-    }
+  console.log('[requestEmailVerification] called with body:', req.body);
+  const { email } = req.body;
+  if (!email) {
+    console.warn('[requestEmailVerification] missing email in request body');
+    return res.status(400).json({ error: 'Email is required.' });
+  }
 
-    // call the mailer util (should return something like { verifyUrl, token, supabaseRow })
+  try {
     const result = await sendVerificationEmail(email);
     console.log('[requestEmailVerification] sendVerificationEmail returned:', result);
 
-    // If mailer returned a verifyUrl, log it clearly for DEV visibility
-    if (result && (result.verifyUrl || result.verifyURL || result.url)) {
-      const verifyUrl = result.verifyUrl || result.verifyURL || result.url;
+    const verifyUrl = result?.verifyUrl || result?.verifyURL || result?.url || null;
+    if (verifyUrl) {
       console.log('🔗 DEV EMAIL VERIFICATION LINK:', verifyUrl);
     } else {
       console.log('🔗 DEV EMAIL VERIFICATION LINK: (no URL returned by mailer)');
@@ -76,18 +74,19 @@ exports.requestEmailVerification = async (req, res) => {
 
     return res.status(200).json({
       message: `Verification email sent to ${email}`,
-      result,
+      verifyUrl: verifyUrl || undefined
     });
   } catch (err) {
-    // If this error came from Supabase or mailer, it will be visible here.
-    console.error('❌ [requestEmailVerification] error:', err);
-    // If Supabase error object exists, log more detail
-    if (err && err.message) console.error('[requestEmailVerification] err.message:', err.message);
-    if (err && err.details) console.error('[requestEmailVerification] err.details:', err.details);
+    // IMPORTANT: print everything useful about the error
+    console.error('❌ Error in requestEmailVerification: message=', err?.message);
+    if (err?.stack) console.error(err.stack);
+    // If it's a Supabase style error object passed through, print it
+    if (err?.response) console.error('error.response:', err.response);
+    if (err?.status) console.error('error.status:', err.status);
+    if (err?.code) console.error('error.code:', err.code);
+    // fallback print
+    console.error('Full error (raw):', err);
 
-    return res.status(500).json({
-      error: 'Internal server error',
-      detail: err && (err.message || err.toString()),
-    });
+    return res.status(500).json({ error: 'Internal server error' });
   }
 };

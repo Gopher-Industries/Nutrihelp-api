@@ -17,6 +17,7 @@ const path = require("path");
 const verifyRoutes = require('./routes/verify');
 
 
+
 // Ensure uploads directory exists
 const uploadsDir = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadsDir)) {
@@ -168,6 +169,9 @@ app.use((err, req, res, next) => {
 	console.error("Unhandled error:", err);
 	res.status(500).json({ error: "Internal server error" });
 });
+
+//verify Routes
+app.use('/api', verifyRoutes);
 
 
 // Dummy Email Verification Page for Testing
