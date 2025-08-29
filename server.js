@@ -14,6 +14,7 @@ const rateLimit = require('express-rate-limit'); // ✅ added
 const uploadRoutes = require('./routes/uploadRoutes');
 const fs = require("fs");
 const path = require("path");
+const consentRoutes = require('./routes/consent');
 
 // Ensure uploads directory exists
 const uploadsDir = path.join(__dirname, 'uploads');
@@ -165,6 +166,9 @@ app.use((err, req, res, next) => {
 	console.error("Unhandled error:", err);
 	res.status(500).json({ error: "Internal server error" });
 });
+
+// Consents use
+app.use('/api', consentRoutes); 
 
 // Start server
 app.listen(port, async () => {

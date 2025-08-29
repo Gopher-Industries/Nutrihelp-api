@@ -28,6 +28,56 @@ paths:
           description: Upload failed due to size/type restriction
         '429':
           description: Too many uploads from this IP (rate limit exceeded)
+
+  /consents:
+    post:
+      tags: [Consent]
+      summary: Save a user consent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [user_id, consent_type]
+              properties:
+                user_id:     { type: string, format: uuid, example: "93aadd91-aada-4d4c-b064-b2da0a7dce66" }
+                user_email:  { type: string, format: email, example: "user@example.com" }
+                consent_type: { type: string, example: "privacy_policy" }
+                granted:     { type: boolean, default: true }
+                metadata:    { type: object, additionalProperties: true }
+      responses:
+        '201': { description: Consent saved }
+        '400': { description: Bad request }
+        '500': { description: Internal server error }
+
+  /consents/{user_id}:
+    get:
+      tags: [Consent]
+      summary: List consents for a user
+      parameters:
+        - in: path
+          name: user_id
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: Consents returned }
+        '500': { description: Internal server error }
+
+  /consents/{uuid}/revoke:
+    patch:
+      tags: [Consent]
+      summary: Revoke a consent by primary key
+      parameters:
+        - in: path
+          name: uuid
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: Consent revoked }
+        '404': { description: Consent not found }
+        '500': { description: Internal server error }
+
   /appointments:
     post:
       summary: Save appointment data
@@ -2517,4 +2567,17 @@ components:
                   format: float
                   description: Model confidence score for diabetes prediction.
                   example: 0.798
-
+    components:
+      schemas:
+        ConsentInput:
+          type: object
+          required: [user_id, consent_type, granted]
+          properties:
+            user_id:   { type: string, format: uuid,  example: '93aadd91-aada-4d4c-b064-b2da0a7dcee6' }
+            user_email: { type: string, format: email, example: 'user@example.com' }
+            consent_type: { type: string, example: 'privacy_policy' }
+            granted:   { type: boolean, default: true }
+            metadata:
+              type: object
+              additionalProperties: true
+  
