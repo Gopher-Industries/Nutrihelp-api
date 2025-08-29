@@ -12,8 +12,12 @@ const rateLimit = require('express-rate-limit');
 const uploadRoutes = require('./routes/uploadRoutes');
 const fs = require("fs");
 const path = require("path");
+<<<<<<< HEAD
 const systemRoutes = require('./routes/systemRoutes');
 const loginDashboard = require('./routes/loginDashboard.js');
+=======
+const consentRoutes = require('./routes/consent');
+>>>>>>> 38b1413 (feat(consent): add POST /consents, GET /consents/{user_id}, PATCH /consents/{id}/revoke; wire route; update OpenAPI docs)
 
 // Ensure uploads directory exists
 const uploadsDir = path.join(__dirname, 'uploads');
@@ -126,7 +130,20 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: "Internal server error" });
 });
 
+<<<<<<< HEAD
 // Start
+=======
+// Global error handler
+app.use((err, req, res, next) => {
+	console.error("Unhandled error:", err);
+	res.status(500).json({ error: "Internal server error" });
+});
+
+// Consents use
+app.use('/api', consentRoutes); 
+
+// Start server
+>>>>>>> 38b1413 (feat(consent): add POST /consents, GET /consents/{user_id}, PATCH /consents/{id}/revoke; wire route; update OpenAPI docs)
 app.listen(port, async () => {
   console.log('\n🎉 NutriHelp API launched successfully!');
   console.log('='.repeat(50));
