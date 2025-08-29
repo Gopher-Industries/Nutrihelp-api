@@ -75,7 +75,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-  /request-email-verification:
+  /auth/request-email-verification:
     post:
       tags:
         - Authentication
@@ -105,6 +105,49 @@ paths:
           description: Bad request – email missing
         '500':
           description: Internal server error
+  /verify-email/{token}:
+  get:
+    tags:
+      - Authentication
+    summary: Verify email token
+    parameters:
+      - in: path
+        name: token
+        required: true
+        schema:
+          type: string
+        description: Verification token sent by email
+    responses:
+      '200':
+        description: Verified
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                verified:
+                  type: boolean
+                email:
+                  type: string
+              example:
+                verified: true
+                email: "user@example.com"
+      '400':
+        description: Invalid, expired or already used token
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                verified:
+                  type: boolean
+                error:
+                  type: string
+              example:
+                verified: false
+                error: "invalid_token"
+      '500':
+        description: Internal server error          
   /contactus:
     post:
       summary: Contact us

@@ -31,7 +31,7 @@ async function sendVerificationEmail(user_email) {
     return;
   }
 
-  const verificationLink = `http://localhost:3000/verify-email/${token}`;
+  const verificationLink = `http://localhost/verify-email/${token}`;
   console.log(`✅ Verification link (simulated): ${verificationLink}`);
 }
 

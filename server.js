@@ -14,6 +14,8 @@ const rateLimit = require('express-rate-limit'); // ✅ added
 const uploadRoutes = require('./routes/uploadRoutes');
 const fs = require("fs");
 const path = require("path");
+const verifyRoutes = require('./routes/verify');
+
 
 // Ensure uploads directory exists
 const uploadsDir = path.join(__dirname, 'uploads');
@@ -140,6 +142,7 @@ app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 // JSON & URL parser
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
+app.use('/api', verifyRoutes);
 
 // Routes
 const routes = require("./routes");
@@ -159,12 +162,13 @@ app.use((err, req, res, next) => {
         next();
     }
 });
-
+ 
 // Global error handler
 app.use((err, req, res, next) => {
 	console.error("Unhandled error:", err);
 	res.status(500).json({ error: "Internal server error" });
 });
+
 
 // Dummy Email Verification Page for Testing
 app.get('/verify-email/:token', (req, res) => {
