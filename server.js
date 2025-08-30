@@ -15,6 +15,7 @@ const uploadRoutes = require('./routes/uploadRoutes');
 const fs = require("fs");
 const path = require("path");
 const systemRoutes = require('./routes/systemRoutes');
+const loginDashboard=require('./routes/loginDashboard.js')
 // Ensure uploads directory exists
 const uploadsDir = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadsDir)) {
@@ -153,6 +154,9 @@ app.use("/uploads", express.static("uploads"));
 
 //signup
 app.use("/api/signup", require("./routes/signup"));
+
+//login-dashboard
+app.use('/api/login-dashboard', loginDashboard);
 
 // Error handler
 app.use((err, req, res, next) => {

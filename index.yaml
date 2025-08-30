@@ -7,6 +7,8 @@ servers:
 tags:
   - name: System
     description: System and security monitoring endpoints
+  - name: LoginDashboard
+    description: KPIs and trends from public.audit_logs
 paths:
   /system/generate-baseline:
     post:
@@ -52,6 +54,76 @@ paths:
                           type: string
                         issue:
                           type: string
+  /login-dashboard/kpi:
+    get:
+      tags: [LoginDashboard]
+      summary: 24h login KPIs
+      responses:
+        '200':
+          description: KPIs
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Kpi24h' }
+ 
+  /login-dashboard/daily:
+    get:
+      tags: [LoginDashboard]
+      summary: Daily attempts/success/failure
+      parameters:
+        - in: query
+          name: days
+          schema: { type: integer, minimum: 1, default: 30 }
+      responses:
+        '200':
+          description: Time series
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/DailyRow' }
+ 
+  /login-dashboard/dau:
+    get:
+      tags: [LoginDashboard]
+      summary: Daily Active Users (successful unique logins)
+      parameters:
+        - in: query
+          name: days
+          schema: { type: integer, minimum: 1, default: 30 }
+      responses:
+        '200':
+          description: DAU time series
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/DauRow' }
+ 
+  /login-dashboard/top-failing-ips:
+    get:
+      tags: [LoginDashboard]
+      summary: Top failing IPs (7 days)
+      responses:
+        '200':
+          description: Suspicious IPs
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/FailingIpRow' }
+ 
+  /login-dashboard/fail-by-domain:
+    get:
+      tags: [LoginDashboard]
+      summary: Failures grouped by email domain (7 days)
+      responses:
+        '200':
+          description: Failure counts by domain
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/DomainFailRow' }
   /upload:
     post:
       summary: Upload a file
@@ -2109,6 +2181,38 @@ components:
       scheme: bearer
       bearerFormat: JWT
   schemas:
+    Kpi24h:
+      type: object
+      properties:
+        login_events_24h: { type: integer, example: 512 }
+        successes_24h:    { type: integer, example: 420 }
+        failures_24h:     { type: integer, example: 92 }
+        success_rate_24h: { type: number, format: float, example: 82.03 }
+    DailyRow:
+      type: object
+      properties:
+        day_local:        { type: string, format: date, example: '2025-08-26' }
+        attempts:         { type: integer, example: 150 }
+        successes:        { type: integer, example: 120 }
+        failures:         { type: integer, example: 30 }
+        success_rate_pct: { type: number, format: float, example: 80.0 }
+    DauRow:
+      type: object
+      properties:
+        day_local: { type: string, format: date, example: '2025-08-26' }
+        dau:       { type: integer, example: 97 }
+    FailingIpRow:
+      type: object
+      properties:
+        ip_address:         { type: string, example: '127.0.0.1' }
+        failed_count:       { type: integer, example: 120 }
+        total_login_events: { type: integer, example: 150 }
+        fail_pct:           { type: number, format: float, example: 80.0 }
+    DomainFailRow:
+      type: object
+      properties:
+        domain:           { type: string, example: 'deakin.edu.au' }
+        failures_last_7d: { type: integer, example: 35 }
     LoginRequest:
       type: object
       properties:
