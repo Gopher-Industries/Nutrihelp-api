@@ -4,11 +4,60 @@ info:
   version: 1.0.0
 servers:
   - url: http://localhost/api
+tags:
+  - name: System
+    description: System and security monitoring endpoints
 paths:
+  /system/generate-baseline:
+    post:
+      tags:
+        - System
+      summary: Regenerate baseline hash data for file integrity checks
+      description: Re-creates the baseline.json file to update file integrity data.
+      responses:
+        '200':
+          description: Baseline regenerated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Baseline regenerated successfully
+                  fileCount:
+                    type: integer
+                    example: 4
+        '500':
+          description: Server error while regenerating baseline
+  /system/integrity-check:
+    get:
+      tags:
+        - System
+      summary: Run file integrity and anomaly check
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  anomalies:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        file:
+                          type: string
+                        issue:
+                          type: string
   /upload:
     post:
       summary: Upload a file
       description: Upload JPG, PNG, or PDF (max 5MB, limited to 5 uploads per 10 minutes)
+      security:
+        - BearerAuth: []
       requestBody:
         required: true
         content:
@@ -1193,35 +1242,42 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
 
   /recipe/cost/{recipe_id}:
-  /recipe/cost:
-    post:
-      summary: Estimate recipe cost
-      description: Estimates the cost of a given recipe
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/RecipeCostEstimationRequest'
+    get:
+      summary: Calculate estimated cost for a recipe
+      description: Returns JSON object containing estimated cost information and corresponding ingredients price
+      parameters:
+        - name: recipe_id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Integer ID of the recipe for cost calculation
+        - name: exclude_ids
+          in: query
+          required: false
+          schema:
+            type: string
+          description: List of ingredient ids to be excluded, separated by commas
+        - name: desired_servings
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: Number of serving would like to scale
       responses:
         '200':
-          description: Cost estimation successful
+          description: Calculate cost successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/RecipeCostEstimationResponse'
-        '400':
-          description: Bad request - invalid recipe data
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '#/components/schemas/EstimatedCost'
         '500':
           description: Internal server error
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  
   /health-news:
     get:
       summary: Calculate estimated cost for a recipe
@@ -1592,36 +1648,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-  /recipe/cost/{recipe_id}/{exclude_ids}:
-    get:
-      summary: Calculate estimated cost for a recipe, with option for excluding ingredients
-      description: Returns JSON array containing total cost and corresponding ingredients price
-      parameters:
-        - in: path
-          name: recipe_id
-          required: true
-          schema:
-            type: integer
-          description: Integer ID of the recipe for cost calculation
-        - in: path
-          name: exclude_ids
-          required: true
-          schema:
-            type: string
-          description: List of ingredient ids to be excluded, separated by commas
-      responses:
-        '200':
-          description: Calculate cost successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/EstimatedCost'
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+  
   /recipe/nutritionlog:
     get:
       summary: Get full nutrition info for a recipe by name
@@ -1671,36 +1698,7 @@ paths:
           description: Recipe not found
         '500':
           description: Internal server error                  
-  /recipe/cost/{recipe_id}/{exclude_ids}:
-    get:
-      summary: Calculate estimated cost for a recipe, with option for excluding ingredients
-      description: Returns JSON array containing total cost and corresponding ingredients price
-      parameters:
-        - in: path
-          name: recipe_id
-          required: true
-          schema:
-            type: integer
-          description: Integer ID of the recipe for cost calculation
-        - in: path
-          name: exclude_ids
-          required: true
-          schema:
-            type: string
-          description: List of ingredient ids to be excluded, separated by commas
-      responses:
-        '200':
-          description: Calculate cost successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/EstimatedCost'
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+  
   /healthArticles:
     get:
       summary: Search health articles
