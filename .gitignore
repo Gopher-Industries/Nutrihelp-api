@@ -130,3 +130,19 @@ dist
 
 .vscode
 .idea
+
+# Python virtual environments
+venv/
+.env/
+__pycache__/
+*.pyc
+
+# macOS system files
+.DS_Store
+
+# VS Code settings
+.vscode/
+
+# Logs and temp files
+*.log
+*.tmp
