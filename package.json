@@ -8,7 +8,9 @@
     "dev": "nodemon server.js",
     "test:rce": "mocha ./test/costEstimationTest.js",
     "test": "concurrently -k \"node server.js\" \"mocha --timeout 10000 --exit\"",
-    "validate-env": "node scripts/validateEnv.js"
+    "validate-env": "node scripts/validateEnv.js",
+    "security-scan": "python3 scanner_v2.py --format html --output security_report.html",
+    "security-check": "python3 scanner_v2.py --format summary"
   },
   "keywords": [
     "NutriHelp",
@@ -42,6 +44,7 @@
     "nutrihelp-api": "file:",
     "sinon": "^18.0.0",
     "swagger-ui-express": "^5.0.0",
+    "uuid": "^8.3.2",
     "yamljs": "^0.3.0"
   },
   "devDependencies": {
