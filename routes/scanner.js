@@ -628,8 +628,16 @@ router.post('/quick-scan', async (req, res) => {
                 error: 'target_path is required'
             });
         }
-        
-    const scanId = generateScanId();
+        // Validate target path exists (same as the async /scan endpoint)
+        const targetExists = await fs.access(target_path).then(() => true).catch(() => false);
+        if (!targetExists) {
+            return res.status(400).json({
+                success: false,
+                error: `Target path does not exist: ${target_path}`
+            });
+        }
+
+        const scanId = generateScanId();
         const result = await runPythonScanSync(target_path, plugins, output_format);
         
         res.json({
@@ -661,8 +669,43 @@ function startPythonScan(scanId, targetPath, plugins, outputFormat) {
     
     const args = ['--target', targetPath, '--format', outputFormat];
     
-    const pythonProcess = spawn(pythonPath, [scriptPath, ...args], {
-        cwd: scannerPath
+    let pythonProcess;
+    try {
+        pythonProcess = spawn(pythonPath, [scriptPath, ...args], {
+            cwd: scannerPath
+        });
+    } catch (spawnErr) {
+        const scanInfo = activeScanners.get(scanId);
+        if (scanInfo) {
+            scanInfo.status = 'failed';
+            scanInfo.progress = 0;
+            scanInfo.message = `Failed to start python scanner: ${spawnErr.message || String(spawnErr)}`;
+            scanInfo.rawOutput = (scanInfo.rawOutput || '') + '\n\nSPAWN_ERROR:\n' + (spawnErr.stack || String(spawnErr));
+        }
+        return;
+    }
+
+    // handle runtime errors from the child process (e.g., exec failures)
+    pythonProcess.on('error', (err) => {
+        const scanInfo = activeScanners.get(scanId);
+        if (scanInfo) {
+            scanInfo.status = 'failed';
+            scanInfo.progress = 0;
+            scanInfo.message = `Python process error: ${err.message || String(err)}`;
+            scanInfo.rawOutput = (scanInfo.rawOutput || '') + '\n\nPROCESS_ERROR:\n' + (err.stack || String(err));
+            // persist raw output for post-mortem
+            (async () => {
+                try {
+                    const reportsDir = path.join(__dirname, '../reports');
+                    await fs.mkdir(reportsDir, { recursive: true });
+                    const rawPath = path.join(reportsDir, `raw_${scanId}.log`);
+                    await fs.writeFile(rawPath, scanInfo.rawOutput || (err.stack || String(err)));
+                    scanInfo.rawOutputPath = rawPath;
+                } catch (e) {
+                    // nothing else to do
+                }
+            })();
+        }
     });
     
     let outputData = '';
@@ -730,21 +773,30 @@ function startPythonScan(scanId, targetPath, plugins, outputFormat) {
                 })();
             }
         } else {
-            // Save raw output for non-zero exit as well
-            (async () => {
-                try {
-                    const reportsDir = path.join(__dirname, '../reports');
-                    await fs.mkdir(reportsDir, { recursive: true });
-                    const rawPath = path.join(reportsDir, `raw_${scanId}.log`);
-                    await fs.writeFile(rawPath, outputData + '\n\nSTDERR:\n' + errorData);
-                    scanInfo.rawOutputPath = rawPath;
-                    scanInfo.status = 'failed';
-                    scanInfo.message = `Scan failed with code ${code}. Raw output saved to: ${rawPath}`;
-                } catch (fsErr) {
-                    scanInfo.status = 'failed';
-                    scanInfo.message = `Scan failed with code ${code}: ${errorData}. Also failed to write raw output: ${fsErr.message}`;
-                }
-            })();
+            // Try to salvage a result if the python process printed JSON despite non-zero exit
+            try {
+                const maybeResult = parseBestJSON(outputData);
+                scanInfo.status = 'completed';
+                scanInfo.progress = 100;
+                scanInfo.message = `Scan completed with non-zero exit code ${code} but output parsed successfully`;
+                scanInfo.result = maybeResult;
+            } catch (parseErr) {
+                // Save raw output for non-zero exit as well
+                (async () => {
+                    try {
+                        const reportsDir = path.join(__dirname, '../reports');
+                        await fs.mkdir(reportsDir, { recursive: true });
+                        const rawPath = path.join(reportsDir, `raw_${scanId}.log`);
+                        await fs.writeFile(rawPath, outputData + '\n\nSTDERR:\n' + errorData);
+                        scanInfo.rawOutputPath = rawPath;
+                        scanInfo.status = 'failed';
+                        scanInfo.message = `Scan failed with code ${code}. Raw output saved to: ${rawPath}`;
+                    } catch (fsErr) {
+                        scanInfo.status = 'failed';
+                        scanInfo.message = `Scan failed with code ${code}: ${errorData}. Also failed to write raw output: ${fsErr.message}`;
+                    }
+                })();
+            }
         }
     });
 }
@@ -756,7 +808,8 @@ function runPythonScanSync(targetPath, plugins, outputFormat) {
         const pythonPath = path.join(scannerPath, 'venv/bin/python');
         const scriptPath = path.join(scannerPath, 'scanner_v2.py');
         
-        const args = ['--target', targetPath, '--format', 'json'];
+    // Use the requested output format (was hard-coded to 'json')
+    const args = ['--target', targetPath, '--format', outputFormat || 'json'];
         
         const pythonProcess = spawn(pythonPath, [scriptPath, ...args], {
             cwd: scannerPath
@@ -793,17 +846,26 @@ function runPythonScanSync(targetPath, plugins, outputFormat) {
                     })();
                 }
             } else {
-                (async () => {
-                    try {
-                        const reportsDir = path.join(__dirname, '../reports');
-                        await fs.mkdir(reportsDir, { recursive: true });
-                        const rawPath = path.join(reportsDir, `raw_sync_${Date.now()}.log`);
-                        await fs.writeFile(rawPath, outputData + '\n\nSTDERR:\n' + errorData);
-                        reject(new Error(`Scan failed with code ${code}. Raw output saved to: ${rawPath}`));
-                    } catch (fsErr) {
-                        reject(new Error(`Scan failed with code ${code}: ${errorData}. Also failed to write raw output: ${fsErr.message}`));
-                    }
-                })();
+                // Attempt to salvage a valid JSON result even when the process exited with non-zero code.
+                try {
+                    const maybeResult = parseBestJSON(outputData);
+                    // resolved with parsed result; caller will treat as successful quick-scan
+                    resolve(maybeResult);
+                    return;
+                } catch (parseErr) {
+                    // if parsing fails, persist raw output and reject as before
+                    (async () => {
+                        try {
+                            const reportsDir = path.join(__dirname, '../reports');
+                            await fs.mkdir(reportsDir, { recursive: true });
+                            const rawPath = path.join(reportsDir, `raw_sync_${Date.now()}.log`);
+                            await fs.writeFile(rawPath, outputData + '\n\nSTDERR:\n' + errorData);
+                            reject(new Error(`Scan failed with code ${code}. Raw output saved to: ${rawPath}`));
+                        } catch (fsErr) {
+                            reject(new Error(`Scan failed with code ${code}: ${errorData}. Also failed to write raw output: ${fsErr.message}`));
+                        }
+                    })();
+                }
             }
         });
     });
