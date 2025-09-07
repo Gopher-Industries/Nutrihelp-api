@@ -6,9 +6,6 @@ servers:
   - url: "http://localhost"
     description: "Local API"
 
-externalDocs:
-  description: "Open Vulnerability Scanner UI"
-  url: "http://localhost:8001/scanner/docs"
 tags:
   - name: System
     description: System and security monitoring endpoints

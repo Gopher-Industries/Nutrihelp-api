@@ -1,13 +1,26 @@
 // routes/scanner.js
 const express = require('express');
 const router = express.Router();
-const { spawn } = require('child_process');
+const { spawn, spawnSync } = require('child_process');
 const path = require('path');
 const fs = require('fs').promises;
 const { v4: uuidv4 } = require('uuid');
 
 // Storage Scan Status
 const activeScanners = new Map();
+
+// Generate scan id in style: scan_YYYYMMDD_HHMMSS_<rnd>
+function generateScanId() {
+    const now = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    const YYYY = now.getFullYear();
+    const MM = pad(now.getMonth() + 1);
+    const DD = pad(now.getDate());
+    const hh = pad(now.getHours());
+    const mm = pad(now.getMinutes());
+    const ss = pad(now.getSeconds());
+    return `scan_${YYYY}${MM}${DD}_${hh}${mm}${ss}`;
+}
 
 /**
  * @swagger
@@ -238,7 +251,7 @@ router.post('/scan', async (req, res) => {
             });
         }
         
-        const scanId = uuidv4();
+    const scanId = generateScanId();
 
         // Start asynchronous scan
         startPythonScan(scanId, target_path, plugins, output_format);
@@ -290,10 +303,46 @@ router.post('/scan', async (req, res) => {
  *       404:
  *         description: Scan ID does not exist
  */
-router.get('/scan/:scanId/status', (req, res) => {
+router.get('/scan/:scanId/status', async (req, res) => {
     const { scanId } = req.params;
-    const scanInfo = activeScanners.get(scanId);
+    let scanInfo = activeScanners.get(scanId);
     
+    if (!scanInfo) {
+        // Try to load persisted report files as a fallback (project reports or scanner reports)
+        const projectReportJson = path.join(process.cwd(), 'reports', `security_result_${scanId}.json`);
+        const scannerReportHtml = path.join(process.cwd(), 'Vulnerability_Tool_V2', 'reports', `security_report_${scanId}.html`);
+        try {
+            // try json first
+            if (fs) {
+                const jsonExists = await fs.access(projectReportJson).then(() => true).catch(() => false);
+                if (jsonExists) {
+                    const data = await fs.readFile(projectReportJson, 'utf8');
+                    scanInfo = { status: 'completed', result: JSON.parse(data) };
+                } else {
+                    const htmlExists = await fs.access(scannerReportHtml).then(() => true).catch(() => false);
+                    if (htmlExists) {
+                        const html = await fs.readFile(scannerReportHtml, 'utf8');
+                        // crude extraction: count finding blocks and try to read embedded summary JSON
+                        const findings = [];
+                        const findingRegex = /<div class="finding-title">([\s\S]*?)<\/div>/g;
+                        let m;
+                        while ((m = findingRegex.exec(html)) !== null) {
+                            findings.push({ title: m[1].trim() });
+                        }
+                        // try to extract a summary JSON blob if present
+                        const jsonBlobMatch = html.match(/\{[\s\S]*?\}/);
+                        let summary = {};
+                        if (jsonBlobMatch) {
+                            try { summary = JSON.parse(jsonBlobMatch[0]); } catch (e) { summary = {}; }
+                        }
+                        scanInfo = { status: 'completed', result: { scan_info: summary.scan_info || {}, summary: summary.summary || {}, findings: findings } };
+                    }
+                }
+            }
+        } catch (e) {
+            // ignore and fall through to 404
+        }
+    }
     if (!scanInfo) {
         return res.status(404).json({
             success: false,
@@ -334,7 +383,7 @@ router.get('/scan/:scanId/status', (req, res) => {
  *       404:
  *         description: Scan ID does not exist
  */
-router.get('/scan/:scanId/result', (req, res) => {
+router.get('/scan/:scanId/result', async (req, res) => {
     const { scanId } = req.params;
     const scanInfo = activeScanners.get(scanId);
     
@@ -360,7 +409,23 @@ router.get('/scan/:scanId/result', (req, res) => {
         });
     }
     
-    res.json(scanInfo.result);
+    // Normalize response: ensure scan_id matches requested scanId and return summary before findings
+    const fullResult = scanInfo.result || {};
+    const summary = fullResult.summary || fullResult.scan_info || {};
+    const findings = fullResult.findings || fullResult.issues || [];
+
+    const responsePayload = {
+        scan_id: scanId,
+        summary: {
+            total_findings: summary.total || summary.total_findings || (Array.isArray(findings) ? findings.length : 0),
+            files_scanned: summary.files_scanned || (summary.stats && summary.stats.files_scanned) || (fullResult.scan_info && fullResult.scan_info.stats && fullResult.scan_info.stats.files_scanned) || null,
+            by_severity: summary.by_severity || summary.severity_summary || fullResult.by_severity || null,
+            by_plugin: summary.by_plugin || fullResult.by_plugin || null
+        },
+        findings: findings
+    };
+
+    res.json(responsePayload);
 });
 
 /**
@@ -396,9 +461,10 @@ router.get('/scan/:scanId/result', (req, res) => {
  *       404:
  *         description: Scan ID does not exist
  */
-router.get('/scan/:scanId/report', (req, res) => {
+router.get('/scan/:scanId/report', async (req, res) => {
     const { scanId } = req.params;
     const { format = 'html' } = req.query;
+    console.log('REPORT request:', { scanId, format, query: req.query });
     const scanInfo = activeScanners.get(scanId);
     
     if (!scanInfo) {
@@ -415,10 +481,97 @@ router.get('/scan/:scanId/report', (req, res) => {
         });
     }
     
-    if (format === 'html' && scanInfo.htmlReport) {
-        res.setHeader('Content-Type', 'text/html');
-        res.setHeader('Content-Disposition', `attachment; filename="security_report_${scanId}.html"`);
-        res.send(scanInfo.htmlReport);
+    if (format === 'html' && scanInfo.result) {
+        // Persist and return HTML report. Prefer project's Python renderer for exact parity if available.
+        try {
+            const reportsDir = path.join(__dirname, '../reports');
+            await fs.mkdir(reportsDir, { recursive: true });
+            const htmlPath = path.join(reportsDir, `security_report_${scanId}.html`);
+
+            // First try to use Python renderer if present
+            const pythonRenderer = path.join(__dirname, '../Vulnerability_Tool_V2/tools/render_from_json.py');
+            const scannerPath = path.join(__dirname, '../Vulnerability_Tool_V2');
+            const projectRoot = path.join(__dirname, '..');
+
+            if (await fs.access(pythonRenderer).then(() => true).catch(() => false)) {
+                // write JSON temp file (in project reports dir)
+                const tmpJson = path.join(reportsDir, `tmp_${scanId}.json`);
+                await fs.writeFile(tmpJson, JSON.stringify(scanInfo.result, null, 2));
+
+                // Try venv python first, then system python3, then python
+                const pythonCandidates = [
+                    path.join(scannerPath, 'venv', 'bin', 'python'),
+                    'python3',
+                    'python'
+                ];
+
+                let spawnRes = null;
+                let usedPython = null;
+                for (const py of pythonCandidates) {
+                    try {
+                        spawnRes = spawnSync(py, [pythonRenderer, tmpJson, htmlPath], { cwd: projectRoot, encoding: 'utf8' });
+                    } catch (e) {
+                        spawnRes = { error: e };
+                    }
+                    if (spawnRes && !spawnRes.error && spawnRes.status === 0) {
+                        usedPython = py;
+                        break;
+                    }
+                }
+
+                // remove tmp
+                try { await fs.unlink(tmpJson); } catch (e) {}
+
+                // If helper succeeded but file somehow ended up under the scanner's own reports folder,
+                // move it into the project reports dir so we have a single canonical location.
+                const altPath = path.join(scannerPath, 'reports', path.basename(htmlPath));
+                const altExists = await fs.access(altPath).then(() => true).catch(() => false);
+                const htmlExists = await fs.access(htmlPath).then(() => true).catch(() => false);
+
+                if (!htmlExists && altExists) {
+                    // move into expected reportsDir
+                    try {
+                        await fs.mkdir(reportsDir, { recursive: true });
+                        await fs.rename(altPath, htmlPath);
+                    } catch (moveErr) {
+                        // ignore move error and keep track of alt path
+                    }
+                }
+
+                // if python helper failed or file still missing, fallback to JS renderer
+                const finalHtmlExists = await fs.access(htmlPath).then(() => true).catch(() => false);
+                if (!finalHtmlExists || !usedPython) {
+                    const html = generateHTMLReport(scanInfo.result);
+                    await fs.writeFile(htmlPath, html);
+                }
+            } else {
+                // No python helper available; use JS renderer
+                const html = generateHTMLReport(scanInfo.result);
+                await fs.writeFile(htmlPath, html);
+            }
+
+            // Attach path to scanInfo and send as downloadable file
+            // Prefer project reports dir, but if missing, check scanner's own reports folder
+            const projectHtmlPath = path.join(__dirname, '../reports', `security_report_${scanId}.html`);
+            const scannerHtmlPath = path.join(__dirname, '../Vulnerability_Tool_V2/reports', `security_report_${scanId}.html`);
+            const projectExists = await fs.access(projectHtmlPath).then(() => true).catch(() => false);
+            const scannerExists = await fs.access(scannerHtmlPath).then(() => true).catch(() => false);
+            let finalPath = null;
+            if (projectExists) finalPath = projectHtmlPath;
+            else if (scannerExists) finalPath = scannerHtmlPath;
+            else finalPath = htmlPath; // fallback to whatever we wrote earlier
+
+            // record chosen path
+            scanInfo.reportPath = finalPath;
+            const htmlContent = await fs.readFile(finalPath, 'utf-8');
+            res.setHeader('Content-Type', 'text/html');
+            res.setHeader('Content-Disposition', `attachment; filename="security_report_${scanId}.html"`);
+            res.send(htmlContent);
+            return;
+        } catch (err) {
+            res.status(500).json({ success: false, error: 'Failed to generate HTML report', details: err.message });
+            return;
+        }
     } else if (format === 'json') {
         res.setHeader('Content-Disposition', `attachment; filename="security_report_${scanId}.json"`);
         res.json(scanInfo.result);
@@ -428,6 +581,19 @@ router.get('/scan/:scanId/report', (req, res) => {
             error: 'Invalid format or report not available'
         });
     }
+});
+
+// Debug endpoint: return raw python stdout and JSON candidates for a scan (useful for diagnosing parsing issues)
+router.get('/scan/:scanId/raw', (req, res) => {
+    const { scanId } = req.params;
+    const scanInfo = activeScanners.get(scanId);
+    if (!scanInfo) {
+        return res.status(404).json({ success: false, error: 'Scan ID not found' });
+    }
+
+    const raw = scanInfo.rawOutput || '';
+    const candidates = collectJSONCandidates(raw);
+    res.json({ scan_id: scanId, status: scanInfo.status, progress: scanInfo.progress, raw_preview: raw.slice(0, 4000), candidate_count: candidates.length, candidates: candidates.slice(-3) });
 });
 
 /**
@@ -463,7 +629,7 @@ router.post('/quick-scan', async (req, res) => {
             });
         }
         
-        const scanId = uuidv4();
+    const scanId = generateScanId();
         const result = await runPythonScanSync(target_path, plugins, output_format);
         
         res.json({
@@ -501,6 +667,7 @@ function startPythonScan(scanId, targetPath, plugins, outputFormat) {
     
     let outputData = '';
     let errorData = '';
+    // save raw output for debugging
     
     pythonProcess.stdout.on('data', (data) => {
         outputData += data.toString();
@@ -517,15 +684,12 @@ function startPythonScan(scanId, targetPath, plugins, outputFormat) {
         console.log('Full Python output:', outputData);
 
         const scanInfo = activeScanners.get(scanId);
+    if (scanInfo) scanInfo.rawOutput = outputData;
         if (!scanInfo) return;
         
         if (code === 0) {
             try {
-                const jsonStart = outputData.lastIndexOf('{');
-                const jsonEnd = outputData.lastIndexOf('}') + 1;
-                const jsonPart = outputData.substring(jsonStart, jsonEnd);
-
-                const result = JSON.parse(jsonPart);
+        const result = parseBestJSON(outputData);
                 scanInfo.status = 'completed';
                 scanInfo.progress = 100;
                 scanInfo.message = 'Scan completed successfully';
@@ -534,14 +698,53 @@ function startPythonScan(scanId, targetPath, plugins, outputFormat) {
                 // If there is HTML output, save it as well
                 if (outputFormat === 'html') {
                     scanInfo.htmlReport = generateHTMLReport(result);
+                    // persist into project reports dir for easy discovery (async IIFE)
+                    (async () => {
+                        try {
+                            const reportsDir = path.join(__dirname, '../reports');
+                            await fs.mkdir(reportsDir, { recursive: true });
+                            const htmlPath = path.join(reportsDir, `security_report_${scanId}.html`);
+                            await fs.writeFile(htmlPath, scanInfo.htmlReport);
+                            scanInfo.reportPath = htmlPath;
+                        } catch (e) {
+                            // if writing to project reports fails, leave as-is and record message
+                            scanInfo.message = (scanInfo.message || '') + `; Failed to persist html report: ${e.message}`;
+                        }
+                    })();
                 }
             } catch (error) {
-                scanInfo.status = 'failed';
-                scanInfo.message = `Failed to parse scan result: ${error.message}`;
+                // Persist raw output to disk for post-mortem analysis
+                (async () => {
+                    try {
+                        const reportsDir = path.join(__dirname, '../reports');
+                        await fs.mkdir(reportsDir, { recursive: true });
+                        const rawPath = path.join(reportsDir, `raw_${scanId}.log`);
+                        await fs.writeFile(rawPath, outputData);
+                        scanInfo.rawOutputPath = rawPath;
+                        scanInfo.status = 'failed';
+                        scanInfo.message = `Failed to parse scan result: ${error.message}. Raw output saved to: ${rawPath}`;
+                    } catch (fsErr) {
+                        scanInfo.status = 'failed';
+                        scanInfo.message = `Failed to parse scan result: ${error.message}. Also failed to write raw output: ${fsErr.message}`;
+                    }
+                })();
             }
         } else {
-            scanInfo.status = 'failed';
-            scanInfo.message = `Scan failed with code ${code}: ${errorData}`;
+            // Save raw output for non-zero exit as well
+            (async () => {
+                try {
+                    const reportsDir = path.join(__dirname, '../reports');
+                    await fs.mkdir(reportsDir, { recursive: true });
+                    const rawPath = path.join(reportsDir, `raw_${scanId}.log`);
+                    await fs.writeFile(rawPath, outputData + '\n\nSTDERR:\n' + errorData);
+                    scanInfo.rawOutputPath = rawPath;
+                    scanInfo.status = 'failed';
+                    scanInfo.message = `Scan failed with code ${code}. Raw output saved to: ${rawPath}`;
+                } catch (fsErr) {
+                    scanInfo.status = 'failed';
+                    scanInfo.message = `Scan failed with code ${code}: ${errorData}. Also failed to write raw output: ${fsErr.message}`;
+                }
+            })();
         }
     });
 }
@@ -573,16 +776,113 @@ function runPythonScanSync(targetPath, plugins, outputFormat) {
         pythonProcess.on('close', (code) => {
             if (code === 0) {
                 try {
-                    const result = JSON.parse(outputData);
+                    const result = parseBestJSON(outputData);
                     resolve(result);
                 } catch (error) {
-                    reject(new Error(`Failed to parse scan result: ${error.message}`));
+                    // persist raw output to disk for debugging
+                    (async () => {
+                        try {
+                            const reportsDir = path.join(__dirname, '../reports');
+                            await fs.mkdir(reportsDir, { recursive: true });
+                            const rawPath = path.join(reportsDir, `raw_sync_${Date.now()}.log`);
+                            await fs.writeFile(rawPath, outputData);
+                            reject(new Error(`Failed to parse scan result: ${error.message}. Raw output saved to: ${rawPath}`));
+                        } catch (fsErr) {
+                            reject(new Error(`Failed to parse scan result: ${error.message}. Also failed to write raw output: ${fsErr.message}`));
+                        }
+                    })();
                 }
             } else {
-                reject(new Error(`Scan failed with code ${code}: ${errorData}`));
+                (async () => {
+                    try {
+                        const reportsDir = path.join(__dirname, '../reports');
+                        await fs.mkdir(reportsDir, { recursive: true });
+                        const rawPath = path.join(reportsDir, `raw_sync_${Date.now()}.log`);
+                        await fs.writeFile(rawPath, outputData + '\n\nSTDERR:\n' + errorData);
+                        reject(new Error(`Scan failed with code ${code}. Raw output saved to: ${rawPath}`));
+                    } catch (fsErr) {
+                        reject(new Error(`Scan failed with code ${code}: ${errorData}. Also failed to write raw output: ${fsErr.message}`));
+                    }
+                })();
             }
         });
     });
+}
+
+// Extract the last complete top-level JSON object or array from a string that may
+// contain surrounding logs. It scans for balanced '{'..'}' and '['..']' while
+// respecting string literals and escapes. Returns the last complete JSON candidate.
+// Collect all complete top-level JSON candidates from text and return array
+function collectJSONCandidates(text) {
+    if (!text || typeof text !== 'string') return [];
+
+    const candidates = [];
+    const len = text.length;
+    let inString = false;
+    let escape = false;
+    let depth = 0;
+    let start = -1;
+
+    for (let i = 0; i < len; i++) {
+        const ch = text[i];
+        if (inString) {
+            if (escape) { escape = false; }
+            else if (ch === '\\') { escape = true; }
+            else if (ch === '"') { inString = false; }
+            continue;
+        }
+        if (ch === '"') { inString = true; continue; }
+
+        if ((ch === '{' || ch === '[') && start === -1) {
+            start = i;
+            depth = 1;
+            continue;
+        }
+
+        if (start !== -1) {
+            if (ch === '{' || ch === '[') depth++;
+            else if (ch === '}' || ch === ']') {
+                depth--;
+                if (depth === 0) {
+                    candidates.push(text.substring(start, i + 1).trim());
+                    start = -1;
+                }
+            }
+        }
+    }
+    return candidates;
+}
+
+// Try to parse the best JSON object found in text.
+// Strategy:
+// 1) collect candidates and try parse from last to first
+// 2) if direct parse fails, try bounded tail-trimming retries on that candidate
+function parseBestJSON(text) {
+    const candidates = collectJSONCandidates(text);
+    if (!candidates || candidates.length === 0) throw new Error('No JSON object or array found in output');
+
+    const maxTrimAttempts = 200; // bounded attempts to trim tail
+    for (let ci = candidates.length - 1; ci >= 0; ci--) {
+        let cand = candidates[ci];
+        // try direct parse
+        try {
+            return JSON.parse(cand);
+        } catch (err) {
+            // if parse failed, try trimming tail progressively (but bounded)
+            for (let t = 0; t < maxTrimAttempts && cand.length > 2; t++) {
+                // remove up to t+1 chars from end
+                const newLen = Math.max(0, cand.length - (t + 1));
+                const substr = cand.substring(0, newLen).trim();
+                try {
+                    return JSON.parse(substr);
+                } catch (e2) {
+                    // continue trimming
+                }
+            }
+        }
+    }
+
+    throw new Error('Failed to parse any JSON candidate from output');
 }
 
 // Generate HTML report
