@@ -138,7 +138,7 @@ app.use(limiter); // apply globally
 
 // Swagger Docs
 const swaggerDocument = yaml.load("./index.yaml");
-// Defensive: remove any externalDocs entry so Swagger UI won't render external links
+// Remove externalDocs if present to avoid CORS issues
 if (swaggerDocument && swaggerDocument.externalDocs) {
 	delete swaggerDocument.externalDocs;
 }

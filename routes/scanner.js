@@ -871,10 +871,7 @@ function runPythonScanSync(targetPath, plugins, outputFormat) {
     });
 }
 
-// Extract the last complete top-level JSON object or array from a string that may
-// contain surrounding logs. It scans for balanced '{'..'}' and '['..']' while
-// respecting string literals and escapes. Returns the last complete JSON candidate.
-// Collect all complete top-level JSON candidates from text and return array
+// Collect JSON candidates from text by tracking balanced braces/brackets
 function collectJSONCandidates(text) {
     if (!text || typeof text !== 'string') return [];
 
@@ -915,10 +912,7 @@ function collectJSONCandidates(text) {
     return candidates;
 }
 
-// Try to parse the best JSON object found in text.
-// Strategy:
-// 1) collect candidates and try parse from last to first
-// 2) if direct parse fails, try bounded tail-trimming retries on that candidate
+// Attempt to parse the best JSON candidate from text, with progressive trimming if needed
 function parseBestJSON(text) {
     const candidates = collectJSONCandidates(text);
     if (!candidates || candidates.length === 0) throw new Error('No JSON object or array found in output');
