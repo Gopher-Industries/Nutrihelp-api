@@ -16,11 +16,10 @@ const authenticateToken = (req, res, next) => {
     }
 
     try {
-        // Use a unified authentication method
         const decoded = authService.verifyAccessToken(token);
 
-        // Check token type
-        if (decoded.type !== 'access') {
+        //
+        if (decoded.type && decoded.type !== 'access') {
             return res.status(401).json({
                 success: false,
                 error: 'Invalid token type',
@@ -28,10 +27,18 @@ const authenticateToken = (req, res, next) => {
             });
         }
 
-        // Add user information to the request object
+        if (!decoded.type && !decoded.role) {
+            return res.status(401).json({
+                success: false,
+                error: 'Invalid token structure',
+                code: 'INVALID_TOKEN'
+            });
+        }
+
+        // Attach user info to request
         req.user = decoded;
         next();
-        
+
     } catch (error) {
         if (error.name === 'TokenExpiredError') {
             return res.status(401).json({
@@ -46,7 +53,7 @@ const authenticateToken = (req, res, next) => {
                 code: 'INVALID_TOKEN'
             });
         }
-        
+
         console.error('Token verification error:', error);
         return res.status(500).json({
             success: false,
@@ -58,6 +65,7 @@ const authenticateToken = (req, res, next) => {
 
 /**
  * Optional authentication middleware
+ * (attaches user if token exists, otherwise continues without blocking)
  */
 const optionalAuth = (req, res, next) => {
     const authHeader = req.headers['authorization'];

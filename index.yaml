@@ -428,6 +428,8 @@ paths:
     get:
       summary: Get meal plan
       description: Retrieves a meal plan for the user
+      security:
+        - BearerAuth: [ ]
       # TODO should not use requestBody for GET
       requestBody:
         required: true
@@ -456,6 +458,8 @@ paths:
     post:
       summary: Save meal plan
       description: Receives a meal plan and saves it
+      security:
+       - BearerAuth: [ ]
       requestBody:
         required: true
         content:
@@ -484,6 +488,8 @@ paths:
     delete:
       summary: Delete meal plan
       description: Deletes the user's meal plan
+      security:
+        - BearerAuth: [ ]
       requestBody:
         required: true
         content:
@@ -830,71 +836,77 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
   /userprofile:
-    get:
-      summary: Get user profile
-      description: Retrieves the user's profile
-      # TODO should not use requestBody for GET
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                email:
-                  type: string
-      responses:
-        '200':
-          description: User profile fetched successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/UserProfileResponse'
-        '400':
-          description: Email is required
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-    put:
-      summary: Update user profile
-      description: Updates the user's profile
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/UserUpdateRequest'
-      responses:
-        '204':
-          description: User profile updated successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SuccessResponse'
-        '400':
-          description: User ID is required or Request body is required
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-  
+   get:
+     summary: Get user profile
+     description: |
+       - Normal users can only fetch their own profile.  
+       - Admins can fetch any profile using `?email=xxx`.
+     security:
+       - BearerAuth: []
+     parameters:
+       - in: query
+         name: email
+         schema:
+           type: string
+         required: false
+         description: (Admin only) Email of the user whose profile to fetch
+     responses:
+       '200':
+         description: User profile fetched successfully
+         content:
+           application/json:
+             schema:
+               $ref: '#/components/schemas/UserProfileResponse'
+       '400':
+         description: Email is required
+         content:
+           application/json:
+             schema:
+               $ref: '#/components/schemas/ErrorResponse'
+       '500':
+         description: Internal server error
+         content:
+           application/json:
+             schema:
+               $ref: '#/components/schemas/ErrorResponse'
+   put:
+     summary: Update user profile
+     description: |
+       - Normal users can update only their own profile.  
+       - Admins can update any profile using `email`.
+     security:
+       - BearerAuth: []
+     requestBody:
+       required: true
+       content:
+         application/json:
+           schema:
+             $ref: '#/components/schemas/UserUpdateRequest'
+     responses:
+       '204':
+         description: User profile updated successfully
+         content:
+           application/json:
+             schema:
+               $ref: '#/components/schemas/SuccessResponse'
+       '400':
+         description: Email is required or invalid request body
+         content:
+           application/json:
+             schema:
+               $ref: '#/components/schemas/ErrorResponse'
+       '500':
+         description: Internal server error
+         content:
+           application/json:
+             schema:
+               $ref: '#/components/schemas/ErrorResponse'
   /notifications:
     post:
       summary: Create a new notification
-      description: Creates a new notification for a specific user.
+      description: Allows admin to create notifications
+      security:
+        - BearerAuth: [ ]
       requestBody:
         required: true
         content:
@@ -953,7 +965,9 @@ paths:
   /notifications/{user_id}:
     get:
       summary: Get all notifications for a specific user
-      description: Retrieves all notifications associated with a specific `user_id`.
+      description: Users can only view their own notifications. Admin can view any.
+      security:
+        - BearerAuth: [ ]
       parameters:
         - in: path
           name: user_id
@@ -992,7 +1006,9 @@ paths:
   /notifications/{simple_id}:
     delete:
       summary: Delete a specific notification by simple ID
-      description: Deletes a notification identified by its `simple_id` (integer).
+      description: Only admin can delete a notification
+      security:
+        - BearerAuth: [ ]
       parameters:
         - in: path
           name: simple_id
@@ -1018,7 +1034,9 @@ paths:
 
     put:
       summary: Update notification status by simple ID
-      description: Updates the status of a notification identified by its `simple_id` (integer).
+      description: Admin or nutritionist can update notification status
+      security:
+        - BearerAuth: [ ]
       parameters:
         - in: path
           name: simple_id
