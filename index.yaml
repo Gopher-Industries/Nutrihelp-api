@@ -1950,8 +1950,6 @@ paths:
                   description: The user ID
               required:
                 - user_id
-            example:
-              user_id: 15
       responses:
         '200':
           description: Barcode scanning successful
