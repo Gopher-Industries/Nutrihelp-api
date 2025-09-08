@@ -2607,24 +2607,20 @@ components:
       properties:
         productName:
           type: string
-        hasUserAllergen:
-          type: boolean
-        matchingAllergens:
-          type: array
-          items:
-            type: string
-        barcode_allergen_ingredients:
+        detection_result:
+          type: object
+          properties:
+            hasUserAllergen:
+              type: boolean
+            matchingAllergens:
+              type: array
+              items:
+                type: string
+        barcode_ingredients:
           type: array
           items:
             type: string
         user_allergen_ingredients:
           type: array
           items:
-            type: object
-            properties:
-              id:
-                type: number
-              name:
-                type: string
-              allergies_type:
-                type: number
+            type: string
