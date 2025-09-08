@@ -1,5 +1,11 @@
 const supabase = require("../dbConnection.js");
 const axios = require('axios');
+const fields_openfoodfacts = [
+  "product_name",
+  "allergens_from_ingredients",
+  "allergens_tags",
+  "ingredients_text_en"
+];
 
 async function getUserAllergen(user_id) {
   try {
@@ -41,7 +47,7 @@ async function getUserAllergen(user_id) {
 
 const fetchBarcodeInformation = async (barcode) => {
   try {
-    const url = `https://world.openfoodfacts.net/api/v2/product/${barcode}?fields=product_name,allergens_from_ingredients,allergens_tags`
+    const url = `https://world.openfoodfacts.net/api/v2/product/${barcode}?fields=${fields_openfoodfacts.join(",")}`
     
     const response = await axios.get(url);
 
