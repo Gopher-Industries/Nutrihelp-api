@@ -1,7 +1,7 @@
 const getBarcodeAllergen = require('../model/getBarcodeAllergen');
 
 const checkAllergen = async (req, res) => {
-  // Testable barcodes
+  // Some example testable barcodes
   // 3017624010701
   // 070842082205
   // 9343005000080
@@ -9,12 +9,6 @@ const checkAllergen = async (req, res) => {
 
   const { user_id } = req.body;
   const code = req.query.code;
-
-  if (!user_id) {
-    return res.status(404).json({
-      error: `User ID is invalid`
-    })
-  }
 
   try {
     // Get ingredients from barcode
@@ -27,11 +21,20 @@ const checkAllergen = async (req, res) => {
     const barcode_info = result.data.product;
     let barcode_ingredients = [];
     if (barcode_info.allergens_from_ingredients.length > 0) {
-      // barcode_ingredients = barcode_info.allergens_from_ingredients.split(",").map(item => item.trim().toLowerCase().replace("en:", ""));
       barcode_ingredients = barcode_info.ingredients_text_en.split(",").map((item) => {
         return item.trim().toLowerCase().replace(".", "");
       });
     } 
+
+    // If user_id is not provided, return barcode information only
+    if (!user_id) {
+      return res.status(200).json({
+        product_name: barcode_info.product_name,
+        detection_result: {},
+        barcode_ingredients,
+        user_allergen_ingredients: []
+      });
+    }
 
     // Get the name of user allergen ingredients
     const user_allergen_result = await getBarcodeAllergen.getUserAllergen(user_id);
