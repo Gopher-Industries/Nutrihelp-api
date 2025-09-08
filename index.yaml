@@ -1927,6 +1927,45 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /barcode:
+    post:
+      summary: Detect user allergen from a given barcode
+      description: Retrieve ingredients information from a given barcode and detect user's allergen ingredients
+      parameters:
+        - name: code
+          in: query
+          required: true
+          schema:
+            type: integer
+          description: Barcode number for allergen detection
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                user_id:
+                  type: integer
+                  description: The user ID
+              required:
+                - user_id
+            example:
+              user_id: 15
+      responses:
+        '200':
+          description: Barcode scanning successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BarcodeAllergenDetection'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
 components:
   securitySchemes:
     BearerAuth:
@@ -2565,3 +2604,29 @@ components:
                   description: Model confidence score for diabetes prediction.
                   example: 0.798
 
+    BarcodeAllergenDetection:
+      type: object
+      properties:
+        productName:
+          type: string
+        hasUserAllergen:
+          type: boolean
+        matchingAllergens:
+          type: array
+          items:
+            type: string
+        barcode_allergen_ingredients:
+          type: array
+          items:
+            type: string
+        user_allergen_ingredients:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: number
+              name:
+                type: string
+              allergies_type:
+                type: number

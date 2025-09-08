@@ -6,8 +6,15 @@ const checkAllergen = async (req, res) => {
   // 070842082205
   // 9343005000080
   // 0048151623426
-  const user_id = 15;
+
+  const { user_id } = req.body;
   const code = req.query.code;
+
+  if (!user_id) {
+    return res.status(404).json({
+      error: `User ID is invalid`
+    })
+  }
 
   try {
     // Get ingredients from barcode
@@ -18,9 +25,12 @@ const checkAllergen = async (req, res) => {
       })
     }
     const barcode_info = result.data.product;
-    let barcode_allergen_ingredients = [];
+    let barcode_ingredients = [];
     if (barcode_info.allergens_from_ingredients.length > 0) {
-      barcode_allergen_ingredients = barcode_info.allergens_from_ingredients.split(",").map(item => item.trim().toLowerCase());
+      // barcode_ingredients = barcode_info.allergens_from_ingredients.split(",").map(item => item.trim().toLowerCase().replace("en:", ""));
+      barcode_ingredients = barcode_info.ingredients_text_en.split(",").map((item) => {
+        return item.trim().toLowerCase().replace(".", "");
+      });
     } 
 
     // Get the name of user allergen ingredients
@@ -30,16 +40,22 @@ const checkAllergen = async (req, res) => {
     const user_allergen_ingredient_names = user_allergen_ingredients.map(item => item.name.toLowerCase());
 
     // Compare the result
-    const matchingAllergens = barcode_allergen_ingredients.filter(ingredient =>
-      user_allergen_ingredient_names.includes(ingredient)
-    );
+    barcode_ingredients_keys = barcode_ingredients.reduce((accumulatedIngredients, currentIngredient) => {
+      return accumulatedIngredients.concat(currentIngredient.split(" "));
+    }, []);
+    const matchingAllergens = user_allergen_ingredient_names.filter((ingredient) => {
+      return barcode_ingredients_keys.includes(ingredient);
+    });
     const hasUserAllergen = matchingAllergens.length > 0;
 
     return res.status(200).json({
-      hasUserAllergen,
-      matchingAllergens,
-      barcode_allergen_ingredients,
-      user_allergen_ingredients
+      product_name: barcode_info.product_name,
+      detection_result: {
+        hasUserAllergen,
+        matchingAllergens
+      },
+      barcode_ingredients,
+      user_allergen_ingredients: user_allergen_ingredient_names
     });
   } catch (error) {
     console.error("Error in getting barcode information: ", error);
