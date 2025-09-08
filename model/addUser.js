@@ -12,7 +12,8 @@ async function addUser(name, email, password, mfa_enabled, contact_number, addre
               contact_number: contact_number,
               address: address
             })
-        return data
+            .select();
+        return data ? data[0] : error;
     } catch (error) {
         throw error;
     }
