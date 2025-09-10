@@ -1885,61 +1885,72 @@ paths:
                 $ref: '#/components/schemas/MedicalReportResponse'
         '400':
           description: Bad Request - Invalid input data.
-        '401':
-          description: Unauthorized - Authentication credentials missing or invalid.
-        '500':
-          description: Internal Server Error - Something went wrong on the server.
-              type: object
-              properties:
-                user_id:
-                  type: string
-                  format: uuid
-                  description: The unique ID of the user
-                glasses_consumed:
-                  type: integer
-                  description: Number of glasses consumed
-              required:
-                - user_id
-                - glasses_consumed
-              example:
-              user_id: "15"
-              glasses_consumed: 5
-      responses:
-        '200':
-          description: Water intake updated successfully
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                    example: "Water intake updated successfully"
-                  data:
-                    type: object
-                    properties:
-                      user_id:
-                        type: string
-                        example: "15"
-                      date:
-                        type: string
-                        format: date
-                        example: "2025-05-10"
-                      glasses_consumed:
-                        type: integer
-                        example: 5
-                      updated_at:
-                        type: string
-                        format: date-time
-                        example: "2025-05-10T12:00:00Z"
-        '400':
-          description: Bad request - missing or invalid fields
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized - Authentication credentials missing or invalid.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '500':
-          description: Internal server error
+          description: Internal Server Error - Something went wrong on the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /medical-report/plan:
+    post:
+      summary: Generate a 4-week health plan from a medical report
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HealthPlanRequest'
+            examples:
+              sample:
+                value:
+                  medical_report:
+                    obesity_prediction:
+                      obesity_level: Overweight_Level_II
+                      confidence: 79.8
+                    diabetes_prediction:
+                      diabetes: true
+                      confidence: 79.8
+                  n_results: 3
+                  max_tokens: 1200
+                  temperature: 0.2
+      responses:
+        '200':
+          description: Weekly plan generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthPlanResponse'
+        '400':
+          description: Bad Request – invalid or missing input fields
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized – Authentication credentials missing or invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: AI server error – upstream FastAPI returned an error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error – Something went wrong on the server
           content:
             application/json:
               schema:
