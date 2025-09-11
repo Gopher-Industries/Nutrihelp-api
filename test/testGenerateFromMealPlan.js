@@ -4,8 +4,8 @@ async function testGenerateFromMealPlan() {
     console.log('🧪 Testing Generate From Meal Plan API Step by Step...\n');
     
     try {
-        // 使用实际存在的用户ID (从recipe_meal表数据中看到的)
-        const testUserId = 23; // 改为实际存在的用户ID
+        // Use actual existing user ID (seen from recipe_meal table data)
+        const testUserId = 23; // Changed to actual existing user ID
         const testMealPlanIds = [21, 22];
         
         console.log(`📝 Test Parameters:`);
@@ -13,7 +13,7 @@ async function testGenerateFromMealPlan() {
         console.log(`   Meal Plan IDs: [${testMealPlanIds.join(', ')}]`);
         console.log();
         
-        // 测试1: 基本 recipe_meal 查询
+        // Test 1: Basic recipe_meal query
         console.log('1. 🍽️ Testing basic recipe_meal query...');
         try {
             const { data: basicData, error: basicError } = await supabase
@@ -36,7 +36,7 @@ async function testGenerateFromMealPlan() {
         }
         console.log();
         
-        // 测试2: 检查 recipe_meal 表结构
+        // Test 2: Check recipe_meal table structure
         console.log('2. 🏗️ Checking recipe_meal table structure...');
         try {
             const { data: structureData, error: structureError } = await supabase
@@ -57,7 +57,7 @@ async function testGenerateFromMealPlan() {
         }
         console.log();
         
-        // 测试3: 简化的JOIN查询
+        // Test 3: Simplified JOIN query
         console.log('3. 🔗 Testing simplified JOIN query...');
         try {
             const { data: joinData, error: joinError } = await supabase
@@ -96,7 +96,7 @@ async function testGenerateFromMealPlan() {
         }
         console.log();
         
-        // 测试4: 检查 recipes 表
+        // Test 4: Check recipes table
         console.log('4. 📖 Checking recipes table...');
         try {
             const { data: recipesData, error: recipesError } = await supabase
@@ -121,7 +121,7 @@ async function testGenerateFromMealPlan() {
     }
 }
 
-// 运行测试如果直接执行此文件
+// Run test if this file is executed directly
 if (require.main === module) {
     testGenerateFromMealPlan()
         .then(() => {

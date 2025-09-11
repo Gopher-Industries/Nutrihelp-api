@@ -4,10 +4,10 @@ async function enhancedDebug() {
     console.log('🔍 Enhanced Debugging for Remaining API Issues...\n');
     
     try {
-        // 1. 详细测试 getIngredientOptions 查询
+        // 1. Detailed test of getIngredientOptions query
         console.log('1. 🥕 Testing getIngredientOptions query step by step...');
         
-        // 测试1: 基本查询
+        // Test 1: Basic query
         console.log('   Testing basic ingredient_price query...');
         try {
             const { data: basicData, error: basicError } = await supabase
@@ -24,7 +24,7 @@ async function enhancedDebug() {
             console.log('   ❌ Basic query exception:', error.message);
         }
         
-        // 测试2: 带JOIN的查询
+        // Test 2: Query with JOIN
         console.log('   Testing JOIN query with ingredients table...');
         try {
             const { data: joinData, error: joinError } = await supabase
@@ -51,7 +51,7 @@ async function enhancedDebug() {
             console.log('   ❌ JOIN query exception:', error.message);
         }
         
-        // 测试3: 搜索查询
+        // Test 3: Search query
         console.log('   Testing search query with ilike...');
         try {
             const { data: searchData, error: searchError } = await supabase
@@ -79,10 +79,10 @@ async function enhancedDebug() {
         }
         console.log();
         
-        // 2. 详细测试 generateFromMealPlan 查询
+        // 2. Detailed test of generateFromMealPlan query
         console.log('2. 🍽️ Testing generateFromMealPlan query step by step...');
         
-        // 测试1: 基本 recipe_meal 查询
+        // Test 1: Basic recipe_meal query
         console.log('   Testing basic recipe_meal query...');
         try {
             const { data: mealData, error: mealError } = await supabase
@@ -102,7 +102,7 @@ async function enhancedDebug() {
             console.log('   ❌ Basic recipe_meal query exception:', error.message);
         }
         
-        // 测试2: 检查 recipe_meal 表结构
+        // Test 2: Check recipe_meal table structure
         console.log('   Checking recipe_meal table structure...');
         try {
             const { data: mealStructure, error: mealStructureError } = await supabase
@@ -120,10 +120,10 @@ async function enhancedDebug() {
         }
         console.log();
         
-        // 3. 检查外键关系
+        // 3. Check foreign key relationships
         console.log('3. 🔗 Testing foreign key relationships...');
         
-        // 测试 ingredient_price -> ingredients 关系
+        // Test ingredient_price -> ingredients relationship
         console.log('   Testing ingredient_price -> ingredients relationship...');
         try {
             const { data: relData, error: relError } = await supabase
@@ -148,10 +148,10 @@ async function enhancedDebug() {
         }
         console.log();
         
-        // 4. 提供修复建议
+        // 4. Provide fix suggestions
         console.log('4. 💡 Fix Recommendations:');
         
-        if (true) { // 总是显示建议
+        if (true) { // Always show suggestions
             console.log('   For getIngredientOptions API:');
             console.log('   - Check if ingredients table has the expected structure');
             console.log('   - Verify the JOIN syntax is correct for your Supabase version');
@@ -168,7 +168,7 @@ async function enhancedDebug() {
     }
 }
 
-// 运行增强调试如果直接执行此文件
+// Run enhanced debug if this file is executed directly
 if (require.main === module) {
     enhancedDebug()
         .then(() => {

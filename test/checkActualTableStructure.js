@@ -4,7 +4,7 @@ async function checkActualTableStructure() {
     console.log('🔍 Checking Actual Table Structure...\n');
     
     try {
-        // 1. 检查 ingredient_price 表的实际列名
+        // 1. Check actual column names of ingredient_price table
         console.log('1. 📊 Checking ingredient_price table actual structure...');
         try {
             const { data: priceData, error: priceError } = await supabase
@@ -26,7 +26,7 @@ async function checkActualTableStructure() {
         }
         console.log();
         
-        // 2. 检查 ingredients 表的实际列名
+        // 2. Check actual column names of ingredients table
         console.log('2. 🥕 Checking ingredients table actual structure...');
         try {
             const { data: ingredientData, error: ingredientError } = await supabase
@@ -48,10 +48,10 @@ async function checkActualTableStructure() {
         }
         console.log();
         
-        // 3. 尝试一个简单的查询来了解实际结构
+        // 3. Try a simple query to understand the actual structure
         console.log('3. 🔍 Testing simple queries...');
         try {
-            // 测试 ingredient_price 表的基本查询
+            // Test basic query of ingredient_price table
             const { data: simplePrice, error: simplePriceError } = await supabase
                 .from('ingredient_price')
                 .select('id, ingredient_id')
@@ -63,7 +63,7 @@ async function checkActualTableStructure() {
                 console.log('✅ Simple ingredient_price query successful');
             }
             
-            // 测试 ingredients 表的基本查询
+            // Test basic query of ingredients table
             const { data: simpleIngredient, error: simpleIngredientError } = await supabase
                 .from('ingredients')
                 .select('id, name')
@@ -90,7 +90,7 @@ async function checkActualTableStructure() {
     }
 }
 
-// 运行检查如果直接执行此文件
+// Run check if this file is executed directly
 if (require.main === module) {
     checkActualTableStructure()
         .then(() => {

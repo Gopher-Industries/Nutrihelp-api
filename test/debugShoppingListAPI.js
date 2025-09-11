@@ -4,7 +4,7 @@ async function debugShoppingListAPI() {
     console.log('🔍 Debugging Shopping List API Issues...\n');
     
     try {
-        // 1. 检查 ingredient_price 表（用于 getIngredientOptions API）
+        // 1. Check ingredient_price table (for getIngredientOptions API)
         console.log('1. 📊 Checking ingredient_price table...');
         try {
             const { data: ingredientPrices, error: ingredientError } = await supabase
@@ -28,7 +28,7 @@ async function debugShoppingListAPI() {
         }
         console.log();
         
-        // 2. 检查 ingredients 表
+        // 2. Check ingredients table
         console.log('2. 🥕 Checking ingredients table...');
         try {
             const { data: ingredients, error: ingredientsError } = await supabase
@@ -51,7 +51,7 @@ async function debugShoppingListAPI() {
         }
         console.log();
         
-        // 3. 检查 recipe_meal 表（用于 generateFromMealPlan API）
+        // 3. Check recipe_meal table (for generateFromMealPlan API)
         console.log('3. 🍽️ Checking recipe_meal table...');
         try {
             const { data: recipeMeals, error: recipeMealError } = await supabase
@@ -75,7 +75,7 @@ async function debugShoppingListAPI() {
         }
         console.log();
         
-        // 4. 检查 shopping_list_items 表（用于 updateShoppingListItem API）
+        // 4. Check shopping_list_items table (for updateShoppingListItem API)
         console.log('4. 📝 Checking shopping_list_items table...');
         try {
             const { data: items, error: itemsError } = await supabase
@@ -98,10 +98,10 @@ async function debugShoppingListAPI() {
         }
         console.log();
         
-        // 5. 检查外键关系
+        // 5. Check foreign key relationships
         console.log('5. 🔗 Checking foreign key relationships...');
         try {
-            // 检查 ingredient_price 表的外键
+            // Check foreign keys of ingredient_price table
             const { data: priceWithIngredients, error: priceError } = await supabase
                 .from('ingredient_price')
                 .select(`
@@ -136,7 +136,7 @@ async function debugShoppingListAPI() {
     }
 }
 
-// 运行调试如果直接执行此文件
+// Run debug if this file is executed directly
 if (require.main === module) {
     debugShoppingListAPI()
         .then(() => {

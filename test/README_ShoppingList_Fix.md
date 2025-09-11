@@ -1,106 +1,106 @@
-# 购物清单外键约束问题解决方案
+# Shopping List Foreign Key Constraint Issue Solution
 
-## 问题描述
+## Problem Description
 
-当你尝试向 `shopping_lists` 表插入数据时，遇到以下错误：
+When you try to insert data into the `shopping_lists` table, you encounter the following error:
 
 ```
 insert or update on table "shopping_lists" violates foreign key constraint "fk_shopping_lists_user"
 DETAIL: Key (user_id)=(1) is not present in table "users".
 ```
 
-## 问题原因
+## Root Cause
 
-这个错误是因为：
+This error occurs because:
 
-1. **外键约束违反**：`shopping_lists` 表的 `user_id` 字段引用了 `users` 表的 `id` 字段
-2. **用户不存在**：你尝试使用的 `user_id=1` 在 `users` 表中不存在
-3. **测试代码硬编码**：测试代码中硬编码了 `user_id: 1`，但这个用户ID在数据库中并不存在
+1. **Foreign Key Constraint Violation**: The `user_id` field in the `shopping_lists` table references the `id` field in the `users` table
+2. **User Does Not Exist**: The `user_id=1` you're trying to use doesn't exist in the `users` table
+3. **Hardcoded Test Code**: The test code has hardcoded `user_id: 1`, but this user ID doesn't exist in the database
 
-## 解决方案
+## Solutions
 
-### 方案1：创建测试用户（推荐）
+### Solution 1: Create Test User (Recommended)
 
-运行以下命令创建一个测试用户：
+Run the following command to create a test user:
 
 ```bash
 node test/createTestUser.js
 ```
 
-这个脚本会：
-- 检查是否已存在ID为1的用户
-- 如果不存在，尝试创建一个ID为1的用户
-- 如果无法设置ID为1，会创建一个自动生成ID的用户
+This script will:
+- Check if a user with ID 1 already exists
+- If not, try to create a user with ID 1
+- If unable to set ID as 1, create a user with auto-generated ID
 
-### 方案2：使用动态用户创建
+### Solution 2: Use Dynamic User Creation
 
-修改后的测试代码现在使用 `getOrCreateTestUserForShoppingList()` 函数，它会：
-- 首先查找现有的测试用户
-- 如果没有找到，自动创建一个新的测试用户
-- 返回真实的用户ID用于测试
+The modified test code now uses the `getOrCreateTestUserForShoppingList()` function, which will:
+- First look for existing test users
+- If none found, automatically create a new test user
+- Return the real user ID for testing
 
-### 方案3：检查数据库状态
+### Solution 3: Check Database Status
 
-运行以下命令检查数据库状态：
+Run the following command to check database status:
 
 ```bash
 node test/checkDatabaseStatus.js
 ```
 
-这个脚本会：
-- 测试数据库连接
-- 检查用户表的状态
-- 验证是否存在ID为1的用户
-- 提供解决建议
+This script will:
+- Test database connection
+- Check the status of the users table
+- Verify if a user with ID 1 exists
+- Provide solution suggestions
 
-## 修改后的文件
+## Modified Files
 
-1. **`test/test-helpers.js`** - 添加了 `getOrCreateTestUserForShoppingList()` 函数
-2. **`test/testShoppingListAPI.js`** - 使用动态用户创建，不再硬编码用户ID
-3. **`test/createTestUser.js`** - 快速创建测试用户的脚本
-4. **`test/checkDatabaseStatus.js`** - 数据库状态检查脚本
+1. **`test/test-helpers.js`** - Added `getOrCreateTestUserForShoppingList()` function
+2. **`test/testShoppingListAPI.js`** - Uses dynamic user creation, no longer hardcodes user ID
+3. **`test/createTestUser.js`** - Quick script to create test users
+4. **`test/checkDatabaseStatus.js`** - Database status check script
 
-## 使用方法
+## Usage
 
-### 运行购物清单测试
+### Run Shopping List Tests
 
 ```bash
 node test/testShoppingListAPI.js
 ```
 
-### 创建测试用户
+### Create Test User
 
 ```bash
 node test/createTestUser.js
 ```
 
-### 检查数据库状态
+### Check Database Status
 
 ```bash
 node test/checkDatabaseStatus.js
 ```
 
-## 预防措施
+## Prevention Measures
 
-1. **避免硬编码用户ID**：在测试代码中不要硬编码用户ID
-2. **使用辅助函数**：使用 `getOrCreateTestUserForShoppingList()` 等辅助函数
-3. **测试前检查**：在运行测试前检查必要的测试数据是否存在
-4. **清理测试数据**：测试完成后清理测试数据，避免影响其他测试
+1. **Avoid Hardcoding User IDs**: Don't hardcode user IDs in test code
+2. **Use Helper Functions**: Use helper functions like `getOrCreateTestUserForShoppingList()`
+3. **Pre-test Checks**: Check if necessary test data exists before running tests
+4. **Clean Up Test Data**: Clean up test data after completion to avoid affecting other tests
 
-## 数据库结构要求
+## Database Structure Requirements
 
-确保你的数据库有以下结构：
+Ensure your database has the following structure:
 
-- `users` 表：包含 `id`（主键）、`name`、`email`、`password` 等字段
-- `shopping_lists` 表：包含 `user_id` 字段，该字段是 `users.id` 的外键
+- `users` table: Contains `id` (primary key), `name`, `email`, `password` fields
+- `shopping_lists` table: Contains `user_id` field, which is a foreign key to `users.id`
 
-## 常见问题
+## FAQ
 
-### Q: 为什么不能直接设置用户ID为1？
-A: 这取决于你的数据库配置。如果使用了自增主键，可能无法手动设置ID。
+### Q: Why can't I directly set user ID to 1?
+A: This depends on your database configuration. If using auto-increment primary keys, you may not be able to manually set the ID.
 
-### Q: 如何知道应该使用哪个用户ID？
-A: 使用 `checkDatabaseStatus.js` 脚本查看现有用户，或使用 `createTestUser.js` 创建新用户。
+### Q: How do I know which user ID to use?
+A: Use the `checkDatabaseStatus.js` script to view existing users, or use `createTestUser.js` to create a new user.
 
-### Q: 测试完成后需要删除测试用户吗？
-A: 建议删除，避免测试数据污染。修改后的测试代码会自动处理这个问题。
+### Q: Do I need to delete the test user after testing?
+A: It's recommended to delete it to avoid test data pollution. The modified test code will handle this automatically.

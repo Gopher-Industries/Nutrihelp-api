@@ -6,25 +6,25 @@ async function runCompleteTest() {
     console.log('🚀 Starting Complete Shopping List API Test Suite...\n');
     
     try {
-        // 步骤1：检查数据库状态
+        // Step 1: Check database status
         console.log('='.repeat(60));
         console.log('STEP 1: Checking Database Status');
         console.log('='.repeat(60));
         await checkDatabaseStatus();
         
-        // 等待一下让输出清晰
+        // Wait a moment for clear output
         await new Promise(resolve => setTimeout(resolve, 2000));
         
-        // 步骤2：运行购物清单API测试
+        // Step 2: Run shopping list API tests
         console.log('\n' + '='.repeat(60));
         console.log('STEP 2: Running Shopping List API Tests');
         console.log('='.repeat(60));
         await runAllTests();
         
-        // 等待一下让API操作完成
+        // Wait a moment for API operations to complete
         await new Promise(resolve => setTimeout(resolve, 3000));
         
-        // 步骤3：验证数据是否成功写入数据库
+        // Step 3: Verify data was successfully written to database
         console.log('\n' + '='.repeat(60));
         console.log('STEP 3: Verifying Data Insertion');
         console.log('='.repeat(60));
@@ -57,7 +57,7 @@ async function runCompleteTest() {
     }
 }
 
-// 运行完整测试套件
+// Run complete test suite
 if (require.main === module) {
     runCompleteTest();
 }
