@@ -1,6 +1,9 @@
 const { body } = require('express-validator');
 
 // Registration validation
+const PASSWORD_MSG =
+  'Password must be at least 8 characters and include uppercase, lowercase, number, and special character.';
+
 const registerValidation = [
     body('name')
         .notEmpty()
