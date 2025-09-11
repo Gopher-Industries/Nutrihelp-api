@@ -4,7 +4,7 @@ async function verifyDataInsertion() {
     console.log('🔍 Verifying data insertion in database...\n');
     
     try {
-        // 1. 检查用户表
+        // 1. Check users table
         console.log('1. 📊 Checking users table...');
         const { data: users, error: usersError } = await supabase
             .from('users')
@@ -24,7 +24,7 @@ async function verifyDataInsertion() {
         }
         console.log();
         
-        // 2. 检查购物清单表
+        // 2. Check shopping lists table
         console.log('2. 🛒 Checking shopping_lists table...');
         const { data: shoppingLists, error: shoppingError } = await supabase
             .from('shopping_lists')
@@ -44,7 +44,7 @@ async function verifyDataInsertion() {
         }
         console.log();
         
-        // 3. 检查购物清单项目表
+        // 3. Check shopping list items table
         console.log('3. 📝 Checking shopping_list_items table...');
         const { data: items, error: itemsError } = await supabase
             .from('shopping_list_items')
@@ -64,7 +64,7 @@ async function verifyDataInsertion() {
         }
         console.log();
         
-        // 4. 检查数据关联性
+        // 4. Check data relationships
         console.log('4. 🔗 Checking data relationships...');
         if (shoppingLists && shoppingLists.length > 0 && items && items.length > 0) {
             const listIds = shoppingLists.map(list => list.id);
@@ -87,7 +87,7 @@ async function verifyDataInsertion() {
         }
         console.log();
         
-        // 5. 提供数据摘要
+        // 5. Provide data summary
         console.log('5. 📋 Data Summary:');
         console.log(`   - Users: ${users ? users.length : 0}`);
         console.log(`   - Shopping Lists: ${shoppingLists ? shoppingLists.length : 0}`);
@@ -98,7 +98,7 @@ async function verifyDataInsertion() {
             console.log(`   - Total Estimated Cost: $${totalCost.toFixed(2)}`);
         }
         
-        // 6. 验证测试数据
+        // 6. Verify test data
         console.log('\n6. 🧪 Verifying test data...');
         const testUsers = users ? users.filter(user => user.email.includes('testuser')) : [];
         const testLists = shoppingLists ? shoppingLists.filter(list => list.name.includes('Test')) : [];
@@ -117,7 +117,7 @@ async function verifyDataInsertion() {
     }
 }
 
-// 运行验证如果直接执行此文件
+// Run verification if this file is executed directly
 if (require.main === module) {
     verifyDataInsertion()
         .then(() => {

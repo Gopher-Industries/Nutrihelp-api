@@ -4,7 +4,7 @@ async function quickFixShoppingList() {
     console.log('🔧 Quick Fix for Shopping List API Issues...\n');
     
     try {
-        // 1. 检查并创建 ingredients 表
+        // 1. Check and create ingredients table
         console.log('1. 🥕 Checking/Creating ingredients table...');
         try {
             const { data: ingredients, error: ingredientsError } = await supabase
@@ -14,7 +14,7 @@ async function quickFixShoppingList() {
             
             if (ingredientsError) {
                 console.log('⚠️ ingredients table missing, creating...');
-                // 注意：这里我们不能直接创建表，需要手动在Supabase中创建
+                // Note: We cannot create tables directly here, need to create manually in Supabase
                 console.log('💡 Please create ingredients table manually in Supabase with:');
                 console.log('   - id (SERIAL PRIMARY KEY)');
                 console.log('   - name (VARCHAR)');
@@ -28,7 +28,7 @@ async function quickFixShoppingList() {
         }
         console.log();
         
-        // 2. 检查并创建 ingredient_price 表
+        // 2. Check and create ingredient_price table
         console.log('2. 📊 Checking/Creating ingredient_price table...');
         try {
             const { data: prices, error: pricesError } = await supabase
@@ -53,7 +53,7 @@ async function quickFixShoppingList() {
         }
         console.log();
         
-        // 3. 检查并创建 recipe_meal 表
+        // 3. Check and create recipe_meal table
         console.log('3. 🍽️ Checking/Creating recipe_meal table...');
         try {
             const { data: meals, error: mealsError } = await supabase
@@ -76,7 +76,7 @@ async function quickFixShoppingList() {
         }
         console.log();
         
-        // 4. 检查 shopping_list_items 数据
+        // 4. Check shopping_list_items data
         console.log('4. 📝 Checking shopping_list_items data...');
         try {
             const { data: items, error: itemsError } = await supabase
@@ -98,7 +98,7 @@ async function quickFixShoppingList() {
         }
         console.log();
         
-        // 5. 提供完整的修复SQL
+        // 5. Provide complete fix SQL
         console.log('5. 🔧 Complete Fix SQL Commands:');
         console.log('=====================================');
         console.log('-- Run these in your Supabase SQL Editor:');
@@ -166,7 +166,7 @@ ON CONFLICT DO NOTHING;`);
     }
 }
 
-// 运行快速修复如果直接执行此文件
+// Run quick fix if this file is executed directly
 if (require.main === module) {
     quickFixShoppingList()
         .then(() => {

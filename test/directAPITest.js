@@ -6,7 +6,7 @@ async function directAPITest() {
     const BASE_URL = 'http://localhost/api';
     
     try {
-        // 测试1: 直接测试 getIngredientOptions API
+        // Test 1: Direct test of getIngredientOptions API
         console.log('1. 🥕 Testing getIngredientOptions API directly...');
         console.log(`   URL: ${BASE_URL}/shopping-list/ingredient-options?name=Milk`);
         
@@ -29,7 +29,7 @@ async function directAPITest() {
         }
         console.log();
         
-        // 测试2: 测试服务器是否运行
+        // Test 2: Test if server is running
         console.log('2. 🌐 Testing server connectivity...');
         try {
             const response = await axios.get(`${BASE_URL}/shopping-list?user_id=225`);
@@ -43,7 +43,7 @@ async function directAPITest() {
         }
         console.log();
         
-        // 测试3: 检查API路由
+        // Test 3: Check API routes
         console.log('3. 🛣️ Testing API route structure...');
         console.log('   Available routes:');
         console.log('   - GET /api/shopping-list/ingredient-options?name=Milk');
@@ -53,7 +53,7 @@ async function directAPITest() {
         console.log('   - DELETE /api/shopping-list/items/:id');
         console.log();
         
-        // 测试4: 检查环境变量
+        // Test 4: Check environment variables
         console.log('4. 🔧 Environment check...');
         console.log('   BASE_URL:', BASE_URL);
         console.log('   Note: Make sure your server is running on the correct port');
@@ -64,7 +64,7 @@ async function directAPITest() {
     }
 }
 
-// 运行直接API测试如果直接执行此文件
+// Run direct API test if this file is executed directly
 if (require.main === module) {
     directAPITest()
         .then(() => {

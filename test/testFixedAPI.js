@@ -75,11 +75,11 @@ async function testFixedAPIs() {
         }
         console.log();
         
-        // 测试4: generateFromMealPlan API (修复后) - 使用正确的用户ID
+        // Test 4: generateFromMealPlan API (fixed) - using correct user ID
         console.log('4. 🍽️ Testing Fixed Generate from Meal Plan API...');
         try {
             const testData = {
-                user_id: 23, // 使用实际有餐单数据的用户ID
+                user_id: 23, // Use actual user ID with meal plan data
                 meal_plan_ids: [21, 22], // Using actual meal plan IDs from your database
                 meal_types: ['breakfast', 'lunch']
             };
@@ -92,7 +92,7 @@ async function testFixedAPIs() {
         }
         console.log();
         
-        // 测试5: 获取购物清单
+        // Test 5: Get shopping list
         console.log('5. 📋 Testing Get Shopping List API...');
         try {
             const response = await axios.get(`${BASE_URL}/shopping-list?user_id=${TEST_USER_ID}`);
@@ -109,7 +109,7 @@ async function testFixedAPIs() {
     }
 }
 
-// 运行测试如果直接执行此文件
+// Run test if this file is executed directly
 if (require.main === module) {
     testFixedAPIs();
 }

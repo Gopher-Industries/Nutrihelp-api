@@ -4,7 +4,7 @@ async function checkRecipeIngredientStructure() {
     console.log('🔍 Checking Recipe Ingredient Table Structure...\n');
     
     try {
-        // 1. 检查 recipe_ingredient 表是否存在
+        // 1. Check if recipe_ingredient table exists
         console.log('1. 📊 Checking if recipe_ingredient table exists...');
         try {
             const { data: tableCheck, error: tableError } = await supabase
@@ -23,7 +23,7 @@ async function checkRecipeIngredientStructure() {
         }
         console.log();
         
-        // 2. 尝试获取表结构信息
+        // 2. Try to get table structure information
         console.log('2. 🏗️ Checking table structure...');
         try {
             const { data: structureData, error: structureError } = await supabase
@@ -52,7 +52,7 @@ async function checkRecipeIngredientStructure() {
         }
         console.log();
         
-        // 3. 检查可能的表名变体
+        // 3. Check possible table name variants
         console.log('3. 🔍 Checking for alternative table names...');
         const possibleTableNames = [
             'recipe_ingredients',
@@ -72,7 +72,7 @@ async function checkRecipeIngredientStructure() {
                 if (!altError) {
                     console.log(`   ✅ Found table: ${tableName}`);
                     
-                    // 尝试获取这个表的结构
+                    // Try to get the structure of this table
                     const { data: altStructure, error: altStructureError } = await supabase
                         .from(tableName)
                         .select('*')
@@ -83,12 +83,12 @@ async function checkRecipeIngredientStructure() {
                     }
                 }
             } catch (error) {
-                // 忽略错误，继续检查下一个
+                // Ignore error, continue checking next
             }
         }
         console.log();
         
-        // 4. 提供修复建议
+        // 4. Provide fix suggestions
         console.log('4. 💡 Fix Recommendations:');
         console.log('   Based on the findings above:');
         console.log('   1. Check if recipe_ingredient table exists');
@@ -101,7 +101,7 @@ async function checkRecipeIngredientStructure() {
     }
 }
 
-// 运行表结构检查如果直接执行此文件
+// Run table structure check if this file is executed directly
 if (require.main === module) {
     checkRecipeIngredientStructure()
         .then(() => {

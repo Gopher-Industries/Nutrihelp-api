@@ -6,7 +6,7 @@ async function simpleAPITest() {
     const BASE_URL = 'http://localhost/api';
     
     try {
-        // 测试1: 最基本的API调用
+        // Test 1: Most basic API call
         console.log('1. 🌐 Testing basic server response...');
         try {
             const response = await axios.get(`${BASE_URL}/shopping-list?user_id=225`);
@@ -18,7 +18,7 @@ async function simpleAPITest() {
         }
         console.log();
         
-        // 测试2: 测试 ingredient-options 端点
+        // Test 2: Test ingredient-options endpoint
         console.log('2. 🥕 Testing ingredient-options endpoint...');
         console.log(`   URL: ${BASE_URL}/shopping-list/ingredient-options?name=Milk`);
         
@@ -33,7 +33,7 @@ async function simpleAPITest() {
                 console.log('   📊 Status:', error.response.status);
                 console.log('   📋 Error response:', error.response.data);
                 
-                // 检查是否是验证错误
+                // Check if it's a validation error
                 if (error.response.status === 400) {
                     console.log('   💡 This might be a validation error');
                 } else if (error.response.status === 500) {
@@ -45,7 +45,7 @@ async function simpleAPITest() {
         }
         console.log();
         
-        // 测试3: 检查服务器状态
+        // Test 3: Check server status
         console.log('3. 🔍 Server status check...');
         console.log('   Base URL:', BASE_URL);
         console.log('   Note: Server should be running on port 80 (default)');
@@ -56,7 +56,7 @@ async function simpleAPITest() {
     }
 }
 
-// 运行简单API测试如果直接执行此文件
+// Run simple API test if this file is executed directly
 if (require.main === module) {
     simpleAPITest()
         .then(() => {

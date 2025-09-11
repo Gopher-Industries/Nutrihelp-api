@@ -4,7 +4,7 @@ async function deepDebug() {
     console.log('🔍 Deep Debugging for SQL Query Issues...\n');
     
     try {
-        // 1. 测试 getIngredientOptions 的完整查询
+        // 1. Test complete query for getIngredientOptions
         console.log('1. 🥕 Testing getIngredientOptions complete query...');
         
         const testName = 'Milk';
@@ -46,7 +46,7 @@ async function deepDebug() {
         }
         console.log();
         
-        // 2. 测试 generateFromMealPlan 的完整查询
+        // 2. Test complete query for generateFromMealPlan
         console.log('2. 🍽️ Testing generateFromMealPlan complete query...');
         
         const testUserId = 225;
@@ -93,10 +93,10 @@ async function deepDebug() {
         }
         console.log();
         
-        // 3. 测试简化的查询来隔离问题
+        // 3. Test simplified queries to isolate the problem
         console.log('3. 🔧 Testing simplified queries to isolate issues...');
         
-        // 测试3a: 简单的 ingredient_price 查询
+        // Test 3a: Simple ingredient_price query
         console.log('   Testing simple ingredient_price query...');
         try {
             const { data: simpleData, error: simpleError } = await supabase
@@ -113,7 +113,7 @@ async function deepDebug() {
             console.log('   ❌ Simple query exception:', error.message);
         }
         
-        // 测试3b: 简单的 ingredients 查询
+        // Test 3b: Simple ingredients query
         console.log('   Testing simple ingredients query...');
         try {
             const { data: ingData, error: ingError } = await supabase
@@ -130,7 +130,7 @@ async function deepDebug() {
             console.log('   ❌ Ingredients query exception:', error.message);
         }
         
-        // 测试3c: 测试外键关系
+        // Test 3c: Test foreign key relationships
         console.log('   Testing foreign key relationship...');
         try {
             const { data: relData, error: relError } = await supabase
@@ -154,7 +154,7 @@ async function deepDebug() {
             console.log('   ❌ Relationship query exception:', error.message);
         }
         
-        // 4. 提供修复建议
+        // 4. Provide fix suggestions
         console.log('\n4. 💡 Fix Recommendations:');
         console.log('   Based on the errors above, we can:');
         console.log('   1. Fix the JOIN syntax if it\'s incorrect');
@@ -166,7 +166,7 @@ async function deepDebug() {
     }
 }
 
-// 运行深度调试如果直接执行此文件
+// Run deep debug if this file is executed directly
 if (require.main === module) {
     deepDebug()
         .then(() => {

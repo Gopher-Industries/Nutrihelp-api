@@ -4,7 +4,7 @@ async function checkTableStructure() {
     console.log('🔍 Checking database table structure...\n');
     
     try {
-        // 检查users表结构
+        // Check users table structure
         console.log('1. 📊 Checking users table structure...');
         try {
             const { data: usersData, error: usersError } = await supabase
@@ -29,7 +29,7 @@ async function checkTableStructure() {
         }
         console.log();
         
-        // 检查shopping_lists表结构
+        // Check shopping_lists table structure
         console.log('2. 🛒 Checking shopping_lists table structure...');
         try {
             const { data: listsData, error: listsError } = await supabase
@@ -53,7 +53,7 @@ async function checkTableStructure() {
         }
         console.log();
         
-        // 检查shopping_list_items表结构
+        // Check shopping_list_items table structure
         console.log('3. 📝 Checking shopping_list_items table structure...');
         try {
             const { data: itemsData, error: itemsError } = await supabase
@@ -77,10 +77,10 @@ async function checkTableStructure() {
         }
         console.log();
         
-        // 尝试获取表信息（如果可能）
+        // Try to get table information (if possible)
         console.log('4. 🔍 Trying to get table information...');
         try {
-            // 尝试一个简单的查询来了解表结构
+            // Try a simple query to understand table structure
             const { data: sampleData, error: sampleError } = await supabase
                 .from('users')
                 .select('*')
@@ -106,7 +106,7 @@ async function checkTableStructure() {
     }
 }
 
-// 运行检查如果直接执行此文件
+// Run check if this file is executed directly
 if (require.main === module) {
     checkTableStructure()
         .then(() => {

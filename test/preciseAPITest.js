@@ -4,16 +4,16 @@ async function preciseAPITest() {
     console.log('🎯 Precise API Testing - Exact Query Simulation...\n');
     
     try {
-        // 模拟 getIngredientOptions API 的精确查询
+        // Simulate exact query for getIngredientOptions API
         console.log('1. 🥕 Simulating getIngredientOptions API query exactly...');
         
-        const name = 'Milk'; // 从 req.query.name 获取
+        const name = 'Milk'; // Get from req.query.name
         
         console.log(`   Search term: "${name}"`);
         console.log('   Executing exact query from controller...');
         
         try {
-            // 这是控制器中的确切查询
+            // This is the exact query from the controller
             const { data, error } = await supabase
                 .from('ingredient_price')
                 .select(`
@@ -38,12 +38,12 @@ async function preciseAPITest() {
                     code: error.code
                 });
                 
-                // 尝试诊断问题
+                // Try to diagnose the problem
                 if (error.code === 'PGRST200') {
                     console.log('   💡 This is a foreign key relationship error');
                     console.log('   🔍 Checking if ingredients table exists and has correct structure...');
                     
-                    // 检查 ingredients 表
+                    // Check ingredients table
                     const { data: ingCheck, error: ingCheckError } = await supabase
                         .from('ingredients')
                         .select('id, name, category')
@@ -69,7 +69,7 @@ async function preciseAPITest() {
         }
         console.log();
         
-        // 测试2: 检查数据库连接状态
+        // Test 2: Check database connection status
         console.log('2. 🔌 Testing database connection...');
         try {
             const { data: testData, error: testError } = await supabase
@@ -88,10 +88,10 @@ async function preciseAPITest() {
         }
         console.log();
         
-        // 测试3: 检查表权限
+        // Test 3: Check table permissions
         console.log('3. 🔐 Testing table permissions...');
         try {
-            // 测试 SELECT 权限
+            // Test SELECT permissions
             const { data: permData, error: permError } = await supabase
                 .from('ingredient_price')
                 .select('*')
@@ -111,7 +111,7 @@ async function preciseAPITest() {
     }
 }
 
-// 运行精确API测试如果直接执行此文件
+// Run precise API test if this file is executed directly
 if (require.main === module) {
     preciseAPITest()
         .then(() => {
