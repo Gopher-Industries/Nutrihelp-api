@@ -10,7 +10,8 @@ const { supabase } = require("../database/supabase");
 const safeLog = async (payload) => {
   try { await logLoginEvent(payload); } catch (e) { console.warn("log error:", e.message); }
 };
-
+const isStrongPassword = (pw) =>
+  /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/.test(pw || "");
 const signup = async (req, res) => {
   
   const errors = validationResult(req);
@@ -18,6 +19,12 @@ const signup = async (req, res) => {
 
   const { name, email, password, contact_number, address } = req.body;
   const emailNormalized = (email || "").trim().toLowerCase();
+  if (!isStrongPassword(password)) {
+  return res.status(400).json({
+    error: "Password must be at least 8 characters and include uppercase, lowercase, number, and special character.",
+    code: "WEAK_PASSWORD"
+  });
+}
 
   let clientIp = req.headers["x-forwarded-for"] || req.socket?.remoteAddress || req.ip || "";
   clientIp = clientIp === "::1" ? "127.0.0.1" : clientIp;
