@@ -98,6 +98,342 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+
+  # Shopping List API Endpoints
+  /shopping-list/ingredient-options:
+    get:
+      tags:
+        - Shopping List
+      summary: Search ingredients by name
+      description: Search ingredients by name and return price, store, and package information
+      parameters:
+        - name: name
+          in: query
+          required: true
+          description: Ingredient name for search (supports partial matching)
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 100
+            example: "Tomato"
+      responses:
+        '200':
+          description: Ingredient options retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  statusCode:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "success"
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/IngredientOption'
+        '400':
+          description: Bad request - missing ingredient name
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /shopping-list/from-meal-plan:
+    post:
+      tags:
+        - Shopping List
+      summary: Generate shopping list from meal plan
+      description: Merge ingredient needs from selected meals and return aggregated quantities
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - user_id
+                - meal_plan_ids
+              properties:
+                user_id:
+                  type: integer
+                  description: User ID
+                  example: 123
+                meal_plan_ids:
+                  type: array
+                  description: Array of meal plan IDs
+                  items:
+                    type: integer
+                  example: [1, 2, 3]
+                meal_types:
+                  type: array
+                  description: Array of meal types (optional)
+                  items:
+                    type: string
+                  example: ["breakfast", "lunch", "dinner"]
+      responses:
+        '200':
+          description: Shopping list generated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  statusCode:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "success"
+                  data:
+                    $ref: '#/components/schemas/ShoppingListFromMealPlan'
+        '400':
+          description: Bad request - missing required fields
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: No meal plans found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /shopping-list:
+    post:
+      tags:
+        - Shopping List
+      summary: Create shopping list
+      description: Store shopping lists for logged-in users in the database
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - user_id
+                - name
+                - items
+              properties:
+                user_id:
+                  type: integer
+                  description: User ID
+                  example: 123
+                name:
+                  type: string
+                  description: Shopping list name
+                  maxLength: 255
+                  example: "Weekly Shopping List"
+                items:
+                  type: array
+                  description: Array of shopping list items
+                  items:
+                    $ref: '#/components/schemas/ShoppingListItemInput'
+                estimated_total_cost:
+                  type: number
+                  format: float
+                  description: Estimated total cost
+                  example: 45.67
+      responses:
+        '201':
+          description: Shopping list created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  statusCode:
+                    type: integer
+                    example: 201
+                  message:
+                    type: string
+                    example: "success"
+                  data:
+                    type: object
+                    properties:
+                      shopping_list:
+                        $ref: '#/components/schemas/ShoppingList'
+                      items:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/ShoppingListItem'
+        '400':
+          description: Bad request - missing required fields
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    get:
+      tags:
+        - Shopping List
+      summary: Get shopping lists
+      description: Retrieve shopping lists for logged-in users
+      parameters:
+        - name: user_id
+          in: query
+          required: true
+          description: User ID to get shopping lists for
+          schema:
+            type: integer
+            example: 123
+      responses:
+        '200':
+          description: Shopping lists retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  statusCode:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "success"
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ShoppingListWithProgress'
+        '400':
+          description: Bad request - missing user ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /shopping-list/items/{id}:
+    patch:
+      tags:
+        - Shopping List
+      summary: Update shopping list item
+      description: Update item status (purchased, quantity, notes)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Shopping list item ID
+          schema:
+            type: integer
+            example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                purchased:
+                  type: boolean
+                  description: Whether the item has been purchased
+                  example: true
+                quantity:
+                  type: number
+                  format: float
+                  description: Updated quantity
+                  minimum: 0.01
+                  example: 600
+                notes:
+                  type: string
+                  description: Updated notes
+                  maxLength: 1000
+                  example: "Updated notes"
+      responses:
+        '200':
+          description: Item updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  statusCode:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "success"
+                  data:
+                    $ref: '#/components/schemas/ShoppingListItem'
+        '400':
+          description: Bad request - invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      tags:
+        - Shopping List
+      summary: Delete shopping list item
+      description: Remove item from shopping list
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Shopping list item ID
+          schema:
+            type: integer
+            example: 1
+      responses:
+        '204':
+          description: Item deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  statusCode:
+                    type: integer
+                    example: 204
+                  message:
+                    type: string
+                    example: "success"
+        '400':
+          description: Bad request - invalid item ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '500':
           description: Internal server error
           content:
@@ -428,8 +764,6 @@ paths:
     get:
       summary: Get meal plan
       description: Retrieves a meal plan for the user
-      security:
-        - BearerAuth: [ ]
       # TODO should not use requestBody for GET
       requestBody:
         required: true
@@ -458,8 +792,6 @@ paths:
     post:
       summary: Save meal plan
       description: Receives a meal plan and saves it
-      security:
-       - BearerAuth: [ ]
       requestBody:
         required: true
         content:
@@ -488,8 +820,6 @@ paths:
     delete:
       summary: Delete meal plan
       description: Deletes the user's meal plan
-      security:
-        - BearerAuth: [ ]
       requestBody:
         required: true
         content:
@@ -836,77 +1166,71 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
   /userprofile:
-   get:
-     summary: Get user profile
-     description: |
-       - Normal users can only fetch their own profile.  
-       - Admins can fetch any profile using `?email=xxx`.
-     security:
-       - BearerAuth: []
-     parameters:
-       - in: query
-         name: email
-         schema:
-           type: string
-         required: false
-         description: (Admin only) Email of the user whose profile to fetch
-     responses:
-       '200':
-         description: User profile fetched successfully
-         content:
-           application/json:
-             schema:
-               $ref: '#/components/schemas/UserProfileResponse'
-       '400':
-         description: Email is required
-         content:
-           application/json:
-             schema:
-               $ref: '#/components/schemas/ErrorResponse'
-       '500':
-         description: Internal server error
-         content:
-           application/json:
-             schema:
-               $ref: '#/components/schemas/ErrorResponse'
-   put:
-     summary: Update user profile
-     description: |
-       - Normal users can update only their own profile.  
-       - Admins can update any profile using `email`.
-     security:
-       - BearerAuth: []
-     requestBody:
-       required: true
-       content:
-         application/json:
-           schema:
-             $ref: '#/components/schemas/UserUpdateRequest'
-     responses:
-       '204':
-         description: User profile updated successfully
-         content:
-           application/json:
-             schema:
-               $ref: '#/components/schemas/SuccessResponse'
-       '400':
-         description: Email is required or invalid request body
-         content:
-           application/json:
-             schema:
-               $ref: '#/components/schemas/ErrorResponse'
-       '500':
-         description: Internal server error
-         content:
-           application/json:
-             schema:
-               $ref: '#/components/schemas/ErrorResponse'
+    get:
+      summary: Get user profile
+      description: Retrieves the user's profile
+      # TODO should not use requestBody for GET
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+      responses:
+        '200':
+          description: User profile fetched successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfileResponse'
+        '400':
+          description: Email is required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    put:
+      summary: Update user profile
+      description: Updates the user's profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserUpdateRequest'
+      responses:
+        '204':
+          description: User profile updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          description: User ID is required or Request body is required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  
   /notifications:
     post:
       summary: Create a new notification
-      description: Allows admin to create notifications
-      security:
-        - BearerAuth: [ ]
+      description: Creates a new notification for a specific user.
       requestBody:
         required: true
         content:
@@ -965,9 +1289,7 @@ paths:
   /notifications/{user_id}:
     get:
       summary: Get all notifications for a specific user
-      description: Users can only view their own notifications. Admin can view any.
-      security:
-        - BearerAuth: [ ]
+      description: Retrieves all notifications associated with a specific `user_id`.
       parameters:
         - in: path
           name: user_id
@@ -1006,9 +1328,7 @@ paths:
   /notifications/{simple_id}:
     delete:
       summary: Delete a specific notification by simple ID
-      description: Only admin can delete a notification
-      security:
-        - BearerAuth: [ ]
+      description: Deletes a notification identified by its `simple_id` (integer).
       parameters:
         - in: path
           name: simple_id
@@ -1034,9 +1354,7 @@ paths:
 
     put:
       summary: Update notification status by simple ID
-      description: Admin or nutritionist can update notification status
-      security:
-        - BearerAuth: [ ]
+      description: Updates the status of a notification identified by its `simple_id` (integer).
       parameters:
         - in: path
           name: simple_id
@@ -1885,251 +2203,65 @@ paths:
                 $ref: '#/components/schemas/MedicalReportResponse'
         '400':
           description: Bad Request - Invalid input data.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
         '401':
           description: Unauthorized - Authentication credentials missing or invalid.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
         '500':
           description: Internal Server Error - Something went wrong on the server.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-
-  /medical-report/plan:
-    post:
-      summary: Generate a 4-week health plan from a medical report
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/HealthPlanRequest'
-            examples:
-              sample:
-                value:
-                  medical_report:
-                    obesity_prediction:
-                      obesity_level: Overweight_Level_II
-                      confidence: 79.8
-                    diabetes_prediction:
-                      diabetes: true
-                      confidence: 79.8
-                  n_results: 3
-                  max_tokens: 1200
-                  temperature: 0.2
+              type: object
+              properties:
+                user_id:
+                  type: string
+                  format: uuid
+                  description: The unique ID of the user
+                glasses_consumed:
+                  type: integer
+                  description: Number of glasses consumed
+              required:
+                - user_id
+                - glasses_consumed
+              example:
+              user_id: "15"
+              glasses_consumed: 5
       responses:
         '200':
-          description: Weekly plan generated successfully
+          description: Water intake updated successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HealthPlanResponse'
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Water intake updated successfully"
+                  data:
+                    type: object
+                    properties:
+                      user_id:
+                        type: string
+                        example: "15"
+                      date:
+                        type: string
+                        format: date
+                        example: "2025-05-10"
+                      glasses_consumed:
+                        type: integer
+                        example: 5
+                      updated_at:
+                        type: string
+                        format: date-time
+                        example: "2025-05-10T12:00:00Z"
         '400':
-          description: Bad Request – invalid or missing input fields
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '401':
-          description: Unauthorized – Authentication credentials missing or invalid.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '502':
-          description: AI server error – upstream FastAPI returned an error
+          description: Bad request - missing or invalid fields
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '500':
-          description: Internal Server Error – Something went wrong on the server
+          description: Internal server error
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-  
-  /auth/register:
-      post:
-        tags:
-          - Authentication
-        summary: User Registration
-        description: Create a new user account
-        requestBody:
-          required: true
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                  - name
-                  - email
-                  - password
-                properties:
-                  name:
-                    type: string
-                    example: "John Doe"
-                  email:
-                    type: string
-                    format: email
-                    example: "john@nutrihelp.com"
-                  password:
-                    type: string
-                    minLength: 6
-                    example: "SecurePassword123!"
-                  first_name:
-                    type: string
-                    example: "John"
-                  last_name:
-                    type: string
-                    example: "Doe"
-        responses:
-          '201':
-            description: Registration successful
-          '400':
-            description: Registration failed
-  /auth/login:
-    post:
-      tags:
-        - Authentication
-      summary: User Login
-      description: Login user and get access/refresh tokens
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/LoginRequest'
-      responses:
-        '200':
-          description: Login successful
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                    example: true
-                  user:
-                    type: object
-                    properties:
-                      id:
-                        type: integer
-                        example: 677
-                      email:
-                        type: string
-                        example: "john@nutrihelp.com"
-                      name:
-                        type: string
-                        example: "John Doe"
-                      role:
-                        type: string
-                        example: "user"
-                  accessToken:
-                    type: string
-                    description: "Access token (15 minutes validity)"
-                    example: "eyJhbGciOiJIUzI1NiIs..."
-                  refreshToken:
-                    type: string
-                    description: "Refresh token (7 days validity)"
-                    example: "b9b1f1235fb056bc4389..."
-                  expiresIn:
-                    type: integer
-                    description: "Token expiry time in seconds"
-                    example: 900
-                  tokenType:
-                    type: string
-                    example: "Bearer"
-        '401':
-          description: Login failed
-  /auth/refresh:
-    post:
-      tags:
-        - Authentication
-      summary: Refresh Access Token
-      description: Get new access token using refresh token
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - refreshToken
-              properties:
-                refreshToken:
-                  type: string
-                  example: "b9b1f1235fb056bc4389..."
-      responses:
-        '200':
-          description: Token refresh successful
-        '401':
-          description: Invalid or expired refresh token
-  /auth/logout:
-    post:
-      tags:
-        - Authentication
-      summary: User Logout
-      description: Invalidate refresh token and logout user
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                refreshToken:
-                  type: string
-                  example: "b9b1f1235fb056bc4389..."
-      responses:
-        '200':
-          description: Logout successful
-  /auth/profile:
-    get:
-      tags:
-        - Authentication
-      summary: Get User Profile
-      description: Get current user information
-      security:
-        - BearerAuth: []
-      responses:
-        '200':
-          description: Profile retrieved successfully
-        '401':
-          description: Unauthorized
-        '404':
-          description: User not found
-  /auth/health:
-    get:
-      tags:
-        - Authentication
-      summary: Auth Service Health Check
-      description: Check if authentication service is running
-      responses:
-        '200':
-          description: Service is healthy
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                    example: true
-                  message:
-                    type: string
-                    example: "Auth service is running"
-                  timestamp:
-                    type: string
-                    format: date-time
-                    example: "2025-08-03T12:14:00.706Z"
 
 components:
   securitySchemes:
@@ -2769,4 +2901,315 @@ components:
                   description: Model confidence score for diabetes prediction.
                   example: 0.798
 
-  
+    # Shopping List Schemas
+    IngredientOption:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Unique identifier for the ingredient option
+          example: 1
+        ingredient_id:
+          type: integer
+          description: Reference to the ingredient
+          example: 15
+        ingredient_name:
+          type: string
+          description: Name of the ingredient
+          example: "Tomato"
+        product_name:
+          type: string
+          description: Specific product name
+          example: "Fresh Tomatoes"
+        package_size:
+          type: number
+          format: float
+          description: Size of the package
+          example: 500
+        unit:
+          type: number
+          format: float
+          description: Unit quantity
+          example: 500
+        measurement:
+          type: string
+          description: Unit of measurement
+          example: "g"
+        price:
+          type: number
+          format: float
+          description: Price of the product
+          example: 3.99
+        store:
+          type: string
+          description: Store name
+          example: "Coles"
+        store_location:
+          type: string
+          description: Store location
+          example: "Melbourne CBD"
+
+    ShoppingListItemInput:
+      type: object
+      required:
+        - ingredient_name
+        - quantity
+        - unit
+        - measurement
+      properties:
+        ingredient_id:
+          type: integer
+          description: Reference to the ingredient (optional)
+          example: 15
+        ingredient_name:
+          type: string
+          description: Name of the ingredient
+          example: "Tomato"
+        category:
+          type: string
+          description: Category of the ingredient
+          example: "Vegetable"
+        quantity:
+          type: number
+          format: float
+          description: Quantity needed
+          minimum: 0.01
+          example: 500
+        unit:
+          type: number
+          format: float
+          description: Unit quantity
+          example: 500
+        measurement:
+          type: string
+          description: Unit of measurement
+          example: "g"
+        notes:
+          type: string
+          description: Additional notes
+          example: "For salads"
+        meal_tags:
+          type: array
+          description: Associated meal types
+          items:
+            type: string
+          example: ["breakfast", "lunch"]
+        estimated_cost:
+          type: number
+          format: float
+          description: Estimated cost for this item
+          example: 3.99
+
+    ShoppingListItem:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Unique identifier for the shopping list item
+          example: 1
+        shopping_list_id:
+          type: integer
+          description: Reference to the shopping list
+          example: 1
+        ingredient_id:
+          type: integer
+          description: Reference to the ingredient (nullable)
+          example: 15
+        ingredient_name:
+          type: string
+          description: Name of the ingredient
+          example: "Tomato"
+        category:
+          type: string
+          description: Category of the ingredient
+          example: "Vegetable"
+        quantity:
+          type: number
+          format: float
+          description: Quantity needed
+          example: 500
+        unit:
+          type: number
+          format: float
+          description: Unit quantity
+          example: 500
+        measurement:
+          type: string
+          description: Unit of measurement
+          example: "g"
+        notes:
+          type: string
+          description: Additional notes
+          example: "For salads"
+        purchased:
+          type: boolean
+          description: Whether the item has been purchased
+          example: false
+        meal_tags:
+          type: array
+          description: Associated meal types
+          items:
+            type: string
+          example: ["breakfast", "lunch"]
+        estimated_cost:
+          type: number
+          format: float
+          description: Estimated cost for this item
+          example: 3.99
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+          example: "2024-01-15T10:00:00Z"
+        updated_at:
+          type: string
+          format: date-time
+          description: Last update timestamp
+          example: "2024-01-15T10:00:00Z"
+
+    ShoppingList:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Unique identifier for the shopping list
+          example: 1
+        user_id:
+          type: integer
+          description: Reference to the user
+          example: 123
+        name:
+          type: string
+          description: Name of the shopping list
+          example: "Weekly Shopping List"
+        description:
+          type: string
+          description: Description of the shopping list
+          example: "Weekly groceries for meal plans"
+        estimated_total_cost:
+          type: number
+          format: float
+          description: Estimated total cost
+          example: 45.67
+        status:
+          type: string
+          description: Status of the shopping list
+          example: "active"
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+          example: "2024-01-15T10:00:00Z"
+        updated_at:
+          type: string
+          format: date-time
+          description: Last update timestamp
+          example: "2024-01-15T10:00:00Z"
+
+    ShoppingListWithProgress:
+      type: object
+      allOf:
+        - $ref: '#/components/schemas/ShoppingList'
+        - type: object
+          properties:
+            items:
+              type: array
+              description: Array of shopping list items
+              items:
+                $ref: '#/components/schemas/ShoppingListItem'
+            progress:
+              type: object
+              properties:
+                total_items:
+                  type: integer
+                  description: Total number of items
+                  example: 8
+                purchased_items:
+                  type: integer
+                  description: Number of purchased items
+                  example: 2
+                completion_percentage:
+                  type: integer
+                  description: Completion percentage
+                  example: 25
+
+    ShoppingListFromMealPlan:
+      type: object
+      properties:
+        shopping_list:
+          type: array
+          description: Array of shopping list items
+          items:
+            type: object
+            properties:
+              ingredient_id:
+                type: integer
+                description: Reference to the ingredient
+                example: 15
+              ingredient_name:
+                type: string
+                description: Name of the ingredient
+                example: "Tomato"
+              category:
+                type: string
+                description: Category of the ingredient
+                example: "Vegetable"
+              total_quantity:
+                type: number
+                format: float
+                description: Total quantity needed
+                example: 800
+              unit:
+                type: number
+                format: float
+                description: Unit quantity
+                example: 800
+              measurement:
+                type: string
+                description: Unit of measurement
+                example: "g"
+              meals:
+                type: array
+                description: Associated meal types
+                items:
+                  type: string
+                example: ["breakfast", "lunch"]
+              estimated_cost:
+                type: object
+                properties:
+                  min:
+                    type: number
+                    format: float
+                    description: Minimum estimated cost
+                    example: 6.38
+                  max:
+                    type: number
+                    format: float
+                    description: Maximum estimated cost
+                    example: 7.98
+        summary:
+          type: object
+          properties:
+            total_items:
+              type: integer
+              description: Total number of items
+              example: 8
+            total_estimated_cost:
+              type: object
+              properties:
+                min:
+                  type: number
+                  format: float
+                  description: Minimum total estimated cost
+                  example: 45.67
+                max:
+                  type: number
+                  format: float
+                  description: Maximum total estimated cost
+                  example: 58.92
+            categories:
+              type: array
+              description: Array of ingredient categories
+              items:
+                type: string
+              example: ["Vegetable", "Meat", "Dairy", "Pantry"]

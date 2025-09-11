@@ -1,36 +1,17 @@
-/**
- * Role-based access control (RBAC) middleware
- */
 function authorizeRoles(...allowedRoles) {
   return (req, res, next) => {
-    // Supabase JWTs: "role" is usually "authenticated" or "service_role"
-    // Custom JWTs: you explicitly set "role" in payload
-    const userRole = req.user?.role || req.user?.user_roles || null;
+    const userRole = req.user?.role;
 
     if (!userRole) {
-      return res.status(403).json({
-        success: false,
-        error: "Role missing in token",
-        code: "ROLE_MISSING"
-      });
+      return res.status(403).json({ message: "Role missing in token" });
     }
 
-    // Normalize role value (lowercase string)
-    const roleValue = String(userRole).toLowerCase();
-
-    // Normalize allowed roles too
-    const normalizedAllowed = allowedRoles.map(r => r.toLowerCase());
-
-    if (!normalizedAllowed.includes(roleValue)) {
-      return res.status(403).json({
-        success: false,
-        error: "Access denied: insufficient role",
-        code: "ACCESS_DENIED"
-      });
+    if (!allowedRoles.includes(userRole)) {
+      return res.status(403).json({ message: "Access denied: insufficient role" });
     }
 
     next();
   };
 }
 
-module.exports = authorizeRoles;
+module.exports = authorizeRoles; // ✅ make sure this line is present

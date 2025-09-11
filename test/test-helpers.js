@@ -14,7 +14,10 @@ async function addTestUser() {
 				password: hashedPassword,
 				mfa_enabled: false,
 				contact_number: "000000000",
-				address: "address"
+				address: "address",
+				account_status: "active",
+				email_verified: true,
+				is_verified: true
 			})
 			.select();
 
@@ -40,7 +43,10 @@ async function addTestUserMFA() {
 				password: hashedPassword,
 				mfa_enabled: true,
 				contact_number: "000000000",
-				address: "address"
+				address: "address",
+				account_status: "active",
+				email_verified: true,
+				is_verified: true
 			})
 			.select();
 
@@ -50,6 +56,37 @@ async function addTestUserMFA() {
 		const createdUser = data[0];
 		return createdUser;
 	} catch (error) {
+		throw error;
+	}
+}
+
+// New function specifically for shopping list tests
+async function getOrCreateTestUserForShoppingList() {
+	try {
+		// First, try to find an existing test user
+		let { data: existingUsers, error: queryError } = await supabase
+			.from("users")
+			.select("user_id, name, email")
+			.like("email", "testuser%@test.com")
+			.limit(1);
+
+		if (queryError) {
+			throw queryError;
+		}
+
+		// If we found an existing test user, use it
+		if (existingUsers && existingUsers.length > 0) {
+			console.log(`✅ Using existing test user: ${existingUsers[0].email} (ID: ${existingUsers[0].user_id})`);
+			return existingUsers[0].user_id;
+		}
+
+		// If no existing test user, create a new one
+		console.log("👤 Creating new test user for shopping list tests...");
+		const testUser = await addTestUser();
+		console.log(`✅ Created new test user: ${testUser.email} (ID: ${testUser.user_id})`);
+		return testUser.user_id;
+	} catch (error) {
+		console.error("❌ Failed to get or create test user:", error);
 		throw error;
 	}
 }
@@ -89,4 +126,4 @@ async function getTestServer() {
 }
 
 
-module.exports = { addTestUser, deleteTestUser, addTestUserMFA, addTestRecipe };
+module.exports = { addTestUser, deleteTestUser, addTestUserMFA, addTestRecipe, getOrCreateTestUserForShoppingList };
