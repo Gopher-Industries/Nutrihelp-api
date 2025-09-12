@@ -1,3 +1,4 @@
+console.log("🟢 Loaded AuthService from:", __filename);
 const { createClient } = require('@supabase/supabase-js');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
@@ -134,20 +135,27 @@ class AuthService {
      */
     async generateTokenPair(user, deviceInfo = {}) {
         try {
+            // Build access token payload
+            const accessPayload = {
+                userId: user.user_id,
+                email: user.email,
+                role: user.user_roles?.role_name || 'user',
+                type: 'access'
+            };
+
+            console.log("🔑 Signing access token with payload:", accessPayload);
+
             // Generate Access Token
             const accessToken = jwt.sign(
-                {
-                    userId: user.user_id,
-                    email: user.email,
-                    role: user.user_roles?.role_name || 'user',
-                    type: 'access'
-                },
-                process.env.JWT_SECRET,
+                accessPayload,
+                process.env.JWT_TOKEN,
                 { 
                     expiresIn: this.accessTokenExpiry,
                     algorithm: 'HS256'
                 }
             );
+
+            console.log("✅ Generated accessToken:", accessToken);
 
             // Generate a refresh token
             const refreshToken = crypto.randomBytes(40).toString('hex');
@@ -273,8 +281,11 @@ class AuthService {
      */
     verifyAccessToken(token) {
         try {
-            return jwt.verify(token, process.env.JWT_SECRET);
+            const decoded = jwt.verify(token, process.env.JWT_TOKEN);
+            console.log("🔍 Decoded token payload:", decoded);
+            return decoded;
         } catch (error) {
+            console.error("❌ Token verification failed:", error.message);
             throw new Error('Invalid access token');
         }
     }
