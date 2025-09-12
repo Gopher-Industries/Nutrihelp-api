@@ -29,5 +29,6 @@ module.exports = app => {
     app.use('/api/recipe/scale', require('./recipeScaling'));
     app.use('/api/water-intake', require('./waterIntake'));
     app.use('/api/health-news', require('./healthNews'));
+    app.use('/api/scanner', require('./scanner')); // Vulnerability Scanner API
 
 };

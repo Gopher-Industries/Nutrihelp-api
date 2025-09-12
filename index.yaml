@@ -3,10 +3,14 @@ info:
   title: NutriHelp API
   version: 1.0.0
 servers:
-  - url: http://localhost/api
+  - url: "http://localhost"
+    description: "Local API"
+
 tags:
   - name: System
     description: System and security monitoring endpoints
+  - name: Vulnerability Scanner
+    description: Endpoints for the vulnerability scanner
 paths:
   /system/generate-baseline:
     post:
@@ -1416,7 +1420,6 @@ paths:
           description: Number of records to return
           schema:
             type: integer
-          description: Integer ID of the recipe for cost calculation
             default: 20
         - name: page
           in: query
@@ -1435,7 +1438,6 @@ paths:
             default: true
       responses:
         '200':
-          description: Calculate cost successfully
           description: Successfully retrieved requested data
           content:
             application/json:
@@ -1897,60 +1899,57 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
         '500':
           description: Internal Server Error - Something went wrong on the server.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-
-  /medical-report/plan:
-    post:
-      summary: Generate a 4-week health plan from a medical report
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/HealthPlanRequest'
-            examples:
-              sample:
-                value:
-                  medical_report:
-                    obesity_prediction:
-                      obesity_level: Overweight_Level_II
-                      confidence: 79.8
-                    diabetes_prediction:
-                      diabetes: true
-                      confidence: 79.8
-                  n_results: 3
-                  max_tokens: 1200
-                  temperature: 0.2
+              type: object
+              properties:
+                user_id:
+                  type: string
+                  format: uuid
+                  description: The unique ID of the user
+                glasses_consumed:
+                  type: integer
+                  description: Number of glasses consumed
+              required:
+                - user_id
+                - glasses_consumed
+              example:
+              user_id: "15"
+              glasses_consumed: 5
       responses:
         '200':
-          description: Weekly plan generated successfully
+          description: Water intake updated successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HealthPlanResponse'
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Water intake updated successfully"
+                  data:
+                    type: object
+                    properties:
+                      user_id:
+                        type: string
+                        example: "15"
+                      date:
+                        type: string
+                        format: date
+                        example: "2025-05-10"
+                      glasses_consumed:
+                        type: integer
+                        example: 5
+                      updated_at:
+                        type: string
+                        format: date-time
+                        example: "2025-05-10T12:00:00Z"
         '400':
-          description: Bad Request – invalid or missing input fields
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '401':
-          description: Unauthorized – Authentication credentials missing or invalid.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '502':
-          description: AI server error – upstream FastAPI returned an error
+          description: Bad request - missing or invalid fields
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '500':
-          description: Internal Server Error – Something went wrong on the server
+          description: Internal server error
           content:
             application/json:
               schema:
@@ -2130,6 +2129,224 @@ paths:
                     type: string
                     format: date-time
                     example: "2025-08-03T12:14:00.706Z"
+
+  /api/scanner/test:
+    get:
+      summary: Testing endpoints
+      tags: [Vulnerability Scanner]
+      responses:
+        '200':
+          description: Testing successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Scanner API is working!"
+                  timestamp:
+                    type: string
+                    example: "2025-09-05T19:48:20.611Z"
+
+  /api/scanner/health:
+    get:
+      summary: Scanner health check
+      tags: [Vulnerability Scanner]
+      responses:
+        '200':
+          description: Scanner status normal
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "healthy"
+                  version:
+                    type: string
+                    example: "2.0.0"
+                  timestamp:
+                    type: string
+                  scanner_path:
+                    type: string
+        '500':
+          description: Server error
+
+  /api/scanner/plugins:
+    get:
+      summary: Get available plugin list
+      tags: [Vulnerability Scanner]
+      responses:
+        '200':
+          description: Plugin list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  plugins:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        name:
+                          type: string
+                          example: "JWTMissingProtectionPlugin"
+                        description:
+                          type: string
+                          example: "Detect missing JWT protection in API endpoints"
+                        severity_level:
+                          type: string
+                          example: "HIGH"
+
+  /api/scanner/scan:
+    post:
+      summary: Start security scan
+      tags: [Vulnerability Scanner]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScanRequest'
+      responses:
+        '200':
+          description: Scan started successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  scan_id:
+                    type: string
+                    example: "scan_20240906_143022"
+                  message:
+                    type: string
+                    example: "Scan started successfully"
+                  status_url:
+                    type: string
+                    example: "/api/scanner/scan/scan_20240906_143022/status"
+        '400':
+          description: Request parameter error
+        '500':
+          description: Server error
+
+  /api/scanner/scan/{scanId}/status:
+    get:
+      summary: Get scan status
+      tags: [Vulnerability Scanner]
+      parameters:
+        - in: path
+          name: scanId
+          required: true
+          schema:
+            type: string
+          description: Scan ID
+      responses:
+        '200':
+          description: Scan status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  scan_id:
+                    type: string
+                  status:
+                    type: string
+                    enum: [running, completed, failed]
+                  progress:
+                    type: integer
+                    minimum: 0
+                    maximum: 100
+                  message:
+                    type: string
+        '404':
+          description: Scan ID does not exist
+
+  /api/scanner/scan/{scanId}/result:
+    get:
+      summary: Get scan result
+      tags: [Vulnerability Scanner]
+      parameters:
+        - in: path
+          name: scanId
+          required: true
+          schema:
+            type: string
+          description: Scan ID
+      responses:
+        '200':
+          description: Scan result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScanResult'
+        '202':
+          description: Scan not completed
+        '404':
+          description: Scan ID does not exist
+
+  /api/scanner/scan/{scanId}/report:
+    get:
+      summary: Download scan report
+      tags: [Vulnerability Scanner]
+      parameters:
+        - in: path
+          name: scanId
+          required: true
+          schema:
+            type: string
+          description: Scan ID
+        - in: query
+          name: format
+          schema:
+            type: string
+            enum: [html, json]
+            default: html
+          description: Report format
+      responses:
+        '200':
+          description: Report file
+          content:
+            text/html:
+              schema:
+                type: string
+            application/json:
+              schema:
+                type: object
+        '202':
+          description: Scan not completed
+        '404':
+          description: Scan ID does not exist
+
+  /api/scanner/quick-scan:
+    post:
+      summary: Fast sync scanning
+      tags: [Vulnerability Scanner]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScanRequest'
+      responses:
+        '200':
+          description: Scan result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScanResult'
+        '400':
+          description: Request parameter error
+        '500':
+          description: Scan failed
 
 components:
   securitySchemes:
@@ -2769,4 +2986,101 @@ components:
                   description: Model confidence score for diabetes prediction.
                   example: 0.798
 
-  
+    ScanRequest:
+      type: object
+      required:
+        - target_path
+      properties:
+        target_path:
+          type: string
+          description: Target path to scan
+          example: "./routes"
+        plugins:
+          type: array
+          items:
+            type: string
+          description: Specify the plugin to use
+          example: ["JWTMissingProtectionPlugin", "JWTConfigurationPlugin"]
+        output_format:
+          type: string
+          enum: [json, html]
+          default: json
+          description: Output format
+
+    ScanResult:
+      type: object
+      properties:
+        scan_id:
+          type: string
+          description: Scan ID
+          example: "scan_20240906_143022"
+        target_path:
+          type: string
+          description: Scan target path
+          example: "./routes"
+        scan_time:
+          type: string
+          format: date-time
+          description: Scan time
+        total_files:
+          type: integer
+          description: Total number of files scanned
+          example: 173
+        total_findings:
+          type: integer
+          description: Total number of findings
+          example: 28
+        severity_summary:
+          type: object
+          properties:
+            CRITICAL:
+              type: integer
+              example: 2
+            HIGH:
+              type: integer
+              example: 16
+            MEDIUM:
+              type: integer
+              example: 9
+            LOW:
+              type: integer
+              example: 1
+        findings:
+          type: array
+          items:
+            type: object
+            properties:
+              title:
+                type: string
+                example: "Missing JWT Protection"
+              severity:
+                type: string
+                enum: [CRITICAL, HIGH, MEDIUM, LOW]
+                example: "CRITICAL"
+              file_path:
+                type: string
+                example: "routes/userprofile.js"
+              line_number:
+                type: integer
+                example: 42
+              description:
+                type: string
+                example: "API endpoint lacks JWT authentication middleware"
+              plugin_name:
+                type: string
+                example: "JWTMissingProtectionPlugin"
+              rule_id:
+                type: string
+                example: "jwt_missing_protection"
+              rule_name:
+                type: string
+                example: "Missing JWT Protection"
+              rule_mode:
+                type: string
+                description: "Rule execution mode (e.g., normal, debug)"
+                example: "normal"
+              confidence:
+                type: string
+                description: "Classifier confidence for this finding"
+                enum: [LOW, MEDIUM, HIGH]
+                example: "HIGH"
