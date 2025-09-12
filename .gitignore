@@ -137,6 +137,15 @@ venv/
 __pycache__/
 *.pyc
 
+# Local virtualenv created during testing
+.venv/
+
+# pytest cache
+.pytest_cache/
+
+# pipenv
+Pipfile.lock
+
 # macOS system files
 .DS_Store
 
