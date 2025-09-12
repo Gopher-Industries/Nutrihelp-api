@@ -45,6 +45,21 @@ router.get('/test', (req, res) => {
  *       required:
  *         - target_path
  *       properties:
+ *                       key:
+ *                         type: string
+ *                         description: internal plugin key (used by scanner)
+ *                       version:
+ *                         type: string
+ *                         description: plugin version if available
+ *                       available:
+ *                         type: boolean
+ *                         description: whether plugin directory exists in the scanner package
+ *                       enabled:
+ *                         type: boolean
+ *                         description: whether plugin is enabled in scanner config (null if unknown)
+ *                       severity_level:
+ *                         type: string
+ *                         description: default severity level assigned to findings from this plugin
  *         target_path:
  *           type: string
  *           description: Target path to scan
@@ -176,19 +191,83 @@ router.get('/health', async (req, res) => {
  */
 router.get('/plugins', async (req, res) => {
     try {
-        const plugins = [
-            {
-                name: "JWTMissingProtectionPlugin",
-                description: "Detect missing JWT protection in API endpoints",
-                severity_level: "HIGH"
-            },
-            {
-                name: "JWTConfigurationPlugin", 
-                description: "Validate JWT configuration security",
-                severity_level: "MEDIUM"
+        // Dynamically construct available plugin list to reflect the scanner's plugins
+        const scannerRoot = path.join(__dirname, '../Vulnerability_Tool_V2');
+        const pluginsDir = path.join(scannerRoot, 'plugins');
+
+        // Plugin mappings mirror Vulnerability_Tool_V2/core/scanner_engine.py
+        // Note: plugin key => folder name mapping (some plugins group under subpackage like jwt_security)
+        const pluginMappings = {
+            'jwt_missing_protection': { name: 'JWTMissingProtectionPlugin', default_severity: 'HIGH', folder: 'jwt_security' },
+            'jwt_configuration': { name: 'JWTConfigurationPlugin', default_severity: 'MEDIUM', folder: 'jwt_security' },
+            'general_security': { name: 'general_security', default_severity: 'MEDIUM', folder: 'general_security' }
+        };
+
+        // Try to read scanner config to determine enabled state when possible
+        let enabledPluginsConfig = {};
+        try {
+            const configPath = path.join(scannerRoot, 'config', 'scanner_config.yaml');
+            const exists = await fs.access(configPath).then(() => true).catch(() => false);
+            if (exists) {
+                const yaml = require('yamljs');
+                const cfg = yaml.load(configPath) || {};
+                enabledPluginsConfig = cfg.plugins || {};
             }
-        ];
-        
+        } catch (e) {
+            // ignore config read errors; we'll fall back to defaults
+        }
+
+        const plugins = [];
+        for (const [key, meta] of Object.entries(pluginMappings)) {
+            const pluginFolder = path.join(pluginsDir, meta.folder || key);
+            const available = await fs.access(pluginFolder).then(() => true).catch(() => false);
+
+            // defaults
+            let description = '';
+            let version = null;
+
+            if (available) {
+                // Try to read __init__.py to get metadata heuristically
+                try {
+                    const initPath = path.join(pluginFolder, '__init__.py');
+                    const initExists = await fs.access(initPath).then(() => true).catch(() => false);
+                    if (initExists) {
+                        const content = await fs.readFile(initPath, 'utf8');
+                        // attempt to extract description and version strings from get_plugin_info
+                        const descMatch = content.match(/description\s*[:=]\s*['\"]([\s\S]*?)['\"]/i);
+                        const verMatch = content.match(/version\s*[:=]\s*['\"]([\w\.\-]+)['\"]/i);
+                        if (descMatch) description = descMatch[1].trim();
+                        if (verMatch) version = verMatch[1].trim();
+                    }
+                } catch (e) {
+                    // best-effort only
+                }
+            }
+
+            // fallback description if not found
+            if (!description) {
+                if (meta.name === 'general_security') description = 'Detect generic security issues such as hardcoded secrets, DB URLs and permissive CORS.';
+                else if (meta.name === 'JWTMissingProtectionPlugin') description = 'Detect missing JWT protection in API endpoints';
+                else if (meta.name === 'JWTConfigurationPlugin') description = 'Validate JWT configuration security';
+            }
+
+            const cfg = enabledPluginsConfig[key];
+            // Follow scanner_v2.py semantics: general_security should be enabled by default if not present in config
+            let enabled = null;
+            if (cfg && typeof cfg.enabled === 'boolean') enabled = cfg.enabled;
+            else if (key === 'general_security') enabled = true;
+
+            plugins.push({
+                key,
+                name: meta.name,
+                description,
+                version,
+                severity_level: meta.default_severity,
+                available,
+                enabled
+            });
+        }
+
         res.json({ plugins });
     } catch (error) {
         res.status(500).json({
