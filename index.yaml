@@ -1402,7 +1402,6 @@ paths:
           description: Number of records to return
           schema:
             type: integer
-          description: Integer ID of the recipe for cost calculation
             default: 20
         - name: page
           in: query
@@ -1421,7 +1420,6 @@ paths:
             default: true
       responses:
         '200':
-          description: Calculate cost successfully
           description: Successfully retrieved requested data
           content:
             application/json:
@@ -1875,61 +1873,6 @@ paths:
           description: Unauthorized - Authentication credentials missing or invalid.
         '500':
           description: Internal Server Error - Something went wrong on the server.
-              type: object
-              properties:
-                user_id:
-                  type: string
-                  format: uuid
-                  description: The unique ID of the user
-                glasses_consumed:
-                  type: integer
-                  description: Number of glasses consumed
-              required:
-                - user_id
-                - glasses_consumed
-              example:
-              user_id: "15"
-              glasses_consumed: 5
-      responses:
-        '200':
-          description: Water intake updated successfully
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                    example: "Water intake updated successfully"
-                  data:
-                    type: object
-                    properties:
-                      user_id:
-                        type: string
-                        example: "15"
-                      date:
-                        type: string
-                        format: date
-                        example: "2025-05-10"
-                      glasses_consumed:
-                        type: integer
-                        example: 5
-                      updated_at:
-                        type: string
-                        format: date-time
-                        example: "2025-05-10T12:00:00Z"
-        '400':
-          description: Bad request - missing or invalid fields
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
   
   /auth/register:
       post:
@@ -3045,3 +2988,18 @@ components:
               plugin_name:
                 type: string
                 example: "JWTMissingProtectionPlugin"
+              rule_id:
+                type: string
+                example: "jwt_missing_protection"
+              rule_name:
+                type: string
+                example: "Missing JWT Protection"
+              rule_mode:
+                type: string
+                description: "Rule execution mode (e.g., normal, debug)"
+                example: "normal"
+              confidence:
+                type: string
+                description: "Classifier confidence for this finding"
+                enum: [LOW, MEDIUM, HIGH]
+                example: "HIGH"

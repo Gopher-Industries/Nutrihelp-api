@@ -48,6 +48,8 @@
     "yamljs": "^0.3.0"
   },
   "devDependencies": {
+    "acorn": "^8.15.0",
+    "acorn-walk": "^8.3.4",
     "axios": "^1.11.0",
     "concurrently": "^8.2.2",
     "form-data": "^4.0.2",

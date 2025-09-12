@@ -10,7 +10,13 @@ const { v4: uuidv4 } = require('uuid');
 const activeScanners = new Map();
 
 // Generate scan id in style: scan_YYYYMMDD_HHMMSS_<rnd>
-function generateScanId() {
+// Generate scan id in style: YYYYMMDD_HHMMSS_<tag>
+// tag defaults to 'scan' but can be set to 'quick-scan' or others. Keeps filename-safe characters.
+// Generate canonical timestamp ID: YYYYMMDD_HHMMSS
+// The optional tag is no longer embedded into the canonical ID; callers
+// should record the tag separately and filenames are built with the helper
+// below to append an optional tag suffix (e.g. _quick-scan).
+function generateScanId(tag = 'scan') {
     const now = new Date();
     const pad = (n) => String(n).padStart(2, '0');
     const YYYY = now.getFullYear();
@@ -19,7 +25,26 @@ function generateScanId() {
     const hh = pad(now.getHours());
     const mm = pad(now.getMinutes());
     const ss = pad(now.getSeconds());
-    return `scan_${YYYY}${MM}${DD}_${hh}${mm}${ss}`;
+    return `${YYYY}${MM}${DD}_${hh}${mm}${ss}`;
+}
+
+// Compose a filename-safe identifier from the canonical timestamp id and an optional tag.
+function formatScanIdWithTag(scanId, tag) {
+    const cleanTag = tag ? String(tag).replace(/[^a-zA-Z0-9_-]/g, '-') : '';
+    return `${scanId}${cleanTag ? '_' + cleanTag : ''}`;
+}
+
+// Find a file in 'dir' that starts with prefix and ends with ext. Returns null if none found.
+async function findFileWithPrefix(dir, prefix, ext) {
+    try {
+        const entries = await fs.readdir(dir);
+        for (const e of entries) {
+            if (e.startsWith(prefix) && e.endsWith(ext)) return path.join(dir, e);
+        }
+    } catch (e) {
+        return null;
+    }
+    return null;
 }
 
 /**
@@ -331,9 +356,11 @@ router.post('/scan', async (req, res) => {
         }
         
     const scanId = generateScanId();
+    // For normal async scans, use default tag 'scan'
+    const scanTag = 'scan';
 
-        // Start asynchronous scan
-        startPythonScan(scanId, target_path, plugins, output_format);
+    // Start asynchronous scan and pass tag so filenames can include it as a suffix
+    startPythonScan(scanId, scanTag, target_path, plugins, output_format);
         
         res.json({
             scan_id: scanId,
@@ -388,34 +415,38 @@ router.get('/scan/:scanId/status', async (req, res) => {
     
     if (!scanInfo) {
         // Try to load persisted report files as a fallback (project reports or scanner reports)
-        const projectReportJson = path.join(process.cwd(), 'reports', `security_result_${scanId}.json`);
-        const scannerReportHtml = path.join(process.cwd(), 'Vulnerability_Tool_V2', 'reports', `security_report_${scanId}.html`);
         try {
-            // try json first
-            if (fs) {
-                const jsonExists = await fs.access(projectReportJson).then(() => true).catch(() => false);
-                if (jsonExists) {
-                    const data = await fs.readFile(projectReportJson, 'utf8');
-                    scanInfo = { status: 'completed', result: JSON.parse(data) };
-                } else {
-                    const htmlExists = await fs.access(scannerReportHtml).then(() => true).catch(() => false);
-                    if (htmlExists) {
-                        const html = await fs.readFile(scannerReportHtml, 'utf8');
-                        // crude extraction: count finding blocks and try to read embedded summary JSON
-                        const findings = [];
-                        const findingRegex = /<div class="finding-title">([\s\S]*?)<\/div>/g;
-                        let m;
-                        while ((m = findingRegex.exec(html)) !== null) {
-                            findings.push({ title: m[1].trim() });
-                        }
-                        // try to extract a summary JSON blob if present
-                        const jsonBlobMatch = html.match(/\{[\s\S]*?\}/);
-                        let summary = {};
-                        if (jsonBlobMatch) {
-                            try { summary = JSON.parse(jsonBlobMatch[0]); } catch (e) { summary = {}; }
-                        }
-                        scanInfo = { status: 'completed', result: { scan_info: summary.scan_info || {}, summary: summary.summary || {}, findings: findings } };
+            const reportsDir = path.join(process.cwd(), 'reports');
+            const jsonPrefix = `Vulnerability_Scan_Result_${scanId}`;
+            const projectReportJson = await findFileWithPrefix(reportsDir, jsonPrefix, '.json');
+
+            if (projectReportJson) {
+                const data = await fs.readFile(projectReportJson, 'utf8');
+                scanInfo = { status: 'completed', result: JSON.parse(data) };
+            } else {
+                // Try HTML in scanner's reports dir
+                const scannerReportsDir = path.join(process.cwd(), 'Vulnerability_Tool_V2', 'reports');
+                const htmlPrefix = `Vulnerability_Scan_Report_${scanId}`;
+                const scannerReportHtml = await findFileWithPrefix(scannerReportsDir, htmlPrefix, '.html');
+
+                if (scannerReportHtml) {
+                    const html = await fs.readFile(scannerReportHtml, 'utf8');
+                    // crude extraction: count finding blocks and try to read embedded summary JSON
+                    const findings = [];
+                    const findingRegex = /<div class="finding-title">([\s\S]*?)<\/div>/g;
+                    let m;
+                    while ((m = findingRegex.exec(html)) !== null) {
+                        findings.push({ title: m[1].trim() });
                     }
+
+                    // try to extract a summary JSON blob if present
+                    const jsonBlobMatch = html.match(/\{[\s\S]*?\}/);
+                    let summary = {};
+                    if (jsonBlobMatch) {
+                        try { summary = JSON.parse(jsonBlobMatch[0]); } catch (e) { summary = {}; }
+                    }
+
+                    scanInfo = { status: 'completed', result: { scan_info: summary.scan_info || {}, summary: summary.summary || {}, findings: findings } };
                 }
             }
         } catch (e) {
@@ -565,7 +596,7 @@ router.get('/scan/:scanId/report', async (req, res) => {
         try {
             const reportsDir = path.join(__dirname, '../reports');
             await fs.mkdir(reportsDir, { recursive: true });
-            const htmlPath = path.join(reportsDir, `security_report_${scanId}.html`);
+            const htmlPath = path.join(reportsDir, `Vulnerability_Scan_Report_${scanId}.html`);
 
             // First try to use Python renderer if present
             const pythonRenderer = path.join(__dirname, '../Vulnerability_Tool_V2/tools/render_from_json.py');
@@ -631,20 +662,19 @@ router.get('/scan/:scanId/report', async (req, res) => {
 
             // Attach path to scanInfo and send as downloadable file
             // Prefer project reports dir, but if missing, check scanner's own reports folder
-            const projectHtmlPath = path.join(__dirname, '../reports', `security_report_${scanId}.html`);
-            const scannerHtmlPath = path.join(__dirname, '../Vulnerability_Tool_V2/reports', `security_report_${scanId}.html`);
-            const projectExists = await fs.access(projectHtmlPath).then(() => true).catch(() => false);
-            const scannerExists = await fs.access(scannerHtmlPath).then(() => true).catch(() => false);
-            let finalPath = null;
-            if (projectExists) finalPath = projectHtmlPath;
-            else if (scannerExists) finalPath = scannerHtmlPath;
-            else finalPath = htmlPath; // fallback to whatever we wrote earlier
+            const projectReportsDir = path.join(__dirname, '../reports');
+            const scannerReportsDir = path.join(__dirname, '../Vulnerability_Tool_V2/reports');
 
-            // record chosen path
+            // Try to find the actual HTML file which may include an optional tag suffix
+            let finalPath = await findFileWithPrefix(projectReportsDir, `Vulnerability_Scan_Report_${scanId}`, '.html');
+            if (!finalPath) finalPath = await findFileWithPrefix(scannerReportsDir, `Vulnerability_Scan_Report_${scanId}`, '.html');
+            if (!finalPath) finalPath = htmlPath; // fallback to whatever we wrote earlier
+
+            // record chosen path and stream it
             scanInfo.reportPath = finalPath;
             const htmlContent = await fs.readFile(finalPath, 'utf-8');
             res.setHeader('Content-Type', 'text/html');
-            res.setHeader('Content-Disposition', `attachment; filename="security_report_${scanId}.html"`);
+            res.setHeader('Content-Disposition', `attachment; filename="${path.basename(finalPath)}"`);
             res.send(htmlContent);
             return;
         } catch (err) {
@@ -652,7 +682,11 @@ router.get('/scan/:scanId/report', async (req, res) => {
             return;
         }
     } else if (format === 'json') {
-        res.setHeader('Content-Disposition', `attachment; filename="security_report_${scanId}.json"`);
+        // attempt to find persisted json with optional tag
+        const reportsDir = path.join(__dirname, '../reports');
+        const jsonPath = await findFileWithPrefix(reportsDir, `Vulnerability_Scan_Result_${scanId}`, '.json');
+        if (jsonPath) res.setHeader('Content-Disposition', `attachment; filename="${path.basename(jsonPath)}"`);
+        else res.setHeader('Content-Disposition', `attachment; filename=\"Vulnerability_Scan_Result_${scanId}.json\"`);
         res.json(scanInfo.result);
     } else {
         res.status(400).json({
@@ -716,15 +750,82 @@ router.post('/quick-scan', async (req, res) => {
             });
         }
 
-        const scanId = generateScanId();
-        const result = await runPythonScanSync(target_path, plugins, output_format);
-        
-        res.json({
-            scan_id: scanId,
-            target_path: target_path,
-            scan_time: new Date().toISOString(),
-            ...result
-        });
+    const scanId = generateScanId();
+    const scanTag = 'quick-scan';
+    const scanIdWithTag = formatScanIdWithTag(scanId, scanTag);
+    const result = await runPythonScanSync(target_path, plugins, output_format);
+
+        // persist into activeScanners so subsequent report/status endpoints can find it
+        const scanInfo = {
+            status: 'completed',
+            progress: 100,
+            message: 'Quick scan completed',
+            result: result,
+            tag: scanTag,
+            scan_time: new Date().toISOString()
+        };
+
+        // write report files into project's reports dir for later retrieval
+        try {
+            const reportsDir = path.join(__dirname, '../reports');
+            await fs.mkdir(reportsDir, { recursive: true });
+            const jsonPath = path.join(reportsDir, `Vulnerability_Scan_Result_${scanIdWithTag}.json`);
+            await fs.writeFile(jsonPath, JSON.stringify(result, null, 2));
+
+            // also generate HTML report if requested or default format
+            if (output_format === 'html' || output_format === 'json') {
+                // Prefer the project's Python renderer for consistent/identical HTML output
+                const pythonRenderer = path.join(__dirname, '../Vulnerability_Tool_V2/tools/render_from_json.py');
+                const htmlPath = path.join(reportsDir, `Vulnerability_Scan_Report_${scanIdWithTag}.html`);
+                const tmpJson = path.join(reportsDir, `tmp_${scanIdWithTag}.json`);
+                await fs.writeFile(tmpJson, JSON.stringify(result, null, 2));
+                let wroteHtml = false;
+                if (await fs.access(pythonRenderer).then(() => true).catch(() => false)) {
+                    // try to run python helper (best-effort without blocking server startup)
+                    const { spawnSync } = require('child_process');
+                    const scannerPath = path.join(__dirname, '../Vulnerability_Tool_V2');
+                    const pythonCandidates = [
+                        path.join(scannerPath, 'venv', 'bin', 'python'),
+                        'python3',
+                        'python'
+                    ];
+                    for (const py of pythonCandidates) {
+                        try {
+                            const spawnRes = spawnSync(py, [pythonRenderer, tmpJson, htmlPath], { cwd: path.join(__dirname, '..'), encoding: 'utf8' });
+                            if (!spawnRes.error && spawnRes.status === 0) {
+                                wroteHtml = true;
+                                break;
+                            }
+                        } catch (e) {
+                            // ignore and try next
+                        }
+                    }
+                }
+
+                // remove tmp json
+                try { await fs.unlink(tmpJson); } catch (e) {}
+
+                if (!wroteHtml) {
+                    // fallback to JS renderer
+                    const html = generateHTMLReport(result);
+                    await fs.writeFile(htmlPath, html);
+                }
+                scanInfo.reportPath = htmlPath;
+            }
+        } catch (e) {
+            // non-fatal: keep scanInfo in memory but log message
+            scanInfo.message += `; Failed to persist reports: ${e.message}`;
+        }
+
+    activeScanners.set(scanId, scanInfo);
+
+    // Ensure result's own scan_id (if any) doesn't override our generated scanId
+    const responsePayload = Object.assign({}, result || {});
+    responsePayload.scan_id = scanId;
+    responsePayload.target_path = target_path;
+    responsePayload.scan_time = scanInfo.scan_time;
+
+    res.json(responsePayload);
         
     } catch (error) {
         res.status(500).json({
@@ -735,11 +836,12 @@ router.post('/quick-scan', async (req, res) => {
 });
 
 // Start asynchronous Python scan
-function startPythonScan(scanId, targetPath, plugins, outputFormat) {
+function startPythonScan(scanId, scanTag, targetPath, plugins, outputFormat) {
     activeScanners.set(scanId, {
         status: 'running',
         progress: 0,
-        message: 'Scan initiated'
+        message: 'Scan initiated',
+        tag: scanTag
     });
     
     const scannerPath = path.join(__dirname, '../Vulnerability_Tool_V2');
@@ -825,7 +927,8 @@ function startPythonScan(scanId, targetPath, plugins, outputFormat) {
                         try {
                             const reportsDir = path.join(__dirname, '../reports');
                             await fs.mkdir(reportsDir, { recursive: true });
-                            const htmlPath = path.join(reportsDir, `security_report_${scanId}.html`);
+                            const idWithTag = formatScanIdWithTag(scanId, scanTag);
+                            const htmlPath = path.join(reportsDir, `Vulnerability_Scan_Report_${idWithTag}.html`);
                             await fs.writeFile(htmlPath, scanInfo.htmlReport);
                             scanInfo.reportPath = htmlPath;
                         } catch (e) {
@@ -1028,7 +1131,7 @@ function generateHTMLReport(scanResult) {
 <!DOCTYPE html>
 <html>
 <head>
-    <title>NutriHelp Security Scan Report</title>
+    <title>NutriHelp Vulnerability Scan Report</title>
     <style>
         body { font-family: Arial, sans-serif; margin: 40px; }
         .header { background: #2563eb; color: white; padding: 20px; border-radius: 8px; }
