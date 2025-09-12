@@ -28,6 +28,29 @@ function generateScanId(tag = 'scan') {
     return `${YYYY}${MM}${DD}_${hh}${mm}${ss}`;
 }
 
+    // Resolve a usable python executable: prefer venv, then system python3, then python
+    // Returns the executable name/path string or null if none found.
+    async function resolvePythonExecutable(scannerRoot) {
+        const { spawnSync } = require('child_process');
+        const path = require('path');
+        const candidates = [
+            path.join(scannerRoot, 'venv', 'bin', 'python'),
+            'python3',
+            'python'
+        ];
+        for (const c of candidates) {
+            try {
+                const res = spawnSync(c, ['--version'], { encoding: 'utf8' });
+                if (!res.error && (res.status === 0 || (res.stdout || res.stderr))) {
+                    return c;
+                }
+            } catch (e) {
+                // ignore and try next
+            }
+        }
+        return null;
+    }
+
 // Compose a filename-safe identifier from the canonical timestamp id and an optional tag.
 function formatScanIdWithTag(scanId, tag) {
     const cleanTag = tag ? String(tag).replace(/[^a-zA-Z0-9_-]/g, '-') : '';
@@ -845,14 +868,46 @@ function startPythonScan(scanId, scanTag, targetPath, plugins, outputFormat) {
     });
     
     const scannerPath = path.join(__dirname, '../Vulnerability_Tool_V2');
-    const pythonPath = path.join(scannerPath, 'venv/bin/python');
     const scriptPath = path.join(scannerPath, 'scanner_v2.py');
+
+    // Resolve a usable python executable: prefer venv, then system python3, then python
+    function resolvePythonExecutableSync(scannerRoot) {
+        const { spawnSync } = require('child_process');
+        const candidates = [
+            path.join(scannerRoot, 'venv', 'bin', 'python'),
+            'python3',
+            'python'
+        ];
+        for (const c of candidates) {
+            try {
+                const res = spawnSync(c, ['--version'], { encoding: 'utf8' });
+                if (!res.error && (res.status === 0 || (res.stdout || res.stderr))) {
+                    return c;
+                }
+            } catch (e) {
+                // ignore and try next
+            }
+        }
+        return null;
+    }
     
     const args = ['--target', targetPath, '--format', outputFormat];
     
+    const pythonExec = resolvePythonExecutableSync(scannerPath);
+    if (!pythonExec) {
+        const scanInfo = activeScanners.get(scanId);
+        if (scanInfo) {
+            scanInfo.status = 'failed';
+            scanInfo.progress = 0;
+            scanInfo.message = 'No Python executable found. Expected either Vulnerability_Tool_V2/venv/bin/python or system python3. Please create a venv and install dependencies: `python3 -m venv Vulnerability_Tool_V2/venv && source Vulnerability_Tool_V2/venv/bin/activate && pip install -r Vulnerability_Tool_V2/requirements.txt`';
+            scanInfo.rawOutput = (scanInfo.rawOutput || '') + '\n\nSPAWN_ERROR: No python executable found';
+        }
+        return;
+    }
+
     let pythonProcess;
     try {
-        pythonProcess = spawn(pythonPath, [scriptPath, ...args], {
+        pythonProcess = spawn(pythonExec, [scriptPath, ...args], {
             cwd: scannerPath
         });
     } catch (spawnErr) {
@@ -860,7 +915,7 @@ function startPythonScan(scanId, scanTag, targetPath, plugins, outputFormat) {
         if (scanInfo) {
             scanInfo.status = 'failed';
             scanInfo.progress = 0;
-            scanInfo.message = `Failed to start python scanner: ${spawnErr.message || String(spawnErr)}`;
+            scanInfo.message = `Failed to start python scanner using '${pythonExec}': ${spawnErr.message || String(spawnErr)}. Tried candidates: venv/bin/python -> python3 -> python`;
             scanInfo.rawOutput = (scanInfo.rawOutput || '') + '\n\nSPAWN_ERROR:\n' + (spawnErr.stack || String(spawnErr));
         }
         return;
@@ -987,28 +1042,32 @@ function startPythonScan(scanId, scanTag, targetPath, plugins, outputFormat) {
 function runPythonScanSync(targetPath, plugins, outputFormat) {
     return new Promise((resolve, reject) => {
         const scannerPath = path.join(__dirname, '../Vulnerability_Tool_V2');
-        const pythonPath = path.join(scannerPath, 'venv/bin/python');
         const scriptPath = path.join(scannerPath, 'scanner_v2.py');
         
     // Use the requested output format (was hard-coded to 'json')
     const args = ['--target', targetPath, '--format', outputFormat || 'json'];
-        
-        const pythonProcess = spawn(pythonPath, [scriptPath, ...args], {
-            cwd: scannerPath
-        });
+        (async () => {
+            const pythonExec = await resolvePythonExecutable(scannerPath);
+            if (!pythonExec) {
+                return reject(new Error('No usable Python executable found. Please create Vulnerability_Tool_V2/venv or ensure python3 is available and scanner dependencies are installed.'));
+            }
+
+            const pythonProcess = spawn(pythonExec, [scriptPath, ...args], {
+                cwd: scannerPath
+            });
         
         let outputData = '';
         let errorData = '';
         
-        pythonProcess.stdout.on('data', (data) => {
-            outputData += data.toString();
-        });
+            pythonProcess.stdout.on('data', (data) => {
+                outputData += data.toString();
+            });
         
         pythonProcess.stderr.on('data', (data) => {
             errorData += data.toString();
         });
         
-        pythonProcess.on('close', (code) => {
+            pythonProcess.on('close', (code) => {
             if (code === 0) {
                 try {
                     const result = parseBestJSON(outputData);
@@ -1049,7 +1108,8 @@ function runPythonScanSync(targetPath, plugins, outputFormat) {
                     })();
                 }
             }
-        });
+            });
+        })();
     });
 }
 
