@@ -1,12 +1,9 @@
 const getBarcodeAllergen = require('../model/getBarcodeAllergen');
 
+// Some example testable barcodes
+// 3017624010701
+// 0048151623426
 const checkAllergen = async (req, res) => {
-  // Some example testable barcodes
-  // 3017624010701
-  // 070842082205
-  // 9343005000080
-  // 0048151623426
-
   const { user_id } = req.body;
   const code = req.query.code;
 
@@ -42,10 +39,7 @@ const checkAllergen = async (req, res) => {
     }
 
     // Get the name of user allergen ingredients
-    const user_allergen_result = await getBarcodeAllergen.getUserAllergen(user_id);
-    const user_allergen_ingredient_ids = [...new Set(user_allergen_result.map(item => item.ingredient_id))];
-    const user_allergen_ingredients = await getBarcodeAllergen.getIngredients(user_allergen_ingredient_ids);
-    const user_allergen_ingredient_names = user_allergen_ingredients.map(item => item.name.toLowerCase());
+    const user_allergen_ingredient_names = await getBarcodeAllergen.getUserAllergen(user_id);
 
     // Compare the result
     barcode_ingredients_keys = barcode_ingredients.reduce((accumulatedIngredients, currentIngredient) => {
