@@ -183,3 +183,6 @@ app.listen(port, async () => {
 	console.log('💡 Press Ctrl+C to stop the server \n');
 	exec(`start http://localhost:${port}/api-docs`);
 });
+
+const smsRoutes = require('./routes/sms');
+app.use('/api/sms', smsRoutes);
