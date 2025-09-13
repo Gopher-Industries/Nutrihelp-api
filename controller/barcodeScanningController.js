@@ -15,10 +15,15 @@ const checkAllergen = async (req, res) => {
     const result = await getBarcodeAllergen.fetchBarcodeInformation(code);
     if (!result.success) {
       return res.status(404).json({
-        error: `Barcode API error: ${result.error}`
+        error: `Error when fetching barcode information: Invalid barcode`
       })
     }
     const barcode_info = result.data.product;
+    if (!barcode_info) {
+      return res.status(404).json({
+        error: `Error when getting barcode information: Barcode information not found`
+      })
+    }
     let barcode_ingredients = [];
     if (barcode_info.allergens_from_ingredients.length > 0) {
       barcode_ingredients = barcode_info.ingredients_text_en.split(",").map((item) => {
@@ -63,7 +68,7 @@ const checkAllergen = async (req, res) => {
   } catch (error) {
     console.error("Error in getting barcode information: ", error);
     return res.status(500).json({
-      error: "Internal server error"
+      error: "Internal server error: " + error
     })
   }
 }
