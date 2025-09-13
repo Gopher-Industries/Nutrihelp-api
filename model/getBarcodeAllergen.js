@@ -7,7 +7,7 @@ const fields_openfoodfacts = [
   "ingredients_text_en"
 ];
 
-async function getUserAllergen(user_id) {
+async function getUserAllergenFromRecipe(user_id) {
   try {
     let { data, error } = await supabase
       .from("recipe_ingredient")
@@ -32,7 +32,26 @@ async function getIngredients(ingredient_list) {
 	}
 }
 
-async function getUserAllergen(user_id) {
+async function getSavedUserAllergies(user_id) {
+  try {
+    let { data, error } = await supabase
+      .from("user_allergies")
+      .select(`
+        allergy_id,
+        ingredients (
+          id,
+          name
+        )
+        `)
+      .eq("user_id", user_id)
+      .eq("allergy", true);
+    return data ? data : error;
+  } catch (error) {
+    throw error;
+  }
+}
+
+async function getUserAllergenFromRecipe(user_id) {
   try {
     let { data, error } = await supabase
       .from("recipe_ingredient")
@@ -61,6 +80,21 @@ const fetchBarcodeInformation = async (barcode) => {
       error: error
     };
   }
+}
+
+async function getUserAllergen(user_id, isFromRecipe=false) {
+  if (isFromRecipe) {
+    // Fetch data from recipe_ingredients table
+    const user_allergen_result = await getUserAllergenFromRecipe(user_id);
+    const user_allergen_ingredient_ids = [...new Set(user_allergen_result.map(item => item.ingredient_id))];
+    const user_allergen_ingredients = await getIngredients(user_allergen_ingredient_ids);
+    const user_allergen_ingredient_names = user_allergen_ingredients.map(item => item.name.toLowerCase());
+    return user_allergen_ingredient_names;
+  }
+  // Fetch data from user_allergies table
+  const user_allergen_result = await getSavedUserAllergies(user_id);
+  const user_allergen_ingredient_names = user_allergen_result.map(item => item.ingredients.name.toLowerCase());
+  return user_allergen_ingredient_names;
 }
 
 module.exports = {
