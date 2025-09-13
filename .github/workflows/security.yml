@@ -1,4 +1,4 @@
-name: SecurityScanWorkflow
+name: CI + SecurityScanWorkflow
 
 on:
   push:
@@ -7,8 +7,28 @@ on:
   pull_request:
     branches:
       - '**'
+env:
+  NODE_VERSION: "20"
 
 jobs:
+  node-ci:
+    runs-on: ubuntu-latest
+    steps:
+      # 1. Checkout repository
+      - name: Checkout
+        uses: actions/checkout@v4
+ 
+      # 2. Setup Node.js with caching enabled
+      - name: Setup Node with cache
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+ 
+      # 3. Install dependencies (reproducible and cache-friendly)
+      - name: Install dependencies
+        run: npm ci
   run-security-scan:
     runs-on: ubuntu-latest
 
