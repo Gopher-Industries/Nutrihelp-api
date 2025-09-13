@@ -137,3 +137,8 @@ dist
 /Vulnerability_Tool_V2/__pycache__/
 /Vulnerability_Tool_V2/.pytest_cache/
 /Vulnerability_Tool_V2/.cache/
+
+# General Python ignores
+__pycache__/
+*.py[cod]
+*$py.class
