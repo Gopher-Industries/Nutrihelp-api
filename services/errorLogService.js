@@ -23,27 +23,15 @@ class ErrorLogService {
   }) {
     try {
       const logEntry = {
-        // Error information
-        error_category: category,
         error_type: type,
-        error_code: error.code || 'UNKNOWN_ERROR',
         error_message: error.message || error.toString(),
-        error_stack: error.stack,
-
-        // Request context
-        ...(req && this.extractRequestContext(req)),
-
-        // User session information
-        ...(req && this.extractUserContext(req)),
-
-        // System context
-        ...this.getSystemContext(),
-
-        // Response context
-        ...(res && this.extractResponseContext(res)),
-
-        // Additional context
-        ...additionalContext
+        stack_trace: error.stack,
+        endpoint: req?.originalUrl || req?.url,
+        method: req?.method,
+        request_body: req?.body ? JSON.stringify(this.sanitizeRequestBody(req.body)) : null,
+        user_id: req?.user?.userId || null,
+        ip_address: this.getClientIP(req),
+        created_at: new Date().toISOString()
       };
 
       const { data, error: insertError } = await supabase
@@ -130,22 +118,26 @@ class ErrorLogService {
    * Get client IP
    */
   getClientIP(req) {
+    if (!req) return null;
     return req.ip || 
-           req.connection.remoteAddress || 
-           req.socket.remoteAddress ||
-           (req.connection.socket ? req.connection.socket.remoteAddress : null);
+      (req.connection && req.connection.remoteAddress) || 
+      (req.socket && req.socket.remoteAddress) ||
+      (req.connection && req.connection.socket ? req.connection.socket.remoteAddress : null) || null;
   }
 
   /**
    * Sanitize sensitive request headers
    */
   sanitizeHeaders(headers) {
+    if (!headers || typeof headers !== 'object') return headers;
     const sanitized = { ...headers };
     const sensitiveHeaders = ['authorization', 'cookie', 'x-api-key'];
     
     sensitiveHeaders.forEach(header => {
-      if (sanitized[header]) {
-        sanitized[header] = '[REDACTED]';
+      // header keys may be in different cases
+      const key = Object.keys(sanitized).find(k => k.toLowerCase() === header);
+      if (key && sanitized[key]) {
+        sanitized[key] = '[REDACTED]';
       }
     });
     
