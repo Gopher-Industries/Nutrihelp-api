@@ -130,3 +130,10 @@ dist
 
 .vscode
 .idea
+
+# Ignore virtualenvs and caches inside Vulnerability_Tool_V2
+/Vulnerability_Tool_V2/.venv/
+/Vulnerability_Tool_V2/venv/
+/Vulnerability_Tool_V2/__pycache__/
+/Vulnerability_Tool_V2/.pytest_cache/
+/Vulnerability_Tool_V2/.cache/
