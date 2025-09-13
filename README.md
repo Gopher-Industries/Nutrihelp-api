@@ -16,6 +16,7 @@ cd Nutrihelp-api
 npm install
 pip install -r requirements.txt
 npm install node-fetch
+npm install --save-dev jest supertest
 ```
 5. Contact a project maintainer to get the `.env` file that contains the necessary environment variables and place it in the root of the project directory.
 6. Start the server:
@@ -29,6 +30,30 @@ You can now access the API at `http://localhost:80`.
 The API is documented using OpenAPI 3.0, located in `index.yaml`.
 You can view the documentation by navigating to `http://localhost:80/api-docs` in your browser.
 
+## Automated Testing
+1. In order to run the jest test cases, make sure your package.json file has the following test script added:
+```bash
+"scripts": {
+  "test": "jest"
+}
+```
+Also, have the followiing dependency added below scripts:
+```bash
+"jest": {
+    "testMatch": [
+      "**/test/**/*.js"
+    ]
+  },
+```
+2. Make sure to run the server before running the test cases.
+3. Run the test cases using jest and supertest:
+```bash
+npx jest .\test\<TEST_SUITE_FILE_NAME>
+```
+For example:
+```bash
+npx jest .\test\healthNews.test.js
+```
 
 /\ Please refer to the "PatchNotes_VersionControl" file for  /\
 /\ recent updates and changes made through each version.     /\
