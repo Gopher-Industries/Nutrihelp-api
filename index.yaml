@@ -9,7 +9,57 @@ tags:
     description: System and security monitoring endpoints
   - name: LoginDashboard
     description: KPIs and trends from public.audit_logs
+  - name: Allergy
+    description: Endpoints for allergy checks and warnings
 paths:
+  /allergy/common:
+    get:
+      tags: [Allergy]
+      summary: Get common allergens list
+      description: Returns an array of common allergens to help build UI pickers.
+      responses:
+        '200':
+          description: List of common allergens
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  allergens:
+                    type: array
+                    items: { type: string }
+              examples:
+                default:
+                  value:
+                    allergens: ["peanuts","tree nuts","milk","eggs","soy","wheat","fish","shellfish","sesame"]
+
+  /allergy/check:
+    post:
+      tags: [Allergy]
+      summary: Check a meal against user allergies
+      description: Returns which of the user's allergies are present in the meal's ingredients.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AllergyCheckRequest'
+            examples:
+              simple:
+                value:
+                  userAllergies: ["peanuts","milk"]
+                  meal:
+                    name: "PB&J with milk"
+                    ingredients: ["bread","peanut butter","jelly","milk"]
+      responses:
+        '200':
+          description: Allergy check result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AllergyCheckResponse'
+
+
   /system/generate-baseline:
     post:
       tags:
@@ -2204,12 +2254,45 @@ paths:
                     example: "2025-08-03T12:14:00.706Z"
 
 components:
+
   securitySchemes:
     BearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
   schemas:
+    AllergyCheckRequest:
+      type: object
+      required: [userAllergies, meal]
+      properties:
+        userAllergies:
+          type: array
+          description: List of allergens the user is sensitive to (lowercase recommended)
+          items: { type: string }
+          example: ["peanuts","milk","sesame"]
+        meal:
+          type: object
+          required: [name, ingredients]
+          properties:
+            name:
+              type: string
+              example: "Chicken Satay"
+            ingredients:
+              type: array
+              items: { type: string }
+              example: ["chicken","peanut sauce","soy sauce","garlic"]
+
+    AllergyCheckResponse:
+      type: object
+      properties:
+        hasAllergens:
+          type: boolean
+          example: true
+        triggers:
+          type: array
+          description: Which of the userAllergies were detected in the meal ingredients
+          items: { type: string }
+          example: ["peanuts","soy"]
     Kpi24h:
       type: object
       properties:
@@ -2744,7 +2827,6 @@ components:
       properties:
         user_id:
           type: integer
-
     MedicalReportRequest:
       MedicalReportRequest:
       type: object
