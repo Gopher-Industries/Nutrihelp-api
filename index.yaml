@@ -9,9 +9,61 @@ servers:
 tags:
   - name: System
     description: System and security monitoring endpoints
+  - name: LoginDashboard
+    description: KPIs and trends from public.audit_logs
+  - name: Allergy
+    description: Endpoints for allergy checks and warnings
   - name: Vulnerability Scanner
     description: Endpoints for the vulnerability scanner
 paths:
+  /allergy/common:
+    get:
+      tags: [Allergy]
+      summary: Get common allergens list
+      description: Returns an array of common allergens to help build UI pickers.
+      responses:
+        '200':
+          description: List of common allergens
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  allergens:
+                    type: array
+                    items: { type: string }
+              examples:
+                default:
+                  value:
+                    allergens: ["peanuts","tree nuts","milk","eggs","soy","wheat","fish","shellfish","sesame"]
+
+  /allergy/check:
+    post:
+      tags: [Allergy]
+      summary: Check a meal against user allergies
+      description: Returns which of the user's allergies are present in the meal's ingredients.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AllergyCheckRequest'
+            examples:
+              simple:
+                value:
+                  userAllergies: ["peanuts","milk"]
+                  meal:
+                    name: "PB&J with milk"
+                    ingredients: ["bread","peanut butter","jelly","milk"]
+      responses:
+        '200':
+          description: Allergy check result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AllergyCheckResponse'
+
+
   /system/generate-baseline:
     post:
       tags:
@@ -56,6 +108,76 @@ paths:
                           type: string
                         issue:
                           type: string
+  /login-dashboard/kpi:
+    get:
+      tags: [LoginDashboard]
+      summary: 24h login KPIs
+      responses:
+        '200':
+          description: KPIs
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Kpi24h' }
+ 
+  /login-dashboard/daily:
+    get:
+      tags: [LoginDashboard]
+      summary: Daily attempts/success/failure
+      parameters:
+        - in: query
+          name: days
+          schema: { type: integer, minimum: 1, default: 30 }
+      responses:
+        '200':
+          description: Time series
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/DailyRow' }
+ 
+  /login-dashboard/dau:
+    get:
+      tags: [LoginDashboard]
+      summary: Daily Active Users (successful unique logins)
+      parameters:
+        - in: query
+          name: days
+          schema: { type: integer, minimum: 1, default: 30 }
+      responses:
+        '200':
+          description: DAU time series
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/DauRow' }
+ 
+  /login-dashboard/top-failing-ips:
+    get:
+      tags: [LoginDashboard]
+      summary: Top failing IPs (7 days)
+      responses:
+        '200':
+          description: Suspicious IPs
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/FailingIpRow' }
+ 
+  /login-dashboard/fail-by-domain:
+    get:
+      tags: [LoginDashboard]
+      summary: Failures grouped by email domain (7 days)
+      responses:
+        '200':
+          description: Failure counts by domain
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/DomainFailRow' }
   /upload:
     post:
       summary: Upload a file
@@ -2130,231 +2252,78 @@ paths:
                     format: date-time
                     example: "2025-08-03T12:14:00.706Z"
 
-  /api/scanner/test:
-    get:
-      summary: Testing endpoints
-      tags: [Vulnerability Scanner]
-      responses:
-        '200':
-          description: Testing successful
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                    example: "Scanner API is working!"
-                  timestamp:
-                    type: string
-                    example: "2025-09-05T19:48:20.611Z"
-
-  /api/scanner/health:
-    get:
-      summary: Scanner health check
-      tags: [Vulnerability Scanner]
-      responses:
-        '200':
-          description: Scanner status normal
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    example: "healthy"
-                  version:
-                    type: string
-                    example: "2.0.0"
-                  timestamp:
-                    type: string
-                  scanner_path:
-                    type: string
-        '500':
-          description: Server error
-
-  /api/scanner/plugins:
-    get:
-      summary: Get available plugin list
-      tags: [Vulnerability Scanner]
-      responses:
-        '200':
-          description: Plugin list
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  plugins:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        name:
-                          type: string
-                          example: "JWTMissingProtectionPlugin"
-                        description:
-                          type: string
-                          example: "Detect missing JWT protection in API endpoints"
-                        severity_level:
-                          type: string
-                          example: "HIGH"
-
-  /api/scanner/scan:
-    post:
-      summary: Start security scan
-      tags: [Vulnerability Scanner]
-      security:
-        - BearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ScanRequest'
-      responses:
-        '200':
-          description: Scan started successfully
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  scan_id:
-                    type: string
-                    example: "scan_20240906_143022"
-                  message:
-                    type: string
-                    example: "Scan started successfully"
-                  status_url:
-                    type: string
-                    example: "/api/scanner/scan/scan_20240906_143022/status"
-        '400':
-          description: Request parameter error
-        '500':
-          description: Server error
-
-  /api/scanner/scan/{scanId}/status:
-    get:
-      summary: Get scan status
-      tags: [Vulnerability Scanner]
-      parameters:
-        - in: path
-          name: scanId
-          required: true
-          schema:
-            type: string
-          description: Scan ID
-      responses:
-        '200':
-          description: Scan status
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  scan_id:
-                    type: string
-                  status:
-                    type: string
-                    enum: [running, completed, failed]
-                  progress:
-                    type: integer
-                    minimum: 0
-                    maximum: 100
-                  message:
-                    type: string
-        '404':
-          description: Scan ID does not exist
-
-  /api/scanner/scan/{scanId}/result:
-    get:
-      summary: Get scan result
-      tags: [Vulnerability Scanner]
-      parameters:
-        - in: path
-          name: scanId
-          required: true
-          schema:
-            type: string
-          description: Scan ID
-      responses:
-        '200':
-          description: Scan result
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ScanResult'
-        '202':
-          description: Scan not completed
-        '404':
-          description: Scan ID does not exist
-
-  /api/scanner/scan/{scanId}/report:
-    get:
-      summary: Download scan report
-      tags: [Vulnerability Scanner]
-      parameters:
-        - in: path
-          name: scanId
-          required: true
-          schema:
-            type: string
-          description: Scan ID
-        - in: query
-          name: format
-          schema:
-            type: string
-            enum: [html, json]
-            default: html
-          description: Report format
-      responses:
-        '200':
-          description: Report file
-          content:
-            text/html:
-              schema:
-                type: string
-            application/json:
-              schema:
-                type: object
-        '202':
-          description: Scan not completed
-        '404':
-          description: Scan ID does not exist
-
-  /api/scanner/quick-scan:
-    post:
-      summary: Fast sync scanning
-      tags: [Vulnerability Scanner]
-      security:
-        - BearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ScanRequest'
-      responses:
-        '200':
-          description: Scan result
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ScanResult'
-        '400':
-          description: Request parameter error
-        '500':
-          description: Scan failed
-
 components:
+
   securitySchemes:
     BearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
   schemas:
+    AllergyCheckRequest:
+      type: object
+      required: [userAllergies, meal]
+      properties:
+        userAllergies:
+          type: array
+          description: List of allergens the user is sensitive to (lowercase recommended)
+          items: { type: string }
+          example: ["peanuts","milk","sesame"]
+        meal:
+          type: object
+          required: [name, ingredients]
+          properties:
+            name:
+              type: string
+              example: "Chicken Satay"
+            ingredients:
+              type: array
+              items: { type: string }
+              example: ["chicken","peanut sauce","soy sauce","garlic"]
+
+    AllergyCheckResponse:
+      type: object
+      properties:
+        hasAllergens:
+          type: boolean
+          example: true
+        triggers:
+          type: array
+          description: Which of the userAllergies were detected in the meal ingredients
+          items: { type: string }
+          example: ["peanuts","soy"]
+    Kpi24h:
+      type: object
+      properties:
+        login_events_24h: { type: integer, example: 512 }
+        successes_24h:    { type: integer, example: 420 }
+        failures_24h:     { type: integer, example: 92 }
+        success_rate_24h: { type: number, format: float, example: 82.03 }
+    DailyRow:
+      type: object
+      properties:
+        day_local:        { type: string, format: date, example: '2025-08-26' }
+        attempts:         { type: integer, example: 150 }
+        successes:        { type: integer, example: 120 }
+        failures:         { type: integer, example: 30 }
+        success_rate_pct: { type: number, format: float, example: 80.0 }
+    DauRow:
+      type: object
+      properties:
+        day_local: { type: string, format: date, example: '2025-08-26' }
+        dau:       { type: integer, example: 97 }
+    FailingIpRow:
+      type: object
+      properties:
+        ip_address:         { type: string, example: '127.0.0.1' }
+        failed_count:       { type: integer, example: 120 }
+        total_login_events: { type: integer, example: 150 }
+        fail_pct:           { type: number, format: float, example: 80.0 }
+    DomainFailRow:
+      type: object
+      properties:
+        domain:           { type: string, example: 'deakin.edu.au' }
+        failures_last_7d: { type: integer, example: 35 }
     LoginRequest:
       type: object
       properties:
@@ -2857,7 +2826,6 @@ components:
       properties:
         user_id:
           type: integer
-
     MedicalReportRequest:
       MedicalReportRequest:
       type: object
@@ -2986,101 +2954,4 @@ components:
                   description: Model confidence score for diabetes prediction.
                   example: 0.798
 
-    ScanRequest:
-      type: object
-      required:
-        - target_path
-      properties:
-        target_path:
-          type: string
-          description: Target path to scan
-          example: "./routes"
-        plugins:
-          type: array
-          items:
-            type: string
-          description: Specify the plugin to use
-          example: ["JWTMissingProtectionPlugin", "JWTConfigurationPlugin"]
-        output_format:
-          type: string
-          enum: [json, html]
-          default: json
-          description: Output format
-
-    ScanResult:
-      type: object
-      properties:
-        scan_id:
-          type: string
-          description: Scan ID
-          example: "scan_20240906_143022"
-        target_path:
-          type: string
-          description: Scan target path
-          example: "./routes"
-        scan_time:
-          type: string
-          format: date-time
-          description: Scan time
-        total_files:
-          type: integer
-          description: Total number of files scanned
-          example: 173
-        total_findings:
-          type: integer
-          description: Total number of findings
-          example: 28
-        severity_summary:
-          type: object
-          properties:
-            CRITICAL:
-              type: integer
-              example: 2
-            HIGH:
-              type: integer
-              example: 16
-            MEDIUM:
-              type: integer
-              example: 9
-            LOW:
-              type: integer
-              example: 1
-        findings:
-          type: array
-          items:
-            type: object
-            properties:
-              title:
-                type: string
-                example: "Missing JWT Protection"
-              severity:
-                type: string
-                enum: [CRITICAL, HIGH, MEDIUM, LOW]
-                example: "CRITICAL"
-              file_path:
-                type: string
-                example: "routes/userprofile.js"
-              line_number:
-                type: integer
-                example: 42
-              description:
-                type: string
-                example: "API endpoint lacks JWT authentication middleware"
-              plugin_name:
-                type: string
-                example: "JWTMissingProtectionPlugin"
-              rule_id:
-                type: string
-                example: "jwt_missing_protection"
-              rule_name:
-                type: string
-                example: "Missing JWT Protection"
-              rule_mode:
-                type: string
-                description: "Rule execution mode (e.g., normal, debug)"
-                example: "normal"
-              confidence:
-                type: string
-                description: "Classifier confidence for this finding"
-                enum: [LOW, MEDIUM, HIGH]
-                example: "HIGH"
+  
