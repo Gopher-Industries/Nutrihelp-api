@@ -93,21 +93,21 @@ router.get('/test', (req, res) => {
  *       required:
  *         - target_path
  *       properties:
- *                       key:
- *                         type: string
- *                         description: internal plugin key (used by scanner)
- *                       version:
- *                         type: string
- *                         description: plugin version if available
- *                       available:
- *                         type: boolean
- *                         description: whether plugin directory exists in the scanner package
- *                       enabled:
- *                         type: boolean
- *                         description: whether plugin is enabled in scanner config (null if unknown)
- *                       severity_level:
- *                         type: string
- *                         description: default severity level assigned to findings from this plugin
+ *         key:
+ *           type: string
+ *           description: internal plugin key (used by scanner)
+ *         version:
+ *           type: string
+ *           description: plugin version if available
+ *         available:
+ *           type: boolean
+ *           description: whether plugin directory exists in the scanner package
+ *         enabled:
+ *           type: boolean
+ *           description: whether plugin is enabled in scanner config (null if unknown)
+ *         severity_level:
+ *           type: string
+ *           description: default severity level assigned to findings from this plugin
  *         target_path:
  *           type: string
  *           description: Target path to scan
@@ -117,12 +117,20 @@ router.get('/test', (req, res) => {
  *           items:
  *             type: string
  *           description: Specify the plugin to use
- *           example: ["JWTMissingProtectionPlugin", "JWTConfigurationPlugin"]
+ *           example:
+ *             - "JWTMissingProtectionPlugin"
+ *             - "JWTConfigurationPlugin"
  *         output_format:
  *           type: string
  *           enum: [json, html]
  *           default: json
  *           description: Output format
+ *       example:
+ *         target_path: "./routes"
+ *         plugins:
+ *           - "JWTMissingProtectionPlugin"
+ *           - "JWTConfigurationPlugin"
+ *         output_format: "json"
  *     ScanResult:
  *       type: object
  *       properties:
@@ -411,10 +419,10 @@ router.post('/scan', async (req, res) => {
  *         required: true
  *         schema:
  *           type: string
- *         description: 扫描ID
+ *         description: ScanID
  *     responses:
  *       200:
- *         description: 扫描状态
+ *         description: Scan Status
  *         content:
  *           application/json:
  *             schema:

@@ -2500,6 +2500,13 @@ components:
           type: string
         allergy:
           type: string
+                example:
+                  target_path: "./routes"
+                  plugins:
+                    - "JWTMissingProtectionPlugin"
+                    - "JWTConfigurationPlugin"
+                    - "general_security"
+                  output_format: "json"
         dislikes:
           type: string
     MealPlanRecipe:

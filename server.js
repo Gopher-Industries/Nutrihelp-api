@@ -7,6 +7,14 @@ const helmet = require('helmet');
 const cors = require("cors");
 const swaggerUi = require("swagger-ui-express");
 const yaml = require("yamljs");
+// swagger-jsdoc will be used at runtime to include JSDoc @swagger comments from route files
+let swaggerJSDoc;
+try {
+  swaggerJSDoc = require('swagger-jsdoc');
+} catch (e) {
+  // swagger-jsdoc may not be installed in some environments; we will fall back to static index.yaml
+  swaggerJSDoc = null;
+}
 const { exec } = require("child_process");
 const rateLimit = require('express-rate-limit');
 const uploadRoutes = require('./routes/uploadRoutes');
@@ -92,11 +100,36 @@ const limiter = rateLimit({
 app.use(limiter);
 
 // Swagger
-const swaggerDocument = yaml.load("./index.yaml");
+let swaggerDocument = yaml.load("./index.yaml");
 // Remove externalDocs if present to avoid CORS issues
 if (swaggerDocument && swaggerDocument.externalDocs) {
-	delete swaggerDocument.externalDocs;
+    delete swaggerDocument.externalDocs;
 }
+
+// If swagger-jsdoc is available, attempt to generate docs from JSDoc comments and merge paths
+if (swaggerJSDoc) {
+  try {
+    const options = {
+      definition: {
+        openapi: '3.0.0',
+      },
+      // Scan route files and controllers for @swagger JSDoc comments
+      apis: ["./routes/**/*.js", "./controller/**/*.js"],
+    };
+    const generated = swaggerJSDoc(options);
+    // Merge generated.paths into the static swaggerDocument.paths (generated takes precedence)
+    swaggerDocument.paths = Object.assign({}, swaggerDocument.paths || {}, generated.paths || {});
+    // Merge components.schemas if present
+    if (generated.components && generated.components.schemas) {
+      swaggerDocument.components = swaggerDocument.components || {};
+      swaggerDocument.components.schemas = Object.assign({}, swaggerDocument.components.schemas || {}, generated.components.schemas);
+    }
+  } catch (e) {
+    console.error('Failed to generate swagger from JSDoc:', e && e.message ? e.message : e);
+    // keep swaggerDocument as loaded from index.yaml
+  }
+}
+
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
 // Parsers
