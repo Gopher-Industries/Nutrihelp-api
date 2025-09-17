@@ -1,7 +1,9 @@
+require('dotenv').config();
 // security/runAssessment.js
 const SecurityChecklist = require('./securityChecklist');
 const SecurityReportGenerator = require('./reportGenerator');
 const { createClient } = require('@supabase/supabase-js');
+
 
 class SecurityAssessmentRunner {
   constructor() {
