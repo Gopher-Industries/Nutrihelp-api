@@ -1,55 +1,53 @@
 // routes/verify.js
 const express = require('express');
 const router = express.Router();
-const supabaseAdmin = require('../new_utils/supabaseAdmin');
+const supabaseAdmin = require('../new_utils/supabaseAdmin'); // should use SERVICE_ROLE key
 
 router.get('/verify-email/:token', async (req, res) => {
   const token = req.params.token;
   if (!token) return res.status(400).send('Token missing');
 
   try {
-    // find token row
+    // 1) find token row (only what we need)
     const { data: row, error: rowErr } = await supabaseAdmin
       .from('email_verification_tokens')
-      .select('*')
+      .select('id, user_email, expires_at, verified_at')
       .eq('token', token)
-      .limit(1)
       .single();
 
-    if (rowErr || !row) return res.status(400).send('Invalid token');
+    if (rowErr || !row) return res.status(400).send('Invalid or expired link');
 
-    // expiry check
-    if (new Date(row.expires_at) < new Date()) {
-      return res.status(400).send('Token expired');
+    // 2) already used?
+    if (row.verified_at) {
+      return res.status(400).send('This link was already used');
     }
 
-    const userEmail = row.user_email; // <-- IMPORTANT: your table uses user_email
-
-    // update users table to mark verified (adjust column/table names if needed)
-    // assumes users table has 'email' and 'is_email_verified' columns
-    const { error: userErr } = await supabaseAdmin
-      .from('users')
-      .update({ is_email_verified: true })
-      .eq('email', userEmail);
-
-    if (userErr) {
-      console.error('Failed to update user:', userErr);
-      return res.status(500).send('Failed to update user verification');
+    // 3) expired? (treat null as “no expiry”)
+    if (row.expires_at && new Date(row.expires_at) < new Date()) {
+      return res.status(400).send('This link has expired');
     }
 
-    // delete token so it can't be reused (or update used_at if you prefer)
-    await supabaseAdmin
+    // 4) mark token as verified (single-use)
+    const now = new Date().toISOString();
+    const { error: updErr } = await supabaseAdmin
       .from('email_verification_tokens')
-      .delete()
+      .update({ verified_at: now })
       .eq('id', row.id);
 
-    // Return a simple HTML success page (or JSON if you prefer)
+    if (updErr) {
+      console.error('[verify-email] token update error:', updErr);
+      return res.status(500).send('Failed to verify token');
+    }
+
+    // 5) success page (or redirect to frontend if you prefer)
+    const email = row.user_email;
     return res.send(`
       <html>
         <head><title>Email verified</title></head>
         <body style="font-family: Arial; text-align:center; padding:40px;">
           <h1>✅ Email verified</h1>
-          <p>${userEmail} has been verified.</p>
+          <p>${email} has been verified via token.</p>
+          <p>This verification link is now single-use.</p>
         </body>
       </html>
     `);

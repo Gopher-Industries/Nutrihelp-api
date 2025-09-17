@@ -10,5 +10,6 @@ router.post('/log-login-attempt', authController.logLoginAttempt);
 router.post('/request-email-verification', authController.requestEmailVerification);
 
 router.get('/__ping', (req, res) => res.json({ ok: true, route: 'auth' }));
+router.get('/verify-email/:token', authController.verifyEmailToken);
 
 module.exports = router;

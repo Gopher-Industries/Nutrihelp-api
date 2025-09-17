@@ -1,18 +1,24 @@
+// controllers/authController.js
 const { createClient } = require('@supabase/supabase-js');
 const sendVerificationEmail = require('../new_utils/sendVerificationEmail');
 
-// Create Supabase client for server-side usage (uses anon key by default).
-// If you need service_role privileges, set process.env.SUPABASE_SERVICE_ROLE_KEY
-// and create a separate client for elevated ops (do NOT commit service role to repo).
+// ── Supabase clients ───────────────────────────────────────────────────────────
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_ANON_KEY
 );
 
-/**
- * Log a login attempt to auth_logs table.
- * Body expected: { email, user_id, success, ip_address, created_at }
- */
+// 用 service-role 做 token 驗證更新（避免 RLS）
+const admin = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY,
+  { auth: { persistSession: false } }
+);
+
+// 開機時打 log，方便你confirm係新程式
+console.log('[authController] loaded. SRK set =', !!process.env.SUPABASE_SERVICE_ROLE_KEY);
+
+// ── Handlers ──────────────────────────────────────────────────────────────────
 exports.logLoginAttempt = async (req, res) => {
   try {
     console.log('[logLoginAttempt] payload:', req.body);
@@ -25,15 +31,9 @@ exports.logLoginAttempt = async (req, res) => {
       });
     }
 
-    const { data, error } = await supabase.from('auth_logs').insert([
-      {
-        email,
-        user_id: user_id || null,
-        success,
-        ip_address,
-        created_at,
-      },
-    ]);
+    const { data, error } = await supabase.from('auth_logs').insert([{
+      email, user_id: user_id || null, success, ip_address, created_at,
+    }]);
 
     if (error) {
       console.error('❌ [logLoginAttempt] Supabase insert error:', error);
@@ -48,45 +48,65 @@ exports.logLoginAttempt = async (req, res) => {
   }
 };
 
-/**
- * Request email verification:
- * Expects { email } in body.
- * Will call new_utils/sendVerificationEmail(email) and return/log whatever it returns.
- */
 exports.requestEmailVerification = async (req, res) => {
-  console.log('[requestEmailVerification] called with body:', req.body);
+  console.log('[requestEmailVerification] body:', req.body);
   const { email } = req.body;
-  if (!email) {
-    console.warn('[requestEmailVerification] missing email in request body');
-    return res.status(400).json({ error: 'Email is required.' });
-  }
+  if (!email) return res.status(400).json({ error: 'Email is required.' });
 
   try {
     const result = await sendVerificationEmail(email);
-    console.log('[requestEmailVerification] sendVerificationEmail returned:', result);
+    console.log('[requestEmailVerification] mailer returned:', result);
 
     const verifyUrl = result?.verifyUrl || result?.verifyURL || result?.url || null;
-    if (verifyUrl) {
-      console.log('🔗 DEV EMAIL VERIFICATION LINK:', verifyUrl);
-    } else {
-      console.log('🔗 DEV EMAIL VERIFICATION LINK: (no URL returned by mailer)');
-    }
+    console.log('🔗 DEV VERIFY LINK:', verifyUrl || '(none)');
 
     return res.status(200).json({
       message: `Verification email sent to ${email}`,
-      verifyUrl: verifyUrl || undefined
+      verifyUrl: verifyUrl || undefined,
     });
   } catch (err) {
-    // IMPORTANT: print everything useful about the error
-    console.error('❌ Error in requestEmailVerification: message=', err?.message);
-    if (err?.stack) console.error(err.stack);
-    // If it's a Supabase style error object passed through, print it
-    if (err?.response) console.error('error.response:', err.response);
-    if (err?.status) console.error('error.status:', err.status);
-    if (err?.code) console.error('error.code:', err.code);
-    // fallback print
-    console.error('Full error (raw):', err);
-
+    console.error('❌ [requestEmailVerification] error:', err?.message, err);
     return res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+// ★ Token-only 驗證（不改 users 表）
+// GET /api/verify-email/:token
+exports.verifyEmailToken = async (req, res) => {
+  const { token } = req.params;
+  const now = new Date().toISOString();
+  console.log('[verifyEmailToken] start. token =', token);
+
+  try {
+    // 1) 讀 token 行
+    const { data: row, error: findErr } = await admin
+      .from('email_verification_tokens')
+      .select('id, user_email, expires_at, verified_at')
+      .eq('token', token)
+      .single();
+
+    console.log('[verifyEmailToken] row =', row, 'error =', findErr);
+
+    if (findErr || !row) return res.status(400).send('Invalid or expired link');
+    if (row.verified_at) return res.status(400).send('This link was already used');
+    if (row.expires_at && new Date(row.expires_at) < new Date())
+      return res.status(400).send('This link has expired');
+
+    // 2) 設 verified_at（一次性）
+    const { error: updErr } = await admin
+      .from('email_verification_tokens')
+      .update({ verified_at: now })
+      .eq('id', row.id);
+
+    if (updErr) {
+      console.error('[verifyEmailToken] update error:', updErr);
+      return res.status(500).send('Failed to verify token (DB update)');
+    }
+
+    console.log('✅ [verifyEmailToken] verified_at set for token id =', row.id);
+    return res.status(200).send('Email verified successfully (token)');
+  } catch (e) {
+    console.error('❌ [verifyEmailToken] unexpected error:', e);
+    return res.status(500).send('Unexpected error');
   }
 };
