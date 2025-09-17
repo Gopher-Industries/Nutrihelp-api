@@ -623,20 +623,19 @@ router.get('/scan/:scanId/report', async (req, res) => {
     }
     
     if (format === 'html' && scanInfo.result) {
-        // Persist and return HTML report. Prefer project's Python renderer for exact parity if available.
+        // Persist and return HTML report. Prefer the scanner's reports dir for storage.
         try {
-            const reportsDir = path.join(__dirname, '../reports');
-            await fs.mkdir(reportsDir, { recursive: true });
-            const htmlPath = path.join(reportsDir, `Vulnerability_Scan_Report_${scanId}.html`);
+            const scannerReportsDir = path.join(__dirname, '../Vulnerability_Tool_V2', 'reports');
+            await fs.mkdir(scannerReportsDir, { recursive: true });
+            const htmlPath = path.join(scannerReportsDir, `Vulnerability_Scan_Report_${scanId}.html`);
 
             // First try to use Python renderer if present
             const pythonRenderer = path.join(__dirname, '../Vulnerability_Tool_V2/tools/render_from_json.py');
             const scannerPath = path.join(__dirname, '../Vulnerability_Tool_V2');
-            const projectRoot = path.join(__dirname, '..');
 
             if (await fs.access(pythonRenderer).then(() => true).catch(() => false)) {
-                // write JSON temp file (in project reports dir)
-                const tmpJson = path.join(reportsDir, `tmp_${scanId}.json`);
+                // write JSON temp file (in scanner reports dir)
+                const tmpJson = path.join(scannerReportsDir, `tmp_${scanId}.json`);
                 await fs.writeFile(tmpJson, JSON.stringify(scanInfo.result, null, 2));
 
                 // Try venv python first, then system python3, then python
@@ -650,7 +649,7 @@ router.get('/scan/:scanId/report', async (req, res) => {
                 let usedPython = null;
                 for (const py of pythonCandidates) {
                     try {
-                        spawnRes = spawnSync(py, [pythonRenderer, tmpJson, htmlPath], { cwd: projectRoot, encoding: 'utf8' });
+                        spawnRes = spawnSync(py, [pythonRenderer, tmpJson, htmlPath], { cwd: scannerPath, encoding: 'utf8' });
                     } catch (e) {
                         spawnRes = { error: e };
                     }
@@ -663,23 +662,7 @@ router.get('/scan/:scanId/report', async (req, res) => {
                 // remove tmp
                 try { await fs.unlink(tmpJson); } catch (e) {}
 
-                // If helper succeeded but file somehow ended up under the scanner's own reports folder,
-                // move it into the project reports dir so we have a single canonical location.
-                const altPath = path.join(scannerPath, 'reports', path.basename(htmlPath));
-                const altExists = await fs.access(altPath).then(() => true).catch(() => false);
-                const htmlExists = await fs.access(htmlPath).then(() => true).catch(() => false);
-
-                if (!htmlExists && altExists) {
-                    // move into expected reportsDir
-                    try {
-                        await fs.mkdir(reportsDir, { recursive: true });
-                        await fs.rename(altPath, htmlPath);
-                    } catch (moveErr) {
-                        // ignore move error and keep track of alt path
-                    }
-                }
-
-                // if python helper failed or file still missing, fallback to JS renderer
+                // If python helper failed or file still missing, fallback to JS renderer
                 const finalHtmlExists = await fs.access(htmlPath).then(() => true).catch(() => false);
                 if (!finalHtmlExists || !usedPython) {
                     const html = generateHTMLReport(scanInfo.result);
@@ -691,14 +674,12 @@ router.get('/scan/:scanId/report', async (req, res) => {
                 await fs.writeFile(htmlPath, html);
             }
 
-            // Attach path to scanInfo and send as downloadable file
-            // Prefer project reports dir, but if missing, check scanner's own reports folder
+            // Prefer scanner reports dir, but as a fallback check project reports dir for any legacy files
             const projectReportsDir = path.join(__dirname, '../reports');
-            const scannerReportsDir = path.join(__dirname, '../Vulnerability_Tool_V2/reports');
 
             // Try to find the actual HTML file which may include an optional tag suffix
-            let finalPath = await findFileWithPrefix(projectReportsDir, `Vulnerability_Scan_Report_${scanId}`, '.html');
-            if (!finalPath) finalPath = await findFileWithPrefix(scannerReportsDir, `Vulnerability_Scan_Report_${scanId}`, '.html');
+            let finalPath = await findFileWithPrefix(scannerReportsDir, `Vulnerability_Scan_Report_${scanId}`, '.html');
+            if (!finalPath) finalPath = await findFileWithPrefix(projectReportsDir, `Vulnerability_Scan_Report_${scanId}`, '.html');
             if (!finalPath) finalPath = htmlPath; // fallback to whatever we wrote earlier
 
             // record chosen path and stream it
@@ -713,9 +694,11 @@ router.get('/scan/:scanId/report', async (req, res) => {
             return;
         }
     } else if (format === 'json') {
-        // attempt to find persisted json with optional tag
-        const reportsDir = path.join(__dirname, '../reports');
-        const jsonPath = await findFileWithPrefix(reportsDir, `Vulnerability_Scan_Result_${scanId}`, '.json');
+        // attempt to find persisted json with optional tag; prefer scanner reports dir
+        const scannerReportsDir = path.join(__dirname, '../Vulnerability_Tool_V2/reports');
+        const projectReportsDir = path.join(__dirname, '../reports');
+        let jsonPath = await findFileWithPrefix(scannerReportsDir, `Vulnerability_Scan_Result_${scanId}`, '.json');
+        if (!jsonPath) jsonPath = await findFileWithPrefix(projectReportsDir, `Vulnerability_Scan_Result_${scanId}`, '.json');
         if (jsonPath) res.setHeader('Content-Disposition', `attachment; filename="${path.basename(jsonPath)}"`);
         else res.setHeader('Content-Disposition', `attachment; filename=\"Vulnerability_Scan_Result_${scanId}.json\"`);
         res.json(scanInfo.result);
@@ -796,19 +779,19 @@ router.post('/quick-scan', async (req, res) => {
             scan_time: new Date().toISOString()
         };
 
-        // write report files into project's reports dir for later retrieval
+        // write report files into the scanner's own reports dir for later retrieval
         try {
-            const reportsDir = path.join(__dirname, '../reports');
-            await fs.mkdir(reportsDir, { recursive: true });
-            const jsonPath = path.join(reportsDir, `Vulnerability_Scan_Result_${scanIdWithTag}.json`);
+            const scannerReportsDir = path.join(__dirname, '../Vulnerability_Tool_V2', 'reports');
+            await fs.mkdir(scannerReportsDir, { recursive: true });
+            const jsonPath = path.join(scannerReportsDir, `Vulnerability_Scan_Result_${scanIdWithTag}.json`);
             await fs.writeFile(jsonPath, JSON.stringify(result, null, 2));
 
             // also generate HTML report if requested or default format
             if (output_format === 'html' || output_format === 'json') {
-                // Prefer the project's Python renderer for consistent/identical HTML output
+                // Prefer the scanner's Python renderer for consistent/identical HTML output
                 const pythonRenderer = path.join(__dirname, '../Vulnerability_Tool_V2/tools/render_from_json.py');
-                const htmlPath = path.join(reportsDir, `Vulnerability_Scan_Report_${scanIdWithTag}.html`);
-                const tmpJson = path.join(reportsDir, `tmp_${scanIdWithTag}.json`);
+                const htmlPath = path.join(scannerReportsDir, `Vulnerability_Scan_Report_${scanIdWithTag}.html`);
+                const tmpJson = path.join(scannerReportsDir, `tmp_${scanIdWithTag}.json`);
                 await fs.writeFile(tmpJson, JSON.stringify(result, null, 2));
                 let wroteHtml = false;
                 if (await fs.access(pythonRenderer).then(() => true).catch(() => false)) {
@@ -822,7 +805,7 @@ router.post('/quick-scan', async (req, res) => {
                     ];
                     for (const py of pythonCandidates) {
                         try {
-                            const spawnRes = spawnSync(py, [pythonRenderer, tmpJson, htmlPath], { cwd: path.join(__dirname, '..'), encoding: 'utf8' });
+                            const spawnRes = spawnSync(py, [pythonRenderer, tmpJson, htmlPath], { cwd: scannerPath, encoding: 'utf8' });
                             if (!spawnRes.error && spawnRes.status === 0) {
                                 wroteHtml = true;
                                 break;

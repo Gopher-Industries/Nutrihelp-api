@@ -155,3 +155,7 @@ Pipfile.lock
 # Logs and temp files
 *.log
 *.tmp
+
+# Vulnerability Scanner V2 reports - generated artifacts
+Vulnerability_Tool_V2/reports/
+Vulnerability_Tool_V2/reports/*
