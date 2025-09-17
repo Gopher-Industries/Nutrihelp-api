@@ -80,6 +80,9 @@ jobs:
           cache-dependency-path: package-lock.json
       - run: npm ci
       - run: npm run build
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
   run-security-scan:
     runs-on: ubuntu-latest
