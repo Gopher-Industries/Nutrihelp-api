@@ -58,10 +58,11 @@ class SecurityAssessmentRunner {
       
       // Setting up GitHub Actions output
       if (process.env.GITHUB_ACTIONS) {
+        const fs = require('fs');
         const output = reportData.critical_issues > 0 ? 'critical' : 
-                      reportData.overall_score < 70 ? 'warning' : 'pass';
-        console.log(`::set-output name=result::${output}`);
-        console.log(`::set-output name=score::${reportData.overall_score}`);
+                      reportData.overall_score < 70 ? 'warning' : 'pass';                      
+        fs.appendFileSync(process.env.GITHUB_OUTPUT, `result=${output}\n`);
+        fs.appendFileSync(process.env.GITHUB_OUTPUT, `score=${reportData.overall_score}\n`);
       }
       
       return reportData;
