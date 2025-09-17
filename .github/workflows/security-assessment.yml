@@ -32,6 +32,26 @@ jobs:
     - name: Install dependencies
       run: npm ci
 
+    - name: Start server in background
+      run: |
+        npm start &
+        sleep 15
+        echo "Server started, waiting for it to be ready..." 
+        
+        # Check whether the server is started successfully
+        for i in {1..10}; do
+          if curl -f http://localhost:80/api-docs > /dev/null 2>&1; then
+            echo "Server is ready!"
+            break
+          elif curl -f http://localhost:3000/ > /dev/null 2>&1; then
+            echo "Server is ready on port 3000!"
+            break
+          else
+            echo "Waiting for server... (attempt $i)"
+            sleep 3
+          fi
+        done
+
     - name: Create reports directory
       run: mkdir -p security/reports
 
