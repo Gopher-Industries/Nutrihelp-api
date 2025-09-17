@@ -4,7 +4,7 @@ const router = express.Router();   // 👈 define router first
 const upload = require('../middleware/uploadMiddleware');
 const { uploadLimiter } = require('../rateLimiter');
 
-const authenticateToken = require('../middleware/authenticateToken');
+const { authenticateToken } = require("../middleware/authenticateToken");
 const authorizeRoles = require('../middleware/authorizeRoles');
 
 // ✅ Only admins can upload
