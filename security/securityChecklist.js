@@ -158,7 +158,8 @@ class SecurityChecklist {
     // Configuration:
     //   process.env.SECURITY_CHECK_ENDPOINTS - comma-separated list of URLs (e.g. https://api.example.com/, http://localhost:3000/)
     // Fallback: http://localhost:3000/
-    const endpointsEnv = process.env.SECURITY_CHECK_ENDPOINTS || 'http://localhost:3000/';
+    const defaultPort = process.env.PORT || 3000;
+    const endpointsEnv = process.env.SECURITY_CHECK_ENDPOINTS || `http://localhost:${defaultPort}/`;
     const endpoints = endpointsEnv.split(',').map(s => s.trim()).filter(Boolean);
 
     const results = [];
@@ -346,13 +347,30 @@ class SecurityChecklist {
         recommendations.push('Use a JWT_SECRET with at least 32 characters');
       }
 
-      // Check bcrypt configuration
-      const authController = await fs.readFile(
-        path.join(process.cwd(), 'controller/authController.js'), 
-        'utf8'
-      );
+      // Check bcrypt configuration -
+      const authFiles = [
+        'controller/authController.js',
+        'controller/loginController.js', 
+        'controller/signupController.js'
+      ];
       
-      if (!authController.includes('bcrypt')) {
+      let hasBcrypt = false;
+      let authController = ''; 
+      
+      for (const file of authFiles) {
+        try {
+          const content = await fs.readFile(path.join(process.cwd(), file), 'utf8');
+          if (content.includes('bcrypt')) {
+            hasBcrypt = true;
+          }
+          if (file.includes('authController.js')) {
+            authController = content;
+          }
+        } catch (error) {
+        }
+      }
+      
+      if (!hasBcrypt) {
         issues.push('Password hashing not detected');
         recommendations.push('Implement bcrypt for password hashing');
       }
@@ -366,6 +384,7 @@ class SecurityChecklist {
         recommendations.push('Implement rate limiting for login endpoints');
       }
 
+      // 其余代码保持不变...
       if (issues.length === 0) {
         return {
           status: 'pass',
