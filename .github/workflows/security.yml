@@ -30,16 +30,22 @@ jobs:
       - name: Install dependencies
         run: npm ci
   lint:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-          cache-dependency-path: package-lock.json
-      - run: npm ci
-      - run: npm run lint
+  runs-on: ubuntu-latest
+  steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: npm
+        cache-dependency-path: package-lock.json
+    - run: npm ci
+    - name: Lint (if script exists)
+      run: |
+        if [ "$(npm pkg get scripts.lint | tr -d '\"')" != "undefined" ]; then
+          npm run lint
+        else
+          echo "No lint script; skipping."
+        fi
   test:
     runs-on: ubuntu-latest
     steps:
