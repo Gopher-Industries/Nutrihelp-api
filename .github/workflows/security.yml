@@ -62,7 +62,7 @@ jobs:
           cache-dependency-path: package-lock.json
       - run: npm ci
       - name: Validate OpenAPI
-        run: npx swagger-cli validate "${{ env.OPENAPI_FILE }}"
+        run: npx swagger-cli validate index.yaml
   run-security-scan:
     runs-on: ubuntu-latest
 
