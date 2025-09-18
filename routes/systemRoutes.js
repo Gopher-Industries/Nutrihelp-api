@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { checkFileIntegrity, generateBaseline } = require('../tools/integrity/integrityService');
+const testErrorRouter = require('./testError');
 
 /**
  * @swagger
@@ -64,6 +65,9 @@ router.get('/integrity-check', (req, res) => {
     res.status(500).json({ error: "Failed to check integrity", details: err.message });
   }
 });
+
+// Mount test error router for triggering errors (used for demo/testing)
+router.use('/test-error', testErrorRouter);
 
 
 module.exports = router;
