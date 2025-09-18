@@ -2512,15 +2512,191 @@ paths:
       tags:
         - Authentication
       summary: Refresh Access Token
-      description: Get new access token using refresh token 
+      description: Get new access token using refresh token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - refreshToken
+              properties:
+                refreshToken:
+                  type: string
+                  example: "b9b1f1235fb056bc4389..."
+      responses:
+        '200':
+          description: Token refresh successful
+        '401':
+          description: Invalid or expired refresh token
+  /auth/logout:
+    post:
+      tags:
+        - Authentication
+      summary: User Logout
+      description: Invalidate refresh token and logout user
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                refreshToken:
+                  type: string
+                  example: "b9b1f1235fb056bc4389..."
+      responses:
+        '200':
+          description: Logout successful
+  /auth/profile:
+    get:
+      tags:
+        - Authentication
+      summary: Get User Profile
+      description: Get current user information
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Profile retrieved successfully
+        '401':
+          description: Unauthorized
+        '404':
+          description: User not found
+  /auth/health:
+    get:
+      tags:
+        - Authentication
+      summary: Auth Service Health Check
+      description: Check if authentication service is running
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Auth service is running"
+                  timestamp:
+                    type: string
+                    format: date-time
+                    example: "2025-08-03T12:14:00.706Z"
+
+  /barcode:
+    post:
+      summary: Detect user allergen from a given barcode
+      description: Retrieve ingredients information from a given barcode and detect user's allergen ingredients
+      parameters:
+        - name: code
+          in: query
+          required: true
+          schema:
+            type: integer
+          description: Barcode number for allergen detection
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                user_id:
+                  type: integer
+                  description: The user ID
+              required:
+                - user_id
+      responses:
+        '200':
+          description: Barcode scanning successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BarcodeAllergenDetection'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
 components:
+
   securitySchemes:
     BearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
   schemas:
+    AllergyCheckRequest:
+      type: object
+      required: [userAllergies, meal]
+      properties:
+        userAllergies:
+          type: array
+          description: List of allergens the user is sensitive to (lowercase recommended)
+          items: { type: string }
+          example: ["peanuts","milk","sesame"]
+        meal:
+          type: object
+          required: [name, ingredients]
+          properties:
+            name:
+              type: string
+              example: "Chicken Satay"
+            ingredients:
+              type: array
+              items: { type: string }
+              example: ["chicken","peanut sauce","soy sauce","garlic"]
+
+    AllergyCheckResponse:
+      type: object
+      properties:
+        hasAllergens:
+          type: boolean
+          example: true
+        triggers:
+          type: array
+          description: Which of the userAllergies were detected in the meal ingredients
+          items: { type: string }
+          example: ["peanuts","soy"]
+    Kpi24h:
+      type: object
+      properties:
+        login_events_24h: { type: integer, example: 512 }
+        successes_24h:    { type: integer, example: 420 }
+        failures_24h:     { type: integer, example: 92 }
+        success_rate_24h: { type: number, format: float, example: 82.03 }
+    DailyRow:
+      type: object
+      properties:
+        day_local:        { type: string, format: date, example: '2025-08-26' }
+        attempts:         { type: integer, example: 150 }
+        successes:        { type: integer, example: 120 }
+        failures:         { type: integer, example: 30 }
+        success_rate_pct: { type: number, format: float, example: 80.0 }
+    DauRow:
+      type: object
+      properties:
+        day_local: { type: string, format: date, example: '2025-08-26' }
+        dau:       { type: integer, example: 97 }
+    FailingIpRow:
+      type: object
+      properties:
+        ip_address:         { type: string, example: '127.0.0.1' }
+        failed_count:       { type: integer, example: 120 }
+        total_login_events: { type: integer, example: 150 }
+        fail_pct:           { type: number, format: float, example: 80.0 }
+    DomainFailRow:
+      type: object
+      properties:
+        domain:           { type: string, example: 'deakin.edu.au' }
+        failures_last_7d: { type: integer, example: 35 }
     LoginRequest:
       type: object
       properties:
@@ -3023,7 +3199,6 @@ components:
       properties:
         user_id:
           type: integer
-
     MedicalReportRequest:
       MedicalReportRequest:
       type: object
@@ -3151,7 +3326,29 @@ components:
                   format: float
                   description: Model confidence score for diabetes prediction.
                   example: 0.798
-
+    BarcodeAllergenDetection:
+      type: object
+      properties:
+        productName:
+          type: string
+        detection_result:
+          type: object
+          properties:
+            hasUserAllergen:
+              type: boolean
+            matchingAllergens:
+              type: array
+              items:
+                type: string
+        barcode_ingredients:
+          type: array
+          items:
+            type: string
+        user_allergen_ingredients:
+          type: array
+          items:
+            type: string
+            
     # Shopping List Schemas
     IngredientOption:
       type: object
