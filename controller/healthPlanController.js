@@ -1,7 +1,9 @@
-// controller/healthPlanController.js
+// controllers/healthPlanController.js
 
 // Node 18+ has global fetch; if you're on Node 16, uncomment:
 // const fetch = require("node-fetch");
+
+const supabase = require("../dbConnection.js");
 
 const AI_BASE =
   process.env.AI_BASE_URL || "http://localhost:8000/ai-model/medical-report";
@@ -76,18 +78,57 @@ function buildHealthGoalFromSurvey(survey) {
   return { value: out };
 }
 
+// --------- DB helpers ---------
+async function insertHealthPlan(plan) {
+  const { data, error } = await supabase
+    .from("health_plan")
+    .insert(plan)
+    .select("id")
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+async function insertWeeklyPlans(weeklyPlans) {
+  const { error } = await supabase
+    .from("health_plan_weekly")
+    .insert(weeklyPlans);
+
+  if (error) throw error;
+}
+
+async function deleteHealthPlan(planId) {
+  const { error } = await supabase
+    .from("health_plan")
+    .delete()
+    .eq("id", planId);
+
+  if (error) throw error;
+}
+
+function derivePlanGoal(weekly) {
+  if (!Array.isArray(weekly) || weekly.length === 0) return null;
+  const all = weekly.map((w) => (w?.focus || "").trim()).filter(Boolean);
+  if (all.length === 0) return null;
+  const first = all[0];
+  const allSame = all.every((x) => x === first);
+  return allSame ? first : "Mixed";
+}
+
 /**
  * Body:
  * {
- *   medical_report: { ... } | [{ ... }],   // REQUIRED
- *   survey_data: { ... }                   // REQUIRED (contains both survey + health goal)
+ *   medical_report: { ... } | [{ ... }],
+ *   survey_data: { ... },
+ *   user_id: string,
+ *   survey_id: string
  * }
  */
 const generateWeeklyPlan = async (req, res) => {
   const body = req.body || {};
 
   try {
-    // 1) Required fields
     if (!body.medical_report) {
       return res.status(400).json({ error: "Missing medical_report in request" });
     }
@@ -95,57 +136,98 @@ const generateWeeklyPlan = async (req, res) => {
       return res.status(400).json({ error: "Missing survey_data in request" });
     }
 
-    // 2) Build health_goal from survey_data
+    // health goal
     const hgCheck = buildHealthGoalFromSurvey(body.survey_data);
     if (hgCheck.error) {
       return res.status(400).json({ error: hgCheck.error });
     }
     const health_goal = hgCheck.value;
 
-    // 3) Build minimal HealthSurvey
+    // survey
     const health_survey = buildHealthSurvey(body.survey_data);
 
-    // 4) Payload for AI (survey_data maps to health_survey via alias)
     const payload = {
       medical_report: Array.isArray(body.medical_report)
         ? body.medical_report
         : [body.medical_report],
-      survey_data: health_survey || undefined, // alias to health_survey in AI
-      health_goal,                             // REQUIRED
-      followup_qa: null
+      survey_data: health_survey || undefined,
+      health_goal,
+      followup_qa: null,
     };
 
     Object.keys(payload).forEach((k) => payload[k] === undefined && delete payload[k]);
 
-    // 5) Call AI
+    // call AI
     const aiResponse = await fetch(`${AI_BASE}/plan/generate`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),
     });
 
     const text = await aiResponse.text();
     let result;
-    try { result = JSON.parse(text); } catch { result = text; }
+    try {
+      result = JSON.parse(text);
+    } catch {
+      result = text;
+    }
 
     if (!aiResponse.ok) {
       return res.status(aiResponse.status).json({
         error: "AI server error",
-        detail: typeof result === "string" ? result : (result?.detail || result)
+        detail: typeof result === "string" ? result : result?.detail || result,
       });
     }
 
     if (!result.weekly_plan) {
       return res.status(502).json({
         error: "AI server did not return weekly_plan",
-        message: result
+        message: result,
       });
     }
 
+    // Save to DB
+    const userId = req.user?.id || body.user_id;
+    const surveyId = body.survey_id || null;
+
+    if (!userId) {
+      return res.status(400).json({ error: "Missing user_id for saving health plan" });
+    }
+
+    const weekly = result.weekly_plan;
+    const parent = {
+      user_id: userId,
+      survey_id: surveyId,
+      length: weekly.length,
+      goal: derivePlanGoal(weekly),
+      suggestion: result.suggestion || null,
+    };
+
+    const parentRow = await insertHealthPlan(parent);
+    const planId = parentRow.id;
+
+    try {
+      const weeklyRows = weekly.map((w) => ({
+        health_plan_id: planId,
+        week_num: Number(w.week),
+        target_calorie_per_day: Number(w.target_calories_per_day),
+        focus: w.focus ?? null,
+        workouts: JSON.stringify(w.workouts ?? []),
+        notes: w.meal_notes ?? null,
+        reminders: JSON.stringify(w.reminders ?? []),
+      }));
+
+      await insertWeeklyPlans(weeklyRows);
+    } catch (e) {
+      await deleteHealthPlan(planId); // rollback
+      throw e;
+    }
+
     return res.status(200).json({
+      plan_id: planId,
       suggestion: result.suggestion || "",
       weekly_plan: result.weekly_plan,
-      progress_analysis: result.progress_analysis ?? null
+      progress_analysis: result.progress_analysis ?? null,
     });
   } catch (err) {
     console.error("[healthPlanController] Unexpected error:", err);

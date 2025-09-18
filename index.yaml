@@ -2052,7 +2052,7 @@ paths:
                     Frequent High Calorie Food Consumption (yes/no): "yes"
                     Consumption of vegetables in meals: 2.7
                     Consumption of Food Between Meals: Sometimes
-                    Number of Main Meals: 2.983297
+                    Number of Main Meals: 3
                     Daily Water Intake: 2.763573
                     Do you Smoke?: "no"
                     Do you monitor your daily calories?: "no"
@@ -2952,7 +2952,7 @@ components:
           type: number
           format: float
           description: Frequency of vegetable consumption in meals.
-          example: 2.7
+          example: 3
         Consumption of Food Between Meals:
           type: string
           enum: ["no", "Sometimes", "Frequently", "Always"]
@@ -2962,7 +2962,7 @@ components:
           type: number
           format: float
           description: Number of main meals per day.
-          example: 2.983297
+          example: 3
         Daily Water Intake:
           type: number
           format: float
