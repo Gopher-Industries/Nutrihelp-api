@@ -119,7 +119,7 @@ jobs:
           echo "- **Overall Score:** ${OVERALL_SCORE}%" >> $GITHUB_STEP_SUMMARY
           echo "- **Critical Issues:** $CRITICAL_ISSUES" >> $GITHUB_STEP_SUMMARY
           echo "- **Failed Checks:** $FAILED_CHECKS" >> $GITHUB_STEP_SUMMARY
-          echo "- **Report:** [Download Reports](../actions/runs/${{ github.run_id }})" >> $GITHUB_STEP_SUMMARY
+          echo "- **Report:** [Download Reports](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> $GITHUB_STEP_SUMMARY
           
         else
           echo "No report file found"
