@@ -22,6 +22,11 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+      with:
+        # fetch full history to avoid git errors in CI that rely on tags/refs
+        fetch-depth: 0
+        # ensure actions has permission to access the repository (needed for forks and some git ops)
+        token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Setup Node.js
       uses: actions/setup-node@v4
@@ -54,6 +59,18 @@ jobs:
 
     - name: Create reports directory
       run: mkdir -p security/reports
+
+    - name: Debug git state (CI helper)
+      if: ${{ github.event_name != 'schedule' }}
+      run: |
+        echo "Git version: $(git --version)"
+        echo "Current dir: $(pwd)"
+        echo "Git status:" || true
+        git status --porcelain || true
+        echo "Show remote info:" || true
+        git remote -v || true
+        echo "List refs (limited):" || true
+        git show-ref --heads --tags | head -n 50 || true
 
     - name: Run security assessment
       id: security-assessment
@@ -119,7 +136,9 @@ jobs:
           echo "- **Overall Score:** ${OVERALL_SCORE}%" >> $GITHUB_STEP_SUMMARY
           echo "- **Critical Issues:** $CRITICAL_ISSUES" >> $GITHUB_STEP_SUMMARY
           echo "- **Failed Checks:** $FAILED_CHECKS" >> $GITHUB_STEP_SUMMARY
-          echo "- **Report:** [Download Reports](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> $GITHUB_STEP_SUMMARY
+          # Prefer linking directly to the artifacts tab for this run so users can download reports
+          echo "- **Report (artifacts):** [Download Reports](https://github.com/${{ github.repository }}/runs/${{ github.run_id }}/artifacts)" >> $GITHUB_STEP_SUMMARY
+          echo "- **Or open Actions run:** [Run details](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> $GITHUB_STEP_SUMMARY
           
         else
           echo "No report file found"
