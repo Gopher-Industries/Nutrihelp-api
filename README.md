@@ -57,3 +57,31 @@ npx jest .\test\healthNews.test.js
 
 /\ Please refer to the "PatchNotes_VersionControl" file for  /\
 /\ recent updates and changes made through each version.     /\
+
+
+## CI: Manual Vulnerability & Test Scan
+
+This repository includes a manual GitHub Actions workflow that runs the Vulnerability Scanner (V2) and optional tests.
+
+How to run
+- Open the repository on GitHub and go to the Actions tab.
+- Select the workflow named `Manual Vulnerability & Test Scan`.
+- Click the `Run workflow` button.
+
+Inputs
+- `run_tests` (default: `false`) — set to `true` to run unit tests (`npm run test:unit`). Tests may require a database or other services; use with caution.
+- `fail_on_critical` (default: `false`) — set to `true` to make the job fail when the scanner JSON report contains one or more `CRITICAL` findings.
+
+Artifacts
+- `vulnerability-scan-reports` (artifact bundle) — contains:
+  - `vulnerability_report.json` — machine-readable scan results
+  - `vulnerability_report.html` — human-friendly HTML report (if HTML rendering succeeds)
+  - `vulnerability_tool_report.txt` — legacy/auxiliary scanner output (if generated)
+  - `npm_audit.json` — result of `npm audit --json`
+
+Notes and recommendations
+- By default the scanner excludes internal tool directories and common noisy paths (for example `Vulnerability_Tool_V2`, `Vulnerability_Tool`, `node_modules`, `tests`, `.pytest_cache`, `__pycache__`).
+- If you enable `run_tests`, ensure the required environment (DB, credentials) is available to avoid noisy failures.
+- Use `fail_on_critical=true` for gating releases or running stricter checks in CI; keep it `false` for quick, informational scans.
+
+
