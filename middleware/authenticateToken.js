@@ -38,6 +38,7 @@ const authenticateToken = (req, res, next) => {
         // Attach user info to request
         req.user = decoded;
         next();
+
     } catch (error) {
         if (error.name === 'TokenExpiredError') {
             return res.status(401).json({
@@ -81,7 +82,7 @@ const optionalAuth = (req, res, next) => {
     } catch (error) {
         req.user = null;
     }
-
+    
     next();
 };
 
@@ -89,4 +90,3 @@ module.exports = {
     authenticateToken,
     optionalAuth
 };
-
