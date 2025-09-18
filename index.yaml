@@ -381,7 +381,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /api/system/test-error/trigger:
+  /system/test-error/trigger:
     post:
       tags:
         - System
