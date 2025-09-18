@@ -7,7 +7,7 @@ const { authenticateToken } = require('../middleware/authenticateToken');
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
 
 /**
- * 获取最新的安全评估报告
+ * Get the latest security assessment report
  */
 router.get('/assessment/latest', authenticateToken, async (req, res) => {
   try {
@@ -29,7 +29,7 @@ router.get('/assessment/latest', authenticateToken, async (req, res) => {
 });
 
 /**
- * 获取安全评估历史记录
+ * Get security assessment history
  */
 router.get('/assessment/history', authenticateToken, async (req, res) => {
   try {
@@ -52,7 +52,7 @@ router.get('/assessment/history', authenticateToken, async (req, res) => {
 });
 
 /**
- * 获取安全趋势数据
+ * Get security trend data
  */
 router.get('/trends', authenticateToken, async (req, res) => {
   try {
@@ -76,7 +76,7 @@ router.get('/trends', authenticateToken, async (req, res) => {
 });
 
 /**
- * 获取错误日志统计
+ * Get error log statistics
  */
 router.get('/error-logs/stats', authenticateToken, async (req, res) => {
   try {
@@ -92,7 +92,7 @@ router.get('/error-logs/stats', authenticateToken, async (req, res) => {
       return res.status(500).json({ error: 'Failed to fetch error log stats' });
     }
 
-    // 统计数据
+    // Statistics
     const stats = {
       total_errors: data.length,
       by_category: {},
@@ -101,13 +101,13 @@ router.get('/error-logs/stats', authenticateToken, async (req, res) => {
     };
 
     data.forEach(log => {
-      // 按分类统计
+      // Count by category
       stats.by_category[log.error_category] = (stats.by_category[log.error_category] || 0) + 1;
       
-      // 按类型统计
+      // Statistics by type
       stats.by_type[log.error_type] = (stats.by_type[log.error_type] || 0) + 1;
       
-      // 按小时统计
+      // Statistics by hour
       const hour = new Date(log.timestamp).getHours();
       stats.hourly_distribution[hour] = (stats.hourly_distribution[hour] || 0) + 1;
     });
@@ -119,16 +119,16 @@ router.get('/error-logs/stats', authenticateToken, async (req, res) => {
 });
 
 /**
- * 手动触发安全评估
+ * Manually triggering a security assessment
  */
 router.post('/assessment/run', authenticateToken, async (req, res) => {
   try {
-    // 这里应该触发安全评估
-    // 可以通过队列系统或直接运行
+    // Here should trigger the security assessment
+    // It can be done through a queue system or run directly
     const SecurityAssessmentRunner = require('../security/runAssessment');
     const runner = new SecurityAssessmentRunner();
-    
-    // 异步运行评估，立即返回响应
+
+    // Run the assessment asynchronously and return response immediately
     runner.run().catch(console.error);
     
     res.json({ 
