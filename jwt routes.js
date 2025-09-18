@@ -20,7 +20,7 @@ router.post('/log-login', authController.logLoginAttempt);
 
 // Protected route example (replace existing dashboard)
 router.get('/dashboard', authenticateToken, (req, res) => {
-  res.json({
+    res.json({
         success: true,
         message: `Welcome to NutriHelp, ${req.user.email}`,
         user: {
