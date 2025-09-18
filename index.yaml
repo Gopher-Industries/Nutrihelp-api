@@ -886,6 +886,8 @@ paths:
     get:
       summary: Get meal plan
       description: Retrieves a meal plan for the user
+      security:
+        - BearerAuth: [ ]
       # TODO should not use requestBody for GET
       requestBody:
         required: true
@@ -914,6 +916,8 @@ paths:
     post:
       summary: Save meal plan
       description: Receives a meal plan and saves it
+      security:
+       - BearerAuth: [ ]
       requestBody:
         required: true
         content:
@@ -942,6 +946,8 @@ paths:
     delete:
       summary: Delete meal plan
       description: Deletes the user's meal plan
+      security:
+        - BearerAuth: [ ]
       requestBody:
         required: true
         content:
@@ -1289,70 +1295,77 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
   /userprofile:
     get:
-      summary: Get user profile
-      description: Retrieves the user's profile
-      # TODO should not use requestBody for GET
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                email:
-                  type: string
-      responses:
-        '200':
-          description: User profile fetched successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/UserProfileResponse'
-        '400':
-          description: Email is required
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+     summary: Get user profile
+     description: |
+       - Normal users can only fetch their own profile.  
+       - Admins can fetch any profile using `?email=xxx`.
+     security:
+       - BearerAuth: []
+     parameters:
+       - in: query
+         name: email
+         schema:
+           type: string
+         required: false
+         description: (Admin only) Email of the user whose profile to fetch
+     responses:
+       '200':
+         description: User profile fetched successfully
+         content:
+           application/json:
+             schema:
+               $ref: '#/components/schemas/UserProfileResponse'
+       '400':
+         description: Email is required
+         content:
+           application/json:
+             schema:
+               $ref: '#/components/schemas/ErrorResponse'
+       '500':
+         description: Internal server error
+         content:
+           application/json:
+             schema:
+               $ref: '#/components/schemas/ErrorResponse'
     put:
-      summary: Update user profile
-      description: Updates the user's profile
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/UserUpdateRequest'
-      responses:
-        '204':
-          description: User profile updated successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SuccessResponse'
-        '400':
-          description: User ID is required or Request body is required
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+     summary: Update user profile
+     description: |
+       - Normal users can update only their own profile.  
+       - Admins can update any profile using `email`.
+     security:
+       - BearerAuth: []
+     requestBody:
+       required: true
+       content:
+         application/json:
+           schema:
+             $ref: '#/components/schemas/UserUpdateRequest'
+     responses:
+       '204':
+         description: User profile updated successfully
+         content:
+           application/json:
+             schema:
+               $ref: '#/components/schemas/SuccessResponse'
+       '400':
+         description: Email is required or invalid request body
+         content:
+           application/json:
+             schema:
+               $ref: '#/components/schemas/ErrorResponse'
+       '500':
+         description: Internal server error
+         content:
+           application/json:
+             schema:
+               $ref: '#/components/schemas/ErrorResponse'
   
   /notifications:
     post:
       summary: Create a new notification
-      description: Creates a new notification for a specific user.
+      description: Allows admin to create notifications
+      security:
+        - BearerAuth: [ ]
       requestBody:
         required: true
         content:
@@ -1411,7 +1424,9 @@ paths:
   /notifications/{user_id}:
     get:
       summary: Get all notifications for a specific user
-      description: Retrieves all notifications associated with a specific `user_id`.
+      description: Users can only view their own notifications. Admin can view any.
+      security:
+        - BearerAuth: [ ]
       parameters:
         - in: path
           name: user_id
@@ -1450,7 +1465,9 @@ paths:
   /notifications/{simple_id}:
     delete:
       summary: Delete a specific notification by simple ID
-      description: Deletes a notification identified by its `simple_id` (integer).
+      description: Only admin can delete a notification
+      security:
+        - BearerAuth: [ ]
       parameters:
         - in: path
           name: simple_id
@@ -1476,7 +1493,9 @@ paths:
 
     put:
       summary: Update notification status by simple ID
-      description: Updates the status of a notification identified by its `simple_id` (integer).
+      description: Admin or nutritionist can update notification status
+      security:
+        - BearerAuth: [ ]
       parameters:
         - in: path
           name: simple_id
@@ -2325,175 +2344,183 @@ paths:
                 $ref: '#/components/schemas/MedicalReportResponse'
         '400':
           description: Bad Request - Invalid input data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '401':
           description: Unauthorized - Authentication credentials missing or invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '500':
           description: Internal Server Error - Something went wrong on the server.
-              type: object
-              properties:
-                user_id:
-                  type: string
-                  format: uuid
-                  description: The unique ID of the user
-                glasses_consumed:
-                  type: integer
-                  description: Number of glasses consumed
-              required:
-                - user_id
-                - glasses_consumed
-              example:
-              user_id: "15"
-              glasses_consumed: 5
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /medical-report/plan:
+    post:
+      summary: Generate a 4-week health plan from a medical report
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HealthPlanRequest'
+            examples:
+              sample:
+                value:
+                  medical_report:
+                    obesity_prediction:
+                      obesity_level: Overweight_Level_II
+                      confidence: 79.8
+                    diabetes_prediction:
+                      diabetes: true
+                      confidence: 79.8
+                  n_results: 3
+                  max_tokens: 1200
+                  temperature: 0.2
       responses:
         '200':
-          description: Water intake updated successfully
+          description: Weekly plan generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthPlanResponse'
+        '400':
+          description: Bad Request – invalid or missing input fields
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized – Authentication credentials missing or invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: AI server error – upstream FastAPI returned an error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error – Something went wrong on the server
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /auth/register:
+      post:
+        tags:
+          - Authentication
+        summary: User Registration
+        description: Create a new user account
+        requestBody:
+          required: true
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - name
+                  - email
+                  - password
+                properties:
+                  name:
+                    type: string
+                    example: "John Doe"
+                  email:
+                    type: string
+                    format: email
+                    example: "john@nutrihelp.com"
+                  password:
+                    type: string
+                    minLength: 6
+                    example: "SecurePassword123!"
+                  first_name:
+                    type: string
+                    example: "John"
+                  last_name:
+                    type: string
+                    example: "Doe"
+        responses:
+          '201':
+            description: Registration successful
+          '400':
+            description: Registration failed
+  /auth/login:
+      tags:
+        - Authentication
+      summary: User Login
+      description: Login user and get access/refresh tokens
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  message:
-                    type: string
-                    example: "Water intake updated successfully"
-                  data:
+                  success:
+                    type: boolean
+                    example: true
+                  user:
                     type: object
                     properties:
-                      user_id:
-                        type: string
-                        example: "15"
-                      date:
-                        type: string
-                        format: date
-                        example: "2025-05-10"
-                      glasses_consumed:
+                      id:
                         type: integer
-                        example: 5
-                      updated_at:
+                        example: 677
+                      email:
                         type: string
-                        format: date-time
-                        example: "2025-05-10T12:00:00Z"
-        '400':
-          description: Bad request - missing or invalid fields
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-
-  /barcode:
+                        example: "john@nutrihelp.com"
+                      name:
+                        type: string
+                        example: "John Doe"
+                      role:
+                        type: string
+                        example: "user"
+                  accessToken:
+                    type: string
+                    description: "Access token (15 minutes validity)"
+                    example: "eyJhbGciOiJIUzI1NiIs..."
+                  refreshToken:
+                    type: string
+                    description: "Refresh token (7 days validity)"
+                    example: "b9b1f1235fb056bc4389..."
+                  expiresIn:
+                    type: integer
+                    description: "Token expiry time in seconds"
+                    example: 900
+                  tokenType:
+                    type: string
+                    example: "Bearer"
+        '401':
+          description: Login failed
+  /auth/refresh:
     post:
-      summary: Detect user allergen from a given barcode
-      description: Retrieve ingredients information from a given barcode and detect user's allergen ingredients
-      parameters:
-        - name: code
-          in: query
-          required: true
-          schema:
-            type: integer
-          description: Barcode number for allergen detection
-      requestBody:
-        required: false
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                user_id:
-                  type: integer
-                  description: The user ID
-              required:
-                - user_id
-      responses:
-        '200':
-          description: Barcode scanning successful
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/BarcodeAllergenDetection'
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+      tags:
+        - Authentication
+      summary: Refresh Access Token
+      description: Get new access token using refresh token 
 
 components:
-
   securitySchemes:
     BearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
   schemas:
-    AllergyCheckRequest:
-      type: object
-      required: [userAllergies, meal]
-      properties:
-        userAllergies:
-          type: array
-          description: List of allergens the user is sensitive to (lowercase recommended)
-          items: { type: string }
-          example: ["peanuts","milk","sesame"]
-        meal:
-          type: object
-          required: [name, ingredients]
-          properties:
-            name:
-              type: string
-              example: "Chicken Satay"
-            ingredients:
-              type: array
-              items: { type: string }
-              example: ["chicken","peanut sauce","soy sauce","garlic"]
-
-    AllergyCheckResponse:
-      type: object
-      properties:
-        hasAllergens:
-          type: boolean
-          example: true
-        triggers:
-          type: array
-          description: Which of the userAllergies were detected in the meal ingredients
-          items: { type: string }
-          example: ["peanuts","soy"]
-    Kpi24h:
-      type: object
-      properties:
-        login_events_24h: { type: integer, example: 512 }
-        successes_24h:    { type: integer, example: 420 }
-        failures_24h:     { type: integer, example: 92 }
-        success_rate_24h: { type: number, format: float, example: 82.03 }
-    DailyRow:
-      type: object
-      properties:
-        day_local:        { type: string, format: date, example: '2025-08-26' }
-        attempts:         { type: integer, example: 150 }
-        successes:        { type: integer, example: 120 }
-        failures:         { type: integer, example: 30 }
-        success_rate_pct: { type: number, format: float, example: 80.0 }
-    DauRow:
-      type: object
-      properties:
-        day_local: { type: string, format: date, example: '2025-08-26' }
-        dau:       { type: integer, example: 97 }
-    FailingIpRow:
-      type: object
-      properties:
-        ip_address:         { type: string, example: '127.0.0.1' }
-        failed_count:       { type: integer, example: 120 }
-        total_login_events: { type: integer, example: 150 }
-        fail_pct:           { type: number, format: float, example: 80.0 }
-    DomainFailRow:
-      type: object
-      properties:
-        domain:           { type: string, example: 'deakin.edu.au' }
-        failures_last_7d: { type: integer, example: 35 }
     LoginRequest:
       type: object
       properties:
@@ -2996,6 +3023,7 @@ components:
       properties:
         user_id:
           type: integer
+
     MedicalReportRequest:
       MedicalReportRequest:
       type: object
@@ -3436,28 +3464,3 @@ components:
               items:
                 type: string
               example: ["Vegetable", "Meat", "Dairy", "Pantry"]
-
-    BarcodeAllergenDetection:
-      type: object
-      properties:
-        productName:
-          type: string
-        detection_result:
-          type: object
-          properties:
-            hasUserAllergen:
-              type: boolean
-            matchingAllergens:
-              type: array
-              items:
-                type: string
-        barcode_ingredients:
-          type: array
-          items:
-            type: string
-        user_allergen_ingredients:
-          type: array
-          items:
-            type: string
-
-
