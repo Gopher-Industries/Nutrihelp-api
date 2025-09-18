@@ -6,7 +6,6 @@ const { authenticateToken } = require('../middleware/authenticateToken');
 // Basic authentication routes
 router.post('/register', authController.register);
 router.post('/login', authController.login);
-const authController = require('../controller/authController')
 
 // Token management routes
 router.post('/refresh', authController.refreshToken);
