@@ -130,3 +130,7 @@ dist
 
 .vscode
 .idea
+# Ignore env backups and local config
+.env
+.env.*
+index.backup.yaml
