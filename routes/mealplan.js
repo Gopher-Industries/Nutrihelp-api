@@ -22,7 +22,7 @@ router.route('/')
         (req, res) => controller.addMealPlan(req, res)
     )
 
-    // Route to get a meal plan (User + Nutritionist + Admin)
+// Route to get a meal plan (User + Nutritionist + Admin)
     .get(
         authenticateToken, 
         authorizeRoles("user", "nutritionist", "admin"), 
@@ -31,7 +31,7 @@ router.route('/')
         (req, res) => controller.getMealPlan(req, res)
     )
 
-    // Route to delete a meal plan (Admin only)
+// Route to delete a meal plan (Admin only)
     .delete(
         authenticateToken, 
         authorizeRoles("admin"), 
