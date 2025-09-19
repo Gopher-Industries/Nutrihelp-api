@@ -3,7 +3,7 @@ info:
   title: NutriHelp API
   version: 1.0.0
 servers:
-  - url: http://localhost/api
+  - url: http://localhost:3000/api
 paths:
   /upload:
     post:
@@ -147,7 +147,7 @@ paths:
                 verified: false
                 error: "invalid_token"
       '500':
-        description: Internal server error          
+        description: Internal server error
   /contactus:
     post:
       summary: Contact us
