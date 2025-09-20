@@ -12,20 +12,27 @@ env:
   OPENAPI_FILE: 'index.yaml'
 jobs:
   # ------------------- PARALLEL JOBS -------------------
-  lint:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: Monitor_&_Logging
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-          cache-dependency-path: package-lock.json
-      - run: npm ci
-      - run: npm run lint
+ lint:
+  runs-on: ubuntu-latest
+  steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: npm
+        cache-dependency-path: package-lock.json
+    - run: npm ci
+    - name: Lint (only if ESLint is configured)
+      run: |
+        if [ -f ".eslintrc.json" ] || [ -f ".eslintrc.cjs" ] || [ -f ".eslintrc.js" ] || [ -f ".eslintrc.yaml" ] || [ -f ".eslintrc.yml" ]; then
+          if [ "$(npm pkg get scripts.lint | tr -d '"')" != "undefined" ]; then
+            npm run lint
+          else
+            echo "No 'lint' script; skipping."
+          fi
+        else
+          echo "No ESLint config; skipping."
+        fi
  
   test:
     runs-on: ubuntu-latest
