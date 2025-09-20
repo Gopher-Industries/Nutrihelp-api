@@ -15,69 +15,38 @@ jobs:
 
   lint:
 
-    runs-on: ubuntu-latest
+  runs-on: ubuntu-latest
 
-    steps:
+  steps:
 
-      - uses: actions/checkout@v4
+    - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+    - uses: actions/setup-node@v4
 
-        with:
+      with:
 
-          node-version: ${{ env.NODE_VERSION }}
+        node-version: ${{ env.NODE_VERSION }}
 
-          cache: npm
+        cache: npm
 
-          cache-dependency-path: package-lock.json
+        cache-dependency-path: package-lock.json
 
-      - run: npm ci
+    - run: npm ci
  
-      # Ensure ESLint v8 exists even if not pinned
+    # Create a minimal config ONLY if none exists (avoids ESLint "no config" error)
 
-      - name: Ensure ESLint v8 is available
+    - name: Ensure minimal ESLint config
 
-        run: npx -y eslint@8.57.0 -v
+      run: |
+
+        node -e "const fs=require('fs');const has=['.eslintrc.json','.eslintrc.js','eslint.config.js'].some(f=>fs.existsSync(f));if(!has){fs.writeFileSync('.eslintrc.json','{\"env\":{\"es2021\":true,\"node\":true,\"browser\":true},\"extends\":[\"eslint:recommended\"],\"parserOptions\":{\"ecmaVersion\":2022,\"sourceType\":\"module\"},\"ignorePatterns\":[\"node_modules/\",\"dist/\",\"build/\",\"coverage/\"],\"rules\":{\"no-unused-vars\":[\"warn\",{\"argsIgnorePattern\":\"^_\"}],\"eqeqeq\":\"error\",\"curly\":\"error\"}}');}"
  
-      # Minimal config if none is present
+    # Pin ESLint major to 8 so it works with classic config
 
-      - name: Bootstrap ESLint config if missing
+    - name: Run ESLint
 
-        run: |
-
-          if [ ! -f ".eslintrc.json" ] && [ ! -f ".eslintrc.js" ] && [ ! -f "eslint.config.js" ]; then
-
-            cat > .eslintrc.json <<'EOF'
-
-            {
-
-              "env": { "es2021": true, "node": true, "browser": true },
-
-              "extends": ["eslint:recommended"],
-
-              "parserOptions": { "ecmaVersion": 2022, "sourceType": "module" },
-
-              "ignorePatterns": ["node_modules/", "dist/", "build/", "coverage/"],
-
-              "rules": {
-
-                "no-unused-vars": ["warn", { "argsIgnorePattern": "^_" }],
-
-                "eqeqeq": "error",
-
-                "curly": "error"
-
-              }
-
-            }
-
-            EOF
-
-          fi
-
-      - name: Run ESLint
-
-        run: npx eslint . --max-warnings=0
+      run: npx -y eslint@8.57.0 . --max-warnings=0
+ 
  
   test:
 
