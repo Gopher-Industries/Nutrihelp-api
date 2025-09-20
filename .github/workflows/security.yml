@@ -12,7 +12,7 @@ env:
   OPENAPI_FILE: 'index.yaml'
   PORT: '3000' 
 jobs:
-  # ------------------- PARALLEL JOBS -------------------
+
 
   lint:
     runs-on: ubuntu-latest
@@ -25,11 +25,11 @@ jobs:
           cache-dependency-path: package-lock.json
       - run: npm ci --prefer-offline --no-audit --no-fund
 
-      # Minimal ESLint config ONLY if none exists (rules relaxed so it won't fail)
+     
       - name: Ensure minimal ESLint config
         run: |
           node -e "const fs=require('fs');const has=['.eslintrc.json','.eslintrc.js','eslint.config.js'].some(f=>fs.existsSync(f));if(!has){fs.writeFileSync('.eslintrc.json',JSON.stringify({root:true,env:{es2021:true,node:true,browser:true},parserOptions:{ecmaVersion:2022,sourceType:'module'},ignorePatterns:['node_modules/','dist/','build/','coverage/'],rules:{curly:'off',eqeqeq:'off','no-undef':'off','no-unused-vars':'off'}},null,2));}"
-      # Run ESLint (non-blocking, very quiet)
+    
       - name: Run ESLint (non-blocking)
         run: npx -y eslint@8.57.0 . --no-error-on-unmatched-pattern --quiet || true
 
@@ -44,10 +44,7 @@ jobs:
           cache-dependency-path: package-lock.json
       - run: npm ci --prefer-offline --no-audit --no-fund
 
-      # Fast, non-blocking tests:
-      # - prefer `npm run test:unit` if present
-      # - else, if Jest is installed, run it with --passWithNoTests
-      # - else, fall back to `npm test` (but never fail the job)
+   
       - name: Run fast tests (non-blocking)
         shell: bash
         run: |
@@ -84,7 +81,7 @@ jobs:
 
         run: npx -y swagger-cli@4.0.4 --version
  
-      # Non-blocking validation: always exit 0, upload report
+    
 
       - name: Validate OpenAPI (non-blocking)
 
