@@ -14,39 +14,24 @@ jobs:
   # ------------------- PARALLEL JOBS -------------------
 
   lint:
-
   runs-on: ubuntu-latest
-
   steps:
-
     - uses: actions/checkout@v4
-
     - uses: actions/setup-node@v4
-
       with:
-
         node-version: ${{ env.NODE_VERSION }}
-
         cache: npm
-
         cache-dependency-path: package-lock.json
-
     - run: npm ci
  
     # Create a minimal config ONLY if none exists (avoids ESLint "no config" error)
-
     - name: Ensure minimal ESLint config
-
       run: |
-
         node -e "const fs=require('fs');const has=['.eslintrc.json','.eslintrc.js','eslint.config.js'].some(f=>fs.existsSync(f));if(!has){fs.writeFileSync('.eslintrc.json','{\"env\":{\"es2021\":true,\"node\":true,\"browser\":true},\"extends\":[\"eslint:recommended\"],\"parserOptions\":{\"ecmaVersion\":2022,\"sourceType\":\"module\"},\"ignorePatterns\":[\"node_modules/\",\"dist/\",\"build/\",\"coverage/\"],\"rules\":{\"no-unused-vars\":[\"warn\",{\"argsIgnorePattern\":\"^_\"}],\"eqeqeq\":\"error\",\"curly\":\"error\"}}');}"
  
     # Pin ESLint major to 8 so it works with classic config
-
     - name: Run ESLint
-
       run: npx -y eslint@8.57.0 . --max-warnings=0
- 
  
   test:
 
