@@ -8,7 +8,9 @@
     "dev": "nodemon server.js",
     "test:rce": "mocha ./test/costEstimationTest.js",
     "test": "mocha ./test/**/*.test.js",
-    "validate-env": "node scripts/validateEnv.js"
+    "validate-env": "node scripts/validateEnv.js",
+    "lint": "eslint .",
+    "build": "tsc -p tsconfig.json"
   },
   "jest": {
     "testMatch": [
@@ -56,6 +58,9 @@
     "mocha": "^11.7.2",
     "nodemon": "^3.1.10",
     "proxyquire": "^2.1.3",
-    "supertest": "^7.1.4"
+    "supertest": "^7.1.4",
+    "eslint": "^9",
+    "typescript": "^5",
+    "swagger-cli": "^4"
   }
 }
