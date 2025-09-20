@@ -10,9 +10,9 @@ on:
 env:
   NODE_VERSION: "20"
   OPENAPI_FILE: 'index.yaml'
+  PORT: '3000' 
 jobs:
   # ------------------- PARALLEL JOBS -------------------
-
 
   lint:
     runs-on: ubuntu-latest
@@ -21,76 +21,65 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+          cache: npm
           cache-dependency-path: package-lock.json
       - run: npm ci
 
-      # Create a tiny ESLint config only if none exists
+      # Create a tiny ESLint config ONLY if none exists (prevents "no config" failures)
       - name: Ensure minimal ESLint config
         run: |
           node -e "const fs=require('fs');const has=['.eslintrc.json','.eslintrc.js','eslint.config.js'].some(f=>fs.existsSync(f));if(!has){fs.writeFileSync('.eslintrc.json','{\"env\":{\"es2021\":true,\"node\":true,\"browser\":true},\"extends\":[\"eslint:recommended\"],\"parserOptions\":{\"ecmaVersion\":2022,\"sourceType\":\"module\"},\"ignorePatterns\":[\"node_modules/\",\"dist/\",\"build/\",\"coverage/\"],\"rules\":{\"no-unused-vars\":[\"warn\",{\"argsIgnorePattern\":\"^_\"}],\"eqeqeq\":\"error\",\"curly\":\"error\"}}');}"
 
+      # Pin ESLint to v8 so classic config works
       - name: Run ESLint
         run: npx -y eslint@8.57.0 . --max-warnings=0
     
   test:
-  runs-on: ubuntu-latest
-  env:
-    NODE_VERSION: ${{ env.NODE_VERSION }}
-    NODE_ENV: test
-    PORT: ${{ env.PORT || '3000' }}   # change if your app uses another port
-  steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-node@v4
-      with:
-        node-version: ${{ env.NODE_VERSION }}
-        cache: npm
-        cache-dependency-path: package-lock.json
+    runs-on: ubuntu-latest
+    env:
+      NODE_ENV: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
 
-    - run: npm ci
+      # Start the API only if a start script exists; otherwise just run tests.
+      - name: Maybe start API for integration tests
+        shell: bash
+        run: |
+          set -e
+          HAS_START_TEST=$(node -p "try{require('./package.json').scripts['start:test']?'yes':'no'}catch(e){'no'}")
+          HAS_START=$(node -p "try{require('./package.json').scripts['start']?'yes':'no'}catch(e){'no'}")
+          HAS_DEV=$(node -p "try{require('./package.json').scripts['dev']?'yes':'no'}catch(e){'no'}")
 
-    # Start the API only if a start script exists
-    - name: Maybe start API for integration tests
-      id: maybe-start
-      shell: bash
-      run: |
-        set -e
-        HAS_START_TEST=$(node -p "try{require('./package.json').scripts['start:test']?'yes':'no'}catch(e){'no'}")
-        HAS_START=$(node -p "try{require('./package.json').scripts['start']?'yes':'no'}catch(e){'no'}")
-        HAS_DEV=$(node -p "try{require('./package.json').scripts['dev']?'yes':'no'}catch(e){'no'}")
+          if [ "$HAS_START_TEST" = "yes" ]; then
+            npm run start:test & echo $! > server.pid
+          elif [ "$HAS_START" = "yes" ]; then
+            npm start & echo $! > server.pid
+          elif [ "$HAS_DEV" = "yes" ]; then
+            npm run dev & echo $! > server.pid
+          fi
 
-        if [ "$HAS_START_TEST" = "yes" ]; then
-          npm run start:test & echo $! > server.pid
-          echo "Started start:test (PID $(cat server.pid))"
-        elif [ "$HAS_START" = "yes" ]; then
-          npm start & echo $! > server.pid
-          echo "Started start (PID $(cat server.pid))"
-        elif [ "$HAS_DEV" = "yes" ]; then
-          npm run dev & echo $! > server.pid
-          echo "Started dev (PID $(cat server.pid))"
-        else
-          echo "No start script found; running tests without starting a server."
-          exit 0
-        fi
+          if [ -f server.pid ]; then
+            npx -y wait-on@7 "tcp:localhost:${{ env.PORT }}" || npx -y wait-on@7 "http://localhost:${{ env.PORT }}/health" || true
+          fi
 
-        # Wait for readiness: try TCP first, then /health
-        npx -y wait-on@7 "tcp:localhost:${PORT}" || npx -y wait-on@7 "http://localhost:${PORT}/health" || true
-        echo "Server wait complete."
+      - name: Run tests
+        run: npm test -- --ci
+        # If your tests hang due to open handles, add:  --forceExit
 
-    - name: Run tests
-      run: npm test -- --ci
-      # If your tests hang due to open handles, add:  --forceExit
-
-    # Always stop the background server if we started it
-    - name: Stop API (if running)
-      if: always()
-      shell: bash
-      run: |
-        if [ -f server.pid ]; then
-          kill $(cat server.pid) 2>/dev/null || true
-          rm -f server.pid
-        fi
-    
+      - name: Stop API (if started)
+        if: always()
+        shell: bash
+        run: |
+          if [ -f server.pid ]; then
+            kill $(cat server.pid) 2>/dev/null || true
+            rm -f server.pid
+          fi
 
   openapi-validate:
 
