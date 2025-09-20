@@ -36,6 +36,7 @@ jobs:
   test:
   runs-on: ubuntu-latest
   env:
+    NODE_VERSION: ${{ env.NODE_VERSION }}
     NODE_ENV: test
     PORT: ${{ env.PORT || '3000' }}   # change if your app uses another port
   steps:
@@ -45,40 +46,42 @@ jobs:
         node-version: ${{ env.NODE_VERSION }}
         cache: npm
         cache-dependency-path: package-lock.json
+
     - run: npm ci
- 
-    # Start the API if there is a start script; otherwise just run tests.
+
+    # Start the API only if a start script exists
     - name: Maybe start API for integration tests
       id: maybe-start
       shell: bash
       run: |
         set -e
-        # Detect available start script
         HAS_START_TEST=$(node -p "try{require('./package.json').scripts['start:test']?'yes':'no'}catch(e){'no'}")
         HAS_START=$(node -p "try{require('./package.json').scripts['start']?'yes':'no'}catch(e){'no'}")
- 
+        HAS_DEV=$(node -p "try{require('./package.json').scripts['dev']?'yes':'no'}catch(e){'no'}")
+
         if [ "$HAS_START_TEST" = "yes" ]; then
           npm run start:test & echo $! > server.pid
           echo "Started start:test (PID $(cat server.pid))"
         elif [ "$HAS_START" = "yes" ]; then
           npm start & echo $! > server.pid
           echo "Started start (PID $(cat server.pid))"
+        elif [ "$HAS_DEV" = "yes" ]; then
+          npm run dev & echo $! > server.pid
+          echo "Started dev (PID $(cat server.pid))"
         else
-          echo "No start script found; will run tests without starting a server."
+          echo "No start script found; running tests without starting a server."
           exit 0
         fi
- 
-        # Wait for the server to be ready on PORT (tcp) or a /health endpoint
-        # Adjust if your server exposes a different health route.
+
+        # Wait for readiness: try TCP first, then /health
         npx -y wait-on@7 "tcp:localhost:${PORT}" || npx -y wait-on@7 "http://localhost:${PORT}/health" || true
         echo "Server wait complete."
- 
+
     - name: Run tests
       run: npm test -- --ci
-      # If you want to force Jest to exit even with open handles:
-      # run: npm test -- --ci --forceExit
- 
-    # Always stop the background server (if it was started)
+      # If your tests hang due to open handles, add:  --forceExit
+
+    # Always stop the background server if we started it
     - name: Stop API (if running)
       if: always()
       shell: bash
@@ -86,9 +89,6 @@ jobs:
         if [ -f server.pid ]; then
           kill $(cat server.pid) 2>/dev/null || true
           rm -f server.pid
-        else
-          # best-effort cleanup for Node processes listening on $PORT
-          pkill -f "node" || true
         fi
     
 
