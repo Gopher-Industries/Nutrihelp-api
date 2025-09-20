@@ -14,6 +14,9 @@ jobs:
   # ------------------- PARALLEL JOBS -------------------
   lint:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Monitor_&_Logging
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
