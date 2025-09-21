@@ -1327,7 +1327,7 @@ paths:
            application/json:
              schema:
                $ref: '#/components/schemas/ErrorResponse'
-    put:
+  put:
      summary: Update user profile
      description: |
        - Normal users can update only their own profile.  
@@ -1359,7 +1359,6 @@ paths:
            application/json:
              schema:
                $ref: '#/components/schemas/ErrorResponse'
-  
   /notifications:
     post:
       summary: Create a new notification
@@ -2448,7 +2447,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-
     
   /auth/register:
       post:
@@ -3363,6 +3361,7 @@ components:
                   format: float
                   description: Model confidence score for diabetes prediction.
                   example: 0.798
+
     BarcodeAllergenDetection:
       type: object
       properties:
