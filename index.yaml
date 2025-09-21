@@ -2490,6 +2490,7 @@ paths:
           '400':
             description: Registration failed
   /auth/login:
+     get:
       tags:
         - Authentication
       summary: User Login
