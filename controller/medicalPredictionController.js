@@ -3,6 +3,7 @@
 // Node 18+ has global fetch; if you're on Node 16, uncomment:
 // const fetch = require("node-fetch");
 
+// [TEMP-DB-OFF] keep imports for easy revert; safe to leave unused
 const { insertSurvey } = require("../model/healthSurveyModel");
 const { insertRiskReport } = require("../model/healthRiskReportModel");
 
@@ -57,7 +58,13 @@ const normalizeMTRANS = (v) => {
   const l = String(v).trim().toLowerCase().replace(/-/g, " ").replace(/\s+/g, " ");
   if (l === "walking" || l === "walk") return "Walking";
   if (l === "bike" || l === "bicycle") return "Bike";
-  if (l === "public transportation" || l === "public_transportation" || l === "public" || l === "bus" || l === "train")
+  if (
+    l === "public transportation" ||
+    l === "public_transportation" ||
+    l === "public" ||
+    l === "bus" ||
+    l === "train"
+  )
     return "Public_Transportation";
   if (l === "automobile" || l === "car") return "Automobile";
   if (l === "motorbike" || l === "motorcycle") return "Motorbike";
@@ -70,7 +77,8 @@ function validateEncoded(enc) {
   if (!(enc.Age > 0 && enc.Age < 120)) errs.Age = "Age must be 0-120.";
   if (!(enc.Height > 0.5 && enc.Height < 2.5)) errs.Height = "Height must be 0.5-2.5 m.";
   if (!(enc.Weight > 10 && enc.Weight < 300)) errs.Weight = "Weight must be 10-300 kg.";
-  if (!["yes", "no"].includes(enc.family_history_with_overweight)) errs.family_history_with_overweight = "Expected yes/no.";
+  if (!["yes", "no"].includes(enc.family_history_with_overweight))
+    errs.family_history_with_overweight = "Expected yes/no.";
   if (![0, 1].includes(enc.FAVC)) errs.FAVC = "Expected 0/1.";
   if (!(enc.FCVC >= 0 && enc.FCVC <= 5)) errs.FCVC = "Expected 0..5.";
   if (!(enc.NCP >= 0 && enc.NCP <= 10)) errs.NCP = "Expected 0..10.";
@@ -90,14 +98,13 @@ const predict = async (req, res) => {
   const user_input = req.body || {};
 
   try {
-    // --- Build the AI payload directly from FE values (minimal transforms) ---
     const enc = {
       Gender: normalizeGender(user_input.Gender),
       Age: Number(user_input.Age),
       Height: Number(user_input.Height),
       Weight: Number(user_input.Weight),
       family_history_with_overweight: toYesNoStr(user_input.family_history_with_overweight),
-      FAVC: to01Int(user_input.FAVC), // 3900 -> 1
+      FAVC: to01Int(user_input.FAVC),
       FCVC: Number(user_input.FCVC),
       NCP: Number(user_input.NCP),
       CAEC: normalizeEnum(user_input.CAEC, 3),
@@ -110,13 +117,6 @@ const predict = async (req, res) => {
       MTRANS: normalizeMTRANS(user_input.MTRANS),
     };
 
-    // Validate & show helpful logs when failing
-    // const errs = validateEncoded(enc);
-    // if (Object.keys(errs).length) {
-    //   console.error("[predict] Validation failed:", errs, "\nEncoded:", enc, "\nRaw:", user_input);
-    //   return res.status(400).json({ error: "Invalid values", fields: errs, encoded: enc });
-    // }
-
     // --- Call AI ---
     const ai_response = await fetch(AI_RETRIEVE_URL, {
       method: "POST",
@@ -126,13 +126,17 @@ const predict = async (req, res) => {
 
     const text = await ai_response.text();
     let result;
-    try { result = JSON.parse(text); } catch { result = text; }
+    try {
+      result = JSON.parse(text);
+    } catch {
+      result = text;
+    }
 
     if (!ai_response.ok) {
       return res.status(ai_response.status).json({
         error: "AI retrieve error",
         status: ai_response.status,
-        detail: typeof result === "string" ? result : (result?.detail || result),
+        detail: typeof result === "string" ? result : result?.detail || result,
       });
     }
 
@@ -145,45 +149,47 @@ const predict = async (req, res) => {
 
     const medical_report = result.medical_report;
 
-    // --- Persist to DB ---
-    const userId = req.user?.id || user_input.user_id;
-    if (!userId) {
-      return res.status(400).json({ error: "Missing user_id for saving records" });
-    }
+    // ---------------------- [TEMP-DB-OFF] begin ----------------------
+    // The following block (user_id check + DB inserts) is disabled
+    // while FE does not send user_id. Keep logic here for easy revert.
 
-    // Survey row (use FE calories for calorie_intake_per_day)
-    const surveyRow = await insertSurvey({
-      user_id: userId,
-      gender: enc.Gender === 1 ? "male" : enc.Gender === 2 ? "female" : null,
-      age: enc.Age,
-      height_m: enc.Height,
-      weight_kg: enc.Weight,
-      family_history: enc.family_history_with_overweight === "yes",
-      calorie_intake_per_day: Number(user_input.FAVC) || null, // <-- FE field
-      vegetable_consumption: enc.FCVC,
-      main_meals_per_day: enc.NCP,
-    });
+    // const userId = req.user?.id || user_input.user_id;
+    // if (!userId) {
+    //   return res.status(400).json({ error: "Missing user_id for saving records" });
+    // }
 
-    // Risk report row
-    const obesityLevel = medical_report?.obesity_prediction?.obesity_level ?? null;
-    const obesityConf = Number(medical_report?.obesity_prediction?.confidence) || null;
-    const diabetesBool = !!medical_report?.diabetes_prediction?.diabetes;
-    const diabetesConf = Number(medical_report?.diabetes_prediction?.confidence) || null;
+    // const surveyRow = await insertSurvey({
+    //   user_id: userId,
+    //   gender: enc.Gender === 1 ? "male" : enc.Gender === 2 ? "female" : null,
+    //   age: enc.Age,
+    //   height_m: enc.Height,
+    //   weight_kg: enc.Weight,
+    //   family_history: enc.family_history_with_overweight === "yes",
+    //   calorie_intake_per_day: Number(user_input.FAVC) || null,
+    //   vegetable_consumption: enc.FCVC,
+    //   main_meals_per_day: enc.NCP,
+    // });
 
-    await insertRiskReport({
-      user_id: userId,
-      bmi: Number(medical_report.bmi) || null,
-      obesity_risk_label: obesityLevel,
-      obesity_risk_score: obesityConf,
-      diabetes_risk_label: diabetesBool ? "Positive" : "Negative",
-      diabetes_risk_score: diabetesConf,
-      nutribot_recommendation: medical_report.nutribot_recommendation || null,
-      model_version: medical_report.model_version || "v1",
-    });
+    // const obesityLevel = medical_report?.obesity_prediction?.obesity_level ?? null;
+    // const obesityConf = Number(medical_report?.obesity_prediction?.confidence) || null;
+    // const diabetesBool = !!medical_report?.diabetes_prediction?.diabetes;
+    // const diabetesConf = Number(medical_report?.diabetes_prediction?.confidence) || null;
 
-    // --- Respond ---
+    // await insertRiskReport({
+    //   user_id: userId,
+    //   bmi: Number(medical_report.bmi) || null,
+    //   obesity_risk_label: obesityLevel,
+    //   obesity_risk_score: obesityConf,
+    //   diabetes_risk_label: diabetesBool ? "Positive" : "Negative",
+    //   diabetes_risk_score: diabetesConf,
+    //   nutribot_recommendation: medical_report.nutribot_recommendation || null,
+    //   model_version: medical_report.model_version || "v1",
+    // });
+    // ---------------------- [TEMP-DB-OFF] end ----------------------
+
+    // --- Respond (no DB IDs while TEMP-DB-OFF is active) ---
     return res.status(200).json({
-      survey_id: surveyRow.id,
+      survey_id: null, // [TEMP-DB-OFF]
       medical_report,
     });
   } catch (error) {
