@@ -9,26 +9,29 @@ on:
       - '**'
 env:
   NODE_VERSION: "20"
+  OPENAPI_FILE: 'index.yaml'
+  PORT: '3000' 
 
 jobs:
-  node-ci:
+  lint:
     runs-on: ubuntu-latest
     steps:
-      # 1. Checkout repository
-      - name: Checkout
-        uses: actions/checkout@v4
- 
-      # 2. Setup Node.js with caching enabled
-      - name: Setup Node with cache
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: ${{ env.NODE_VERSION }}
+          node-version: 20
           cache: npm
           cache-dependency-path: package-lock.json
+      - run: npm ci --prefer-offline --no-audit --no-fund
  
-      # 3. Install dependencies (reproducible and cache-friendly)
-      - name: Install dependencies
-        run: npm ci
+     
+      - name: Ensure minimal ESLint config
+        run: |
+          node -e "const fs=require('fs');const has=['.eslintrc.json','.eslintrc.js','eslint.config.js'].some(f=>fs.existsSync(f));if(!has){fs.writeFileSync('.eslintrc.json',JSON.stringify({root:true,env:{es2021:true,node:true,browser:true},parserOptions:{ecmaVersion:2022,sourceType:'module'},ignorePatterns:['node_modules/','dist/','build/','coverage/'],rules:{curly:'off',eqeqeq:'off','no-undef':'off','no-unused-vars':'off'}},null,2));}"
+   
+      - name: Run ESLint (non-blocking)
+        run: npx -y eslint@8.57.0 . --no-error-on-unmatched-pattern --quiet || true
+      
   run-security-scan:
     runs-on: ubuntu-latest
 
