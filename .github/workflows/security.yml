@@ -31,6 +31,31 @@ jobs:
    
       - name: Run ESLint (non-blocking)
         run: npx -y eslint@8.57.0 . --no-error-on-unmatched-pattern --quiet || true
+    
+    test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci --prefer-offline --no-audit --no-fund
+ 
+   
+      - name: Run fast tests (non-blocking)
+        shell: bash
+        run: |
+          set -e
+          if node -e "const s=(require('./package.json').scripts)||{};process.exit(s['test:unit']?0:1)"; then
+            npm run test:unit -- --ci || true
+          elif node -e "const p=require('./package.json');const hasJest=(p.devDependencies&&p.devDependencies.jest)||(p.dependencies&&p.dependencies.jest);process.exit(hasJest?0:1)"; then
+            npx jest --ci --passWithNoTests || true
+          else
+            npm test --silent || true
+          fi
+ 
       
   run-security-scan:
     runs-on: ubuntu-latest
