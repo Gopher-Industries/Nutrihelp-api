@@ -216,3 +216,39 @@ exports.logLoginAttempt = async (req, res) => {
 
     return res.status(201).json({ message: 'Login attempt logged successfully' });
 };
+
+
+
+exports.sendSMSByEmail = async (req, res) => {
+  const { email } = req.body;
+
+  if (!email) {
+    return res.status(400).json({ error: 'Email is required' });
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('users')
+      .select('contact_number')
+      .eq('email', email)
+      .single();
+
+    if (error || !data?.contact_number) {
+      return res.status(404).json({ error: 'Phone number not found for the given email' });
+    }
+    const phone = data.contact_number;
+    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+
+    console.log(`📨 [DEV] Verification code for ${phone}: ${verificationCode}`);
+
+
+    return res.status(200).json({
+      message: 'SMS code sent (check server console for code)',
+      phone,
+    });
+  } catch (err) {
+    console.error('❌ Error sending SMS:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
