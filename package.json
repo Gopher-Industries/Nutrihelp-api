@@ -47,6 +47,7 @@
     "nutrihelp-api": "file:",
     "sinon": "^18.0.0",
     "swagger-ui-express": "^5.0.0",
+    "twilio": "^5.9.0",
     "uuid": "^8.3.2",
     "v8-to-istanbul": "^9.3.0",
     "yamljs": "^0.3.0"
