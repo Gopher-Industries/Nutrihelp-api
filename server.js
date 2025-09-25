@@ -8,8 +8,8 @@ console.log('   PORT:', process.env.PORT || '80 (default)');
 console.log('');
 
 const express = require("express");
-
-const FRONTEND_ORIGIN = "http://localhost:3000";
+const { errorLogger, responseTimeLogger } = require('./middleware/errorLogger');
+const FRONTEND_ORIGIN =  "http://localhost:3000";
 
 const helmet = require('helmet');
 const cors = require("cors");
@@ -102,8 +102,9 @@ app.use(limiter);
 // Swagger
 const swaggerDocument = yaml.load("./index.yaml");
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
-
-// Parsers
+// Response time monitoring
+app.use(responseTimeLogger);
+// JSON & URL parser
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
@@ -118,21 +119,27 @@ app.use("/uploads", express.static("uploads"));
 // Signup
 app.use("/api/signup", require("./routes/signup"));
 
-// Login dashboard
-app.use('/api/login-dashboard', loginDashboard);
+// Error handler
+app.use(errorLogger);
 
-// ✅ Mount allergy routes HERE (after app exists)
-app.use('/api/allergy', require('./routes/allergyRoutes'));
+// Final error handler
+app.use((err, req, res, next) => {
+    const status = err.status || 500;
+    const message = process.env.NODE_ENV === 'production' 
+        ? 'Internal Server Error' 
+        : err.message;
+        
+    res.status(status).json({
+        success: false,
+        error: message,
+        timestamp: new Date().toISOString()
+    });
+});
 
-// Error handlers
-app.use((err, req, res, next) => {
-  if (err) return res.status(400).json({ error: err.message });
-  next();
-});
-app.use((err, req, res, next) => {
-  console.error("Unhandled error:", err);
-  res.status(500).json({ error: "Internal server error" });
-});
+// Global error handler
+const { uncaughtExceptionHandler, unhandledRejectionHandler } = require('./middleware/errorLogger');
+process.on('uncaughtException', uncaughtExceptionHandler);
+process.on('unhandledRejection', unhandledRejectionHandler);
 
 // Start
 app.listen(port, async () => {
