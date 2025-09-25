@@ -220,6 +220,342 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+
+  # Shopping List API Endpoints
+  /shopping-list/ingredient-options:
+    get:
+      tags:
+        - Shopping List
+      summary: Search ingredients by name
+      description: Search ingredients by name and return price, store, and package information
+      parameters:
+        - name: name
+          in: query
+          required: true
+          description: Ingredient name for search (supports partial matching)
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 100
+            example: "Tomato"
+      responses:
+        '200':
+          description: Ingredient options retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  statusCode:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "success"
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/IngredientOption'
+        '400':
+          description: Bad request - missing ingredient name
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /shopping-list/from-meal-plan:
+    post:
+      tags:
+        - Shopping List
+      summary: Generate shopping list from meal plan
+      description: Merge ingredient needs from selected meals and return aggregated quantities
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - user_id
+                - meal_plan_ids
+              properties:
+                user_id:
+                  type: integer
+                  description: User ID
+                  example: 123
+                meal_plan_ids:
+                  type: array
+                  description: Array of meal plan IDs
+                  items:
+                    type: integer
+                  example: [1, 2, 3]
+                meal_types:
+                  type: array
+                  description: Array of meal types (optional)
+                  items:
+                    type: string
+                  example: ["breakfast", "lunch", "dinner"]
+      responses:
+        '200':
+          description: Shopping list generated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  statusCode:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "success"
+                  data:
+                    $ref: '#/components/schemas/ShoppingListFromMealPlan'
+        '400':
+          description: Bad request - missing required fields
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: No meal plans found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /shopping-list:
+    post:
+      tags:
+        - Shopping List
+      summary: Create shopping list
+      description: Store shopping lists for logged-in users in the database
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - user_id
+                - name
+                - items
+              properties:
+                user_id:
+                  type: integer
+                  description: User ID
+                  example: 123
+                name:
+                  type: string
+                  description: Shopping list name
+                  maxLength: 255
+                  example: "Weekly Shopping List"
+                items:
+                  type: array
+                  description: Array of shopping list items
+                  items:
+                    $ref: '#/components/schemas/ShoppingListItemInput'
+                estimated_total_cost:
+                  type: number
+                  format: float
+                  description: Estimated total cost
+                  example: 45.67
+      responses:
+        '201':
+          description: Shopping list created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  statusCode:
+                    type: integer
+                    example: 201
+                  message:
+                    type: string
+                    example: "success"
+                  data:
+                    type: object
+                    properties:
+                      shopping_list:
+                        $ref: '#/components/schemas/ShoppingList'
+                      items:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/ShoppingListItem'
+        '400':
+          description: Bad request - missing required fields
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    get:
+      tags:
+        - Shopping List
+      summary: Get shopping lists
+      description: Retrieve shopping lists for logged-in users
+      parameters:
+        - name: user_id
+          in: query
+          required: true
+          description: User ID to get shopping lists for
+          schema:
+            type: integer
+            example: 123
+      responses:
+        '200':
+          description: Shopping lists retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  statusCode:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "success"
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ShoppingListWithProgress'
+        '400':
+          description: Bad request - missing user ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /shopping-list/items/{id}:
+    patch:
+      tags:
+        - Shopping List
+      summary: Update shopping list item
+      description: Update item status (purchased, quantity, notes)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Shopping list item ID
+          schema:
+            type: integer
+            example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                purchased:
+                  type: boolean
+                  description: Whether the item has been purchased
+                  example: true
+                quantity:
+                  type: number
+                  format: float
+                  description: Updated quantity
+                  minimum: 0.01
+                  example: 600
+                notes:
+                  type: string
+                  description: Updated notes
+                  maxLength: 1000
+                  example: "Updated notes"
+      responses:
+        '200':
+          description: Item updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  statusCode:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "success"
+                  data:
+                    $ref: '#/components/schemas/ShoppingListItem'
+        '400':
+          description: Bad request - invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      tags:
+        - Shopping List
+      summary: Delete shopping list item
+      description: Remove item from shopping list
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Shopping list item ID
+          schema:
+            type: integer
+            example: 1
+      responses:
+        '204':
+          description: Item deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  statusCode:
+                    type: integer
+                    example: 204
+                  message:
+                    type: string
+                    example: "success"
+        '400':
+          description: Bad request - invalid item ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '500':
           description: Internal server error
           content:
@@ -958,7 +1294,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
   /userprofile:
-   get:
+    get:
      summary: Get user profile
      description: |
        - Normal users can only fetch their own profile.  
@@ -991,7 +1327,7 @@ paths:
            application/json:
              schema:
                $ref: '#/components/schemas/ErrorResponse'
-   put:
+  put:
      summary: Update user profile
      description: |
        - Normal users can update only their own profile.  
@@ -3048,4 +3384,316 @@ components:
           type: array
           items:
             type: string
+            
+    # Shopping List Schemas
+    IngredientOption:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Unique identifier for the ingredient option
+          example: 1
+        ingredient_id:
+          type: integer
+          description: Reference to the ingredient
+          example: 15
+        ingredient_name:
+          type: string
+          description: Name of the ingredient
+          example: "Tomato"
+        product_name:
+          type: string
+          description: Specific product name
+          example: "Fresh Tomatoes"
+        package_size:
+          type: number
+          format: float
+          description: Size of the package
+          example: 500
+        unit:
+          type: number
+          format: float
+          description: Unit quantity
+          example: 500
+        measurement:
+          type: string
+          description: Unit of measurement
+          example: "g"
+        price:
+          type: number
+          format: float
+          description: Price of the product
+          example: 3.99
+        store:
+          type: string
+          description: Store name
+          example: "Coles"
+        store_location:
+          type: string
+          description: Store location
+          example: "Melbourne CBD"
 
+    ShoppingListItemInput:
+      type: object
+      required:
+        - ingredient_name
+        - quantity
+        - unit
+        - measurement
+      properties:
+        ingredient_id:
+          type: integer
+          description: Reference to the ingredient (optional)
+          example: 15
+        ingredient_name:
+          type: string
+          description: Name of the ingredient
+          example: "Tomato"
+        category:
+          type: string
+          description: Category of the ingredient
+          example: "Vegetable"
+        quantity:
+          type: number
+          format: float
+          description: Quantity needed
+          minimum: 0.01
+          example: 500
+        unit:
+          type: number
+          format: float
+          description: Unit quantity
+          example: 500
+        measurement:
+          type: string
+          description: Unit of measurement
+          example: "g"
+        notes:
+          type: string
+          description: Additional notes
+          example: "For salads"
+        meal_tags:
+          type: array
+          description: Associated meal types
+          items:
+            type: string
+          example: ["breakfast", "lunch"]
+        estimated_cost:
+          type: number
+          format: float
+          description: Estimated cost for this item
+          example: 3.99
+
+    ShoppingListItem:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Unique identifier for the shopping list item
+          example: 1
+        shopping_list_id:
+          type: integer
+          description: Reference to the shopping list
+          example: 1
+        ingredient_id:
+          type: integer
+          description: Reference to the ingredient (nullable)
+          example: 15
+        ingredient_name:
+          type: string
+          description: Name of the ingredient
+          example: "Tomato"
+        category:
+          type: string
+          description: Category of the ingredient
+          example: "Vegetable"
+        quantity:
+          type: number
+          format: float
+          description: Quantity needed
+          example: 500
+        unit:
+          type: number
+          format: float
+          description: Unit quantity
+          example: 500
+        measurement:
+          type: string
+          description: Unit of measurement
+          example: "g"
+        notes:
+          type: string
+          description: Additional notes
+          example: "For salads"
+        purchased:
+          type: boolean
+          description: Whether the item has been purchased
+          example: false
+        meal_tags:
+          type: array
+          description: Associated meal types
+          items:
+            type: string
+          example: ["breakfast", "lunch"]
+        estimated_cost:
+          type: number
+          format: float
+          description: Estimated cost for this item
+          example: 3.99
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+          example: "2024-01-15T10:00:00Z"
+        updated_at:
+          type: string
+          format: date-time
+          description: Last update timestamp
+          example: "2024-01-15T10:00:00Z"
+
+    ShoppingList:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Unique identifier for the shopping list
+          example: 1
+        user_id:
+          type: integer
+          description: Reference to the user
+          example: 123
+        name:
+          type: string
+          description: Name of the shopping list
+          example: "Weekly Shopping List"
+        description:
+          type: string
+          description: Description of the shopping list
+          example: "Weekly groceries for meal plans"
+        estimated_total_cost:
+          type: number
+          format: float
+          description: Estimated total cost
+          example: 45.67
+        status:
+          type: string
+          description: Status of the shopping list
+          example: "active"
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+          example: "2024-01-15T10:00:00Z"
+        updated_at:
+          type: string
+          format: date-time
+          description: Last update timestamp
+          example: "2024-01-15T10:00:00Z"
+
+    ShoppingListWithProgress:
+      type: object
+      allOf:
+        - $ref: '#/components/schemas/ShoppingList'
+        - type: object
+          properties:
+            items:
+              type: array
+              description: Array of shopping list items
+              items:
+                $ref: '#/components/schemas/ShoppingListItem'
+            progress:
+              type: object
+              properties:
+                total_items:
+                  type: integer
+                  description: Total number of items
+                  example: 8
+                purchased_items:
+                  type: integer
+                  description: Number of purchased items
+                  example: 2
+                completion_percentage:
+                  type: integer
+                  description: Completion percentage
+                  example: 25
+
+    ShoppingListFromMealPlan:
+      type: object
+      properties:
+        shopping_list:
+          type: array
+          description: Array of shopping list items
+          items:
+            type: object
+            properties:
+              ingredient_id:
+                type: integer
+                description: Reference to the ingredient
+                example: 15
+              ingredient_name:
+                type: string
+                description: Name of the ingredient
+                example: "Tomato"
+              category:
+                type: string
+                description: Category of the ingredient
+                example: "Vegetable"
+              total_quantity:
+                type: number
+                format: float
+                description: Total quantity needed
+                example: 800
+              unit:
+                type: number
+                format: float
+                description: Unit quantity
+                example: 800
+              measurement:
+                type: string
+                description: Unit of measurement
+                example: "g"
+              meals:
+                type: array
+                description: Associated meal types
+                items:
+                  type: string
+                example: ["breakfast", "lunch"]
+              estimated_cost:
+                type: object
+                properties:
+                  min:
+                    type: number
+                    format: float
+                    description: Minimum estimated cost
+                    example: 6.38
+                  max:
+                    type: number
+                    format: float
+                    description: Maximum estimated cost
+                    example: 7.98
+        summary:
+          type: object
+          properties:
+            total_items:
+              type: integer
+              description: Total number of items
+              example: 8
+            total_estimated_cost:
+              type: object
+              properties:
+                min:
+                  type: number
+                  format: float
+                  description: Minimum total estimated cost
+                  example: 45.67
+                max:
+                  type: number
+                  format: float
+                  description: Maximum total estimated cost
+                  example: 58.92
+            categories:
+              type: array
+              description: Array of ingredient categories
+              items:
+                type: string
+              example: ["Vegetable", "Meat", "Dairy", "Pantry"]
