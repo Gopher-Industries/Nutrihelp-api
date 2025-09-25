@@ -1,4 +1,12 @@
 require("dotenv").config();
+
+// Debug environment variables
+console.log('🔧 Environment Variables Check:');
+console.log('   SUPABASE_URL:', process.env.SUPABASE_URL ? '✓ Set' : '✗ Missing');
+console.log('   SUPABASE_ANON_KEY:', process.env.SUPABASE_ANON_KEY ? '✓ Set' : '✗ Missing');
+console.log('   PORT:', process.env.PORT || '80 (default)');
+console.log('');
+
 const express = require("express");
 
 const FRONTEND_ORIGIN = "http://localhost:3000";
@@ -128,6 +136,8 @@ app.use((err, req, res, next) => {
 
 // Start
 app.listen(port, async () => {
+
+
   console.log('\n🎉 NutriHelp API launched successfully!');
   console.log('='.repeat(50));
   console.log(`Server is running on port ${port}`);
@@ -136,3 +146,9 @@ app.listen(port, async () => {
   console.log('💡 Press Ctrl+C to stop the server \n');
   exec(`start http://localhost:${port}/api-docs`);
 });
+
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ limit: "50mb", extended: true }));
+app.use('/api/sms', require('./routes/sms'));
+
+
