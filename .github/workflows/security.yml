@@ -55,6 +55,71 @@ jobs:
           else
             npm test --silent || true
           fi
+    
+    openapi-validate:
+ 
+    runs-on: ubuntu-latest
+ 
+    steps:
+ 
+      - uses: actions/checkout@v4
+ 
+      - uses: actions/setup-node@v4
+ 
+        with:
+ 
+          node-version: ${{ env.NODE_VERSION }}
+ 
+          cache: npm
+ 
+          cache-dependency-path: package-lock.json
+ 
+      - run: npm ci
+ 
+      - name: Install swagger-cli
+ 
+        run: npx -y swagger-cli@4.0.4 --version
+ 
+   
+ 
+      - name: Validate OpenAPI (non-blocking)
+ 
+        run: |
+ 
+          REPORT=openapi-validate.log
+ 
+          if [ ! -f "${{ env.OPENAPI_FILE }}" ]; then
+ 
+            echo "::warning::OpenAPI file '${{ env.OPENAPI_FILE }}' not found at repo root. Skipping validation." | tee "$REPORT"
+ 
+            exit 0
+ 
+          fi
+ 
+          # Run validation, capture output; do not fail the step
+ 
+          npx swagger-cli validate "${{ env.OPENAPI_FILE }}" >"$REPORT" 2>&1 || {
+ 
+            echo "::warning::OpenAPI validation failed. See artifact '$REPORT' for details."
+ 
+          }
+ 
+          # Always succeed
+ 
+          exit 0
+ 
+      - name: Upload OpenAPI validation report
+ 
+        uses: actions/upload-artifact@v4
+ 
+        with:
+ 
+          name: openapi-validate-report
+ 
+          path: openapi-validate.log
+ 
+          if-no-files-found: ignore
+ 
  
       
   run-security-scan:
