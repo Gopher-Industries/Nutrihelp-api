@@ -37,7 +37,7 @@ function authorizeRoles(...allowedRoles) {
     next();
   };
 }
-
+ //feature/rbac-extension
 async function logViolation(req, role, status) {
   const payload = {
     user_id: req.user?.userId || "unknown",
@@ -61,3 +61,4 @@ async function logViolation(req, role, status) {
 }
 
 module.exports = authorizeRoles;
+

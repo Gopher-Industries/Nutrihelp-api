@@ -7,7 +7,59 @@ servers:
 tags:
   - name: System
     description: System and security monitoring endpoints
+  - name: LoginDashboard
+    description: KPIs and trends from public.audit_logs
+  - name: Allergy
+    description: Endpoints for allergy checks and warnings
 paths:
+  /allergy/common:
+    get:
+      tags: [Allergy]
+      summary: Get common allergens list
+      description: Returns an array of common allergens to help build UI pickers.
+      responses:
+        '200':
+          description: List of common allergens
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  allergens:
+                    type: array
+                    items: { type: string }
+              examples:
+                default:
+                  value:
+                    allergens: ["peanuts","tree nuts","milk","eggs","soy","wheat","fish","shellfish","sesame"]
+
+  /allergy/check:
+    post:
+      tags: [Allergy]
+      summary: Check a meal against user allergies
+      description: Returns which of the user's allergies are present in the meal's ingredients.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AllergyCheckRequest'
+            examples:
+              simple:
+                value:
+                  userAllergies: ["peanuts","milk"]
+                  meal:
+                    name: "PB&J with milk"
+                    ingredients: ["bread","peanut butter","jelly","milk"]
+      responses:
+        '200':
+          description: Allergy check result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AllergyCheckResponse'
+
+
   /system/generate-baseline:
     post:
       tags:
@@ -52,6 +104,76 @@ paths:
                           type: string
                         issue:
                           type: string
+  /login-dashboard/kpi:
+    get:
+      tags: [LoginDashboard]
+      summary: 24h login KPIs
+      responses:
+        '200':
+          description: KPIs
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Kpi24h' }
+ 
+  /login-dashboard/daily:
+    get:
+      tags: [LoginDashboard]
+      summary: Daily attempts/success/failure
+      parameters:
+        - in: query
+          name: days
+          schema: { type: integer, minimum: 1, default: 30 }
+      responses:
+        '200':
+          description: Time series
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/DailyRow' }
+ 
+  /login-dashboard/dau:
+    get:
+      tags: [LoginDashboard]
+      summary: Daily Active Users (successful unique logins)
+      parameters:
+        - in: query
+          name: days
+          schema: { type: integer, minimum: 1, default: 30 }
+      responses:
+        '200':
+          description: DAU time series
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/DauRow' }
+ 
+  /login-dashboard/top-failing-ips:
+    get:
+      tags: [LoginDashboard]
+      summary: Top failing IPs (7 days)
+      responses:
+        '200':
+          description: Suspicious IPs
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/FailingIpRow' }
+ 
+  /login-dashboard/fail-by-domain:
+    get:
+      tags: [LoginDashboard]
+      summary: Failures grouped by email domain (7 days)
+      responses:
+        '200':
+          description: Failure counts by domain
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/DomainFailRow' }
   /upload:
     post:
       summary: Upload a file
@@ -78,7 +200,29 @@ paths:
   /appointments:
     post:
       summary: Save appointment data
-      description: Receives a user ID, date, time, and description, and saves the appointment data
+        /upload:
+          post:
+            summary: Upload a file
+            description: Upload JPG, PNG, or PDF (max 5MB, limited to 5 uploads per 10 minutes)
+            security:
+              - BearerAuth: []
+            requestBody:
+              required: true
+              content:
+                multipart/form-data:
+                  schema:
+                    type: object
+                    properties:
+                      file:
+                        type: string
+                        format: binary
+            responses:
+              '200':
+                description: File uploaded successfully
+              '400':
+                description: Upload failed due to size/type restriction
+              '429':
+                description: Too many uploads from this IP (rate limit exceeded)
       requestBody:
         required: true
         content:
@@ -94,6 +238,342 @@ paths:
                 $ref: '#/components/schemas/SuccessResponse'
         '400':
           description: Bad request - missing required fields
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # Shopping List API Endpoints
+  /shopping-list/ingredient-options:
+    get:
+      tags:
+        - Shopping List
+      summary: Search ingredients by name
+      description: Search ingredients by name and return price, store, and package information
+      parameters:
+        - name: name
+          in: query
+          required: true
+          description: Ingredient name for search (supports partial matching)
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 100
+            example: "Tomato"
+      responses:
+        '200':
+          description: Ingredient options retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  statusCode:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "success"
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/IngredientOption'
+        '400':
+          description: Bad request - missing ingredient name
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /shopping-list/from-meal-plan:
+    post:
+      tags:
+        - Shopping List
+      summary: Generate shopping list from meal plan
+      description: Merge ingredient needs from selected meals and return aggregated quantities
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - user_id
+                - meal_plan_ids
+              properties:
+                user_id:
+                  type: integer
+                  description: User ID
+                  example: 123
+                meal_plan_ids:
+                  type: array
+                  description: Array of meal plan IDs
+                  items:
+                    type: integer
+                  example: [1, 2, 3]
+                meal_types:
+                  type: array
+                  description: Array of meal types (optional)
+                  items:
+                    type: string
+                  example: ["breakfast", "lunch", "dinner"]
+      responses:
+        '200':
+          description: Shopping list generated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  statusCode:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "success"
+                  data:
+                    $ref: '#/components/schemas/ShoppingListFromMealPlan'
+        '400':
+          description: Bad request - missing required fields
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: No meal plans found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /shopping-list:
+    post:
+      tags:
+        - Shopping List
+      summary: Create shopping list
+      description: Store shopping lists for logged-in users in the database
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - user_id
+                - name
+                - items
+              properties:
+                user_id:
+                  type: integer
+                  description: User ID
+                  example: 123
+                name:
+                  type: string
+                  description: Shopping list name
+                  maxLength: 255
+                  example: "Weekly Shopping List"
+                items:
+                  type: array
+                  description: Array of shopping list items
+                  items:
+                    $ref: '#/components/schemas/ShoppingListItemInput'
+                estimated_total_cost:
+                  type: number
+                  format: float
+                  description: Estimated total cost
+                  example: 45.67
+      responses:
+        '201':
+          description: Shopping list created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  statusCode:
+                    type: integer
+                    example: 201
+                  message:
+                    type: string
+                    example: "success"
+                  data:
+                    type: object
+                    properties:
+                      shopping_list:
+                        $ref: '#/components/schemas/ShoppingList'
+                      items:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/ShoppingListItem'
+        '400':
+          description: Bad request - missing required fields
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    get:
+      tags:
+        - Shopping List
+      summary: Get shopping lists
+      description: Retrieve shopping lists for logged-in users
+      parameters:
+        - name: user_id
+          in: query
+          required: true
+          description: User ID to get shopping lists for
+          schema:
+            type: integer
+            example: 123
+      responses:
+        '200':
+          description: Shopping lists retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  statusCode:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "success"
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ShoppingListWithProgress'
+        '400':
+          description: Bad request - missing user ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /shopping-list/items/{id}:
+    patch:
+      tags:
+        - Shopping List
+      summary: Update shopping list item
+      description: Update item status (purchased, quantity, notes)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Shopping list item ID
+          schema:
+            type: integer
+            example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                purchased:
+                  type: boolean
+                  description: Whether the item has been purchased
+                  example: true
+                quantity:
+                  type: number
+                  format: float
+                  description: Updated quantity
+                  minimum: 0.01
+                  example: 600
+                notes:
+                  type: string
+                  description: Updated notes
+                  maxLength: 1000
+                  example: "Updated notes"
+      responses:
+        '200':
+          description: Item updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  statusCode:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: "success"
+                  data:
+                    $ref: '#/components/schemas/ShoppingListItem'
+        '400':
+          description: Bad request - invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      tags:
+        - Shopping List
+      summary: Delete shopping list item
+      description: Remove item from shopping list
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Shopping list item ID
+          schema:
+            type: integer
+            example: 1
+      responses:
+        '204':
+          description: Item deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  statusCode:
+                    type: integer
+                    example: 204
+                  message:
+                    type: string
+                    example: "success"
+        '400':
+          description: Bad request - invalid item ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
           content:
             application/json:
               schema:
@@ -232,6 +712,43 @@ paths:
                 $ref: '#/components/schemas/IDNamePair'
         '500':
           description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /system/test-error/trigger:
+    post:
+      tags:
+        - System
+      summary: Trigger a simulated error for testing error logging
+      description: |-
+        This endpoint intentionally triggers an error so you can test the error logging middleware and verify entries are written to the Supabase `error_logs` table.
+        Use the `simulate` field in the request body to choose the behavior: `throw` (synchronous throw), `next` (pass to next), or omit for a delayed async error.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                simulate:
+                  type: string
+                  example: throw
+                  description: 'Options: "throw", "next" or omitted (delayed error)'
+      responses:
+        '200':
+          description: If the request unexpectedly succeeds
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Triggered error (this should not be returned)
+        '500':
+          description: Error triggered and handled by error logging middleware
           content:
             application/json:
               schema:
@@ -836,7 +1353,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
   /userprofile:
-   get:
+    get:
      summary: Get user profile
      description: |
        - Normal users can only fetch their own profile.  
@@ -869,7 +1386,7 @@ paths:
            application/json:
              schema:
                $ref: '#/components/schemas/ErrorResponse'
-   put:
+  put:
      summary: Update user profile
      description: |
        - Normal users can update only their own profile.  
@@ -1885,66 +2402,111 @@ paths:
                 $ref: '#/components/schemas/MedicalReportResponse'
         '400':
           description: Bad Request - Invalid input data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '401':
           description: Unauthorized - Authentication credentials missing or invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '500':
           description: Internal Server Error - Something went wrong on the server.
-              type: object
-              properties:
-                user_id:
-                  type: string
-                  format: uuid
-                  description: The unique ID of the user
-                glasses_consumed:
-                  type: integer
-                  description: Number of glasses consumed
-              required:
-                - user_id
-                - glasses_consumed
-              example:
-              user_id: "15"
-              glasses_consumed: 5
-      responses:
-        '200':
-          description: Water intake updated successfully
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                    example: "Water intake updated successfully"
-                  data:
-                    type: object
-                    properties:
-                      user_id:
-                        type: string
-                        example: "15"
-                      date:
-                        type: string
-                        format: date
-                        example: "2025-05-10"
-                      glasses_consumed:
-                        type: integer
-                        example: 5
-                      updated_at:
-                        type: string
-                        format: date-time
-                        example: "2025-05-10T12:00:00Z"
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /medical-report/plan:
+    post:
+      summary: Generate a 4-week health plan from a medical report
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HealthPlanRequest'
+            examples:
+              fe_combined_payload:
+                value:
+                  medical_report:
+                    - obesity_prediction:
+                        obesity_level: Overweight_Level_II
+                        confidence: 79.8
+                      diabetes_prediction:
+                        diabetes: true
+                        confidence: 79.8
+                  survey_data:
+                    Gender: Male
+                    Age: 24
+                    Height: 1.699998
+                    Weight: 81.66995
+                    Any family history of overweight (yes/no): "yes"
+                    Frequent High Calorie Food Consumption (yes/no): "yes"
+                    Consumption of vegetables in meals: 2.7
+                    Consumption of Food Between Meals: Sometimes
+                    Number of Main Meals: 3
+                    Daily Water Intake: 2.763573
+                    Do you Smoke?: "no"
+                    Do you monitor your daily calories?: "no"
+                    Physical Activity Frequency: 0
+                    Time Using Technology Devices Daily: 0.976473
+                    Alcohol Consumption Rate: Sometimes
+                    Mode of Transportation you use: Public_Transportation
+                    target_weight: 80
+                    days_per_week: 4
+                    workout_place: gym
+              minimal:
+                value:
+                  medical_report:
+                    - obesity_prediction:
+                        obesity_level: Overweight_Level_I
+                        confidence: 82.3
+                      diabetes_prediction:
+                        diabetes: false
+                        confidence: 91.2
+                  survey_data:
+                    Gender: Male
+                    Age: 29
+                    Height: 1.78
+                    Weight: 78.5
+                    days_per_week: 4
+                    workout_place: gym
+      responses:
+        '200':
+          description: Weekly plan generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthPlanResponse'
         '400':
-          description: Bad request - missing or invalid fields
+          description: Bad Request – invalid or missing input fields
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized – Authentication credentials missing or invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: AI server error – upstream FastAPI returned an error
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '500':
-          description: Internal server error
+          description: Internal Server Error – Something went wrong on the server
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-  
+
+    
   /auth/register:
       post:
         tags:
@@ -2120,13 +2682,115 @@ paths:
                     format: date-time
                     example: "2025-08-03T12:14:00.706Z"
 
+  /barcode:
+    post:
+      summary: Detect user allergen from a given barcode
+      description: Retrieve ingredients information from a given barcode and detect user's allergen ingredients
+      parameters:
+        - name: code
+          in: query
+          required: true
+          schema:
+            type: integer
+          description: Barcode number for allergen detection
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                user_id:
+                  type: integer
+                  description: The user ID
+              required:
+                - user_id
+      responses:
+        '200':
+          description: Barcode scanning successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BarcodeAllergenDetection'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
 components:
+
   securitySchemes:
     BearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
   schemas:
+    AllergyCheckRequest:
+      type: object
+      required: [userAllergies, meal]
+      properties:
+        userAllergies:
+          type: array
+          description: List of allergens the user is sensitive to (lowercase recommended)
+          items: { type: string }
+          example: ["peanuts","milk","sesame"]
+        meal:
+          type: object
+          required: [name, ingredients]
+          properties:
+            name:
+              type: string
+              example: "Chicken Satay"
+            ingredients:
+              type: array
+              items: { type: string }
+              example: ["chicken","peanut sauce","soy sauce","garlic"]
+
+    AllergyCheckResponse:
+      type: object
+      properties:
+        hasAllergens:
+          type: boolean
+          example: true
+        triggers:
+          type: array
+          description: Which of the userAllergies were detected in the meal ingredients
+          items: { type: string }
+          example: ["peanuts","soy"]
+    Kpi24h:
+      type: object
+      properties:
+        login_events_24h: { type: integer, example: 512 }
+        successes_24h:    { type: integer, example: 420 }
+        failures_24h:     { type: integer, example: 92 }
+        success_rate_24h: { type: number, format: float, example: 82.03 }
+    DailyRow:
+      type: object
+      properties:
+        day_local:        { type: string, format: date, example: '2025-08-26' }
+        attempts:         { type: integer, example: 150 }
+        successes:        { type: integer, example: 120 }
+        failures:         { type: integer, example: 30 }
+        success_rate_pct: { type: number, format: float, example: 80.0 }
+    DauRow:
+      type: object
+      properties:
+        day_local: { type: string, format: date, example: '2025-08-26' }
+        dau:       { type: integer, example: 97 }
+    FailingIpRow:
+      type: object
+      properties:
+        ip_address:         { type: string, example: '127.0.0.1' }
+        failed_count:       { type: integer, example: 120 }
+        total_login_events: { type: integer, example: 150 }
+        fail_pct:           { type: number, format: float, example: 80.0 }
+    DomainFailRow:
+      type: object
+      properties:
+        domain:           { type: string, example: 'deakin.edu.au' }
+        failures_last_7d: { type: integer, example: 35 }
     LoginRequest:
       type: object
       properties:
@@ -2629,7 +3293,6 @@ components:
       properties:
         user_id:
           type: integer
-
     MedicalReportRequest:
       MedicalReportRequest:
       type: object
@@ -2657,9 +3320,9 @@ components:
           example: "Male"
         Age:
           type: number
-          format: float
+          format: int
           description: Age in years.
-          example: 24.443011
+          example: 24
         Height:
           type: number
           format: float
@@ -2684,7 +3347,7 @@ components:
           type: number
           format: float
           description: Frequency of vegetable consumption in meals.
-          example: 2.7
+          example: 3
         Consumption of Food Between Meals:
           type: string
           enum: ["no", "Sometimes", "Frequently", "Always"]
@@ -2694,7 +3357,7 @@ components:
           type: number
           format: float
           description: Number of main meals per day.
-          example: 2.983297
+          example: 3
         Daily Water Intake:
           type: number
           format: float
@@ -2758,4 +3421,338 @@ components:
                   description: Model confidence score for diabetes prediction.
                   example: 0.798
 
-  
+    BarcodeAllergenDetection:
+      type: object
+      properties:
+        productName:
+          type: string
+        detection_result:
+          type: object
+          properties:
+            hasUserAllergen:
+              type: boolean
+            matchingAllergens:
+              type: array
+              items:
+                type: string
+        barcode_ingredients:
+          type: array
+          items:
+            type: string
+        user_allergen_ingredients:
+          type: array
+          items:
+            type: string
+            
+    # Shopping List Schemas
+    IngredientOption:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Unique identifier for the ingredient option
+          example: 1
+        ingredient_id:
+          type: integer
+          description: Reference to the ingredient
+          example: 15
+        ingredient_name:
+          type: string
+          description: Name of the ingredient
+          example: "Tomato"
+        product_name:
+          type: string
+          description: Specific product name
+          example: "Fresh Tomatoes"
+        package_size:
+          type: number
+          format: float
+          description: Size of the package
+          example: 500
+        unit:
+          type: number
+          format: float
+          description: Unit quantity
+          example: 500
+        measurement:
+          type: string
+          description: Unit of measurement
+          example: "g"
+        price:
+          type: number
+          format: float
+          description: Price of the product
+          example: 3.99
+        store:
+          type: string
+          description: Store name
+          example: "Coles"
+        store_location:
+          type: string
+          description: Store location
+          example: "Melbourne CBD"
+
+    ShoppingListItemInput:
+      type: object
+      required:
+        - ingredient_name
+        - quantity
+        - unit
+        - measurement
+      properties:
+        ingredient_id:
+          type: integer
+          description: Reference to the ingredient (optional)
+          example: 15
+        ingredient_name:
+          type: string
+          description: Name of the ingredient
+          example: "Tomato"
+        category:
+          type: string
+          description: Category of the ingredient
+          example: "Vegetable"
+        quantity:
+          type: number
+          format: float
+          description: Quantity needed
+          minimum: 0.01
+          example: 500
+        unit:
+          type: number
+          format: float
+          description: Unit quantity
+          example: 500
+        measurement:
+          type: string
+          description: Unit of measurement
+          example: "g"
+        notes:
+          type: string
+          description: Additional notes
+          example: "For salads"
+        meal_tags:
+          type: array
+          description: Associated meal types
+          items:
+            type: string
+          example: ["breakfast", "lunch"]
+        estimated_cost:
+          type: number
+          format: float
+          description: Estimated cost for this item
+          example: 3.99
+
+    ShoppingListItem:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Unique identifier for the shopping list item
+          example: 1
+        shopping_list_id:
+          type: integer
+          description: Reference to the shopping list
+          example: 1
+        ingredient_id:
+          type: integer
+          description: Reference to the ingredient (nullable)
+          example: 15
+        ingredient_name:
+          type: string
+          description: Name of the ingredient
+          example: "Tomato"
+        category:
+          type: string
+          description: Category of the ingredient
+          example: "Vegetable"
+        quantity:
+          type: number
+          format: float
+          description: Quantity needed
+          example: 500
+        unit:
+          type: number
+          format: float
+          description: Unit quantity
+          example: 500
+        measurement:
+          type: string
+          description: Unit of measurement
+          example: "g"
+        notes:
+          type: string
+          description: Additional notes
+          example: "For salads"
+        purchased:
+          type: boolean
+          description: Whether the item has been purchased
+          example: false
+        meal_tags:
+          type: array
+          description: Associated meal types
+          items:
+            type: string
+          example: ["breakfast", "lunch"]
+        estimated_cost:
+          type: number
+          format: float
+          description: Estimated cost for this item
+          example: 3.99
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+          example: "2024-01-15T10:00:00Z"
+        updated_at:
+          type: string
+          format: date-time
+          description: Last update timestamp
+          example: "2024-01-15T10:00:00Z"
+
+    ShoppingList:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Unique identifier for the shopping list
+          example: 1
+        user_id:
+          type: integer
+          description: Reference to the user
+          example: 123
+        name:
+          type: string
+          description: Name of the shopping list
+          example: "Weekly Shopping List"
+        description:
+          type: string
+          description: Description of the shopping list
+          example: "Weekly groceries for meal plans"
+        estimated_total_cost:
+          type: number
+          format: float
+          description: Estimated total cost
+          example: 45.67
+        status:
+          type: string
+          description: Status of the shopping list
+          example: "active"
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+          example: "2024-01-15T10:00:00Z"
+        updated_at:
+          type: string
+          format: date-time
+          description: Last update timestamp
+          example: "2024-01-15T10:00:00Z"
+
+    ShoppingListWithProgress:
+      type: object
+      allOf:
+        - $ref: '#/components/schemas/ShoppingList'
+        - type: object
+          properties:
+            items:
+              type: array
+              description: Array of shopping list items
+              items:
+                $ref: '#/components/schemas/ShoppingListItem'
+            progress:
+              type: object
+              properties:
+                total_items:
+                  type: integer
+                  description: Total number of items
+                  example: 8
+                purchased_items:
+                  type: integer
+                  description: Number of purchased items
+                  example: 2
+                completion_percentage:
+                  type: integer
+                  description: Completion percentage
+                  example: 25
+
+    ShoppingListFromMealPlan:
+      type: object
+      properties:
+        shopping_list:
+          type: array
+          description: Array of shopping list items
+          items:
+            type: object
+            properties:
+              ingredient_id:
+                type: integer
+                description: Reference to the ingredient
+                example: 15
+              ingredient_name:
+                type: string
+                description: Name of the ingredient
+                example: "Tomato"
+              category:
+                type: string
+                description: Category of the ingredient
+                example: "Vegetable"
+              total_quantity:
+                type: number
+                format: float
+                description: Total quantity needed
+                example: 800
+              unit:
+                type: number
+                format: float
+                description: Unit quantity
+                example: 800
+              measurement:
+                type: string
+                description: Unit of measurement
+                example: "g"
+              meals:
+                type: array
+                description: Associated meal types
+                items:
+                  type: string
+                example: ["breakfast", "lunch"]
+              estimated_cost:
+                type: object
+                properties:
+                  min:
+                    type: number
+                    format: float
+                    description: Minimum estimated cost
+                    example: 6.38
+                  max:
+                    type: number
+                    format: float
+                    description: Maximum estimated cost
+                    example: 7.98
+        summary:
+          type: object
+          properties:
+            total_items:
+              type: integer
+              description: Total number of items
+              example: 8
+            total_estimated_cost:
+              type: object
+              properties:
+                min:
+                  type: number
+                  format: float
+                  description: Minimum total estimated cost
+                  example: 45.67
+                max:
+                  type: number
+                  format: float
+                  description: Maximum total estimated cost
+                  example: 58.92
+            categories:
+              type: array
+              description: Array of ingredient categories
+              items:
+                type: string
+              example: ["Vegetable", "Meat", "Dairy", "Pantry"]
