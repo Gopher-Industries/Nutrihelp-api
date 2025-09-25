@@ -56,7 +56,7 @@ jobs:
             npm test --silent || true
           fi
     
-    openapi-validate:
+  openapi-validate:
  
     runs-on: ubuntu-latest
  
