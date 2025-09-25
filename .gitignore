@@ -1,6 +1,10 @@
 # Logs
 logs
 *.log
+```ignore
+# Logs
+logs
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
@@ -130,6 +134,22 @@ dist
 
 .vscode
 .idea
+
+# Ignore virtualenvs and caches inside Vulnerability_Tool_V2
+/Vulnerability_Tool_V2/.venv/
+/Vulnerability_Tool_V2/venv/
+/Vulnerability_Tool_V2/__pycache__/
+/Vulnerability_Tool_V2/.pytest_cache/
+/Vulnerability_Tool_V2/.cache/
+
+# General Python ignores
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Ignore generated security assessment reports
+/security/reports/
+```
 
 # Python virtual environments
 venv/
