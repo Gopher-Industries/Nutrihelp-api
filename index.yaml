@@ -204,7 +204,29 @@ paths:
   /appointments:
     post:
       summary: Save appointment data
-      description: Receives a user ID, date, time, and description, and saves the appointment data
+        /upload:
+          post:
+            summary: Upload a file
+            description: Upload JPG, PNG, or PDF (max 5MB, limited to 5 uploads per 10 minutes)
+            security:
+              - BearerAuth: []
+            requestBody:
+              required: true
+              content:
+                multipart/form-data:
+                  schema:
+                    type: object
+                    properties:
+                      file:
+                        type: string
+                        format: binary
+            responses:
+              '200':
+                description: File uploaded successfully
+              '400':
+                description: Upload failed due to size/type restriction
+              '429':
+                description: Too many uploads from this IP (rate limit exceeded)
       requestBody:
         required: true
         content:
@@ -694,6 +716,43 @@ paths:
                 $ref: '#/components/schemas/IDNamePair'
         '500':
           description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /system/test-error/trigger:
+    post:
+      tags:
+        - System
+      summary: Trigger a simulated error for testing error logging
+      description: |-
+        This endpoint intentionally triggers an error so you can test the error logging middleware and verify entries are written to the Supabase `error_logs` table.
+        Use the `simulate` field in the request body to choose the behavior: `throw` (synchronous throw), `next` (pass to next), or omit for a delayed async error.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                simulate:
+                  type: string
+                  example: throw
+                  description: 'Options: "throw", "next" or omitted (delayed error)'
+      responses:
+        '200':
+          description: If the request unexpectedly succeeds
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Triggered error (this should not be returned)
+        '500':
+          description: Error triggered and handled by error logging middleware
           content:
             application/json:
               schema:
