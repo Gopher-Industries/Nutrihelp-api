@@ -3,7 +3,9 @@ info:
   title: NutriHelp API
   version: 1.0.0
 servers:
-  - url: http://localhost/api
+  - url: "http://localhost"
+    description: "Local API"
+
 tags:
   - name: System
     description: System and security monitoring endpoints
@@ -11,6 +13,8 @@ tags:
     description: KPIs and trends from public.audit_logs
   - name: Allergy
     description: Endpoints for allergy checks and warnings
+  - name: Vulnerability Scanner
+    description: Endpoints for the vulnerability scanner
 paths:
   /allergy/common:
     get:
@@ -1933,7 +1937,6 @@ paths:
           description: Number of records to return
           schema:
             type: integer
-          description: Integer ID of the recipe for cost calculation
             default: 20
         - name: page
           in: query
@@ -1952,7 +1955,6 @@ paths:
             default: true
       responses:
         '200':
-          description: Calculate cost successfully
           description: Successfully retrieved requested data
           content:
             application/json:
@@ -2474,33 +2476,57 @@ paths:
                     Weight: 78.5
                     days_per_week: 4
                     workout_place: gym
+              type: object
+              properties:
+                user_id:
+                  type: string
+                  format: uuid
+                  description: The unique ID of the user
+                glasses_consumed:
+                  type: integer
+                  description: Number of glasses consumed
+              required:
+                - user_id
+                - glasses_consumed
+              example:
+              user_id: "15"
+              glasses_consumed: 5
       responses:
         '200':
-          description: Weekly plan generated successfully
+          description: Water intake updated successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HealthPlanResponse'
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Water intake updated successfully"
+                  data:
+                    type: object
+                    properties:
+                      user_id:
+                        type: string
+                        example: "15"
+                      date:
+                        type: string
+                        format: date
+                        example: "2025-05-10"
+                      glasses_consumed:
+                        type: integer
+                        example: 5
+                      updated_at:
+                        type: string
+                        format: date-time
+                        example: "2025-05-10T12:00:00Z"
         '400':
-          description: Bad Request – invalid or missing input fields
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '401':
-          description: Unauthorized – Authentication credentials missing or invalid.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '502':
-          description: AI server error – upstream FastAPI returned an error
+          description: Bad request - missing or invalid fields
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '500':
-          description: Internal Server Error – Something went wrong on the server
+          description: Internal server error
           content:
             application/json:
               schema:
@@ -2681,43 +2707,6 @@ paths:
                     type: string
                     format: date-time
                     example: "2025-08-03T12:14:00.706Z"
-
-  /barcode:
-    post:
-      summary: Detect user allergen from a given barcode
-      description: Retrieve ingredients information from a given barcode and detect user's allergen ingredients
-      parameters:
-        - name: code
-          in: query
-          required: true
-          schema:
-            type: integer
-          description: Barcode number for allergen detection
-      requestBody:
-        required: false
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                user_id:
-                  type: integer
-                  description: The user ID
-              required:
-                - user_id
-      responses:
-        '200':
-          description: Barcode scanning successful
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/BarcodeAllergenDetection'
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
 
 components:
 
@@ -2967,6 +2956,13 @@ components:
           type: string
         allergy:
           type: string
+                example:
+                  target_path: "./routes"
+                  plugins:
+                    - "JWTMissingProtectionPlugin"
+                    - "JWTConfigurationPlugin"
+                    - "general_security"
+                  output_format: "json"
         dislikes:
           type: string
     MealPlanRecipe:
@@ -3756,3 +3752,5 @@ components:
               items:
                 type: string
               example: ["Vegetable", "Meat", "Dairy", "Pantry"]
+
+  
