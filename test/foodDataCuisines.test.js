@@ -2,7 +2,7 @@
 require("dotenv").config();
 const request = require("supertest");
 
-const BASE_URL = "http://localhost:80"; // or require("../server") if you export the app
+const BASE_URL = "http://localhost:80";
 
 describe("Cuisines: Get All", () => {
     it("should return 200 and a list of cuisines", async () => {
