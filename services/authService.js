@@ -11,7 +11,7 @@ const supabase = createClient(
 
 class AuthService {
     constructor() {
-        this.accessTokenExpiry = '15m';  // 15 minutes
+        this.accessTokenExpiry = '10m';  // 10 minutes - 修改为10分钟
         this.refreshTokenExpiry = 7 * 24 * 60 * 60 * 1000; // 7 days
     }
 
@@ -47,9 +47,12 @@ class AuthService {
                     last_name,
                     role_id: 7, 
                     account_status: 'active',
-                    email_verified: false,
-                    mfa_enabled: false,
-                    registration_date: new Date().toISOString()
+                    //email_verified: false,
+                    //mfa_enabled: false,
+                    //registration_date: new Date().toISOString()
+                    mfa_enabled: true, // ✅ Enable MFA by default
+                    // Remove fields that don't exist in database schema
+                    // first_name, last_name, role_id, account_status, email_verified, registration_date
                 })
                 .select('user_id, email, name')
                 .single();
@@ -181,7 +184,7 @@ class AuthService {
             return {
                 accessToken,
                 refreshToken,
-                expiresIn: 15 * 60, // 15 minutes in seconds
+                expiresIn: 10 * 60, // 10 minutes in seconds - 修改为10分钟
                 tokenType: 'Bearer'
             };
 

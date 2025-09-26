@@ -18,11 +18,13 @@ const registerValidation = [
     .matches(/[^A-Za-z0-9]/).withMessage('Password needs a special character'),
 
   body('contact_number')
-    .notEmpty().withMessage('Contact number is required')
+    //.notEmpty().withMessage('Contact number is required')
+    .optional() // Make optional for /api/auth/register compatibility
     .isMobilePhone().withMessage('Please enter a valid contact number'),
 
   body('address')
-    .notEmpty().withMessage('Address is required')
+    //.notEmpty().withMessage('Address is required')
+    .optional() // Make optional for /api/auth/register compatibility
     .isLength({ min: 10 }).withMessage('Address should be at least 10 characters long'),
 ];
 
