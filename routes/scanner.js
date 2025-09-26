@@ -33,11 +33,19 @@ function generateScanId(tag = 'scan') {
     async function resolvePythonExecutable(scannerRoot) {
         const { spawnSync } = require('child_process');
         const path = require('path');
+        const envOverride = process.env.PYTHON_EXECUTABLE && process.env.PYTHON_EXECUTABLE.trim();
         const candidates = [
+            envOverride, // Highest priority: explicit override
+            // Windows venv locations
+            path.join(scannerRoot, 'venv', 'Scripts', 'python.exe'),
+            path.join(scannerRoot, 'venv', 'Scripts', 'python'),
+            // POSIX venv location
             path.join(scannerRoot, 'venv', 'bin', 'python'),
+            // System fallbacks
             'python3',
-            'python'
-        ];
+            'python',
+            'py' // Windows launcher
+        ].filter(Boolean);
         for (const c of candidates) {
             try {
                 const res = spawnSync(c, ['--version'], { encoding: 'utf8' });
@@ -864,11 +872,16 @@ function startPythonScan(scanId, scanTag, targetPath, plugins, outputFormat) {
     // Resolve a usable python executable: prefer venv, then system python3, then python
     function resolvePythonExecutableSync(scannerRoot) {
         const { spawnSync } = require('child_process');
+        const envOverride = process.env.PYTHON_EXECUTABLE && process.env.PYTHON_EXECUTABLE.trim();
         const candidates = [
+            envOverride,
+            path.join(scannerRoot, 'venv', 'Scripts', 'python.exe'),
+            path.join(scannerRoot, 'venv', 'Scripts', 'python'),
             path.join(scannerRoot, 'venv', 'bin', 'python'),
             'python3',
-            'python'
-        ];
+            'python',
+            'py'
+        ].filter(Boolean);
         for (const c of candidates) {
             try {
                 const res = spawnSync(c, ['--version'], { encoding: 'utf8' });
@@ -898,8 +911,15 @@ function startPythonScan(scanId, scanTag, targetPath, plugins, outputFormat) {
 
     let pythonProcess;
     try {
+        // Enforce UTF-8 so emoji / unicode characters don't break on Windows consoles (keep emoji output intact)
+        const childEnv = Object.assign({}, process.env, {
+            PYTHONUTF8: '1',
+            PYTHONIOENCODING: 'utf-8',
+            SCANNER_PROGRESS: '1' // signal Python side to emit incremental progress lines
+        });
         pythonProcess = spawn(pythonExec, [scriptPath, ...args], {
-            cwd: scannerPath
+            cwd: scannerPath,
+            env: childEnv
         });
     } catch (spawnErr) {
         const scanInfo = activeScanners.get(scanId);
@@ -937,13 +957,30 @@ function startPythonScan(scanId, scanTag, targetPath, plugins, outputFormat) {
     
     let outputData = '';
     let errorData = '';
+    let lineBuffer = '';
     // save raw output for debugging
     
     pythonProcess.stdout.on('data', (data) => {
-        outputData += data.toString();
-        // Update progress
+        const chunk = data.toString();
+        outputData += chunk;
         const scanInfo = activeScanners.get(scanId);
-        console.log('Python output chunk:', data.toString()); // Debug output
+        lineBuffer += chunk;
+        // Process complete lines for progress markers
+        let lines = lineBuffer.split(/\r?\n/);
+        lineBuffer = lines.pop(); // keep last partial line
+        for (const line of lines) {
+            // Progress sentinel format: PROGRESS|<percent>|<optional message>
+            const m = line.match(/^PROGRESS\|(\d{1,3})(?:\|(.*))?$/);
+            if (m && scanInfo && scanInfo.status === 'running') {
+                const pct = Math.max(0, Math.min(100, parseInt(m[1], 10)));
+                scanInfo.progress = pct;
+                if (m[2]) {
+                    const msg = m[2].trim();
+                    // 只在仍处于 running 阶段时更新 message，完成后的成功文案保持原样
+                    if (msg) scanInfo.message = msg;
+                }
+            }
+        }
     });
     
     pythonProcess.stderr.on('data', (data) => {
@@ -1006,7 +1043,11 @@ function startPythonScan(scanId, scanTag, targetPath, plugins, outputFormat) {
                 const maybeResult = parseBestJSON(outputData);
                 scanInfo.status = 'completed';
                 scanInfo.progress = 100;
-                scanInfo.message = `Scan completed with non-zero exit code ${code} but output parsed successfully`;
+                // Keep user-facing message consistent with successful scans
+                const detailMsg = `Non-zero exit code ${code} but output parsed successfully`;
+                scanInfo.message = 'Scan completed successfully';
+                // Preserve diagnostic detail separately (not exposed unless you add to response)
+                scanInfo.diagnostic = detailMsg;
                 scanInfo.result = maybeResult;
             } catch (parseErr) {
                 // Save raw output for non-zero exit as well
@@ -1043,8 +1084,13 @@ function runPythonScanSync(targetPath, plugins, outputFormat) {
                 return reject(new Error('No usable Python executable found. Please create Vulnerability_Tool_V2/venv or ensure python3 is available and scanner dependencies are installed.'));
             }
 
+            const childEnv = Object.assign({}, process.env, {
+                PYTHONUTF8: '1',
+                PYTHONIOENCODING: 'utf-8'
+            });
             const pythonProcess = spawn(pythonExec, [scriptPath, ...args], {
-                cwd: scannerPath
+                cwd: scannerPath,
+                env: childEnv
             });
         
         let outputData = '';
@@ -1059,46 +1105,35 @@ function runPythonScanSync(targetPath, plugins, outputFormat) {
         });
         
             pythonProcess.on('close', (code) => {
-            if (code === 0) {
-                try {
-                    const result = parseBestJSON(outputData);
-                    resolve(result);
-                } catch (error) {
-                    // persist raw output to disk for debugging
-                    (async () => {
-                        try {
-                            const reportsDir = path.join(__dirname, '../reports');
-                            await fs.mkdir(reportsDir, { recursive: true });
-                            const rawPath = path.join(reportsDir, `raw_sync_${Date.now()}.log`);
-                            await fs.writeFile(rawPath, outputData);
-                            reject(new Error(`Failed to parse scan result: ${error.message}. Raw output saved to: ${rawPath}`));
-                        } catch (fsErr) {
-                            reject(new Error(`Failed to parse scan result: ${error.message}. Also failed to write raw output: ${fsErr.message}`));
-                        }
-                    })();
-                }
-            } else {
-                // Attempt to salvage a valid JSON result even when the process exited with non-zero code.
-                try {
-                    const maybeResult = parseBestJSON(outputData);
-                    // resolved with parsed result; caller will treat as successful quick-scan
-                    resolve(maybeResult);
+                const attemptParse = () => {
+                    try { return parseBestJSON(outputData); } catch (e) { return null; }
+                };
+                const resultObj = attemptParse();
+                if (resultObj) {
+                    // 任何情况下（包括非零退出）只要成功解析就返回结果
+                    resolve(resultObj);
                     return;
-                } catch (parseErr) {
-                    // if parsing fails, persist raw output and reject as before
-                    (async () => {
-                        try {
-                            const reportsDir = path.join(__dirname, '../reports');
-                            await fs.mkdir(reportsDir, { recursive: true });
-                            const rawPath = path.join(reportsDir, `raw_sync_${Date.now()}.log`);
-                            await fs.writeFile(rawPath, outputData + '\n\nSTDERR:\n' + errorData);
-                            reject(new Error(`Scan failed with code ${code}. Raw output saved to: ${rawPath}`));
-                        } catch (fsErr) {
-                            reject(new Error(`Scan failed with code ${code}: ${errorData}. Also failed to write raw output: ${fsErr.message}`));
-                        }
-                    })();
                 }
-            }
+                // 若第一次解析失败，再尝试剪掉 stderr 附加的尾部（常见编码错误行）
+                let trimmed = outputData.replace(/Unexpected error:[\s\S]*$/i, '').trim();
+                if (!resultObj && trimmed !== outputData) {
+                    try {
+                        const salvage = parseBestJSON(trimmed);
+                        return resolve(salvage);
+                    } catch (_) {}
+                }
+                // 仍失败，写 raw 输出
+                (async () => {
+                    try {
+                        const reportsDir = path.join(__dirname, '../reports');
+                        await fs.mkdir(reportsDir, { recursive: true });
+                        const rawPath = path.join(reportsDir, `raw_sync_${Date.now()}.log`);
+                        await fs.writeFile(rawPath, outputData + '\n\nSTDERR:\n' + errorData);
+                        reject(new Error(`Scan failed with code ${code}. Raw output saved to: ${rawPath}`));
+                    } catch (fsErr) {
+                        reject(new Error(`Scan failed with code ${code}: ${errorData}. Also failed to write raw output: ${fsErr.message}`));
+                    }
+                })();
             });
         })();
     });

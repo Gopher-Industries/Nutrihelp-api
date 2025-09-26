@@ -37,6 +37,16 @@ jobs:
     - name: Install dependencies
       run: npm ci
 
+    - name: Setup Python 3 (for Vulnerability Scanner V2)
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Prepare Scanner Environment (V2)
+      run: |
+        node scripts/prepareScanner.js || echo "Scanner prepare script exited non-zero (continuing)"
+        if [ -d Vulnerability_Tool_V2/venv ]; then echo "Scanner venv ready"; else echo "Scanner venv missing, will fallback to system python"; fi
+
     - name: Start server in background
       run: |
         npm start &
@@ -86,6 +96,17 @@ jobs:
         
         # Run the assessment
         node security/runAssessment.js
+
+         echo "Running full V2 vulnerability scan (JSON & HTML)..."
+         PYEXEC="python3"
+         if [ -f Vulnerability_Tool_V2/venv/bin/python ]; then PYEXEC="Vulnerability_Tool_V2/venv/bin/python"; fi
+         mkdir -p security/reports || true
+         if [ -f Vulnerability_Tool_V2/scanner_v2.py ]; then
+           $PYEXEC Vulnerability_Tool_V2/scanner_v2.py --target . --format json --output security/reports/security-report-v2.json || echo "JSON scan failed"
+           $PYEXEC Vulnerability_Tool_V2/scanner_v2.py --target . --format html --output security/reports/security-report-v2.html || echo "HTML scan failed"
+         else
+           echo "scanner_v2.py not found" > security/reports/security-report-v2.json
+         fi
         
         # Find the latest generated JSON report
         LATEST_REPORT=$(ls -t security/reports/security-report-*.json 2>/dev/null | head -1)

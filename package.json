@@ -11,7 +11,11 @@
     "security-scan": "python3 scanner_v2.py --format html --output security_report.html",
     "security-check": "python3 scanner_v2.py --format summary",
     "test:unit": "mocha ./test/**/*.test.js",
-    "validate-env": "node scripts/validateEnv.js"
+    "validate-env": "node scripts/validateEnv.js",
+  "prepare-scanner": "node scripts/prepareScanner.js",
+  "ensure-scanner": "node scripts/ensureScannerReady.js",
+  "setup": "node scripts/bootstrap.js --mode=full",
+  "postinstall": "node scripts/bootstrap.js --mode=postinstall"
   },
   "jest": {
     "testMatch": [
