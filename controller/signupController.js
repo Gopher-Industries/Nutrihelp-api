@@ -6,6 +6,7 @@ const { registerValidation } = require('../validators/signupValidator.js');
 // const supabase = require('../dbConnection');
 const logLoginEvent = require("../Monitor_&_Logging/loginLogger");
 const { supabase } = require("../database/supabase");
+const { createClient } = require('@supabase/supabase-js'); // Add missing import
 
 const safeLog = async (payload) => {
   try { await logLoginEvent(payload); } catch (e) { console.warn("log error:", e.message); }
