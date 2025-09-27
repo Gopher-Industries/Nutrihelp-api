@@ -11,6 +11,7 @@ module.exports = app => {
     app.use("/api/userpassword", require('./userpassword'));
     app.use("/api/fooddata", require('./fooddata'));
     app.use("/api/user/preferences", require('./userPreferences'));
+    app.use("/api/user/preferences/extended", require('./extendedUserPreferences')); // Extended user preferences with notification settings
     app.use("/api/mealplan", require('./mealplan'));
     app.use("/api/account", require('./account'));
     app.use('/api/notifications', require('./notifications'));
@@ -34,6 +35,9 @@ module.exports = app => {
     // Add shopping list routes
     app.use('/api/shopping-list', require('./shoppingList'));
     app.use('/api/barcode', require('./barcodeScanning'));
+
+    // Add community routes
+    app.use('/api/community', require('./community'));
 
 
 };

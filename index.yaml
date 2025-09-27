@@ -11,6 +11,8 @@ tags:
     description: KPIs and trends from public.audit_logs
   - name: Allergy
     description: Endpoints for allergy checks and warnings
+  - name: Community
+    description: Community features including posts, comments, and likes
 paths:
   /allergy/common:
     get:
@@ -2719,6 +2721,697 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  # Community API Endpoints
+  /community/posts:
+    post:
+      tags:
+        - Community
+      summary: Create a new community post
+      description: Create a new post in the community with content, category, and optional tags
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CommunityPostCreate'
+      responses:
+        '201':
+          description: Post created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommunityPostResponse'
+        '400':
+          description: Bad request - validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    get:
+      tags:
+        - Community
+      summary: Get community posts
+      description: Retrieve community posts with filtering, pagination, and sorting options
+      parameters:
+        - name: page
+          in: query
+          required: false
+          description: Page number for pagination
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          required: false
+          description: Number of posts per page
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 10
+        - name: category
+          in: query
+          required: false
+          description: Filter by post category
+          schema:
+            type: string
+            enum: [all, weight-loss, fitness, dietary-restrictions, meal-prep, nutrition-tips, success-story, recipe-share, motivation]
+            default: all
+        - name: search
+          in: query
+          required: false
+          description: Search in post content and tags
+          schema:
+            type: string
+            maxLength: 100
+        - name: user_id
+          in: query
+          required: false
+          description: Filter posts by specific user
+          schema:
+            type: integer
+        - name: sort_by
+          in: query
+          required: false
+          description: Sort field
+          schema:
+            type: string
+            enum: [created_at, likes_count, comments_count]
+            default: created_at
+        - name: sort_order
+          in: query
+          required: false
+          description: Sort order
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
+      responses:
+        '200':
+          description: Posts retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommunityPostsResponse'
+        '400':
+          description: Bad request - invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /community/posts/{id}:
+    get:
+      tags:
+        - Community
+      summary: Get a single community post
+      description: Retrieve a specific community post by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Post ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Post retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommunityPostResponse'
+        '404':
+          description: Post not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    put:
+      tags:
+        - Community
+      summary: Update a community post
+      description: Update an existing community post
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Post ID
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CommunityPostUpdate'
+      responses:
+        '200':
+          description: Post updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommunityPostResponse'
+        '400':
+          description: Bad request - validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Post not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      tags:
+        - Community
+      summary: Delete a community post
+      description: Delete a community post by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Post ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Post deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '404':
+          description: Post not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /community/stats:
+    get:
+      tags:
+        - Community
+      summary: Get community statistics
+      description: Retrieve community statistics including total posts, members, and daily activity
+      responses:
+        '200':
+          description: Statistics retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommunityStatsResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /community/comments:
+    post:
+      tags:
+        - Community
+      summary: Create a comment
+      description: Add a comment to a community post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CommunityCommentCreate'
+      responses:
+        '201':
+          description: Comment created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommunityCommentResponse'
+        '400':
+          description: Bad request - validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /community/comments/{id}:
+    put:
+      tags:
+        - Community
+      summary: Update a comment
+      description: Update an existing comment
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Comment ID
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CommunityCommentUpdate'
+      responses:
+        '200':
+          description: Comment updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommunityCommentResponse'
+        '400':
+          description: Bad request - validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Comment not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      tags:
+        - Community
+      summary: Delete a comment
+      description: Delete a comment by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Comment ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Comment deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '404':
+          description: Comment not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /community/posts/{postId}/comments:
+    get:
+      tags:
+        - Community
+      summary: Get comments for a post
+      description: Retrieve all comments for a specific post with pagination
+      parameters:
+        - name: postId
+          in: path
+          required: true
+          description: Post ID
+          schema:
+            type: integer
+        - name: page
+          in: query
+          required: false
+          description: Page number for pagination
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          required: false
+          description: Number of comments per page
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+      responses:
+        '200':
+          description: Comments retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommunityCommentsResponse'
+        '400':
+          description: Bad request - invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /community/likes:
+    post:
+      tags:
+        - Community
+      summary: Like a post
+      description: Add a like to a community post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CommunityLikeRequest'
+      responses:
+        '200':
+          description: Post liked successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommunityLikeResponse'
+        '400':
+          description: Bad request - validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      tags:
+        - Community
+      summary: Unlike a post
+      description: Remove a like from a community post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CommunityLikeRequest'
+      responses:
+        '200':
+          description: Post unliked successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          description: Bad request - validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /community/users/{userId}/liked-posts:
+    get:
+      tags:
+        - Community
+      summary: Get user's liked posts
+      description: Retrieve all posts liked by a specific user
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          description: User ID
+          schema:
+            type: integer
+        - name: page
+          in: query
+          required: false
+          description: Page number for pagination
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          required: false
+          description: Number of posts per page
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+      responses:
+        '200':
+          description: Liked posts retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommunityPostsResponse'
+        '400':
+          description: Bad request - invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /community/upload-image:
+    post:
+      tags:
+        - Community
+      summary: Upload community post image
+      description: Upload an image for a community post
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                image:
+                  type: string
+                  format: binary
+                  description: Image file
+                user_id:
+                  type: integer
+                  description: User ID
+      responses:
+        '200':
+          description: Image uploaded successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Image processed successfully"
+                  data:
+                    type: object
+                    properties:
+                      image_url:
+                        type: string
+                        example: "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQ..."
+                      file_name:
+                        type: string
+                        example: "image.jpg"
+                      file_size:
+                        type: integer
+                        example: 123456
+        '400':
+          description: Bad request - missing image or user_id
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /community/shares:
+    post:
+      tags:
+        - Community
+      summary: Share a post
+      description: Record a post share
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - user_id
+                - post_id
+              properties:
+                user_id:
+                  type: integer
+                  description: User ID
+                  example: 202
+                post_id:
+                  type: integer
+                  description: Post ID
+                  example: 7
+                share_platform:
+                  type: string
+                  description: Share platform
+                  example: "facebook"
+                  default: "copy_link"
+      responses:
+        '201':
+          description: Post shared successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Post shared successfully"
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                        example: 1
+                      user_id:
+                        type: integer
+                        example: 202
+                      post_id:
+                        type: integer
+                        example: 7
+                      share_platform:
+                        type: string
+                        example: "facebook"
+                      created_at:
+                        type: string
+                        format: date-time
+                        example: "2025-09-12T07:47:18.693112+00:00"
+        '400':
+          description: Bad request - missing required fields
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Post not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /community/posts/{postId}/shares:
+    get:
+      tags:
+        - Community
+      summary: Get share count for a post
+      description: Get the number of shares for a specific post
+      parameters:
+        - name: postId
+          in: path
+          required: true
+          description: Post ID
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Share count retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      share_count:
+                        type: integer
+                        example: 5
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
 components:
 
   securitySchemes:
@@ -3756,3 +4449,353 @@ components:
               items:
                 type: string
               example: ["Vegetable", "Meat", "Dairy", "Pantry"]
+
+    # Community API Schemas
+    CommunityPostCreate:
+      type: object
+      required:
+        - user_id
+        - content
+        - category
+      properties:
+        user_id:
+          type: integer
+          description: ID of the user creating the post
+          example: 123
+        content:
+          type: string
+          description: Post content
+          minLength: 10
+          maxLength: 2000
+          example: "Just tried this amazing healthy recipe! The quinoa salad was perfect for my weight loss journey."
+        category:
+          type: string
+          description: Post category
+          enum: [weight-loss, fitness, dietary-restrictions, meal-prep, nutrition-tips, success-story, recipe-share, motivation]
+          example: "success-story"
+        tags:
+          type: array
+          description: Post tags
+          items:
+            type: string
+            maxLength: 50
+          maxItems: 10
+          example: ["quinoa", "salad", "healthy", "weight-loss"]
+        image_url:
+          type: string
+          format: uri
+          description: Optional image URL
+          example: "https://example.com/images/quinoa-salad.jpg"
+
+    CommunityPostUpdate:
+      type: object
+      properties:
+        content:
+          type: string
+          description: Updated post content
+          minLength: 10
+          maxLength: 2000
+          example: "Updated: The quinoa salad recipe was even better with added avocado!"
+        category:
+          type: string
+          description: Updated post category
+          enum: [weight-loss, fitness, dietary-restrictions, meal-prep, nutrition-tips, success-story, recipe-share, motivation]
+          example: "recipe-share"
+        tags:
+          type: array
+          description: Updated post tags
+          items:
+            type: string
+            maxLength: 50
+          maxItems: 10
+          example: ["quinoa", "salad", "healthy", "avocado", "recipe"]
+        image_url:
+          type: string
+          format: uri
+          description: Updated image URL
+          example: "https://example.com/images/updated-quinoa-salad.jpg"
+
+    CommunityUser:
+      type: object
+      properties:
+        user_id:
+          type: integer
+          description: User ID
+          example: 123
+        username:
+          type: string
+          description: Username
+          example: "healthyliving_user"
+        email:
+          type: string
+          format: email
+          description: User email
+          example: "user@example.com"
+        profile_picture:
+          type: string
+          format: uri
+          description: Profile picture URL
+          example: "https://example.com/avatars/user123.jpg"
+        verified:
+          type: boolean
+          description: Whether the user is verified
+          example: true
+
+    CommunityPost:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Post ID
+          example: 1
+        user_id:
+          type: integer
+          description: User ID who created the post
+          example: 123
+        content:
+          type: string
+          description: Post content
+          example: "Just tried this amazing healthy recipe! The quinoa salad was perfect for my weight loss journey."
+        category:
+          type: string
+          description: Post category
+          example: "success-story"
+        tags:
+          type: array
+          description: Post tags
+          items:
+            type: string
+          example: ["quinoa", "salad", "healthy", "weight-loss"]
+        image_url:
+          type: string
+          format: uri
+          description: Image URL
+          example: "https://example.com/images/quinoa-salad.jpg"
+        likes_count:
+          type: integer
+          description: Number of likes
+          example: 15
+        comments_count:
+          type: integer
+          description: Number of comments
+          example: 8
+        shares_count:
+          type: integer
+          description: Number of shares
+          example: 3
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+          example: "2024-01-15T10:30:00Z"
+        updated_at:
+          type: string
+          format: date-time
+          description: Last update timestamp
+          example: "2024-01-15T10:30:00Z"
+        users:
+          $ref: '#/components/schemas/CommunityUser'
+
+    CommunityPostResponse:
+      type: object
+      properties:
+        statusCode:
+          type: integer
+          example: 200
+        message:
+          type: string
+          example: "Post retrieved successfully"
+        data:
+          $ref: '#/components/schemas/CommunityPost'
+
+    CommunityPostsResponse:
+      type: object
+      properties:
+        statusCode:
+          type: integer
+          example: 200
+        message:
+          type: string
+          example: "Posts retrieved successfully"
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/CommunityPost'
+        pagination:
+          type: object
+          properties:
+            page:
+              type: integer
+              example: 1
+            limit:
+              type: integer
+              example: 10
+            total:
+              type: integer
+              example: 25
+
+    CommunityCommentCreate:
+      type: object
+      required:
+        - user_id
+        - post_id
+        - content
+      properties:
+        user_id:
+          type: integer
+          description: ID of the user creating the comment
+          example: 456
+        post_id:
+          type: integer
+          description: ID of the post being commented on
+          example: 1
+        content:
+          type: string
+          description: Comment content
+          minLength: 1
+          maxLength: 500
+          example: "This looks amazing! Can you share the recipe?"
+
+    CommunityCommentUpdate:
+      type: object
+      required:
+        - content
+      properties:
+        content:
+          type: string
+          description: Updated comment content
+          minLength: 1
+          maxLength: 500
+          example: "Updated: This looks amazing! Can you share the recipe? I'd love to try it this weekend."
+
+    CommunityComment:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Comment ID
+          example: 1
+        user_id:
+          type: integer
+          description: User ID who created the comment
+          example: 456
+        post_id:
+          type: integer
+          description: Post ID being commented on
+          example: 1
+        content:
+          type: string
+          description: Comment content
+          example: "This looks amazing! Can you share the recipe?"
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+          example: "2024-01-15T11:00:00Z"
+        updated_at:
+          type: string
+          format: date-time
+          description: Last update timestamp
+          example: "2024-01-15T11:00:00Z"
+        users:
+          $ref: '#/components/schemas/CommunityUser'
+
+    CommunityCommentResponse:
+      type: object
+      properties:
+        statusCode:
+          type: integer
+          example: 201
+        message:
+          type: string
+          example: "Comment created successfully"
+        data:
+          $ref: '#/components/schemas/CommunityComment'
+
+    CommunityCommentsResponse:
+      type: object
+      properties:
+        statusCode:
+          type: integer
+          example: 200
+        message:
+          type: string
+          example: "Comments retrieved successfully"
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/CommunityComment'
+        pagination:
+          type: object
+          properties:
+            page:
+              type: integer
+              example: 1
+            limit:
+              type: integer
+              example: 20
+            total:
+              type: integer
+              example: 8
+
+    CommunityLikeRequest:
+      type: object
+      required:
+        - user_id
+        - post_id
+      properties:
+        user_id:
+          type: integer
+          description: ID of the user liking the post
+          example: 789
+        post_id:
+          type: integer
+          description: ID of the post being liked
+          example: 1
+
+    CommunityLikeResponse:
+      type: object
+      properties:
+        statusCode:
+          type: integer
+          example: 200
+        message:
+          type: string
+          example: "Post liked successfully"
+        data:
+          type: object
+          properties:
+            user_id:
+              type: integer
+              example: 789
+            post_id:
+              type: integer
+              example: 1
+            already_liked:
+              type: boolean
+              example: false
+
+    CommunityStatsResponse:
+      type: object
+      properties:
+        statusCode:
+          type: integer
+          example: 200
+        message:
+          type: string
+          example: "Community statistics retrieved successfully"
+        data:
+          type: object
+          properties:
+            total_posts:
+              type: integer
+              description: Total number of posts
+              example: 1250
+            total_members:
+              type: integer
+              description: Total number of community members
+              example: 850
+            posts_today:
+              type: integer
+              description: Number of posts created today
+              example: 15
