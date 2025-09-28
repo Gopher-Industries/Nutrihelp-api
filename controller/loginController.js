@@ -8,8 +8,13 @@ const crypto = require("crypto");
 const supabase = require("../dbConnection");
 const { validationResult } = require("express-validator");
 
-// ✅ Set SendGrid API key once globally
-sgMail.setApiKey(process.env.SENDGRID_KEY);
+// ✅ Initialize SendGrid API key once globally (support multiple env var names)
+const _sendgridKey = process.env.SENDGRID_API_KEY || process.env.SENDGRID_KEY;
+if (_sendgridKey) {
+  sgMail.setApiKey(_sendgridKey);
+} else {
+  console.warn("SendGrid API key not set (SENDGRID_API_KEY or SENDGRID_KEY). Email sending will be disabled.");
+}
 
 const login = async (req, res) => {
   const errors = validationResult(req);
@@ -92,10 +97,40 @@ const login = async (req, res) => {
     if (user.mfa_enabled) {
       const token = crypto.randomInt(100000, 999999);
       await addMfaToken(user.user_id, token);
-      await sendOtpEmail(user.email, token);
-      return res.status(202).json({
-        message: "An MFA Token has been sent to your email address"
-      });
+      // If developer explicitly requests the OTP be sent to client (for local testing), skip calling SendGrid
+      const exposeOtpToClient = (process.env.NODE_ENV !== 'production') && (process.env.SEND_OTP_TO_CLIENT === 'true');
+      console.log('DEBUG: NODE_ENV=', process.env.NODE_ENV, 'SEND_OTP_TO_CLIENT=', process.env.SEND_OTP_TO_CLIENT, 'exposeOtpToClient=', exposeOtpToClient);
+
+      if (exposeOtpToClient) {
+        // Skip sending via SendGrid to avoid 'Maximum credits exceeded' during local dev
+        // Display the MFA token prominently in terminal for developer testing
+        console.log('');
+        console.log('🔐 ==============================================');
+        console.log('📧 [DEV] MFA Token Generated for Testing:');
+        console.log(`📱 Email: ${user.email}`);
+        console.log(`🔢 MFA Code: ${token}`);
+        console.log('🔐 ==============================================');
+        console.log('');
+        
+        // Also expose the token in a response header so frontends can read it automatically
+        res.setHeader('X-DEV-MFA-TOKEN', token);
+        // Allow browsers to access this custom header
+        res.setHeader('Access-Control-Expose-Headers', 'X-DEV-MFA-TOKEN');
+        const responseBody = { message: "An MFA Token has been requested for your account", token };
+        return res.status(202).json(responseBody);
+      }
+
+      // production/default: attempt to send via SendGrid as before
+      const sendResult = await sendOtpEmail(user.email, token);
+
+      if (!sendResult?.ok) {
+        console.warn('sendOtpEmail failed', sendResult);
+        const responseBody = { message: "An MFA Token has been requested for your account" };
+        if (process.env.NODE_ENV !== 'production') responseBody.sendgrid = sendResult;
+        return res.status(202).json(responseBody);
+      }
+
+      return res.status(202).json({ message: "An MFA Token has been sent to your email address" });
     }
 
     await logLoginEvent({
@@ -106,13 +141,19 @@ const login = async (req, res) => {
     });
 
     // ✅ RBAC-aware JWT generation
+    const jwtSecret = process.env.JWT_SECRET || process.env.JWT_TOKEN || process.env.JWT;
+    if (!jwtSecret) {
+      console.error('JWT secret is not configured. Set JWT_SECRET (or JWT_TOKEN) in your environment.');
+      return res.status(500).json({ error: 'Server configuration error: missing JWT secret' });
+    }
+
     const token = jwt.sign(
       { 
         userId: user.user_id,
         role: user.user_roles?.role_name || "unknown"
       },
-      process.env.JWT_TOKEN,
-      { expiresIn: "1h" }
+      jwtSecret,
+      { expiresIn: "10m" }  // 修改为10分钟
     );
 
     return res.status(200).json({ user, token });
@@ -154,13 +195,19 @@ const loginMfa = async (req, res) => {
     }
 
     // ✅ RBAC-aware JWT
+    const jwtSecret = process.env.JWT_SECRET || process.env.JWT_TOKEN || process.env.JWT;
+    if (!jwtSecret) {
+      console.error('JWT secret is not configured. Set JWT_SECRET (or JWT_TOKEN) in your environment.');
+      return res.status(500).json({ error: 'Server configuration error: missing JWT secret' });
+    }
+
     const token = jwt.sign(
       { 
         userId: user.user_id,
         role: user.user_roles?.role_name || "unknown"
       },
-      process.env.JWT_TOKEN,
-      { expiresIn: "1h" }
+      jwtSecret,
+      { expiresIn: "10m" }  // 修改为10分钟
     );
 
     return res.status(200).json({ user, token });
@@ -174,33 +221,43 @@ const loginMfa = async (req, res) => {
 // ✅ Send OTP email via SendGrid
 async function sendOtpEmail(email, token) {
   try {
+    const from = process.env.FROM_EMAIL || process.env.SENDGRID_FROM || 'noreply@nutrihelp.com';
+    if (!_sendgridKey) {
+      console.warn(`Not sending OTP email to ${email} because SendGrid is not configured. OTP token: ${token}`);
+      return { ok: false, reason: 'sendgrid_not_configured', token };
+    }
+
     await sgMail.send({
       to: email,
-      from: process.env.SENDGRID_FROM,
+      from,
       subject: "NutriHelp Login Token",
       text: `Your token to log in is ${token}`,
       html: `Your token to log in is <strong>${token}</strong>`
     });
     console.log("OTP email sent successfully to", email);
+    return { ok: true };
   } catch (err) {
-    console.error("Error sending OTP email:", err.response?.body || err.message);
+    const errBody = err.response?.body || err.message;
+    console.error("Error sending OTP email:", errBody);
+    // If SendGrid returns an error like 'Maximum credits exceeded', surface that to caller
+    return { ok: false, reason: 'sendgrid_error', detail: errBody };
   }
 }
 
 // ✅ Send failed login alert via SendGrid
 async function sendFailedLoginAlert(email, ip) {
   try {
+    const from = process.env.FROM_EMAIL || process.env.SENDGRID_FROM || 'noreply@nutrihelp.com';
+    if (!_sendgridKey) {
+      console.warn(`Not sending failed-login alert to ${email} because SendGrid is not configured. IP: ${ip}`);
+      return;
+    }
+
     await sgMail.send({
-      from: process.env.SENDGRID_FROM,
+      from,
       to: email,
       subject: "Failed Login Attempt on NutriHelp",
-      text: `Hi,
-
-Someone tried to log in to NutriHelp using your email address from IP: ${ip}.
-
-If this wasn't you, please ignore this message. But if you're concerned, consider resetting your password or contacting support.
-
-– NutriHelp Security Team`
+      text: `Hi,\n\nSomeone tried to log in to NutriHelp using your email address from IP: ${ip}.\n\nIf this wasn't you, please ignore this message. But if you're concerned, consider resetting your password or contacting support.\n\n– NutriHelp Security Team`
     });
     console.log(`Failed login alert sent to ${email}`);
   } catch (err) {
