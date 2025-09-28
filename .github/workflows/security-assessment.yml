@@ -37,6 +37,7 @@ jobs:
     - name: Install dependencies
       run: npm ci
 
+
     - name: Start server in background
       run: |
         npm start &
@@ -84,7 +85,7 @@ jobs:
       run: |
         echo "Starting security assessment..."
         
-        # Run the assessment
+        # Run the assessment (original behavior without full V2 scan integration)
         node security/runAssessment.js
         
         # Find the latest generated JSON report

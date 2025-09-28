@@ -150,3 +150,32 @@ __pycache__/
 # Ignore generated security assessment reports
 /security/reports/
 ```
+
+# Python virtual environments
+venv/
+.env/
+__pycache__/
+*.pyc
+
+# Local virtualenv created during testing
+.venv/
+
+# pytest cache
+.pytest_cache/
+
+# pipenv
+Pipfile.lock
+
+# macOS system files
+.DS_Store
+
+# VS Code settings
+.vscode/
+
+# Logs and temp files
+*.log
+*.tmp
+
+# Vulnerability Scanner V2 reports - generated artifacts
+Vulnerability_Tool_V2/reports/
+Vulnerability_Tool_V2/reports/*

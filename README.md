@@ -11,15 +11,18 @@ git clone https://github.com/Gopher-Industries/Nutrihelp-api
 ```bash
 cd Nutrihelp-api
 ```
-4. Install the required dependencies (including python dependencies):
+4. Install dependencies (runs automated bootstrap via npm postinstall):
 ```bash
 npm install
-pip install -r requirements.txt
-npm install node-fetch
-npm install --save-dev jest supertest
 ```
-5. Contact a project maintainer to get the `.env` file that contains the necessary environment variables and place it in the root of the project directory.
-6. Start the server:
+  What happens automatically:
+  - Node dependencies installed
+  - Environment bootstrap runs (`scripts/bootstrap.js --mode=postinstall`)
+  - If no `.env` exists a minimal placeholder is generated (internal team must replace with real values)
+  - Vulnerability scanner virtual environment prepared if Python 3 is available
+  - Environment validation runs (warnings only in postinstall mode)
+
+3. Start the server:
 ```bash
 npm start
 ```
@@ -57,3 +60,31 @@ npx jest .\test\healthNews.test.js
 
 /\ Please refer to the "PatchNotes_VersionControl" file for  /\
 /\ recent updates and changes made through each version.     /\
+
+
+## CI: Manual Vulnerability & Test Scan (V2 Aligned)
+
+This repository includes a manual GitHub Actions workflow that runs the Vulnerability Scanner (V2) and optional tests.
+
+How to run
+- Open the repository on GitHub and go to the Actions tab.
+- Select the workflow named `Manual Vulnerability & Test Scan`.
+- Click the `Run workflow` button.
+
+Inputs
+- `run_tests` (default: `false`) — set to `true` to run unit tests (`npm run test:unit`). Tests may require a database or other services; use with caution.
+- `fail_on_critical` (default: `false`) — set to `true` to make the job fail when the scanner JSON report contains one or more `CRITICAL` findings.
+
+Artifacts
+- `vulnerability-scan-reports` (artifact bundle) — contains:
+  - `vulnerability_report.json` — machine-readable scan results
+  - `vulnerability_report.html` — human-friendly HTML report (if HTML rendering succeeds)
+  - `vulnerability_tool_report.txt` — legacy/auxiliary scanner output (if generated)
+  - `npm_audit.json` — result of `npm audit --json`
+
+Notes and recommendations
+- The scanner excludes internal tool directories and common noisy paths (for example `Vulnerability_Tool_V2`, legacy `Vulnerability_Tool`, `node_modules`, test caches).
+- If you enable `run_tests`, ensure the required environment (DB, credentials) is available to avoid noisy failures.
+- Use `fail_on_critical=true` for gating releases or running stricter checks in CI; keep it `false` for quick, informational scans.
+
+

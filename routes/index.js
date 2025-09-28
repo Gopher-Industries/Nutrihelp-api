@@ -33,6 +33,7 @@ module.exports = app => {
     
     // Add shopping list routes
     app.use('/api/shopping-list', require('./shoppingList'));
+    app.use('/api/scanner', require('./scanner')); // Vulnerability Scanner API
     app.use('/api/barcode', require('./barcodeScanning'));
 
 
