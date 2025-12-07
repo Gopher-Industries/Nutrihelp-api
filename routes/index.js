@@ -1,4 +1,6 @@
 module.exports = app => {
+    // home
+    app.use("/api/home/services", require('./serviceContents'));
     app.use("/api/login", require('./login'));
     app.use("/api/signup", require('./signup'));
     app.use("/api/contactus", require('./contactus'));
@@ -30,10 +32,8 @@ module.exports = app => {
     app.use('/api/water-intake', require('./waterIntake'));
     app.use('/api/health-news', require('./healthNews'));
 
-    
     // Add shopping list routes
     app.use('/api/shopping-list', require('./shoppingList'));
     app.use('/api/barcode', require('./barcodeScanning'));
-
 
 };
