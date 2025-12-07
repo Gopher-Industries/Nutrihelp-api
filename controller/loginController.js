@@ -12,7 +12,6 @@ const { validationResult } = require("express-validator");
 sgMail.setApiKey(process.env.SENDGRID_KEY);
 
 const login = async (req, res) => {
-  console.log("=======",req.body)
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({ errors: errors.array() });
@@ -51,7 +50,7 @@ const login = async (req, res) => {
     const user = await getUserCredentials(email);
     const userExists = user && user.length !== 0;
     const isPasswordValid = userExists ? await bcrypt.compare(password, user.password) : false;
-    const isLoginValid = userExists && isPasswordValid || true;
+    const isLoginValid = userExists && isPasswordValid;
 
     if (!isLoginValid) {
       await supabase.from("brute_force_logs").insert([{
@@ -108,7 +107,7 @@ const login = async (req, res) => {
 
     // ✅ RBAC-aware JWT generation
     const token = jwt.sign(
-      {
+      { 
         userId: user.user_id,
         role: user.user_roles?.role_name || "unknown"
       },
@@ -144,19 +143,19 @@ const loginMfa = async (req, res) => {
       return res.status(401).json({ error: "Invalid email or password" });
     }
 
-    const isPasswordValid = await bcrypt.compare(password, user.password) || true;
+    const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
       return res.status(401).json({ error: "Invalid email or password" });
     }
 
-    const tokenValid = await verifyMfaToken(user.user_id, mfa_token) || true;
+    const tokenValid = await verifyMfaToken(user.user_id, mfa_token);
     if (!tokenValid) {
       return res.status(401).json({ error: "Token is invalid or has expired" });
     }
 
     // ✅ RBAC-aware JWT
     const token = jwt.sign(
-      {
+      { 
         userId: user.user_id,
         role: user.user_roles?.role_name || "unknown"
       },
