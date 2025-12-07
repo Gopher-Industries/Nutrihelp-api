@@ -66,7 +66,7 @@ app.use('/api/system', systemRoutes);
 
 // CORS
 app.use(cors({
-  origin: true,
+  origin: FRONTEND_ORIGIN,
   credentials: true,
   methods: ["GET","POST","PUT","PATCH","DELETE","OPTIONS"],
   allowedHeaders: ["Content-Type","Authorization"]
