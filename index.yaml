@@ -2323,6 +2323,78 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+                
+  /security/events/export:
+    get:
+      tags:
+        - Security
+      summary: Export security events as JSON or CSV
+      description: >
+        Aggregates login, brute-force and session/token lifecycle events
+        from auth_logs, brute_force_logs and user_session into a unified export.
+      parameters:
+        - name: from
+          in: query
+          description: Start date (YYYY-MM-DD). Defaults to 7 days before `to`.
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          description: End date (YYYY-MM-DD). Defaults to now.
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: format
+          in: query
+          description: Response format. Use `csv` to download CSV, otherwise JSON.
+          required: false
+          schema:
+            type: string
+            enum: [json, csv]
+      responses:
+        '200':
+          description: Security events exported
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  range:
+                    type: object
+                    properties:
+                      from:
+                        type: string
+                        format: date-time
+                      to:
+                        type: string
+                        format: date-time
+                  count:
+                    type: integer
+                  events:
+                    type: array
+                    items:
+                      type: object
+              example:
+                range:
+                  from: "2025-12-04T00:00:00Z"
+                  to: "2025-12-11T00:00:00Z"
+                count: 3
+                events:
+                  - id: "brute_4092..."
+                    type: "BRUTE_FORCE_DETECTED"
+                    source: "public.brute_force_logs"
+                  - id: "session_67879"
+                    type: "SESSION_CREATED"
+                    source: "public.user_session"
+            text/csv:
+              schema:
+                type: string
+              example: |
+                id,occurredAt,type,userId,sessionId,ipAddress,userAgent,source,metadataJson
+                brute_4092...,2025-12-04T07:24:13.965+00:00,BRUTE_FORCE_DETECTED,,,,,public.brute_force_logs,"{""email"":""john@nutrihelp.com""}"
 
 components:
 
