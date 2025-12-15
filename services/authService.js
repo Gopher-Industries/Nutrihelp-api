@@ -158,23 +158,41 @@ class AuthService {
             console.log("✅ Generated accessToken:", accessToken);
 
             // Generate a refresh token
-            const refreshToken = crypto.randomBytes(40).toString('hex');
-            const expiresAt = new Date(Date.now() + this.refreshTokenExpiry);
+            // Generate raw refresh token
+const rawRefreshToken = crypto.randomBytes(40).toString('hex');
 
-            // Store refresh token in database
-            const { error } = await supabase
-                .from('user_session')
-                .insert({
-                    user_id: user.user_id,
-                    session_token: refreshToken,
-                    refresh_token: refreshToken,
-                    token_type: 'refresh',
-                    device_info: deviceInfo,
-                    ip_address: deviceInfo.ip || null,
-                    user_agent: deviceInfo.userAgent || null,
-                    expires_at: expiresAt.toISOString(),
-                    is_active: true,
-                });
+// Hash refresh token before storing (OWASP recommended)
+const hashedRefreshToken = await bcrypt.hash(rawRefreshToken, 12);
+
+const expiresAt = new Date(Date.now() + this.refreshTokenExpiry);
+
+// Hash the refresh token before storing (security requirement)
+const hashedToken = await bcrypt.hash(refreshToken, 12);
+
+// Store hashed refresh token in database
+const { error } = await supabase
+    .from('user_session')
+    .insert({
+        user_id: user.user_id,
+        refresh_token: hashedToken,   // ✔ hashed version stored
+        token_type: 'refresh',
+        device_info: deviceInfo,
+        ip_address: deviceInfo.ip || null,
+        user_agent: deviceInfo.userAgent || null,
+        expires_at: expiresAt.toISOString(),
+        is_active: true,
+    });
+
+
+if (error) throw error;
+
+return {
+  accessToken,
+  refreshToken: rawRefreshToken, // send ONLY raw token to client
+  expiresIn: 15 * 60,
+  tokenType: 'Bearer'
+};
+
 
             if (error) throw error;
 
@@ -192,89 +210,117 @@ class AuthService {
 
     /**
      * Refresh Access Token
-     */
-    async refreshAccessToken(refreshToken, deviceInfo = {}) {
-        try {
-            // Verifying the refresh token
-            const { data: session, error } = await supabase
-                .from('user_session')
-                .select(`
-                    id, user_id, expires_at, is_active,
-                    users!inner(user_id, email, name, role_id, account_status,
-                        user_roles!inner(id, role_name)
-                    )
-                `)
-                .eq('refresh_token', refreshToken)
-                .eq('is_active', true)
-                .single();
+     *//**
+ * Refresh Access Token (secure hashed-token version)
+ */
+async refreshAccessToken(refreshToken, deviceInfo = {}) {
+    try {
+        // Fetch all active sessions
+        const { data: sessions, error } = await supabase
+            .from('user_session')
+            .select(`
+                id, user_id, refresh_token, expires_at, is_active,
+                users!inner(user_id, email, name, role_id, account_status,
+                    user_roles!inner(id, role_name)
+                )
+            `)
+            .eq('is_active', true);
 
-            if (error || !session) {
-                throw new Error('Invalid refresh token');
-            }
-
-            // Check if the token is expired
-            if (new Date(session.expires_at) < new Date()) {
-                throw new Error('Refresh token expired');
-            }
-
-            // Checking User Status
-            const user = session.users;
-            if (user.account_status !== 'active') {
-                throw new Error('Account is not active');
-            }
-
-            // Generate a new token pair
-            const newTokens = await this.generateTokenPair(user, deviceInfo);
-
-            // Invalidate old refresh tokens
-            await supabase
-                .from('user_session')
-                .update({ is_active: false })
-                .eq('id', session.id);
-
-            return {
-                success: true,
-                ...newTokens
-            };
-
-        } catch (error) {
-            throw new Error(`Token refresh failed: ${error.message}`);
+        if (error || !sessions || sessions.length === 0) {
+            throw new Error('Invalid refresh token');
         }
-    }
 
-    /**
-     * Logout
-     */
-    async logout(refreshToken) {
-        try {
-            if (refreshToken) {
+        // Compare hashed refresh tokens
+        let session = null;
+        for (const s of sessions) {
+            const match = await bcrypt.compare(refreshToken, s.refresh_token);
+            if (match) {
+                session = s;
+                break;
+            }
+        }
+
+        if (!session) {
+            throw new Error('Invalid refresh token');
+        }
+
+        // Check expiration
+        if (new Date(session.expires_at) < new Date()) {
+            throw new Error('Refresh token expired');
+        }
+
+        const user = session.users;
+        if (user.account_status !== "active") {
+            throw new Error("Account is not active");
+        }
+
+        // Generate new token pair
+        const newTokens = await this.generateTokenPair(user, deviceInfo);
+
+        // Deactivate old session
+        await supabase
+            .from("user_session")
+            .update({ is_active: false })
+            .eq("id", session.id);
+
+        return {
+            success: true,
+            ...newTokens,
+        };
+
+    } catch (error) {
+        throw new Error(`Token refresh failed: ${error.message}`);
+    }
+}
+
+/**
+ * Logout (secure hashed-token version)
+ */
+async logout(refreshToken) {
+    try {
+        // Get all active sessions
+        const { data: sessions } = await supabase
+            .from("user_session")
+            .select("id, refresh_token, is_active")
+            .eq("is_active", true);
+
+        if (!sessions) return { success: true };
+
+        // Find matching hashed token
+        for (const s of sessions) {
+            if (await bcrypt.compare(refreshToken, s.refresh_token)) {
                 await supabase
-                    .from('user_session')
+                    .from("user_session")
                     .update({ is_active: false })
-                    .eq('refresh_token', refreshToken);
+                    .eq("id", s.id);
+                break;
             }
-
-            return { success: true, message: 'Logout successful' };
-        } catch (error) {
-            throw new Error(`Logout failed: ${error.message}`);
         }
-    }
 
-    /**
-     * Log out of all devices
-     */
-    async logoutAll(userId) {
-        try {
-            await supabase
-                .from('user_session')
-                .update({ is_active: false })
-                .eq('user_id', userId);
-
-            return { success: true, message: 'Logged out from all devices' };
-        } catch (error) {
-            throw new Error(`Logout all failed: ${error.message}`);
-        }
+        return { success: true, message: "Logout successful" };
+    } catch (error) {
+        throw new Error(`Logout failed: ${error.message}`);
     }
+}
+
+
+
+/**
+ * Logout from all devices (same logic, we deactivate all sessions)
+ */
+async logoutAll(userId) {
+    try {
+        await supabase
+            .from("user_session")
+            .update({ is_active: false })
+            .eq("user_id", userId);
+
+        return { success: true, message: "Logged out from all devices" };
+    } catch (error) {
+        throw new Error(`Logout all failed: ${error.message}`);
+    }
+}
+
 
     /**
      * Verifying the Access Token

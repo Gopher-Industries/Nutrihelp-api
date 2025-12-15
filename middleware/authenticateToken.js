@@ -1,9 +1,10 @@
 const authService = require('../services/authService');
 
 /**
- * Enhanced authentication middleware
+ * Clean Access Token Authentication Middleware
  */
 const authenticateToken = (req, res, next) => {
+
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
 
@@ -34,6 +35,29 @@ const authenticateToken = (req, res, next) => {
         error: 'Invalid token payload',
         code: 'INVALID_TOKEN'
       });
+
+    const authHeader = req.headers["authorization"];
+    const token = authHeader && authHeader.split(" ")[1];
+
+    if (!token) {
+        return res.status(401).json({
+            success: false,
+            error: "Access token required",
+            code: "TOKEN_MISSING"
+        });
+    }
+
+    try {
+        const decoded = authService.verifyAccessToken(token);
+        req.user = decoded;
+        next();
+    } catch (error) {
+        return res.status(401).json({
+            success: false,
+            error: "Invalid or expired access token",
+            code: "TOKEN_INVALID"
+        });
+
     }
 
     req.user = decoded; // THIS FIXES PROFILE FETCH
@@ -65,30 +89,4 @@ const authenticateToken = (req, res, next) => {
   }
 };
 
-/**
- * Optional authentication middleware
- * (attaches user if token exists, otherwise continues without blocking)
- */
-const optionalAuth = (req, res, next) => {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
-
-    if (!token) {
-        req.user = null;
-        return next();
-    }
-
-    try {
-        const decoded = authService.verifyAccessToken(token);
-        req.user = decoded;
-    } catch (error) {
-        req.user = null;
-    }
-    
-    next();
-};
-
-module.exports = {
-    authenticateToken,
-    optionalAuth
-};
+module.exports = { authenticateToken };
