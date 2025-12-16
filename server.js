@@ -16,12 +16,13 @@ const cors = require("cors");
 const swaggerUi = require("swagger-ui-express");
 const yaml = require("yamljs");
 const { exec } = require("child_process");
+const hpp = require('hpp');
+const xss = require('xss-clean');
 const rateLimit = require('express-rate-limit');
 const uploadRoutes = require('./routes/uploadRoutes');
 const fs = require("fs");
 const path = require("path");
 const systemRoutes = require('./routes/systemRoutes');
-const loginDashboard = require('./routes/loginDashboard.js');
 
 // Ensure uploads directory exists
 const uploadsDir = path.join(__dirname, 'uploads');
@@ -60,9 +61,6 @@ const port = process.env.PORT || 80;
 
 // DB
 let db = require("./dbConnection");
-
-// System routes
-app.use('/api/system', systemRoutes);
 
 // CORS
 app.use(cors({
@@ -108,6 +106,15 @@ app.use(responseTimeLogger);
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
+// Data sanitization against XSS
+app.use(xss());
+
+// Prevent parameter pollution
+app.use(hpp());
+
+// System routes
+app.use('/api/system', systemRoutes);
+
 // Main routes registrar
 const routes = require("./routes");
 routes(app);
@@ -115,6 +122,7 @@ routes(app);
 // File uploads & static
 app.use("/api", uploadRoutes);
 app.use("/uploads", express.static("uploads"));
+app.use('/api/sms', require('./routes/sms'));
 
 // Signup
 app.use("/api/signup", require("./routes/signup"));
@@ -141,21 +149,17 @@ const { uncaughtExceptionHandler, unhandledRejectionHandler } = require('./middl
 process.on('uncaughtException', uncaughtExceptionHandler);
 process.on('unhandledRejection', unhandledRejectionHandler);
 
-// Start
-app.listen(port, async () => {
+// Start server only if run directly (not in tests)
+if (require.main === module) {
+  app.listen(port, async () => {
+    console.log('\n🎉 NutriHelp API launched successfully!');
+    console.log('='.repeat(50));
+    console.log(`Server is running on port ${port}`);
+    console.log(`📚 Swagger UI: http://localhost/api-docs`);
+    console.log('='.repeat(50));
+    console.log('💡 Press Ctrl+C to stop the server \n');
+    exec(`start http://localhost:${port}/api-docs`);
+  });
+}
 
-
-  console.log('\n🎉 NutriHelp API launched successfully!');
-  console.log('='.repeat(50));
-  console.log(`Server is running on port ${port}`);
-  console.log(`📚 Swagger UI: http://localhost/api-docs`);
-  console.log('='.repeat(50));
-  console.log('💡 Press Ctrl+C to stop the server \n');
-  exec(`start http://localhost:${port}/api-docs`);
-});
-
-app.use(express.json({ limit: "50mb" }));
-app.use(express.urlencoded({ limit: "50mb", extended: true }));
-app.use('/api/sms', require('./routes/sms'));
-
-
+module.exports = app;
