@@ -11,7 +11,7 @@ const supabase = createClient(
 
 class AuthService {
     constructor() {
-        this.accessTokenExpiry = '15m';  // 15 minutes
+        this.accessTokenExpiry = '10m';  // 15 minutes
         this.refreshTokenExpiry = 7 * 24 * 60 * 60 * 1000; // 7 days
     }
 
