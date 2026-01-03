@@ -66,10 +66,20 @@ app.use('/api/system', systemRoutes);
 
 // CORS
 app.use(cors({
-  origin: FRONTEND_ORIGIN,
-  credentials: true,
-  methods: ["GET","POST","PUT","PATCH","DELETE","OPTIONS"],
-  allowedHeaders: ["Content-Type","Authorization"]
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+
+    if (
+      origin.startsWith("http://localhost") ||
+      origin.startsWith("http://127.0.0.1") ||
+      origin.startsWith("http://localhost")
+    ) {
+      callback(null, true);
+    } else {
+      callback(new Error(`CORS blocked: ${origin}`));
+    }
+  },
+  credentials: true
 }));
 app.options("*", cors({ origin: FRONTEND_ORIGIN, credentials: true }));
 app.use((req, res, next) => { res.header("Access-Control-Allow-Credentials","true"); next(); });
