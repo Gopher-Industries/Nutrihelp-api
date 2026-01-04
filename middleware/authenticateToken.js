@@ -1,9 +1,12 @@
 const authService = require('../services/authService');
 
 /**
- * Clean Access Token Authentication Middleware
+ * Access Token Authentication Middleware
+ * - Verifies JWT access tokens only
+ * - Attaches decoded user payload to req.user
  */
 const authenticateToken = (req, res, next) => {
+
 
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
@@ -39,13 +42,30 @@ const authenticateToken = (req, res, next) => {
     const authHeader = req.headers["authorization"];
     const token = authHeader && authHeader.split(" ")[1];
 
-    if (!token) {
-        return res.status(401).json({
-            success: false,
-            error: "Access token required",
-            code: "TOKEN_MISSING"
-        });
+  const authHeader = req.headers.authorization;
+  const token = authHeader?.split(' ')[1]; // Bearer <token>
+
+
+  if (!token) {
+    return res.status(401).json({
+      success: false,
+      error: 'Access token missing',
+      code: 'TOKEN_MISSING'
+    });
+  }
+
+  try {
+    const decoded = authService.verifyAccessToken(token);
+
+    // Ensure only access tokens are accepted
+    if (!decoded || decoded.type !== 'access') {
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid token type',
+        code: 'INVALID_TOKEN_TYPE'
+      });
     }
+
 
     try {
         const decoded = authService.verifyAccessToken(token);
@@ -85,6 +105,15 @@ const authenticateToken = (req, res, next) => {
       success: false,
       error: 'Internal server error',
       code: 'INTERNAL_ERROR'
+
+    req.user = decoded;
+    next();
+  } catch (err) {
+    return res.status(401).json({
+      success: false,
+      error: 'Invalid or expired access token',
+      code: 'TOKEN_INVALID'
+
     });
   }
 };
