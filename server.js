@@ -9,7 +9,7 @@ console.log('');
 
 const express = require("express");
 const { errorLogger, responseTimeLogger } = require('./middleware/errorLogger');
-const FRONTEND_ORIGIN =  "http://localhost:3000";
+const FRONTEND_ORIGIN = "http://localhost:3000";
 
 const helmet = require('helmet');
 const cors = require("cors");
@@ -68,11 +68,11 @@ app.use('/api/system', systemRoutes);
 app.use(cors({
   origin: FRONTEND_ORIGIN,
   credentials: true,
-  methods: ["GET","POST","PUT","PATCH","DELETE","OPTIONS"],
-  allowedHeaders: ["Content-Type","Authorization"]
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"]
 }));
 app.options("*", cors({ origin: FRONTEND_ORIGIN, credentials: true }));
-app.use((req, res, next) => { res.header("Access-Control-Allow-Credentials","true"); next(); });
+app.use((req, res, next) => { res.header("Access-Control-Allow-Credentials", "true"); next(); });
 app.set("trust proxy", 1);
 
 // Security
@@ -80,8 +80,8 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc: ["'self'","'unsafe-inline'","https://cdn.jsdelivr.net"],
-      styleSrc: ["'self'","'unsafe-inline'","https://cdn.jsdelivr.net"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net"],
       objectSrc: ["'none'"],
     },
   },
@@ -124,16 +124,16 @@ app.use(errorLogger);
 
 // Final error handler
 app.use((err, req, res, next) => {
-    const status = err.status || 500;
-    const message = process.env.NODE_ENV === 'production' 
-        ? 'Internal Server Error' 
-        : err.message;
-        
-    res.status(status).json({
-        success: false,
-        error: message,
-        timestamp: new Date().toISOString()
-    });
+  const status = err.status || 500;
+  const message = process.env.NODE_ENV === 'production'
+    ? 'Internal Server Error'
+    : err.message;
+
+  res.status(status).json({
+    success: false,
+    error: message,
+    timestamp: new Date().toISOString()
+  });
 });
 
 // Global error handler
@@ -142,17 +142,19 @@ process.on('uncaughtException', uncaughtExceptionHandler);
 process.on('unhandledRejection', unhandledRejectionHandler);
 
 // Start
-app.listen(port, async () => {
+if (require.main === module) {
+  app.listen(port, async () => {
+    console.log('\n🎉 NutriHelp API launched successfully!');
+    console.log('='.repeat(50));
+    console.log(`Server is running on port ${port}`);
+    console.log(`📚 Swagger UI: http://localhost/api-docs`);
+    console.log('='.repeat(50));
+    console.log('💡 Press Ctrl+C to stop the server \n');
+    exec(`start http://localhost:${port}/api-docs`);
+  });
+}
 
-
-  console.log('\n🎉 NutriHelp API launched successfully!');
-  console.log('='.repeat(50));
-  console.log(`Server is running on port ${port}`);
-  console.log(`📚 Swagger UI: http://localhost/api-docs`);
-  console.log('='.repeat(50));
-  console.log('💡 Press Ctrl+C to stop the server \n');
-  exec(`start http://localhost:${port}/api-docs`);
-});
+module.exports = app;
 
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
