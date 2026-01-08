@@ -1,5 +1,17 @@
 const { SecurityEventType } = require('./securityEventTypes');
-const supabase = require('../../dbConnection');  // Supabase client
+const { SecurityEvent } = require('./securityEventModel');
+const { aggregateIncidents } = require('./securityIncidentAggregator');
+
+const supabase = require('../../dbConnection'); // Supabase client
+
+function correlateSecurityEvents(events) {
+  // Week 8: placeholder correlation layer.
+  // For now, we only produce "incidents" by aggregating normalised events.
+  const incidents = aggregateIncidents(events) || [];
+
+  // Later: attach correlationId/confidence, group timelines, etc.
+  return { events, incidents };
+}
 
 async function getSecurityEvents(fromDate, toDate) {
   const fromIso = fromDate.toISOString();
@@ -7,27 +19,15 @@ async function getSecurityEvents(fromDate, toDate) {
 
   const events = [];
 
-  // use Promise.all to get data in paraelle
+  // use Promise.all to get data in parallel
   const [
     { data: authLogs, error: authError },
     { data: bruteLogs, error: bruteError },
     { data: sessions, error: sessionError },
   ] = await Promise.all([
-    supabase
-      .from('auth_logs')
-      .select('*')
-      .gte('created_at', fromIso)
-      .lte('created_at', toIso),
-    supabase
-      .from('brute_force_logs')
-      .select('*')
-      .gte('created_at', fromIso)
-      .lte('created_at', toIso),
-    supabase
-      .from('user_session')
-      .select('*')
-      .gte('created_at', fromIso)
-      .lte('created_at', toIso),
+    supabase.from('auth_logs').select('*').gte('created_at', fromIso).lte('created_at', toIso),
+    supabase.from('brute_force_logs').select('*').gte('created_at', fromIso).lte('created_at', toIso),
+    supabase.from('user_session').select('*').gte('created_at', fromIso).lte('created_at', toIso),
   ]);
 
   // ===== 1) Login events from public.auth_logs =====
@@ -35,7 +35,6 @@ async function getSecurityEvents(fromDate, toDate) {
     console.error('Error loading auth_logs:', authError);
   } else if (authLogs && authLogs.length > 0) {
     for (const row of authLogs) {
-      // try mutliple row to determine the success
       const isSuccess =
         row.success === true ||
         row.outcome === 'success' ||
@@ -44,9 +43,7 @@ async function getSecurityEvents(fromDate, toDate) {
       events.push({
         id: `auth_${row.id || row.created_at}`,
         occurredAt: row.created_at,
-        type: isSuccess
-          ? SecurityEventType.LOGIN_SUCCESS
-          : SecurityEventType.LOGIN_FAILURE,
+        type: isSuccess ? SecurityEventType.LOGIN_SUCCESS : SecurityEventType.LOGIN_FAILURE,
         userId: row.user_id || null,
         sessionId: row.session_id || null,
         ipAddress: row.ip_address || row.ip || null,
@@ -66,16 +63,36 @@ async function getSecurityEvents(fromDate, toDate) {
   } else if (bruteLogs && bruteLogs.length > 0) {
     for (const row of bruteLogs) {
       events.push({
+        ...SecurityEvent,
+
         id: `brute_${row.id || row.created_at}`,
         occurredAt: row.created_at,
         type: SecurityEventType.BRUTE_FORCE_DETECTED,
-        userId: row.user_id || null,
-        sessionId: null,
-        ipAddress: row.ip_address || row.ip || null,
-        userAgent: null,
-        source: 'public.brute_force_logs',
-        metadata: {
+        severity: 'HIGH',
+
+        actor: {
+          userId: row.user_id || null,
           email: row.email || null,
+          role: null,
+        },
+
+        network: {
+          ip: row.ip_address || row.ip || null,
+          userAgent: null,
+        },
+
+        session: {
+          sessionId: null,
+          refreshTokenHash: null,
+        },
+
+        source: {
+          system: 'supabase',
+          table: 'public.brute_force_logs',
+          recordId: row.id || null,
+        },
+
+        metadata: {
           failureCount: row.failure_count || null,
         },
       });
@@ -114,7 +131,7 @@ async function getSecurityEvents(fromDate, toDate) {
         type: SecurityEventType.TOKEN_ISSUED,
       });
 
-      // Token revoked（If there is revoked_at）
+      // Token revoked (If there is revoked_at)
       if (row.revoked_at) {
         events.push({
           ...base,
@@ -126,10 +143,11 @@ async function getSecurityEvents(fromDate, toDate) {
     }
   }
 
-  // ===== sort by occurred At =====
-  events.sort((a, b) => a.occurredAt.localeCompare(b.occurredAt));
+  // ===== sort by occurredAt (do this ONCE) =====
+  events.sort((a, b) => String(a.occurredAt).localeCompare(String(b.occurredAt)));
 
-  return events;
+  // Week 8: return events + incidents
+  return correlateSecurityEvents(events);
 }
 
 module.exports = {
