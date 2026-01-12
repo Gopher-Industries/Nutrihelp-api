@@ -8,7 +8,7 @@ const crypto = require("crypto");
 const supabase = require("../dbConnection");
 const { validationResult } = require("express-validator");
 
-// ✅ Set SendGrid API key once globally
+// Set SendGrid API key once globally
 sgMail.setApiKey(process.env.SENDGRID_KEY);
 
 const login = async (req, res) => {
@@ -66,14 +66,18 @@ const login = async (req, res) => {
         });
       }
 
-      if (!userExists || !isPasswordValid) {
+      if (!userExists) {
         await sendFailedLoginAlert(email, clientIp);
+        return res.status(404).json({
+          error: "Account not found. Please create an account first."
+        });
+      }
 
-        if (!userExists) {
-          return res.status(401).json({ error: "Invalid email" });
-        }
-
-        return res.status(401).json({ error: "Invalid password" });
+      if (!isPasswordValid) {
+        await sendFailedLoginAlert(email, clientIp);
+        return res.status(401).json({
+          error: "Invalid password"
+        });
       }
     }
 
