@@ -5,7 +5,8 @@ const { validationResult } = require('express-validator');
 const { registerValidation } = require('../validators/signupValidator.js');
 // const supabase = require('../dbConnection');
 const logLoginEvent = require("../Monitor_&_Logging/loginLogger");
-const { supabase } = require("../database/supabase");
+const supabase = require("../database/supabaseClient");
+const { createClient } = require("@supabase/supabase-js");
 
 const safeLog = async (payload) => {
   try { await logLoginEvent(payload); } catch (e) { console.warn("log error:", e.message); }
@@ -123,6 +124,11 @@ const signupAuthTable = async (name, emailNormalized, password, contact_number, 
       emailRedirectTo: process.env.APP_ORIGIN ? `${process.env.APP_ORIGIN}/login` : undefined,
     },
   });
+
+  // FORCE LOGOUT AFTER SIGNUP (VERY IMPORTANT)
+  if (data?.session) {
+    await supabase.auth.signOut();
+  }
 
   if (error) {
     const msg = (error.message || "").toLowerCase();
