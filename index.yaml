@@ -478,6 +478,101 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /appointments/v2/{id}:
+    put:
+      tags:
+        - Appointments
+      summary: Update an appointment (version 2)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+          description: Appointment ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppointmentUpdate'
+      responses:
+        '200':
+          description: Appointment updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Appointment updated successfully
+                  appointment:
+                    $ref: '#/components/schemas/AppointmentUpdate'
+        '400':
+          description: Bad request - invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Appointment not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      tags:
+        - Appointments
+      summary: Delete an appointment (version 2)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+          description: Appointment ID
+      responses:
+        '200':
+          description: Appointment deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Appointment deleted successfully
+        '404':
+          description: Appointment not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   # Shopping List API Endpoints
   /shopping-list/ingredient-options:
@@ -2053,8 +2148,6 @@ paths:
     get:
       summary: Calculate estimated cost for a recipe
       description: Returns JSON array containing total cost and corresponding ingredients price
-      summary: Unified Health News API
-      description: Comprehensive API for health news management with multiple actions and flexible filtering
       parameters:
         - in: path
           name: recipe_id
@@ -2189,7 +2282,6 @@ paths:
       responses:
         '200':
           description: Calculate cost successfully
-          description: Successfully retrieved requested data
           content:
             application/json:
               schema:
@@ -2420,6 +2512,67 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
   
+  /health-tools/bmi:
+    get:
+      summary: Calculate BMI and recommended daily water intake
+      description: >
+        Calculates Body Mass Index (BMI) based on height and weight,
+        and returns a recommended daily water intake value.
+      tags:
+        - Health Tools
+      parameters:
+        - name: height
+          in: query
+          required: true
+          description: Height in meters (e.g. 1.75)
+          schema:
+            type: number
+            format: float
+            example: 1.75
+        - name: weight
+          in: query
+          required: true
+          description: Weight in kilograms (e.g. 70)
+          schema:
+            type: number
+            format: float
+            example: 70
+      responses:
+        "200":
+          description: BMI and water intake calculated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  bmi:
+                    type: number
+                    format: float
+                    example: 22.86
+                  recommendedWaterIntakeMl:
+                    type: number
+                    example: 2450
+        "400":
+          description: Invalid query parameters
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Invalid parameters. Height and weight must be positive numbers.
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Internal server error
+
   /recipe/nutritionlog:
     get:
       summary: Get full nutrition info for a recipe by name
@@ -3226,6 +3379,49 @@ components:
         id:
           type: integer
           example: 1
+        userId:
+          type: integer
+          example: 1
+        title:
+          type: string
+          example: Dr. Smith - Annual Checkup
+        doctor:
+          type: string
+          example: Dr. Robert Smith
+        type:
+          type: string
+          example: General Checkup
+        date:
+          type: string
+          format: date
+          example: "2024-12-05"
+        time:
+          type: string
+          example: "10:00"
+        location:
+          type: string
+          example: Main Street Medical Center
+        address:
+          type: string
+          example: 123 Main St, Suite 200
+        phone:
+          type: string
+          example: "(555) 123-4567"
+        notes:
+          type: string
+          example: Bring insurance card and list of current medications
+        reminder:
+          type: string
+          example: 1-day
+    AppointmentUpdate:
+      type: object
+      required:
+        - userId
+        - title
+        - doctor
+        - type
+        - date
+      properties:
         userId:
           type: integer
           example: 1

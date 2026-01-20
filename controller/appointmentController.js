@@ -1,7 +1,7 @@
-const {addAppointment, addAppointmentV2} = require('../model/addAppointment.js');
-const {getAllAppointments, getAllAppointmentsV2} = require('../model/getAppointments.js');
+const {addAppointment, addAppointmentModelV2, updateAppointmentModel, deleteAppointmentById} = require('../model/appointmentModel.js');
+const {getAllAppointments, getAllAppointmentsV2 } = require('../model/getAppointments.js');
 const { validationResult } = require('express-validator');
-const { appointmentValidation } = require('../validators/appointmentValidator.js');
+
 
 // Function to handle saving appointment data
 const saveAppointment = async (req, res) => {
@@ -46,7 +46,7 @@ const saveAppointmentV2 = async (req, res) => {
   } = req.body;
 
   try {
-    const appointment = await addAppointmentV2({
+    const appointment = await addAppointmentModelV2({
       userId,
       title,
       doctor,
@@ -69,6 +69,74 @@ const saveAppointmentV2 = async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 };
+
+const updateAppointment = async (req,res)=>{
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
+  const { id } = req.params;
+
+  const {
+    title,
+    doctor,
+    type,
+    date,
+    time,
+    location,
+    address,
+    phone,
+    notes,
+    reminder,
+  } = req.body;
+
+    try {
+    const updatedAppointment = await updateAppointmentModel(id, {
+      title,
+      doctor,
+      type,
+      date,
+      time,
+      location,
+      address,
+      phone,
+      notes,
+      reminder,
+    });
+
+    if (!updatedAppointment) {
+      return res.status(404).json({ message: 'Appointment not found' });
+    }
+
+    res.status(200).json({
+      message: 'Appointment updated successfully',
+      appointment: updatedAppointment,
+    });
+  } catch (error) {
+    console.error('Error updating appointment:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+const delAppointment = async (req,res)=>{
+  const { id } = req.params;
+
+  try {
+    const deleted = await deleteAppointmentById(id);
+
+    if (!deleted) {
+      return res.status(404).json({ message: 'Appointment not found' });
+    }
+
+    res.status(200).json({
+      message: 'Appointment deleted successfully',
+    });
+  } catch (error) {
+    console.error('Error deleting appointment:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}
 
 // Function to handle retrieving all appointment data
 const getAppointments = async (req, res) => {
@@ -114,6 +182,8 @@ const getAppointmentsV2 = async (req, res) => {
 module.exports = {
   saveAppointment,
   saveAppointmentV2,
+  updateAppointment,
+  delAppointment,
   getAppointments,
   getAppointmentsV2,
 };

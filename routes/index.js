@@ -31,6 +31,7 @@ module.exports = app => {
     app.use('/api/recipe/scale', require('./recipeScaling'));
     app.use('/api/water-intake', require('./waterIntake'));
     app.use('/api/health-news', require('./healthNews'));
+    app.use('/api/health-tools', require('./healthTools'));
 
     // Add shopping list routes
     app.use('/api/shopping-list', require('./shoppingList'));
