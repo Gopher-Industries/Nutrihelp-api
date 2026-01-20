@@ -21,11 +21,11 @@ from PIL import Image
 import io
 
 # Get the relative path to the model file
-model_path = os.path.join('model', 'modeltt.h5')
+model_path = os.path.join('prediction_models', 'best_model_class.hdf5')
 
 try:
     # Load the pre-trained model
-    model = load_model(model_path)
+    model = load_model(model_path,compile=False)
 except Exception as e:
     print("Error loading model:", e)
     sys.exit(1)
@@ -171,6 +171,9 @@ image_data = sys.stdin.buffer.read()
 
 # Load image using PIL
 image = Image.open(io.BytesIO(image_data))
+
+if image.mode != 'RGB':
+    image = image.convert('RGB')
 
 # Resize image to (224, 224)
 image = image.resize((224, 224))
