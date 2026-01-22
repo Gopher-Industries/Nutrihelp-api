@@ -173,6 +173,9 @@ image_data = sys.stdin.buffer.read()
 # Load image using PIL
 image = Image.open(io.BytesIO(image_data))
 
+if image.mode != 'RGB':
+    image = image.convert('RGB')
+
 # Resize image to (224, 224)
 image = image.resize((224, 224))
 
