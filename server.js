@@ -1,7 +1,15 @@
 require("dotenv").config();
-const express = require("express");
 
-const FRONTEND_ORIGIN = "http://localhost:3000";
+// Debug environment variables
+console.log('🔧 Environment Variables Check:');
+console.log('   SUPABASE_URL:', process.env.SUPABASE_URL ? '✓ Set' : '✗ Missing');
+console.log('   SUPABASE_ANON_KEY:', process.env.SUPABASE_ANON_KEY ? '✓ Set' : '✗ Missing');
+console.log('   PORT:', process.env.PORT || '80 (default)');
+console.log('');
+
+const express = require("express");
+const { errorLogger, responseTimeLogger } = require('./middleware/errorLogger');
+const FRONTEND_ORIGIN =  "http://localhost:3000";
 
 const helmet = require('helmet');
 const cors = require("cors");
@@ -58,10 +66,20 @@ app.use('/api/system', systemRoutes);
 
 // CORS
 app.use(cors({
-  origin: FRONTEND_ORIGIN,
-  credentials: true,
-  methods: ["GET","POST","PUT","PATCH","DELETE","OPTIONS"],
-  allowedHeaders: ["Content-Type","Authorization"]
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+
+    if (
+      origin.startsWith("http://localhost") ||
+      origin.startsWith("http://127.0.0.1") ||
+      origin.startsWith("http://localhost")
+    ) {
+      callback(null, true);
+    } else {
+      callback(new Error(`CORS blocked: ${origin}`));
+    }
+  },
+  credentials: true
 }));
 app.options("*", cors({ origin: FRONTEND_ORIGIN, credentials: true }));
 app.use((req, res, next) => { res.header("Access-Control-Allow-Credentials","true"); next(); });
@@ -94,8 +112,9 @@ app.use(limiter);
 // Swagger
 const swaggerDocument = yaml.load("./index.yaml");
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
-
-// Parsers
+// Response time monitoring
+app.use(responseTimeLogger);
+// JSON & URL parser
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
@@ -110,24 +129,32 @@ app.use("/uploads", express.static("uploads"));
 // Signup
 app.use("/api/signup", require("./routes/signup"));
 
-// Login dashboard
-app.use('/api/login-dashboard', loginDashboard);
+// Error handler
+app.use(errorLogger);
 
-// ✅ Mount allergy routes HERE (after app exists)
-app.use('/api/allergy', require('./routes/allergyRoutes'));
+// Final error handler
+app.use((err, req, res, next) => {
+    const status = err.status || 500;
+    const message = process.env.NODE_ENV === 'production' 
+        ? 'Internal Server Error' 
+        : err.message;
+        
+    res.status(status).json({
+        success: false,
+        error: message,
+        timestamp: new Date().toISOString()
+    });
+});
 
-// Error handlers
-app.use((err, req, res, next) => {
-  if (err) return res.status(400).json({ error: err.message });
-  next();
-});
-app.use((err, req, res, next) => {
-  console.error("Unhandled error:", err);
-  res.status(500).json({ error: "Internal server error" });
-});
+// Global error handler
+const { uncaughtExceptionHandler, unhandledRejectionHandler } = require('./middleware/errorLogger');
+process.on('uncaughtException', uncaughtExceptionHandler);
+process.on('unhandledRejection', unhandledRejectionHandler);
 
 // Start
 app.listen(port, async () => {
+
+
   console.log('\n🎉 NutriHelp API launched successfully!');
   console.log('='.repeat(50));
   console.log(`Server is running on port ${port}`);
@@ -136,3 +163,9 @@ app.listen(port, async () => {
   console.log('💡 Press Ctrl+C to stop the server \n');
   exec(`start http://localhost:${port}/api-docs`);
 });
+
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ limit: "50mb", extended: true }));
+app.use('/api/sms', require('./routes/sms'));
+
+

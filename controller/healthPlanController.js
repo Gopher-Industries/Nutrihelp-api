@@ -3,6 +3,7 @@
 // Node 18+ has global fetch; if you're on Node 16, uncomment:
 // const fetch = require("node-fetch");
 
+// [TEMP-DB-OFF] keep import for easy revert; safe to leave unused
 const supabase = require("../dbConnection.js");
 
 const AI_BASE =
@@ -79,33 +80,26 @@ function buildHealthGoalFromSurvey(survey) {
 }
 
 // --------- DB helpers ---------
-async function insertHealthPlan(plan) {
-  const { data, error } = await supabase
-    .from("health_plan")
-    .insert(plan)
-    .select("id")
-    .single();
+// [TEMP-DB-OFF] Commented out to avoid writes while user_id is unavailable.
+// async function insertHealthPlan(plan) {
+//   const { data, error } = await supabase
+//     .from("health_plan")
+//     .insert(plan)
+//     .select("id")
+//     .single();
+//   if (error) throw error;
+//   return data;
+// }
 
-  if (error) throw error;
-  return data;
-}
+// async function insertWeeklyPlans(weeklyPlans) {
+//   const { error } = await supabase.from("health_plan_weekly").insert(weeklyPlans);
+//   if (error) throw error;
+// }
 
-async function insertWeeklyPlans(weeklyPlans) {
-  const { error } = await supabase
-    .from("health_plan_weekly")
-    .insert(weeklyPlans);
-
-  if (error) throw error;
-}
-
-async function deleteHealthPlan(planId) {
-  const { error } = await supabase
-    .from("health_plan")
-    .delete()
-    .eq("id", planId);
-
-  if (error) throw error;
-}
+// async function deleteHealthPlan(planId) {
+//   const { error } = await supabase.from("health_plan").delete().eq("id", planId);
+//   if (error) throw error;
+// }
 
 function derivePlanGoal(weekly) {
   if (!Array.isArray(weekly) || weekly.length === 0) return null;
@@ -121,7 +115,7 @@ function derivePlanGoal(weekly) {
  * {
  *   medical_report: { ... } | [{ ... }],
  *   survey_data: { ... },
- *   user_id: string,
+ *   user_id: string,        // <-- FE not sending for now
  *   survey_id: string
  * }
  */
@@ -143,7 +137,7 @@ const generateWeeklyPlan = async (req, res) => {
     }
     const health_goal = hgCheck.value;
 
-    // survey
+    // survey (optional for AI payload)
     const health_survey = buildHealthSurvey(body.survey_data);
 
     const payload = {
@@ -154,7 +148,6 @@ const generateWeeklyPlan = async (req, res) => {
       health_goal,
       followup_qa: null,
     };
-
     Object.keys(payload).forEach((k) => payload[k] === undefined && delete payload[k]);
 
     // call AI
@@ -186,48 +179,51 @@ const generateWeeklyPlan = async (req, res) => {
       });
     }
 
-    // Save to DB
-    const userId = req.user?.id || body.user_id;
-    const surveyId = body.survey_id || null;
+    // ---------------------- [TEMP-DB-OFF] begin ----------------------
+    // The following block (user_id check + DB inserts + rollback) is disabled
+    // while FE does not send user_id. Keep logic here for easy revert.
 
-    if (!userId) {
-      return res.status(400).json({ error: "Missing user_id for saving health plan" });
-    }
+    // const userId = req.user?.id || body.user_id;
+    // const surveyId = body.survey_id || null;
+    // if (!userId) {
+    //   return res.status(400).json({ error: "Missing user_id for saving health plan" });
+    // }
+    // const weekly = result.weekly_plan;
+    // const parent = {
+    //   user_id: userId,
+    //   survey_id: surveyId,
+    //   length: weekly.length,
+    //   goal: derivePlanGoal(weekly),
+    //   suggestion: result.suggestion || null,
+    // };
+    // const parentRow = await insertHealthPlan(parent);
+    // const planId = parentRow.id;
+    // try {
+    //   const weeklyRows = weekly.map((w) => ({
+    //     health_plan_id: planId,
+    //     week_num: Number(w.week),
+    //     target_calorie_per_day: Number(w.target_calories_per_day),
+    //     focus: w.focus ?? null,
+    //     workouts: JSON.stringify(w.workouts ?? []),
+    //     notes: w.meal_notes ?? null,
+    //     reminders: JSON.stringify(w.reminders ?? []),
+    //   }));
+    //   await insertWeeklyPlans(weeklyRows);
+    // } catch (e) {
+    //   await deleteHealthPlan(planId); // rollback
+    //   throw e;
+    // }
+    // ---------------------- [TEMP-DB-OFF] end ----------------------
 
-    const weekly = result.weekly_plan;
-    const parent = {
-      user_id: userId,
-      survey_id: surveyId,
-      length: weekly.length,
-      goal: derivePlanGoal(weekly),
-      suggestion: result.suggestion || null,
-    };
-
-    const parentRow = await insertHealthPlan(parent);
-    const planId = parentRow.id;
-
-    try {
-      const weeklyRows = weekly.map((w) => ({
-        health_plan_id: planId,
-        week_num: Number(w.week),
-        target_calorie_per_day: Number(w.target_calories_per_day),
-        focus: w.focus ?? null,
-        workouts: JSON.stringify(w.workouts ?? []),
-        notes: w.meal_notes ?? null,
-        reminders: JSON.stringify(w.reminders ?? []),
-      }));
-
-      await insertWeeklyPlans(weeklyRows);
-    } catch (e) {
-      await deleteHealthPlan(planId); // rollback
-      throw e;
-    }
-
+    // Return AI result only (no DB persistence while TEMP-DB-OFF is active)
     return res.status(200).json({
-      plan_id: planId,
+      plan_id: null, // [TEMP-DB-OFF] no DB id
       suggestion: result.suggestion || "",
       weekly_plan: result.weekly_plan,
       progress_analysis: result.progress_analysis ?? null,
+      // optional: echo derived goal/length for FE convenience
+      goal: derivePlanGoal(result.weekly_plan) ?? null,
+      length: Array.isArray(result.weekly_plan) ? result.weekly_plan.length : null,
     });
   } catch (err) {
     console.error("[healthPlanController] Unexpected error:", err);
