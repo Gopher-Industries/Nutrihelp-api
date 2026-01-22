@@ -8,22 +8,30 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sn
 import numpy as np
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+from tensorflow.keras.applications import VGG19, VGG16
+from tensorflow.keras.layers import AveragePooling2D, Conv2D, MaxPooling2D, Dropout, Dense, Input, Flatten
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.utils import load_img, img_to_array
+from sklearn.metrics import confusion_matrix
+from sklearn.model_selection import train_test_split
+from tensorflow.keras.models import load_model
+from PIL import Image
+import io
+
+# Get the relative path to the model file
+model_path = os.path.join('prediction_models', 'best_model_class.hdf5')
+
 try:
-    # Load the pre-trained model
-    # model = load_model(model_path)
-    # Lazy import to handle missing tensorflow
-    from tensorflow.keras.models import load_model, Sequential
-    from tensorflow.keras.preprocessing.image import ImageDataGenerator, load_img, img_to_array
-    from tensorflow.keras.applications import VGG19, VGG16
-    from tensorflow.keras.layers import AveragePooling2D, Conv2D, MaxPooling2D, Dropout, Dense, Input, Flatten
-    model = load_model(model_path)
+    # load the pre-trained model
+    model = load_model(model_path, compile=False)
 except Exception as e:
     print(f"Error loading model or tensorflow not found: {e}", file=sys.stderr)
-    # Continue to allow mock prediction
     model = None
 
 
-from tensorflow.keras.preprocessing.image import load_img, img_to_array
+
+
 
 cal_values = """Apple Braeburn:~52 calories per 100 grams
 Apple Crimson Snow:~52 calories per 100 grams
