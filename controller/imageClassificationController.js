@@ -48,12 +48,12 @@ const predictImage = (req, res) => {
     pythonProcess.stdout.on('data', (data) => {
       prediction += data.toString();
     });
+    console.log(prediction)
 
+    let stderrOutput = '';
     // Handle errors
     pythonProcess.stderr.on('data', (data) => {
-      console.error('Error executing Python script:', data.toString());
-      deleteFile(imagePath);
-      res.status(500).json({ error: 'Internal server error' });
+      stderrOutput += data.toString();
     });
 
     // When Python script finishes execution
