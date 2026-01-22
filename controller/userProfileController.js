@@ -7,7 +7,7 @@ let getUser = require("../model/getUserProfile.js");
  * - Admins can update any profile by providing email in the body.
  */
 const updateUserProfile = async (req, res) => {
-  try {
+	try {
     const { role, email: tokenEmail } = req.user || {};
     let targetEmail = req.body.email;
 
@@ -52,7 +52,7 @@ const updateUserProfile = async (req, res) => {
  * - Admins can fetch any profile using `?email=xxx`.
  */
 const getUserProfile = async (req, res) => {
-  try {
+	try {
     const { role, email: tokenEmail } = req.user || {};
     const { email: queryEmail } = req.query;
 
