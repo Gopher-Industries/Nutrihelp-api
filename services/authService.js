@@ -1,17 +1,12 @@
 console.log("🟢 Loaded AuthService from:", __filename);
-const { createClient } = require('@supabase/supabase-js');
+const supabase = require('../dbConnection');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
 
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_ANON_KEY
-);
-
 class AuthService {
     constructor() {
-        this.accessTokenExpiry = '15m';  // 15 minutes
+        this.accessTokenExpiry = '10m';  // 10 minutes
         this.refreshTokenExpiry = 7 * 24 * 60 * 60 * 1000; // 7 days
     }
 
@@ -45,7 +40,7 @@ class AuthService {
                     password: hashedPassword,
                     first_name,
                     last_name,
-                    role_id: 7, 
+                    role_id: 7,
                     account_status: 'active',
                     email_verified: false,
                     mfa_enabled: false,
@@ -149,7 +144,7 @@ class AuthService {
             const accessToken = jwt.sign(
                 accessPayload,
                 process.env.JWT_TOKEN,
-                { 
+                {
                     expiresIn: this.accessTokenExpiry,
                     algorithm: 'HS256'
                 }
