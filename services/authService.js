@@ -1,11 +1,17 @@
+console.log("🟢 Loaded AuthService from:", __filename);
 const { createClient } = require('@supabase/supabase-js');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
 
-const supabase = createClient(
+const supabaseAnon = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_ANON_KEY
+);
+
+const supabaseService = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
 class AuthService {
@@ -32,7 +38,7 @@ class AuthService {
     const { name, email, password, first_name, last_name } = userData;
 
     try {
-      const { data: existingUser } = await supabase
+      const { data: existingUser } = await supabaseAnon
         .from('users')
         .select('user_id')
         .eq('email', email)
@@ -44,7 +50,7 @@ class AuthService {
 
       const hashedPassword = await bcrypt.hash(password, 12);
 
-      const { data: newUser, error } = await supabase
+      const { data: newUser, error } = await supabaseAnon
         .from('users')
         .insert({
           name,
@@ -80,7 +86,7 @@ class AuthService {
     const { email, password } = loginData;
 
     try {
-      const { data: user, error } = await supabase
+      const { data: user, error } = await supabaseAnon
         .from('users')
         .select(`
           user_id, email, password, name, role_id,
@@ -98,7 +104,7 @@ class AuthService {
 
       const tokens = await this.generateTokenPair(user, deviceInfo);
 
-      await supabase
+      await supabaseAnon
         .from('users')
         .update({ last_login: new Date().toISOString() })
         .eq('user_id', user.user_id);
@@ -139,7 +145,7 @@ class AuthService {
         { expiresIn: this.accessTokenExpiry, algorithm: 'HS256' }
       );
 
-      await supabase
+      await supabaseService
          .from('user_sessiontoken')
          .update({ is_active: false })
          .eq('user_id', user.user_id);
@@ -149,7 +155,7 @@ class AuthService {
       const lookupHash = this.createLookupHash(rawRefreshToken);
       const expiresAt = new Date(Date.now() + this.refreshTokenExpiry);
 
-      const { error } = await supabase
+      const { error } = await supabaseService
         .from('user_sessiontoken')
         .insert({
           user_id: user.user_id,
@@ -185,7 +191,7 @@ class AuthService {
 
       const lookupHash = this.createLookupHash(refreshToken);
 
-      const { data: sessions, error } = await supabase
+      const { data: sessions, error } = await supabaseService
         .from('user_sessiontoken')
         .select(`
           id,
@@ -214,7 +220,7 @@ class AuthService {
         throw new Error('Refresh token expired');
       }
 
-      const { data: user, error: userError } = await supabase
+      const { data: user, error: userError } = await supabaseAnon
          .from('users')
          .select(`
            user_id,
@@ -237,7 +243,7 @@ class AuthService {
 
       const newTokens = await this.generateTokenPair(user, deviceInfo);
 
-      await supabase
+      await supabaseService
         .from('user_sessiontoken')
         .update({ is_active: false })
         .eq('id', session.id);
@@ -259,7 +265,7 @@ class AuthService {
     try {
       const lookupHash = this.createLookupHash(refreshToken);
 
-      await supabase
+      await supabaseService
         .from('user_sessiontoken')
         .update({ is_active: false })
         .eq('refresh_token_lookup', lookupHash);
@@ -275,7 +281,7 @@ class AuthService {
      ========================= */
   async logoutAll(userId) {
     try {
-      await supabase
+      await supabaseService
         .from('user_sessiontoken')
         .update({ is_active: false })
         .eq('user_id', userId);
@@ -298,7 +304,7 @@ class AuthService {
      ========================= */
   async logAuthAttempt(userId, email, success, deviceInfo) {
     try {
-      await supabase
+      await supabaseAnon
         .from('auth_logs')
         .insert({
           user_id: userId,
@@ -317,7 +323,7 @@ class AuthService {
      ========================= */
   async cleanupExpiredSessions() {
     try {
-      await supabase
+      await supabaseService
         .from('user_sessiontoken')
         .update({ is_active: false })
         .lt('expires_at', new Date().toISOString());
