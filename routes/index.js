@@ -37,4 +37,7 @@ module.exports = app => {
     app.use('/api/shopping-list', require('./shoppingList'));
     app.use('/api/barcode', require('./barcodeScanning'));
 
+    // Medical Breach Checker
+    app.use('/api/security/medical-breach', require('../modules/Medical_Breach_Harsh_Kanojia'));
+
 };
