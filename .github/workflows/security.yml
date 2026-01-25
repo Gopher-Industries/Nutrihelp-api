@@ -153,11 +153,14 @@ jobs:
             exit 0
           fi
           
-          echo "Scanning modified files: $MODIFIED_FILES"
-          # The scanner reads MODIFIED_FILES from env, so we call it once
-          # We check if the python script exists first to be safe
+           echo "Scanning modified files: $MODIFIED_FILES"
+          # Debugging: List contents
+          echo "Current directory: $(pwd)"
+          ls -R Vulnerability_Tool
+          
           if [ -f "Vulnerability_Tool/Vulnerability_Scanner_V1.4.py" ]; then
-             python3 Vulnerability_Tool/Vulnerability_Scanner_V1.4.py >> security_scan_report.txt
+             # Remove redirection to see output in logs
+             python3 Vulnerability_Tool/Vulnerability_Scanner_V1.4.py | tee security_scan_report.txt
           else
              echo "Error: Scanner script not found at Vulnerability_Tool/Vulnerability_Scanner_V1.4.py"
              exit 1
