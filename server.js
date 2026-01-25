@@ -66,7 +66,22 @@ app.use('/api/system', systemRoutes);
 
 // CORS
 app.use(cors({
-  origin: FRONTEND_ORIGIN,
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    console.log(origin)
+    if (
+      origin.startsWith("http://localhost") ||
+      origin.startsWith("http://127.0.0.1") ||
+      origin.startsWith("http://localhost") ||
+      origin.startsWith("chrome-extension://eggdlmopfankeonchoflhfoglaakobma") ||
+      origin.startsWith("https://apifox.cn-hangzhou.log.aliyuncs.com")
+
+    ) {
+      callback(null, true);
+    } else {
+      callback(new Error(`CORS blocked: ${origin}`));
+    }
+  },
   credentials: true,
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"]
