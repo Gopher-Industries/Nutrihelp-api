@@ -155,23 +155,53 @@ function base64FileSize(base64String) {
 
 async function saveRecipeRelation(recipe, savedDataId) {
 	try {
-		insert_object = [];
-		for (let i = 0; i < recipe.ingredients.id.length; i++) {
-			insert_object.push({
-				ingredient_id: recipe.ingredients.id[i],
-				recipe_id: savedDataId,
-				user_id: recipe.user_id,
-				cuisine_id: recipe.cuisine_id,
-				cooking_method_id: recipe.cooking_method_id[i],
-			});
-		}
+		const uniqueIngredientIds = [...new Set(recipe.ingredients.id)];
+		
+		const insert_object = uniqueIngredientIds.map((ingredientId) => ({
+			ingredient_id: ingredientId,
+			recipe_id: savedDataId,
+			user_id: recipe.user_id,
+			cuisine_id: recipe.cuisine_id,
+			cooking_method_id: recipe.cooking_method_id,
+		}));
+
 		let { data, error } = await supabase
 			.from("recipe_ingredient")
 			.insert(insert_object)
 			.select();
+
+		if(error){
+			console.error("insert error",error);
+			throw error;
+		}
+		
 		return data;
 	} catch (error) {
 		throw error;
 	}
 }
-module.exports = { createRecipe, saveRecipe, saveRecipeRelation, saveImage };
+
+async function updateRecipesFlag(ids, field, value = true) {
+	if (!Array.isArray(ids) || ids.length === 0) return [];
+
+	const { data, error } = await supabase
+		.from("recipes")
+		.update({ [field]: value })
+		.in("id", ids);
+
+	if (error) {
+		console.error(`updateRecipesFlag (${field}) error:`, error);
+		throw error;
+	}
+
+	return data;
+}
+
+const updateRecipeAllergy = (ids) =>
+	updateRecipesFlag(ids, "allergy", true);
+
+const updateRecipeDislike = (ids) =>
+	updateRecipesFlag(ids, "dislike", true);
+
+
+module.exports = { createRecipe, saveRecipe, saveRecipeRelation, saveImage, updateRecipeAllergy, updateRecipeDislike };
