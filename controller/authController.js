@@ -107,8 +107,9 @@ exports.refreshToken = async (req, res) => {
 exports.logout = async (req, res) => {
     try {
         const { refreshToken } = req.body;
+        const userId = req.user?.userId || null;
 
-        const result = await authService.logout(refreshToken);
+        const result = await authService.logout(refreshToken, userId);
 
         res.json(result);
 
