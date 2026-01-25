@@ -1,4 +1,7 @@
 const supabase = require('../dbConnection.js');
+const { encryptField } = require("../security/field_Encryption.js");
+
+
 
 exports.updateUserProfile = async (req, res) => {
     console.log(" hit update-by-identifier endpoint");
@@ -12,6 +15,8 @@ exports.updateUserProfile = async (req, res) => {
         if (!updates || typeof updates !== 'object') {
             return res.status(400).json({ message: "Updates object is required." });
         }
+        if (updates.phone) updates.phone = encryptField(updates.phone);
+        if (updates.address) updates.address = encryptField(updates.address);
 
         
         let { data: userData, error: emailError } = await supabase
