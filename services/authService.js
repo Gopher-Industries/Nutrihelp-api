@@ -143,7 +143,7 @@ class AuthService {
                 type: 'access'
             };
 
-            console.log("🔑 Signing access token with payload:", accessPayload);
+            // Token generation - sensitive logging removed for security
 
             // Generate Access Token
             const accessToken = jwt.sign(
@@ -155,7 +155,17 @@ class AuthService {
                 }
             );
 
-            console.log("✅ Generated accessToken:", accessToken);
+            // Token generated successfully - full token logging removed for security
+
+            // Log token generation to persistent storage
+            await supabase.from('token_activity_logs').insert({
+                user_id: user.user_id,
+                event_type: 'token_generated',
+                token_type: 'access',
+                ip_address: deviceInfo.ip || null,
+                user_agent: deviceInfo.userAgent || null,
+                created_at: new Date().toISOString()
+            }).catch(err => console.error('Failed to log token generation:', err));
 
             // Generate a refresh token
             const refreshToken = crypto.randomBytes(40).toString('hex');
@@ -245,7 +255,7 @@ class AuthService {
     /**
      * Logout
      */
-    async logout(refreshToken) {
+    async logout(refreshToken, userId = null) {
         try {
             if (refreshToken) {
                 await supabase
@@ -253,6 +263,13 @@ class AuthService {
                     .update({ is_active: false })
                     .eq('refresh_token', refreshToken);
             }
+
+            // Log logout event to persistent storage
+            await supabase.from('session_logs').insert({
+                user_id: userId,
+                event: 'logout',
+                timestamp: new Date().toISOString()
+            }).catch(err => console.error('Failed to log logout:', err));
 
             return { success: true, message: 'Logout successful' };
         } catch (error) {
@@ -270,6 +287,13 @@ class AuthService {
                 .update({ is_active: false })
                 .eq('user_id', userId);
 
+            // Log logout all event to persistent storage
+            await supabase.from('session_logs').insert({
+                user_id: userId,
+                event: 'logout_all',
+                timestamp: new Date().toISOString()
+            }).catch(err => console.error('Failed to log logout all:', err));
+
             return { success: true, message: 'Logged out from all devices' };
         } catch (error) {
             throw new Error(`Logout all failed: ${error.message}`);
@@ -279,13 +303,22 @@ class AuthService {
     /**
      * Verifying the Access Token
      */
-    verifyAccessToken(token) {
+    async verifyAccessToken(token) {
         try {
             const decoded = jwt.verify(token, process.env.JWT_TOKEN);
-            console.log("🔍 Decoded token payload:", decoded);
+            // Decoded token payload logging removed for security (logged on every request)
             return decoded;
         } catch (error) {
             console.error("❌ Token verification failed:", error.message);
+            
+            // Log token verification failure to persistent storage
+            await supabase.from('token_activity_logs').insert({
+                event_type: 'token_verification_failed',
+                token_type: 'access',
+                error_message: error.message,
+                created_at: new Date().toISOString()
+            }).catch(err => console.error('Failed to log token verification error:', err));
+            
             throw new Error('Invalid access token');
         }
     }

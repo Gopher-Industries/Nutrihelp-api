@@ -164,6 +164,20 @@ app.listen(port, async () => {
   console.log(`📚 Swagger UI: http://localhost/api-docs`);
   console.log('='.repeat(50));
   console.log('💡 Press Ctrl+C to stop the server \n');
+  
+  // Log system startup to persistent storage
+  const { createClient } = require('@supabase/supabase-js');
+  const supabase = createClient(
+    process.env.SUPABASE_URL,
+    process.env.SUPABASE_ANON_KEY
+  );
+  
+  await supabase.from('system_logs').insert({
+    event: 'server_start',
+    port: port,
+    timestamp: new Date().toISOString()
+  }).catch(err => console.error('Failed to log server startup:', err));
+  
   exec(`start http://localhost:${port}/api-docs`);
 });
 
