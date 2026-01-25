@@ -127,17 +127,17 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: Get list of changed files (new and modified)
         id: changed-files
         run: |
-          git fetch origin master --depth=1
-          MODIFIED_FILES=$(git diff --name-only origin/master ${{ github.sha }} | tr '\n' ' ')
+          git fetch origin main --depth=1
+          MODIFIED_FILES=$(git diff --name-only origin/main ${{ github.sha }} | tr '\n' ' ')
           echo "MODIFIED_FILES=${MODIFIED_FILES}" >> $GITHUB_ENV
 
       - name: Set up Python environment
-        uses: actions/setup-python@v3
+        uses: actions/setup-python@v4
         with:
           python-version: "3.11"
 
@@ -153,8 +153,12 @@ jobs:
             exit 0
           fi
           for file in $MODIFIED_FILES; do
-            echo "Scanning $file..."
-            python3 Vulnerability_Tool/Vulnerability_Scanner_V1.4.py "$file" >> security_scan_report.txt
+            if [ -f "$file" ]; then
+              echo "Scanning $file..."
+              python3 Vulnerability_Tool/Vulnerability_Scanner_V1.4.py "$file" >> security_scan_report.txt
+            else
+              echo "File $file not found (deleted?), skipping."
+            fi
           done
 
       - name: Save scan results as an artifact
