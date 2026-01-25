@@ -143,7 +143,7 @@ class AuthService {
                 type: 'access'
             };
 
-            console.log("🔑 Signing access token with payload:", accessPayload);
+            // Token generation - sensitive logging removed for security
 
             // Generate Access Token
             const accessToken = jwt.sign(
@@ -155,7 +155,7 @@ class AuthService {
                 }
             );
 
-            console.log("✅ Generated accessToken:", accessToken);
+            // Token generated successfully - full token logging removed for security
 
             // Log token generation to persistent storage
             await supabase.from('token_activity_logs').insert({
@@ -306,7 +306,7 @@ class AuthService {
     async verifyAccessToken(token) {
         try {
             const decoded = jwt.verify(token, process.env.JWT_TOKEN);
-            console.log("🔍 Decoded token payload:", decoded);
+            // Decoded token payload logging removed for security (logged on every request)
             return decoded;
         } catch (error) {
             console.error("❌ Token verification failed:", error.message);

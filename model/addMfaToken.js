@@ -43,7 +43,7 @@ async function verifyMfaToken(userId, token) {
 
     const mfaToken = data?.[0];
     if (!mfaToken) {
-      console.log("❌ No valid token found for user:", parsedUserId, "token:", token);
+      console.log("❌ No valid MFA token found for user:", parsedUserId);
       return false;
     }
 
