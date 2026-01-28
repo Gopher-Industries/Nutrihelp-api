@@ -15,7 +15,6 @@ function securityEventsToCsv(events) {
     'metadataJson',
   ];
 
-  // Backward-compatible getters 
   const getSeverity = (e) => e?.severity ?? '';
   const getEmail = (e) => e?.actor?.email ?? e?.metadata?.email ?? '';
   const getUserId = (e) => e?.actor?.userId ?? e?.userId ?? '';
@@ -23,7 +22,8 @@ function securityEventsToCsv(events) {
   const getIp = (e) => e?.network?.ip ?? e?.ipAddress ?? '';
   const getUserAgent = (e) => e?.network?.userAgent ?? e?.userAgent ?? '';
   const getCorrelationId = (e) => e?.correlationId ?? '';
-  const getConfidence = (e) => (e?.confidence === null || e?.confidence === undefined) ? '' : e.confidence;
+  const getConfidence = (e) =>
+    e?.confidence === null || e?.confidence === undefined ? '' : e.confidence;
   const getSource = (e) => e?.source?.table ?? e?.source ?? '';
 
   const lines = [];
@@ -46,7 +46,6 @@ function securityEventsToCsv(events) {
       JSON.stringify(ev?.metadata || {}),
     ];
 
-    // Safer CSV escaping: commas, quotes, and newlines
     const esc = row.map((v) => {
       const s = v === null || v === undefined ? '' : String(v);
       const mustQuote = /[",\n]/.test(s);

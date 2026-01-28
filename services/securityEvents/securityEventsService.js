@@ -5,11 +5,7 @@ const { aggregateIncidents } = require('./securityIncidentAggregator');
 const supabase = require('../../dbConnection'); // Supabase client
 
 function correlateSecurityEvents(events) {
-  // Week 8: placeholder correlation layer.
-  // For now, we only produce "incidents" by aggregating normalised events.
   const incidents = aggregateIncidents(events) || [];
-
-  // Later: attach correlationId/confidence, group timelines, etc.
   return { events, incidents };
 }
 
@@ -19,7 +15,6 @@ async function getSecurityEvents(fromDate, toDate) {
 
   const events = [];
 
-  // use Promise.all to get data in parallel
   const [
     { data: authLogs, error: authError },
     { data: bruteLogs, error: bruteError },
@@ -41,17 +36,39 @@ async function getSecurityEvents(fromDate, toDate) {
         row.status === 'success';
 
       events.push({
+        ...SecurityEvent,
+
         id: `auth_${row.id || row.created_at}`,
         occurredAt: row.created_at,
         type: isSuccess ? SecurityEventType.LOGIN_SUCCESS : SecurityEventType.LOGIN_FAILURE,
-        userId: row.user_id || null,
-        sessionId: row.session_id || null,
-        ipAddress: row.ip_address || row.ip || null,
-        userAgent: row.user_agent || null,
-        source: 'public.auth_logs',
+        severity: isSuccess ? 'LOW' : 'MEDIUM',
+
+        actor: {
+          userId: row.user_id || null,
+          email: row.email || null,
+          role: null,
+        },
+
+        network: {
+          ip: row.ip_address || row.ip || null,
+          userAgent: row.user_agent || null,
+        },
+
+        session: {
+          sessionId: row.session_id || null,
+          refreshTokenHash: null,
+        },
+
+        source: {
+          system: 'supabase',
+          table: 'public.auth_logs',
+          recordId: row.id || null,
+        },
+
         metadata: {
           email: row.email || null,
           userIdentifier: row.identifier || null,
+          outcome: row.outcome || row.status || (row.success === true ? 'success' : null),
         },
       });
     }
@@ -105,13 +122,33 @@ async function getSecurityEvents(fromDate, toDate) {
   } else if (sessions && sessions.length > 0) {
     for (const row of sessions) {
       const base = {
-        id: `session_${row.id || row.created_at}`,
+        ...SecurityEvent,
+
         occurredAt: row.created_at,
-        userId: row.user_id || null,
-        sessionId: row.id ? String(row.id) : null,
-        ipAddress: row.ip_address || null,
-        userAgent: row.user_agent || null,
-        source: 'public.user_session',
+        severity: 'LOW',
+
+        actor: {
+          userId: row.user_id || null,
+          email: null,
+          role: null,
+        },
+
+        network: {
+          ip: row.ip_address || null,
+          userAgent: row.user_agent || null,
+        },
+
+        session: {
+          sessionId: row.id ? String(row.id) : null,
+          refreshTokenHash: row.refresh_token || null,
+        },
+
+        source: {
+          system: 'supabase',
+          table: 'public.user_session',
+          recordId: row.id || null,
+        },
+
         metadata: {
           refreshTokenExists: !!row.refresh_token,
           expiresAt: row.expires_at || null,
@@ -119,25 +156,25 @@ async function getSecurityEvents(fromDate, toDate) {
         },
       };
 
-      // Session created
       events.push({
         ...base,
+        id: `session_${row.id || row.created_at}`,
         type: SecurityEventType.SESSION_CREATED,
       });
 
-      // Token issued
       events.push({
         ...base,
+        id: `token_${row.id || row.created_at}`,
         type: SecurityEventType.TOKEN_ISSUED,
       });
 
-      // Token revoked (If there is revoked_at)
       if (row.revoked_at) {
         events.push({
           ...base,
           id: `session_revoked_${row.id || row.created_at}`,
           type: SecurityEventType.TOKEN_REVOKED,
           occurredAt: row.revoked_at,
+          severity: 'MEDIUM',
         });
       }
     }
@@ -146,7 +183,6 @@ async function getSecurityEvents(fromDate, toDate) {
   // ===== sort by occurredAt (do this ONCE) =====
   events.sort((a, b) => String(a.occurredAt).localeCompare(String(b.occurredAt)));
 
-  // Week 8: return events + incidents
   return correlateSecurityEvents(events);
 }
 
