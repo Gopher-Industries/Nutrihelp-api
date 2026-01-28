@@ -68,11 +68,14 @@ app.use('/api/system', systemRoutes);
 app.use(cors({
   origin: (origin, callback) => {
     if (!origin) return callback(null, true);
-
+    console.log(origin)
     if (
       origin.startsWith("http://localhost") ||
       origin.startsWith("http://127.0.0.1") ||
-      origin.startsWith("http://localhost")
+      origin.startsWith("http://localhost") ||
+      origin.startsWith("chrome-extension://eggdlmopfankeonchoflhfoglaakobma") ||
+      origin.startsWith("https://apifox.cn-hangzhou.log.aliyuncs.com")
+
     ) {
       callback(null, true);
     } else {
