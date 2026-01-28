@@ -36,5 +36,7 @@ module.exports = app => {
     // Add shopping list routes
     app.use('/api/shopping-list', require('./shoppingList'));
     app.use('/api/barcode', require('./barcodeScanning'));
+    app.use('/api/security', require('./securityEvents'));
+
 
 };
