@@ -1,360 +1,289 @@
-console.log("🟢 Loaded AuthService from:", __filename);
 const { createClient } = require('@supabase/supabase-js');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
 
-const supabase = createClient(
+const supabaseAnon = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_ANON_KEY
 );
 
+const supabaseService = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
+
 class AuthService {
-    constructor() {
-        this.accessTokenExpiry = '15m';  // 15 minutes
-        this.refreshTokenExpiry = 7 * 24 * 60 * 60 * 1000; // 7 days
+  constructor() {
+    this.accessTokenExpiry = '15m';
+    this.refreshTokenExpiry = 7 * 24 * 60 * 60 * 1000; // 7 days
+  }
+
+  /* =========================
+     Helpers
+     ========================= */
+  createLookupHash(token) {
+    return crypto
+      .createHash('sha256')
+      .update(token)
+      .digest('hex')
+      .slice(0, 16);
+  }
+
+  /* =========================
+     Register
+     ========================= */
+  async register(userData) {
+    const { name, email, password, first_name, last_name } = userData;
+
+    const { data: existingUser } = await supabaseAnon
+      .from('users')
+      .select('user_id')
+      .eq('email', email)
+      .single();
+
+    if (existingUser) {
+      throw new Error('User already exists');
     }
 
-    /**
-     * User Registration
-     */
-    async register(userData) {
-        const { name, email, password, first_name, last_name } = userData;
+    const hashedPassword = await bcrypt.hash(password, 12);
 
-        try {
-            // Check if the user already exists
-            const { data: existingUser } = await supabase
-                .from('users')
-                .select('user_id')
-                .eq('email', email)
-                .single();
+    const { data: newUser, error } = await supabaseAnon
+      .from('users')
+      .insert({
+        name,
+        email,
+        password: hashedPassword,
+        first_name,
+        last_name,
+        role_id: 7,
+        account_status: 'active',
+        email_verified: false,
+        mfa_enabled: false,
+        registration_date: new Date().toISOString()
+      })
+      .select('user_id, email, name')
+      .single();
 
-            if (existingUser) {
-                throw new Error('User already exists');
-            }
+    if (error) throw error;
 
-            // Hashed Passwords
-            const hashedPassword = await bcrypt.hash(password, 12);
+    return {
+      success: true,
+      user: newUser,
+      message: 'User registered successfully'
+    };
+  }
 
-            // Create User
-            const { data: newUser, error } = await supabase
-                .from('users')
-                .insert({
-                    name,
-                    email,
-                    password: hashedPassword,
-                    first_name,
-                    last_name,
-                    role_id: 7, 
-                    account_status: 'active',
-                    email_verified: false,
-                    mfa_enabled: false,
-                    registration_date: new Date().toISOString()
-                })
-                .select('user_id, email, name')
-                .single();
+  /* =========================
+     Login
+     ========================= */
+  async login(loginData, deviceInfo = {}) {
+    const { email, password } = loginData;
 
-            if (error) throw error;
+    try {
+      const { data: user, error } = await supabaseAnon
+        .from('users')
+        .select(`
+          user_id, email, password, name, role_id,
+          account_status, email_verified,
+          user_roles!inner(id, role_name)
+        `)
+        .eq('email', email)
+        .single();
 
-            return {
-                success: true,
-                user: newUser,
-                message: 'User registered successfully'
-            };
+      if (error || !user) throw new Error('Invalid credentials');
+      if (user.account_status !== 'active') throw new Error('Account is not active');
 
-        } catch (error) {
-            throw new Error(`Registration failed: ${error.message}`);
-        }
+      const validPassword = await bcrypt.compare(password, user.password);
+      if (!validPassword) throw new Error('Invalid credentials');
+
+      const tokens = await this.generateTokenPair(user, deviceInfo);
+
+      await supabaseAnon
+        .from('users')
+        .update({ last_login: new Date().toISOString() })
+        .eq('user_id', user.user_id);
+
+      await this.logAuthAttempt(user.user_id, email, true, deviceInfo);
+
+      return {
+        success: true,
+        user: {
+          id: user.user_id,
+          email: user.email,
+          name: user.name,
+          role: user.user_roles?.role_name || 'user'
+        },
+        ...tokens
+      };
+    } catch (error) {
+      await this.logAuthAttempt(null, email, false, deviceInfo);
+      throw error;
     }
+  }
 
-    /**
-     * User login
-     */
-    async login(loginData, deviceInfo = {}) {
-        const { email, password } = loginData;
+  /* =========================
+     Generate Tokens
+     ========================= */
+  async generateTokenPair(user, deviceInfo = {}) {
+    try {
+      const accessPayload = {
+        userId: user.user_id,
+        email: user.email,
+        role: user.user_roles?.role_name || 'user',
+        type: 'access'
+      };
 
-        try {
-            // Find User
-            const { data: user, error } = await supabase
-                .from('users')
-                .select(`
-                    user_id, email, password, name, role_id, 
-                    account_status, email_verified,
-                    user_roles!inner(id,role_name)
-                `)
-                .eq('email', email)
-                .single();
+      const accessToken = jwt.sign(
+        accessPayload,
+        process.env.JWT_TOKEN,
+        { expiresIn: this.accessTokenExpiry, algorithm: 'HS256' }
+      );
 
-            if (error || !user) {
-                throw new Error('Invalid credentials');
-            }
+      // Deactivate old sessions
+      await supabaseService
+        .from('user_sessiontoken')
+        .update({ is_active: false })
+        .eq('user_id', user.user_id);
 
-            // Check account status
-            if (user.account_status !== 'active') {
-                throw new Error('Account is not active');
-            }
+      const rawRefreshToken = crypto.randomBytes(32).toString('hex');
+      const hashedRefreshToken = await bcrypt.hash(rawRefreshToken, 12);
+      const lookupHash = this.createLookupHash(rawRefreshToken);
+      const expiresAt = new Date(Date.now() + this.refreshTokenExpiry);
 
-            // Verify Password
-            const validPassword = await bcrypt.compare(password, user.password);
-            if (!validPassword) {
-                throw new Error('Invalid credentials');
-            }
+      const { error } = await supabaseService
+        .from('user_sessiontoken')
+        .insert({
+          user_id: user.user_id,
+          refresh_token: hashedRefreshToken,
+          refresh_token_lookup: lookupHash,
+          token_type: 'refresh',
+          device_info: deviceInfo,
+          ip_address: deviceInfo.ip || null,
+          user_agent: deviceInfo.userAgent || null,
+          expires_at: expiresAt.toISOString(),
+          is_active: true
+        });
 
-            // Generate token pair
-            const tokens = await this.generateTokenPair(user, deviceInfo);
+      if (error) throw error;
 
-            // Update last login time
-            await supabase
-                .from('users')
-                .update({ last_login: new Date().toISOString() })
-                .eq('user_id', user.user_id);
-
-            // Record successful login
-            await this.logAuthAttempt(user.user_id, email, true, deviceInfo);
-
-            return {
-                success: true,
-                user: {
-                    id: user.user_id,
-                    email: user.email,
-                    name: user.name,
-                    role: user.user_roles?.role_name || 'user'
-                },
-                ...tokens
-            };
-
-        } catch (error) {
-            // Login failures
-            await this.logAuthAttempt(null, email, false, deviceInfo);
-            throw error;
-        }
+      return {
+        accessToken,
+        refreshToken: rawRefreshToken,
+        expiresIn: 15 * 60,
+        tokenType: 'Bearer'
+      };
+    } catch (error) {
+      throw new Error(`Token generation failed: ${error.message}`);
     }
+  }
 
-    /**
-     * Generate access token and refresh token
-     */
-    async generateTokenPair(user, deviceInfo = {}) {
-        try {
-            // Build access token payload
-            const accessPayload = {
-                userId: user.user_id,
-                email: user.email,
-                role: user.user_roles?.role_name || 'user',
-                type: 'access'
-            };
+  /* =========================
+     Refresh Token
+     ========================= */
+  async refreshAccessToken(refreshToken, deviceInfo = {}) {
+    try {
+      const lookupHash = this.createLookupHash(refreshToken);
 
-            // Token generation - sensitive logging removed for security
+      const { data: sessions, error } = await supabaseService
+        .from('user_sessiontoken')
+        .select('*')
+        .eq('refresh_token_lookup', lookupHash)
+        .eq('is_active', true)
+        .limit(1);
 
-            // Generate Access Token
-            const accessToken = jwt.sign(
-                accessPayload,
-                process.env.JWT_TOKEN,
-                { 
-                    expiresIn: this.accessTokenExpiry,
-                    algorithm: 'HS256'
-                }
-            );
+      if (error || !sessions || sessions.length === 0) {
+        throw new Error('Invalid refresh token');
+      }
 
-            // Token generated successfully - full token logging removed for security
+      const session = sessions[0];
+      const match = await bcrypt.compare(refreshToken, session.refresh_token);
+      if (!match) throw new Error('Invalid refresh token');
 
-            // Log token generation to persistent storage
-            await supabase.from('token_activity_logs').insert({
-                user_id: user.user_id,
-                event_type: 'token_generated',
-                token_type: 'access',
-                ip_address: deviceInfo.ip || null,
-                user_agent: deviceInfo.userAgent || null,
-                created_at: new Date().toISOString()
-            }).catch(err => console.error('Failed to log token generation:', err));
+      if (new Date(session.expires_at) < new Date()) {
+        throw new Error('Refresh token expired');
+      }
 
-            // Generate a refresh token
-            const refreshToken = crypto.randomBytes(40).toString('hex');
-            const expiresAt = new Date(Date.now() + this.refreshTokenExpiry);
+      const { data: user, error: userError } = await supabaseAnon
+        .from('users')
+        .select('user_id, email, name, role_id, account_status')
+        .eq('user_id', session.user_id)
+        .single();
 
-            // Store refresh token in database
-            const { error } = await supabase
-                .from('user_session')
-                .insert({
-                    user_id: user.user_id,
-                    session_token: refreshToken,
-                    refresh_token: refreshToken,
-                    token_type: 'refresh',
-                    device_info: deviceInfo,
-                    ip_address: deviceInfo.ip || null,
-                    user_agent: deviceInfo.userAgent || null,
-                    expires_at: expiresAt.toISOString(),
-                    is_active: true,
-                });
+      if (userError || !user) throw new Error('User not found');
+      if (user.account_status !== 'active') throw new Error('Account is not active');
 
-            if (error) throw error;
+      const newTokens = await this.generateTokenPair(user, deviceInfo);
 
-            return {
-                accessToken,
-                refreshToken,
-                expiresIn: 15 * 60, // 15 minutes in seconds
-                tokenType: 'Bearer'
-            };
+      await supabaseService
+        .from('user_sessiontoken')
+        .update({ is_active: false })
+        .eq('id', session.id);
 
-        } catch (error) {
-            throw new Error(`Token generation failed: ${error.message}`);
-        }
+      return { success: true, ...newTokens };
+    } catch (error) {
+      throw new Error(`Token refresh failed: ${error.message}`);
     }
+  }
 
-    /**
-     * Refresh Access Token
-     */
-    async refreshAccessToken(refreshToken, deviceInfo = {}) {
-        try {
-            // Verifying the refresh token
-            const { data: session, error } = await supabase
-                .from('user_session')
-                .select(`
-                    id, user_id, expires_at, is_active,
-                    users!inner(user_id, email, name, role_id, account_status,
-                        user_roles!inner(id, role_name)
-                    )
-                `)
-                .eq('refresh_token', refreshToken)
-                .eq('is_active', true)
-                .single();
+  /* =========================
+     Logout
+     ========================= */
+  async logout(refreshToken) {
+    const lookupHash = this.createLookupHash(refreshToken);
 
-            if (error || !session) {
-                throw new Error('Invalid refresh token');
-            }
+    await supabaseService
+      .from('user_sessiontoken')
+      .update({ is_active: false })
+      .eq('refresh_token_lookup', lookupHash);
 
-            // Check if the token is expired
-            if (new Date(session.expires_at) < new Date()) {
-                throw new Error('Refresh token expired');
-            }
+    return { success: true, message: 'Logout successful' };
+  }
 
-            // Checking User Status
-            const user = session.users;
-            if (user.account_status !== 'active') {
-                throw new Error('Account is not active');
-            }
+  async logoutAll(userId) {
+    await supabaseService
+      .from('user_sessiontoken')
+      .update({ is_active: false })
+      .eq('user_id', userId);
 
-            // Generate a new token pair
-            const newTokens = await this.generateTokenPair(user, deviceInfo);
+    return { success: true, message: 'Logged out from all devices' };
+  }
 
-            // Invalidate old refresh tokens
-            await supabase
-                .from('user_session')
-                .update({ is_active: false })
-                .eq('id', session.id);
+  /* =========================
+     Verify Access Token
+     ========================= */
+  verifyAccessToken(token) {
+    return jwt.verify(token, process.env.JWT_TOKEN);
+  }
 
-            return {
-                success: true,
-                ...newTokens
-            };
-
-        } catch (error) {
-            throw new Error(`Token refresh failed: ${error.message}`);
-        }
+  /* =========================
+     Auth Logs
+     ========================= */
+  async logAuthAttempt(userId, email, success, deviceInfo) {
+    try {
+      await supabaseAnon
+        .from('auth_logs')
+        .insert({
+          user_id: userId,
+          email,
+          success,
+          ip_address: deviceInfo.ip || null,
+          created_at: new Date().toISOString()
+        });
+    } catch {
+      // silent by design
     }
+  }
 
-    /**
-     * Logout
-     */
-    async logout(refreshToken, userId = null) {
-        try {
-            if (refreshToken) {
-                await supabase
-                    .from('user_session')
-                    .update({ is_active: false })
-                    .eq('refresh_token', refreshToken);
-            }
-
-            // Log logout event to persistent storage
-            await supabase.from('session_logs').insert({
-                user_id: userId,
-                event: 'logout',
-                timestamp: new Date().toISOString()
-            }).catch(err => console.error('Failed to log logout:', err));
-
-            return { success: true, message: 'Logout successful' };
-        } catch (error) {
-            throw new Error(`Logout failed: ${error.message}`);
-        }
-    }
-
-    /**
-     * Log out of all devices
-     */
-    async logoutAll(userId) {
-        try {
-            await supabase
-                .from('user_session')
-                .update({ is_active: false })
-                .eq('user_id', userId);
-
-            // Log logout all event to persistent storage
-            await supabase.from('session_logs').insert({
-                user_id: userId,
-                event: 'logout_all',
-                timestamp: new Date().toISOString()
-            }).catch(err => console.error('Failed to log logout all:', err));
-
-            return { success: true, message: 'Logged out from all devices' };
-        } catch (error) {
-            throw new Error(`Logout all failed: ${error.message}`);
-        }
-    }
-
-    /**
-     * Verifying the Access Token
-     */
-    async verifyAccessToken(token) {
-        try {
-            const decoded = jwt.verify(token, process.env.JWT_TOKEN);
-            // Decoded token payload logging removed for security (logged on every request)
-            return decoded;
-        } catch (error) {
-            console.error("❌ Token verification failed:", error.message);
-            
-            // Log token verification failure to persistent storage
-            await supabase.from('token_activity_logs').insert({
-                event_type: 'token_verification_failed',
-                token_type: 'access',
-                error_message: error.message,
-                created_at: new Date().toISOString()
-            }).catch(err => console.error('Failed to log token verification error:', err));
-            
-            throw new Error('Invalid access token');
-        }
-    }
-
-    /**
-     * Logging authentication attempts
-     */
-    async logAuthAttempt(userId, email, success, deviceInfo) {
-        try {
-            await supabase
-                .from('auth_logs')
-                .insert({
-                    user_id: userId,
-                    email: email,
-                    success: success,
-                    ip_address: deviceInfo.ip || null,
-                    created_at: new Date().toISOString()
-                });
-        } catch (error) {
-            console.error('Failed to log auth attempt:', error);
-        }
-    }
-
-    /**
-     * Clean up expired sessions
-     */
-    async cleanupExpiredSessions() {
-        try {
-            await supabase
-                .from('user_session')
-                .update({ is_active: false })
-                .lt('expires_at', new Date().toISOString());
-        } catch (error) {
-            console.error('Failed to cleanup expired sessions:', error);
-        }
-    }
+  /* =========================
+     Cleanup
+     ========================= */
+  async cleanupExpiredSessions() {
+    await supabaseService
+      .from('user_sessiontoken')
+      .update({ is_active: false })
+      .lt('expires_at', new Date().toISOString());
+  }
 }
 
 module.exports = new AuthService();
