@@ -1,6 +1,7 @@
 module.exports = app => {
     // home
-    app.use("/api/home/services", require('./serviceContents'));
+    app.use("/api/home/services", require('./homeService'));
+    app.use('/api/home/subscribe',require('./homeSubscribe'))
     app.use("/api/login", require('./login'));
     app.use("/api/signup", require('./signup'));
     app.use("/api/contactus", require('./contactus'));

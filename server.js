@@ -68,7 +68,7 @@ app.use('/api/system', systemRoutes);
 app.use(cors({
   origin: (origin, callback) => {
     if (!origin) return callback(null, true);
-    console.log(origin)
+
     if (
       origin.startsWith("http://localhost") ||
       origin.startsWith("http://127.0.0.1") ||

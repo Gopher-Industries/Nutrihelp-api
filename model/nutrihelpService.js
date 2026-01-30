@@ -42,5 +42,17 @@ async function deleteServiceModel(id) {
   if (error) throw error;
 }
 
+async function addSubscribeModel({ email }) {
+  const { data, error } = await supabase
+    .from("newsletter")
+    .insert({
+      email
+    })
+    .select()
+    .single();
 
-module.exports = { createServiceModel, updateServiceModel,deleteServiceModel };
+  if (error) throw error;
+  return data;
+}
+
+module.exports = { createServiceModel, updateServiceModel,deleteServiceModel, addSubscribeModel };
