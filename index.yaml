@@ -201,6 +201,7 @@ paths:
           description: Upload failed due to size/type restriction
         '429':
           description: Too many uploads from this IP (rate limit exceeded)
+
   /home/services:
     get:
       tags: 
@@ -369,6 +370,34 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /home/subscribe:
+    post:
+      tags: 
+        - Home Subscribe
+      summary: Subscribe newsletter
+      description: User subscribe newsletter.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubscribeNewsletter'
+      responses:
+        '201':
+          description: Subscribe created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/SubscribeNewsletter'
+        '400':
+          description: Bad request
+        '500':
+          description: Internal server error
 
   /appointments:
     post:
@@ -3414,6 +3443,13 @@ components:
         updated_at:
           type: string
           format: date-time
+
+    SubscribeNewsletter:
+      type: object
+      required: [email]
+      properties:
+        email:
+          type: string
 
     ServiceCreate:
       type: object
