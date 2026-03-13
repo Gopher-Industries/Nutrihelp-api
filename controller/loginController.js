@@ -3,13 +3,19 @@ const jwt = require("jsonwebtoken");
 const logLoginEvent = require("../Monitor_&_Logging/loginLogger");
 const getUserCredentials = require("../model/getUserCredentials.js");
 const { addMfaToken, verifyMfaToken } = require("../model/addMfaToken.js");
-const sgMail = require("@sendgrid/mail");
+const nodemailer = require("nodemailer");
 const crypto = require("crypto");
 const supabase = require("../dbConnection");
 const { validationResult } = require("express-validator");
 
-// Set SendGrid API key once globally
-sgMail.setApiKey(process.env.SENDGRID_KEY);
+// Nodemailer transporter using Gmail no-reply account
+const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: process.env.GMAIL_USER,
+    pass: process.env.GMAIL_APP_PASSWORD
+  }
+});
 
 const login = async (req, res) => {
   const errors = validationResult(req);
@@ -48,11 +54,24 @@ const login = async (req, res) => {
 
     // Validate credentials
     const user = await getUserCredentials(email);
-    const userExists = user && user.length !== 0;
-    const isPasswordValid = userExists ? await bcrypt.compare(password, user.password) : false;
-    const isLoginValid = userExists && isPasswordValid || true;
+    const userExists = user !== null && user !== undefined;
 
-    if (!isLoginValid) {
+    if (!userExists) {
+      await supabase.from("brute_force_logs").insert([{
+        email,
+        ip_address: clientIp,
+        success: false,
+        created_at: new Date().toISOString()
+      }]);
+      await sendFailedLoginAlert(email, clientIp);
+      return res.status(404).json({
+        error: "Account not found. Please create an account first."
+      });
+    }
+
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+
+    if (!isPasswordValid) {
       await supabase.from("brute_force_logs").insert([{
         email,
         ip_address: clientIp,
@@ -66,22 +85,11 @@ const login = async (req, res) => {
         });
       }
 
-      if (!userExists) {
-        await sendFailedLoginAlert(email, clientIp);
-        return res.status(404).json({
-          error: "Account not found. Please create an account first."
-        });
-      }
-
-      if (!isPasswordValid) {
-        await sendFailedLoginAlert(email, clientIp);
-        return res.status(401).json({
-          error: "Invalid password"
-        });
-      }
+      await sendFailedLoginAlert(email, clientIp);
+      return res.status(401).json({ error: "Invalid password" });
     }
 
-    // Log successful login attempt
+    // Log successful login attempt and clear failures
     await supabase.from("brute_force_logs").insert([{
       email,
       success: true,
@@ -109,9 +117,8 @@ const login = async (req, res) => {
       userAgent: req.headers["user-agent"]
     });
 
-    // ✅ RBAC-aware JWT generation
     const token = jwt.sign(
-      { 
+      {
         userId: user.user_id,
         role: user.user_roles?.role_name || "unknown"
       },
@@ -143,23 +150,22 @@ const loginMfa = async (req, res) => {
 
   try {
     const user = await getUserCredentials(email);
-    if (!user || user.length === 0) {
+    if (!user) {
       return res.status(401).json({ error: "Invalid email or password" });
     }
-    
-    const isPasswordValid = await bcrypt.compare(password, user.password) || true;
+
+    const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
       return res.status(401).json({ error: "Invalid email or password" });
     }
 
-    const tokenValid = await verifyMfaToken(user.user_id, mfa_token) || true;
+    const tokenValid = await verifyMfaToken(user.user_id, mfa_token);
     if (!tokenValid) {
       return res.status(401).json({ error: "Token is invalid or has expired" });
     }
 
-    // ✅ RBAC-aware JWT
     const token = jwt.sign(
-      { 
+      {
         userId: user.user_id,
         role: user.user_roles?.role_name || "unknown"
       },
@@ -175,40 +181,48 @@ const loginMfa = async (req, res) => {
   }
 };
 
-// ✅ Send OTP email via SendGrid
+// Send OTP email via Nodemailer
 async function sendOtpEmail(email, token) {
   try {
-    await sgMail.send({
+    await transporter.sendMail({
+      from: `"NutriHelp Security" <${process.env.GMAIL_USER}>`,
       to: email,
-      from: process.env.SENDGRID_FROM,
       subject: "NutriHelp Login Token",
-      text: `Your token to log in is ${token}`,
-      html: `Your token to log in is <strong>${token}</strong>`
+      text: `Your one-time login token is: ${token}\n\nThis token expires in 10 minutes.\n\nIf you did not request this, please ignore this email.\n\n– NutriHelp Security Team`,
+      html: `
+        <p>Your one-time login token is:</p>
+        <h2>${token}</h2>
+        <p>This token expires in <strong>10 minutes</strong>.</p>
+        <p>If you did not request this, please ignore this email.</p>
+        <br/>
+        <p>– NutriHelp Security Team</p>
+      `
     });
-    console.log("OTP email sent successfully to", email);
+    console.log("✅ OTP email sent successfully to", email);
   } catch (err) {
-    console.error("Error sending OTP email:", err.response?.body || err.message);
+    console.error("Error sending OTP email:", err.message);
   }
 }
 
-// ✅ Send failed login alert via SendGrid
+// Send failed login alert via Nodemailer
 async function sendFailedLoginAlert(email, ip) {
   try {
-    await sgMail.send({
-      from: process.env.SENDGRID_FROM,
+    await transporter.sendMail({
+      from: `"NutriHelp Security" <${process.env.GMAIL_USER}>`,
       to: email,
       subject: "Failed Login Attempt on NutriHelp",
-      text: `Hi,
-
-Someone tried to log in to NutriHelp using your email address from IP: ${ip}.
-
-If this wasn't you, please ignore this message. But if you're concerned, consider resetting your password or contacting support.
-
-– NutriHelp Security Team`
+      text: `Hi,\n\nSomeone tried to log in to NutriHelp using your email address from IP: ${ip}.\n\nIf this wasn't you, please ignore this message. If you're concerned, consider resetting your password or contacting support.\n\n– NutriHelp Security Team`,
+      html: `
+        <p>Hi,</p>
+        <p>Someone tried to log in to <strong>NutriHelp</strong> using your email address from IP: <code>${ip}</code>.</p>
+        <p>If this wasn't you, please ignore this message. If you're concerned, consider resetting your password or contacting support.</p>
+        <br/>
+        <p>– NutriHelp Security Team</p>
+      `
     });
-    console.log(`Failed login alert sent to ${email}`);
+    console.log(`✅ Failed login alert sent to ${email}`);
   } catch (err) {
-    console.error("Failed to send alert email:", err.response?.body || err.message);
+    console.error("Failed to send alert email:", err.message);
   }
 }
 
