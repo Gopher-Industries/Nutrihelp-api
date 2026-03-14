@@ -1,4 +1,4 @@
-require("dotenv").config();
+require('dotenv').config();
 
 // Debug environment variables
 console.log('🔧 Environment Variables Check:');

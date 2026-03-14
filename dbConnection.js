@@ -1,4 +1,12 @@
+
 require('dotenv').config();
+
+// TEMPORARY DEBUG — remove after fixing
+console.log('🔍 Supabase env check:', {
+  url: process.env.SUPABASE_URL?.slice(0, 30) + '...',
+  keyLoaded: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+  keyPrefix: process.env.SUPABASE_SERVICE_ROLE_KEY?.slice(0, 10)
+});
 const { createClient } = require('@supabase/supabase-js');
 
 // Check if environment variables are loaded

@@ -1,4 +1,6 @@
 console.log("🟢 Loaded AuthService from:", __filename);
+console.log("URL:", process.env.SUPABASE_URL);
+console.log("KEY:", process.env.SUPABASE_ANON_KEY);
 const { createClient } = require('@supabase/supabase-js');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
