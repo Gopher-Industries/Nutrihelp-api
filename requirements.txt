@@ -1,6 +1,9 @@
 tensorflow==2.17.0
-# keras==2.15.0
-numpy>=1.26.0
+numpy==1.26.4
+matplotlib==3.9.2
+pandas==2.2.3
+scikit-learn==1.5.2
+seaborn==0.13.2
 pillow==9.5.0
-h5py>=3.10.0
-python-docx
+h5py==3.10.0
+python-docx==1.1.2

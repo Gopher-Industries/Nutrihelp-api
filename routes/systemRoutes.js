@@ -66,6 +66,16 @@ router.get('/integrity-check', (req, res) => {
   }
 });
 
+router.get('/health', (req, res) => {
+  res.status(200).json({
+    status: 'ok',
+    service: 'nutrihelp-api',
+    nodeEnv: process.env.NODE_ENV || 'development',
+    pythonCommand: 'python',
+    timestamp: new Date().toISOString()
+  });
+});
+
 // Mount test error router for triggering errors (used for demo/testing)
 router.use('/test-error', testErrorRouter);
 
