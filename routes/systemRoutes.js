@@ -71,7 +71,8 @@ router.get('/health', (req, res) => {
     status: 'ok',
     service: 'nutrihelp-api',
     nodeEnv: process.env.NODE_ENV || 'development',
-    pythonCommand: 'python',
+    nodeVersion: process.version,
+    pythonCommand: process.env.PYTHON_BIN || 'python3',
     timestamp: new Date().toISOString()
   });
 });

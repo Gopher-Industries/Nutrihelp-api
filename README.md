@@ -1,7 +1,7 @@
 # NutriHelp Backend API
 This is the backend API for the NutriHelp project. It is a RESTful API that provides the necessary endpoints for the frontend to interact with the database.
 
-## Installation
+## Docker-First Setup
 1. Open a terminal and navigate to the directory where you want to clone the repository.
 2. Run the following command to clone the repository:
 ```bash
@@ -11,23 +11,35 @@ git clone https://github.com/Gopher-Industries/Nutrihelp-api
 ```bash
 cd Nutrihelp-api
 ```
-4. Install the required dependencies (including python dependencies):
+4. Contact a project maintainer to get the shared `.env` file and place it in the project root.
+5. Start the backend with Docker Compose:
 ```bash
-npm install
-pip install -r requirements.txt
-npm install node-fetch
-npm install --save-dev jest supertest
+docker compose up --build
 ```
-5. Contact a project maintainer to get the `.env` file that contains the necessary environment variables and place it in the root of the project directory.
-6. Start the server:
-```bash
-npm start
-```
-A message should appear in the terminal saying `Server running on port 80`.
-You can now access the API at `http://localhost:80`.
+The backend will be available at `http://localhost:80`.
 
 ## Dockerized Development Environment
 Docker is the recommended local development path for this backend. A contributor only needs Docker and the shared `.env` file; Node.js, Python, TensorFlow, numpy, and related system packages are installed inside the container.
+
+### Quick Validation
+Validate the backend container with the shared `.env`:
+
+```bash
+curl http://localhost:80/api/system/health
+```
+
+Validate the AI runtime inside the running container:
+
+```bash
+docker compose exec api python -c "import tensorflow as tf; print(tf.__version__)"
+docker compose exec api python -c "import numpy, pandas, seaborn, sklearn, matplotlib; print('python-ai-runtime-ok')"
+```
+
+Validate a backend test suite once the container is up:
+
+```bash
+docker compose exec api npm test
+```
 
 ### Runtime Audit
 Required runtime components:
@@ -74,32 +86,15 @@ From the `Nutrihelp-api` folder:
 docker compose up --build
 ```
 
-### Validation Checklist
-Validate the backend container with the shared `.env`:
-
-```bash
-curl http://localhost:80/api/system/health
-```
-
-Validate the AI runtime inside the running container:
-
-```bash
-docker compose exec api python -c "import tensorflow as tf; print(tf.__version__)"
-docker compose exec api python -c "import numpy, pandas, seaborn, sklearn, matplotlib; print('python-ai-runtime-ok')"
-```
-
-Validate a backend test suite once the container is up:
-
-```bash
-docker compose exec api npm test
-```
-
 Common troubleshooting tips:
 
 - If port `80` is already in use, stop the other process or change the host port mapping in `docker-compose.yml`.
 - If the AI image build is slow, let the TensorFlow wheel finish downloading; the first build is much slower than rebuilds.
 - If model-related endpoints fail, confirm the model file exists at `prediction_models/best_model_class.hdf5`.
 - If environment validation fails, confirm the shared `.env` file is present in the project root before starting Docker Compose.
+
+## Legacy Local Setup
+Docker is the supported development workflow for this repository. If you need to run the backend directly on your host for debugging, install the required Node.js and Python dependencies manually and start the server with `npm start`.
 
 ## Endpoints
 The API is documented using OpenAPI 3.0, located in `index.yaml`.
