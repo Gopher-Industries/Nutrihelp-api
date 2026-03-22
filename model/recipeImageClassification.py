@@ -16,8 +16,16 @@ def debug_log(message):
     except Exception as e:
         sys.stderr.write(f"Could not write to debug log: {str(e)}\n")
 
+def emit_result(success, prediction=None, confidence=None, error=None):
+    print(json.dumps({
+        "success": success,
+        "prediction": prediction,
+        "confidence": confidence,
+        "error": error
+    }))
+
 def handle_error(error_message, exit_code=1):
-    sys.stderr.write(f"ERROR: {error_message}\n")
+    emit_result(False, prediction=None, confidence=None, error=error_message)
     try:
         debug_log(f"ERROR: {error_message}")
     except:
@@ -485,7 +493,7 @@ if __name__ == "__main__":
             debug_log("No command line argument provided, searching for images in uploads directory")
             prediction = predict_class()
         
-        print(prediction)
+        emit_result(True, prediction=prediction, confidence=None, error=None)
         debug_log(f"Script completed successfully with prediction: {prediction}")
         sys.exit(0)
     except Exception as e:
