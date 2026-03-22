@@ -4,13 +4,9 @@
 
 const fs = require("fs");
 const path = require("path");
-const { promisify } = require("util");
 const { executePythonScript } = require("../services/aiExecutionService");
 
-// Convert fs callbacks to promises
-const writeFileAsync = promisify(fs.writeFile);
-const unlinkAsync = promisify(fs.unlink);
-const mkdirAsync = promisify(fs.mkdir);
+const unlinkAsync = fs.promises.unlink;
 
 const predictRecipeImage = async (req, res) => {
     try {
@@ -43,29 +39,6 @@ const predictRecipeImage = async (req, res) => {
             });
         }
         
-        const originalFilename = originalName.toLowerCase();
-        
-        try {
-            if (!fs.existsSync('uploads')) {
-                await mkdirAsync('uploads', { recursive: true });
-                console.log("Created uploads directory");
-            }
-        } catch (err) {
-            console.error("Error creating uploads directory:", err);
-        }
-
-        const namedImagePath = `uploads/${originalFilename}`;
-        
-        try {
-            await fs.promises.copyFile(imagePath, namedImagePath);
-            console.log(`Copied temporary file to ${namedImagePath}`);
-            
-            await writeFileAsync('uploads/original_filename.txt', originalFilename);
-        } catch (err) {
-            console.error("Error preparing image file:", err);
-            // Continue anyway
-        }
-
         const scriptPath = path.join(__dirname, '..', 'model', 'recipeImageClassification.py');
 
         if (!fs.existsSync(scriptPath)) {
@@ -80,7 +53,8 @@ const predictRecipeImage = async (req, res) => {
         }
 
         const result = await executePythonScript({
-            scriptPath
+            scriptPath,
+            args: [imagePath, originalName]
         });
 
         await cleanupFiles(imagePath);

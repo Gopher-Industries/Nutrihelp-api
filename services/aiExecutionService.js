@@ -2,6 +2,7 @@ const { spawn } = require('child_process');
 const path = require('path');
 
 const DEFAULT_TIMEOUT_MS = 30000;
+const DEFAULT_PYTHON_COMMAND = process.env.PYTHON_BIN || 'python3';
 
 function tryParseJson(value) {
   if (!value) {
@@ -77,10 +78,11 @@ function executePythonScript({
   stdin = null,
   timeoutMs = DEFAULT_TIMEOUT_MS,
   cwd = process.cwd(),
-  env = process.env
+  env = process.env,
+  pythonCommand = env.PYTHON_BIN || DEFAULT_PYTHON_COMMAND
 }) {
   return new Promise((resolve) => {
-    const pythonProcess = spawn('python', [scriptPath, ...args], {
+    const pythonProcess = spawn(pythonCommand, [scriptPath, ...args], {
       cwd,
       env,
       stdio: ['pipe', 'pipe', 'pipe']
@@ -147,5 +149,6 @@ function executePythonScript({
 
 module.exports = {
   DEFAULT_TIMEOUT_MS,
+  DEFAULT_PYTHON_COMMAND,
   executePythonScript
 };

@@ -44,6 +44,41 @@ describe('AI Controllers', () => {
     })).to.equal(true);
   });
 
+  it('maps wrapper failures into a stable image classification error response', async () => {
+    const executePythonScript = sinon.stub().resolves({
+      success: false,
+      prediction: null,
+      confidence: null,
+      error: 'model failure',
+      timedOut: false
+    });
+
+    sinon.stub(fs.promises, 'readFile').resolves(Buffer.from('image-data'));
+    sinon.stub(fs, 'unlink').callsFake((filePath, callback) => callback(null));
+
+    const controller = proxyquire('../controller/imageClassificationController', {
+      '../services/aiExecutionService': { executePythonScript }
+    });
+
+    const req = {
+      file: { path: 'uploads/test.png' }
+    };
+    const res = {
+      status: sinon.stub().returnsThis(),
+      json: sinon.stub()
+    };
+
+    await controller.predictImage(req, res);
+
+    expect(res.status.calledWith(500)).to.equal(true);
+    expect(res.json.calledWith({
+      success: false,
+      prediction: null,
+      confidence: null,
+      error: 'model failure'
+    })).to.equal(true);
+  });
+
   it('maps wrapper timeout into a backend-friendly timeout response', async () => {
     const executePythonScript = sinon.stub().resolves({
       success: false,
@@ -54,9 +89,7 @@ describe('AI Controllers', () => {
     });
 
     sinon.stub(fs, 'existsSync').returns(true);
-    sinon.stub(fs.promises, 'copyFile').resolves();
-    sinon.stub(fs, 'writeFile').callsFake((filePath, content, callback) => callback(null));
-    sinon.stub(fs, 'unlink').callsFake((filePath, callback) => callback(null));
+    sinon.stub(fs.promises, 'unlink').resolves();
 
     const controller = proxyquire('../controller/recipeImageClassificationController', {
       '../services/aiExecutionService': { executePythonScript }
@@ -83,6 +116,10 @@ describe('AI Controllers', () => {
     await controller.predictRecipeImage(req, res);
 
     expect(executePythonScript.calledOnce).to.equal(true);
+    expect(executePythonScript.firstCall.args[0].args).to.deep.equal([
+      'uploads/temp/test.png',
+      'test.png'
+    ]);
     expect(res.statusCode).to.equal(504);
     expect(res.payload).to.deep.equal({
       success: false,

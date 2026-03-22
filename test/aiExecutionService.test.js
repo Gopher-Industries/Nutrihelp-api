@@ -38,4 +38,18 @@ describe('AI Execution Service', () => {
     expect(result.timedOut).to.equal(true);
     expect(result.error).to.equal('AI script timed out after 100ms');
   });
+
+  it('returns a backend-friendly error when the Python process cannot start', async () => {
+    const result = await executePythonScript({
+      scriptPath: path.join(fixturesDir, 'ai_success.py'),
+      env: {
+        ...process.env,
+        PATH: ''
+      }
+    });
+
+    expect(result.success).to.equal(false);
+    expect(result.exitCode).to.equal(null);
+    expect(result.error).to.contain('Failed to start AI script:');
+  });
 });

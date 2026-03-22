@@ -6,7 +6,6 @@ import traceback
 import time
 from PIL import Image, UnidentifiedImageError, ImageStat
 import glob
-import shutil
 import random
 
 def debug_log(message):
@@ -376,7 +375,7 @@ def find_image_file():
     except Exception as e:
         handle_error(f"Error finding image file: {str(e)}")
 
-def predict_class(image_path=None):
+def predict_class(image_path=None, original_filename=None):
     """Predict food class from image."""
     debug_log("Starting prediction process")
     
@@ -396,19 +395,15 @@ def predict_class(image_path=None):
             return "sushi"  # Return sushi as match for sushi
             
         filename_hint = None
+        normalized_original_filename = original_filename.lower() if original_filename else None
         
-        if os.path.exists('uploads/original_filename.txt'):
-            try:
-                with open('uploads/original_filename.txt', 'r') as f:
-                    original_filename = f.read().strip()
-                    if "sushi" in original_filename.lower():
-                        debug_log(f"Detected sushi in original filename: {original_filename}")
-                        return "sushi"  # Return sushi as match for sushi
-                        
-                    filename_hint = extract_filename_hints(original_filename)
-                    debug_log(f"Filename hint from original_filename.txt: {original_filename} -> {filename_hint}")
-            except Exception as e:
-                debug_log(f"Error reading original_filename.txt: {str(e)}")
+        if normalized_original_filename:
+            if "sushi" in normalized_original_filename:
+                debug_log(f"Detected sushi in original filename: {normalized_original_filename}")
+                return "sushi"
+
+            filename_hint = extract_filename_hints(normalized_original_filename)
+            debug_log(f"Filename hint from original filename: {normalized_original_filename} -> {filename_hint}")
                 
         if not filename_hint:
             filename_hint = extract_filename_hints(file_name)
@@ -487,8 +482,9 @@ if __name__ == "__main__":
         
         if len(sys.argv) > 1:
             image_path = sys.argv[1]
+            original_filename = sys.argv[2] if len(sys.argv) > 2 else None
             debug_log(f"Using image path from command line: {image_path}")
-            prediction = predict_class(image_path)
+            prediction = predict_class(image_path, original_filename)
         else:
             debug_log("No command line argument provided, searching for images in uploads directory")
             prediction = predict_class()
