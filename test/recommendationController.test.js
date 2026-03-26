@@ -19,7 +19,7 @@ describe('Recommendation Controller', () => {
 
     const req = {
       user: { userId: 42, email: 'test@example.com' },
-      body: { maxResults: 3, healthGoals: { prioritizeProtein: true } }
+      body: { maxResults: 3, healthGoals: { prioritizeProtein: true }, dietaryConstraints: {} }
     };
     const res = {
       status: sinon.stub().returnsThis(),
@@ -33,6 +33,87 @@ describe('Recommendation Controller', () => {
     expect(res.json.calledWith({
       success: true,
       recommendations: [{ rank: 1, recipeId: 10, title: 'Protein Bowl' }]
+    })).to.equal(true);
+  });
+
+  it('returns 400 when dietaryConstraints is missing', async () => {
+    const generateRecommendations = sinon.stub();
+    const controller = proxyquire('../controller/recommendationController', {
+      '../services/recommendationService': { generateRecommendations }
+    });
+
+    const req = {
+      user: { userId: 42, email: 'test@example.com' },
+      body: {}
+    };
+    const res = {
+      status: sinon.stub().returnsThis(),
+      json: sinon.stub()
+    };
+
+    await controller.getRecommendations(req, res);
+
+    expect(generateRecommendations.called).to.equal(false);
+    expect(res.status.calledWith(400)).to.equal(true);
+    expect(res.json.calledWith({
+      success: false,
+      error: 'dietaryConstraints is required and must be an object'
+    })).to.equal(true);
+  });
+
+  it('returns 400 when maxResults is malformed', async () => {
+    const generateRecommendations = sinon.stub();
+    const controller = proxyquire('../controller/recommendationController', {
+      '../services/recommendationService': { generateRecommendations }
+    });
+
+    const req = {
+      user: { userId: 42, email: 'test@example.com' },
+      body: {
+        dietaryConstraints: {},
+        maxResults: '3'
+      }
+    };
+    const res = {
+      status: sinon.stub().returnsThis(),
+      json: sinon.stub()
+    };
+
+    await controller.getRecommendations(req, res);
+
+    expect(generateRecommendations.called).to.equal(false);
+    expect(res.status.calledWith(400)).to.equal(true);
+    expect(res.json.calledWith({
+      success: false,
+      error: 'maxResults must be an integer between 1 and 20'
+    })).to.equal(true);
+  });
+
+  it('returns 400 when aiInsights is malformed', async () => {
+    const generateRecommendations = sinon.stub();
+    const controller = proxyquire('../controller/recommendationController', {
+      '../services/recommendationService': { generateRecommendations }
+    });
+
+    const req = {
+      user: { userId: 42, email: 'test@example.com' },
+      body: {
+        dietaryConstraints: {},
+        aiInsights: 'invalid'
+      }
+    };
+    const res = {
+      status: sinon.stub().returnsThis(),
+      json: sinon.stub()
+    };
+
+    await controller.getRecommendations(req, res);
+
+    expect(generateRecommendations.called).to.equal(false);
+    expect(res.status.calledWith(400)).to.equal(true);
+    expect(res.json.calledWith({
+      success: false,
+      error: 'aiInsights must be an object when provided'
     })).to.equal(true);
   });
 });

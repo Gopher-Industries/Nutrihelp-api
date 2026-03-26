@@ -1,12 +1,27 @@
 const AI_ADAPTER_VERSION = 'v1';
 const DEFAULT_AI_TIMEOUT_MS = 3000;
 
+function strictPositiveId(value) {
+  if (typeof value === 'number') {
+    return Number.isInteger(value) && value > 0 ? value : null;
+  }
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!/^[1-9]\d*$/.test(trimmed)) {
+      return null;
+    }
+    return Number(trimmed);
+  }
+
+  return null;
+}
+
 function normalizeIdList(items) {
   return [...new Set((items || []).map((item) => {
     if (item == null) return null;
-    if (typeof item === 'number') return item;
-    if (typeof item === 'string' && item.trim() !== '' && !Number.isNaN(Number(item))) return Number(item);
-    if (typeof item === 'object' && item.id != null && !Number.isNaN(Number(item.id))) return Number(item.id);
+    if (typeof item === 'number' || typeof item === 'string') return strictPositiveId(item);
+    if (typeof item === 'object' && item.id != null) return strictPositiveId(item.id);
     return null;
   }).filter((item) => item != null))];
 }
@@ -35,20 +50,25 @@ function normalizeAiHints(rawHints = {}) {
 }
 
 function deriveHintsFromMedicalReport(medicalReport) {
-  const report = Array.isArray(medicalReport) ? medicalReport[0] : medicalReport;
-  const hints = {};
+  const reports = Array.isArray(medicalReport) ? medicalReport : [medicalReport];
+  const hints = {
+    goalLabels: [],
+    explanationTags: ['medical_report']
+  };
 
-  if (report?.diabetes_prediction?.diabetes === true) {
-    hints.limitSugar = true;
-    hints.goalLabels = ['blood sugar management'];
-    hints.explanationTags = ['medical_report', 'diabetes_signal'];
-  }
+  reports.filter(Boolean).forEach((report) => {
+    if (report?.diabetes_prediction?.diabetes === true) {
+      hints.limitSugar = true;
+      hints.goalLabels.push('blood sugar management');
+      hints.explanationTags.push('diabetes_signal');
+    }
 
-  if (report?.obesity_prediction?.obesity_level) {
-    hints.prioritizeFiber = true;
-    hints.goalLabels = [...(hints.goalLabels || []), 'weight management'];
-    hints.explanationTags = [...(hints.explanationTags || []), 'obesity_signal'];
-  }
+    if (report?.obesity_prediction?.obesity_level) {
+      hints.prioritizeFiber = true;
+      hints.goalLabels.push('weight management');
+      hints.explanationTags.push('obesity_signal');
+    }
+  });
 
   return normalizeAiHints(hints);
 }
@@ -120,6 +140,17 @@ async function resolveAiRecommendationSignals({
         hints: normalizeAiHints({})
       };
     }
+  }
+
+  if (aiAdapterInput && !process.env.AI_RECOMMENDATION_URL) {
+    return {
+      source: 'none',
+      version: AI_ADAPTER_VERSION,
+      fallbackUsed: true,
+      adapterFailed: true,
+      warnings: ['AI recommendation service is not configured'],
+      hints: normalizeAiHints({})
+    };
   }
 
   return {

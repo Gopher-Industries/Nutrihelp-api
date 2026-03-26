@@ -32,7 +32,8 @@ function unique(arr) {
 }
 
 function normalizeNameList(items) {
-  return unique((items || []).map((item) => {
+  const normalizedItems = Array.isArray(items) ? items : [];
+  return unique(normalizedItems.map((item) => {
     if (!item) return null;
     if (typeof item === 'string') return item.trim().toLowerCase();
     return item.name ? String(item.name).trim().toLowerCase() : null;
@@ -40,13 +41,26 @@ function normalizeNameList(items) {
 }
 
 function normalizeIdList(items) {
-  return unique((items || []).map((item) => {
+  const normalizedItems = Array.isArray(items) ? items : [];
+  return unique(normalizedItems.map((item) => {
     if (item == null) return null;
-    if (typeof item === 'number') return item;
-    if (typeof item === 'string' && item.trim() !== '' && !Number.isNaN(Number(item))) return Number(item);
-    if (typeof item === 'object' && item.id != null && !Number.isNaN(Number(item.id))) return Number(item.id);
+    if (typeof item === 'number') return Number.isInteger(item) && item > 0 ? item : null;
+    if (typeof item === 'string' && /^[1-9]\d*$/.test(item.trim())) return Number(item.trim());
+    if (typeof item === 'object' && item.id != null) {
+      if (typeof item.id === 'number') return Number.isInteger(item.id) && item.id > 0 ? item.id : null;
+      if (typeof item.id === 'string' && /^[1-9]\d*$/.test(item.id.trim())) return Number(item.id.trim());
+    }
     return null;
   }));
+}
+
+function safeNumber(value) {
+  if (value == null || value === '') {
+    return null;
+  }
+
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : null;
 }
 
 function normalizeHealthGoals(healthGoals) {
@@ -122,6 +136,13 @@ function scoreRecipe(recipe, context) {
   const reasons = [];
   const matchedSignals = [];
   let score = 0;
+  const protein = safeNumber(recipe.protein);
+  const fiber = safeNumber(recipe.fiber);
+  const sugar = safeNumber(recipe.sugar);
+  const sodium = safeNumber(recipe.sodium);
+  const calories = safeNumber(recipe.calories);
+  const fat = safeNumber(recipe.fat);
+  const carbohydrates = safeNumber(recipe.carbohydrates);
 
   if (recipe.allergy || recipe.dislike) {
     return null;
@@ -149,40 +170,40 @@ function scoreRecipe(recipe, context) {
     matchedSignals.push('ai_preferred_recipe');
   }
 
-  if (context.goalState.prioritizeProtein && Number(recipe.protein || 0) >= 15) {
+  if (context.goalState.prioritizeProtein && protein != null && protein >= 15) {
     score += 12;
     reasons.push('supports higher protein intake');
     matchedSignals.push('high_protein');
   }
 
-  if (context.goalState.prioritizeFiber && Number(recipe.fiber || 0) >= 5) {
+  if (context.goalState.prioritizeFiber && fiber != null && fiber >= 5) {
     score += 12;
     reasons.push('supports higher fiber intake');
     matchedSignals.push('high_fiber');
   }
 
   if (context.goalState.limitSugar) {
-    if (Number(recipe.sugar || 0) <= 10) {
+    if (sugar != null && sugar <= 10) {
       score += 12;
       reasons.push('fits lower sugar preference');
       matchedSignals.push('low_sugar');
-    } else {
+    } else if (sugar != null) {
       score -= 10;
     }
   }
 
   if (context.goalState.limitSodium) {
-    if (Number(recipe.sodium || 0) <= 400) {
+    if (sodium != null && sodium <= 400) {
       score += 12;
       reasons.push('fits lower sodium preference');
       matchedSignals.push('low_sodium');
-    } else {
+    } else if (sodium != null) {
       score -= 10;
     }
   }
 
-  if (context.goalState.targetCalories != null && Number.isFinite(Number(recipe.calories))) {
-    const delta = Math.abs(Number(recipe.calories) - context.goalState.targetCalories);
+  if (context.goalState.targetCalories != null && calories != null) {
+    const delta = Math.abs(calories - context.goalState.targetCalories);
     if (delta <= 100) {
       score += 10;
       reasons.push('close to target calories');
@@ -211,13 +232,13 @@ function scoreRecipe(recipe, context) {
       cuisineId: recipe.cuisine_id,
       cookingMethodId: recipe.cooking_method_id,
       nutrition: {
-        calories: recipe.calories ?? null,
-        protein: recipe.protein ?? null,
-        fiber: recipe.fiber ?? null,
-        sugar: recipe.sugar ?? null,
-        sodium: recipe.sodium ?? null,
-        fat: recipe.fat ?? null,
-        carbohydrates: recipe.carbohydrates ?? null
+        calories,
+        protein,
+        fiber,
+        sugar,
+        sodium,
+        fat,
+        carbohydrates
       },
       preparationTime: recipe.preparation_time ?? null,
       totalServings: recipe.total_servings ?? null,
@@ -278,7 +299,9 @@ async function generateRecommendations({
     throw new Error('userId is required');
   }
 
-  const normalizedMaxResults = Math.max(1, Math.min(Number(maxResults) || DEFAULT_MAX_RESULTS, 20));
+  const normalizedMaxResults = maxResults == null
+    ? DEFAULT_MAX_RESULTS
+    : Math.max(1, Math.min(maxResults, 20));
   const goalState = normalizeHealthGoals(healthGoals);
   const aiContext = await resolveAiRecommendationSignals({
     aiInsights,
@@ -315,19 +338,20 @@ async function generateRecommendations({
   const [profileRows, preferences, recentRecipeIds, candidateRecipes] = await Promise.all([
     email ? getUserProfile(email) : Promise.resolve([]),
     fetchUserPreferences(userId),
-    fetchRecentRecipeIds(userId).catch(() => []),
+    fetchRecentRecipeIds(userId),
     fetchCandidateRecipes(100)
   ]);
 
   const profile = Array.isArray(profileRows) ? profileRows[0] || null : profileRows || null;
+  const preferenceData = preferences && typeof preferences === 'object' ? preferences : {};
   const preferenceSummary = {
-    dietaryRequirements: normalizeNameList(preferences?.dietary_requirements),
-    allergies: normalizeNameList(preferences?.allergies),
-    cuisines: normalizeNameList(preferences?.cuisines),
-    dislikes: normalizeNameList(preferences?.dislikes),
-    healthConditions: normalizeNameList(preferences?.health_conditions),
-    spiceLevels: normalizeNameList(preferences?.spice_levels),
-    cookingMethods: normalizeNameList(preferences?.cooking_methods)
+    dietaryRequirements: normalizeNameList(preferenceData.dietary_requirements),
+    allergies: normalizeNameList(preferenceData.allergies),
+    cuisines: normalizeNameList(preferenceData.cuisines),
+    dislikes: normalizeNameList(preferenceData.dislikes),
+    healthConditions: normalizeNameList(preferenceData.health_conditions),
+    spiceLevels: normalizeNameList(preferenceData.spice_levels),
+    cookingMethods: normalizeNameList(preferenceData.cooking_methods)
   };
 
   const mergedGoalState = {

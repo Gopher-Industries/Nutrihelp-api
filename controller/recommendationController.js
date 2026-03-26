@@ -1,7 +1,41 @@
 const { generateRecommendations } = require('../services/recommendationService');
 
+function isPlainObject(value) {
+  return value != null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function validationError(message) {
+  const error = new Error(message);
+  error.statusCode = 400;
+  return error;
+}
+
+function validateRecommendationRequest(body = {}) {
+  if (!isPlainObject(body.dietaryConstraints)) {
+    throw validationError('dietaryConstraints is required and must be an object');
+  }
+
+  if (body.aiInsights != null && !isPlainObject(body.aiInsights)) {
+    throw validationError('aiInsights must be an object when provided');
+  }
+
+  if (body.aiAdapterInput != null && !isPlainObject(body.aiAdapterInput)) {
+    throw validationError('aiAdapterInput must be an object when provided');
+  }
+
+  if (body.healthGoals != null && !isPlainObject(body.healthGoals) && !Array.isArray(body.healthGoals)) {
+    throw validationError('healthGoals must be an object or array when provided');
+  }
+
+  if (body.maxResults != null && (!Number.isInteger(body.maxResults) || body.maxResults < 1 || body.maxResults > 20)) {
+    throw validationError('maxResults must be an integer between 1 and 20');
+  }
+}
+
 async function getRecommendations(req, res) {
   try {
+    validateRecommendationRequest(req.body || {});
+
     const result = await generateRecommendations({
       userId: req.user?.userId || req.body?.userId,
       email: req.user?.email || req.body?.email,
@@ -17,7 +51,7 @@ async function getRecommendations(req, res) {
     return res.status(200).json(result);
   } catch (error) {
     console.error('[recommendationController] error:', error);
-    return res.status(500).json({
+    return res.status(error.statusCode || 500).json({
       success: false,
       error: error.message || 'Failed to generate recommendations'
     });
