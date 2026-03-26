@@ -1,37 +1,49 @@
-require('dotenv').config();
+require("dotenv").config();
+
+//Logging & Metrics
+const {
+  metricsMiddleware,
+  metricsEndpoint,
+} = require("./Monitor_&_Logging/metrics");
 
 // Debug environment variables
-console.log('🔧 Environment Variables Check:');
-console.log('   SUPABASE_URL:', process.env.SUPABASE_URL ? '✓ Set' : '✗ Missing');
-console.log('   SUPABASE_ANON_KEY:', process.env.SUPABASE_ANON_KEY ? '✓ Set' : '✗ Missing');
-console.log('   PORT:', process.env.PORT || '80 (default)');
-console.log('');
+console.log("🔧 Environment Variables Check:");
+console.log(
+  "   SUPABASE_URL:",
+  process.env.SUPABASE_URL ? "✓ Set" : "✗ Missing",
+);
+console.log(
+  "   SUPABASE_ANON_KEY:",
+  process.env.SUPABASE_ANON_KEY ? "✓ Set" : "✗ Missing",
+);
+console.log("   PORT:", process.env.PORT || "80 (default)");
+console.log("");
 
 const express = require("express");
-const { errorLogger, responseTimeLogger } = require('./middleware/errorLogger');
-const FRONTEND_ORIGIN =  "http://localhost:3000";
+const { errorLogger, responseTimeLogger } = require("./middleware/errorLogger");
+const FRONTEND_ORIGIN = "http://localhost:3000";
 
-const helmet = require('helmet');
+const helmet = require("helmet");
 const cors = require("cors");
 const swaggerUi = require("swagger-ui-express");
 const yaml = require("yamljs");
 const { exec } = require("child_process");
-const rateLimit = require('express-rate-limit');
-const uploadRoutes = require('./routes/uploadRoutes');
+const rateLimit = require("express-rate-limit");
+const uploadRoutes = require("./routes/uploadRoutes");
 const fs = require("fs");
 const path = require("path");
-const systemRoutes = require('./routes/systemRoutes');
-const loginDashboard = require('./routes/loginDashboard.js');
+const systemRoutes = require("./routes/systemRoutes");
+const loginDashboard = require("./routes/loginDashboard.js");
 
 // Ensure uploads directory exists
-const uploadsDir = path.join(__dirname, 'uploads');
+const uploadsDir = path.join(__dirname, "uploads");
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
   console.log("Created uploads directory");
 }
 
 // Create temp directory for uploads
-const tempDir = path.join(__dirname, 'uploads', 'temp');
+const tempDir = path.join(__dirname, "uploads", "temp");
 if (!fs.existsSync(tempDir)) {
   fs.mkdirSync(tempDir, { recursive: true });
   console.log("Created temp uploads directory");
@@ -62,45 +74,53 @@ const port = process.env.PORT || 80;
 let db = require("./dbConnection");
 
 // System routes
-app.use('/api/system', systemRoutes);
+app.use("/api/system", systemRoutes);
 
 // CORS
-app.use(cors({
-  origin: (origin, callback) => {
-    if (!origin) return callback(null, true);
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true);
 
-    if (
-      origin.startsWith("http://localhost") ||
-      origin.startsWith("http://127.0.0.1") ||
-      origin.startsWith("http://localhost") ||
-      origin.startsWith("chrome-extension://eggdlmopfankeonchoflhfoglaakobma") ||
-      origin.startsWith("https://apifox.cn-hangzhou.log.aliyuncs.com")
-
-    ) {
-      callback(null, true);
-    } else {
-      callback(new Error(`CORS blocked: ${origin}`));
-    }
-  },
-  credentials: true
-}));
+      if (
+        origin.startsWith("http://localhost") ||
+        origin.startsWith("http://127.0.0.1") ||
+        origin.startsWith("http://localhost") ||
+        origin.startsWith(
+          "chrome-extension://eggdlmopfankeonchoflhfoglaakobma",
+        ) ||
+        origin.startsWith("https://apifox.cn-hangzhou.log.aliyuncs.com")
+      ) {
+        callback(null, true);
+      } else {
+        callback(new Error(`CORS blocked: ${origin}`));
+      }
+    },
+    credentials: true,
+  }),
+);
 app.options("*", cors({ origin: FRONTEND_ORIGIN, credentials: true }));
-app.use((req, res, next) => { res.header("Access-Control-Allow-Credentials","true"); next(); });
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Credentials", "true");
+  next();
+});
 app.set("trust proxy", 1);
 
 // Security
-app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      scriptSrc: ["'self'","'unsafe-inline'","https://cdn.jsdelivr.net"],
-      styleSrc: ["'self'","'unsafe-inline'","https://cdn.jsdelivr.net"],
-      objectSrc: ["'none'"],
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net"],
+        styleSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net"],
+        objectSrc: ["'none'"],
+      },
     },
-  },
-  crossOriginEmbedderPolicy: true,
-  referrerPolicy: { policy: "strict-origin-when-cross-origin" },
-}));
+    crossOriginEmbedderPolicy: true,
+    referrerPolicy: { policy: "strict-origin-when-cross-origin" },
+  }),
+);
 
 // Rate Limiter
 const limiter = rateLimit({
@@ -121,6 +141,10 @@ app.use(responseTimeLogger);
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
+//Logging & Metrics routes
+app.use(metricsMiddleware);
+app.get("/metrics", metricsEndpoint);
+
 // Main routes registrar
 const routes = require("./routes");
 routes(app);
@@ -137,39 +161,45 @@ app.use(errorLogger);
 
 // Final error handler
 app.use((err, req, res, next) => {
-    const status = err.status || 500;
-    const message = process.env.NODE_ENV === 'production' 
-        ? 'Internal Server Error' 
-        : err.message;
-        
-    res.status(status).json({
-        success: false,
-        error: message,
-        timestamp: new Date().toISOString()
-    });
+  const status = err.status || 500;
+  const message =
+    process.env.NODE_ENV === "production"
+      ? "Internal Server Error"
+      : err.message;
+
+  res.status(status).json({
+    success: false,
+    error: message,
+    timestamp: new Date().toISOString(),
+  });
 });
 
 // Global error handler
-const { uncaughtExceptionHandler, unhandledRejectionHandler } = require('./middleware/errorLogger');
-process.on('uncaughtException', uncaughtExceptionHandler);
-process.on('unhandledRejection', unhandledRejectionHandler);
+const {
+  uncaughtExceptionHandler,
+  unhandledRejectionHandler,
+} = require("./middleware/errorLogger");
+process.on("uncaughtException", uncaughtExceptionHandler);
+process.on("unhandledRejection", unhandledRejectionHandler);
 
 // Start
 app.listen(port, async () => {
-
-
-  console.log('\n🎉 NutriHelp API launched successfully!');
-  console.log('='.repeat(50));
+  console.log("\n🎉 NutriHelp API launched successfully!");
+  console.log("=".repeat(50));
   console.log(`Server is running on port ${port}`);
   console.log(`📚 Swagger UI: http://localhost/api-docs`);
-  console.log('='.repeat(50));
-  console.log('💡 Press Ctrl+C to stop the server \n');
+  console.log("=".repeat(50));
+  console.log("💡 Press Ctrl+C to stop the server \n");
   exec(`start http://localhost:${port}/api-docs`);
 });
 
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
+<<<<<<< HEAD
 app.use('/api/sms', require('./routes/sms'));
 
 
 // test comment
+=======
+app.use("/api/sms", require("./routes/sms"));
+>>>>>>> upstream/master
