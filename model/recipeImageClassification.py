@@ -4,9 +4,11 @@ import json
 import numpy as np
 import traceback
 import time
+import hashlib
 from PIL import Image, UnidentifiedImageError, ImageStat
 import glob
-import random
+
+CLASSIFIER_TYPE = "heuristic"
 
 def debug_log(message):
     try:
@@ -15,16 +17,25 @@ def debug_log(message):
     except Exception as e:
         sys.stderr.write(f"Could not write to debug log: {str(e)}\n")
 
-def emit_result(success, prediction=None, confidence=None, error=None):
+def emit_result(success, prediction=None, confidence=None, error=None, metadata=None, warnings=None):
     print(json.dumps({
         "success": success,
         "prediction": prediction,
         "confidence": confidence,
-        "error": error
+        "error": error,
+        "metadata": metadata or {},
+        "warnings": warnings or []
     }))
 
 def handle_error(error_message, exit_code=1):
-    emit_result(False, prediction=None, confidence=None, error=error_message)
+    emit_result(
+        False,
+        prediction=None,
+        confidence=None,
+        error=error_message,
+        metadata={"classifier_type": CLASSIFIER_TYPE},
+        warnings=["classification_failed"]
+    )
     try:
         debug_log(f"ERROR: {error_message}")
     except:
@@ -181,11 +192,6 @@ food_categories = {
     'japanese': ['mussels', 'ramen', 'miso_soup', 'sushi']
 }
 
-food_to_color = {}
-for color, foods in color_to_food.items():
-    for food in foods:
-        food_to_color[food] = color
-
 try:
     RESIZE_FILTER = Image.LANCZOS
 except AttributeError:
@@ -243,6 +249,16 @@ def preprocess_image(image_path, target_size=(224, 224)):
     except Exception as e:
         debug_log(f"Unexpected error in preprocess_image: {str(e)}")
         return None
+
+def deterministic_pick(options, seed):
+    if not options:
+        return None
+
+    normalized_seed = seed or "default"
+    ordered = sorted(options)
+    digest = hashlib.sha256(normalized_seed.encode("utf-8")).hexdigest()
+    index = int(digest[:8], 16) % len(ordered)
+    return ordered[index]
 
 def extract_filename_hints(filename):
     """Extract hints from filename about what food it might contain."""
@@ -376,7 +392,7 @@ def find_image_file():
         handle_error(f"Error finding image file: {str(e)}")
 
 def predict_class(image_path=None, original_filename=None):
-    """Predict food class from image."""
+    """Predict food class from image using deterministic heuristics."""
     debug_log("Starting prediction process")
     
     if not image_path:
@@ -390,9 +406,24 @@ def predict_class(image_path=None, original_filename=None):
         file_name = os.path.basename(image_path)
         debug_log(f"Analyzing file: {file_name}")
             
+        metadata = {
+            "classifier_type": CLASSIFIER_TYPE,
+            "decision_source": None,
+            "signals": {},
+            "model_used": False
+        }
+        warnings = []
+
         if "sushi" in file_name.lower():
             debug_log(f"Detected sushi in filename: {file_name}")
-            return "sushi"  # Return sushi as match for sushi
+            metadata["decision_source"] = "filename_exact_match"
+            metadata["signals"]["matched_filename"] = file_name
+            return {
+                "prediction": "sushi",
+                "confidence": 0.95,
+                "metadata": metadata,
+                "warnings": warnings
+            }
             
         filename_hint = None
         normalized_original_filename = original_filename.lower() if original_filename else None
@@ -400,7 +431,14 @@ def predict_class(image_path=None, original_filename=None):
         if normalized_original_filename:
             if "sushi" in normalized_original_filename:
                 debug_log(f"Detected sushi in original filename: {normalized_original_filename}")
-                return "sushi"
+                metadata["decision_source"] = "original_filename_exact_match"
+                metadata["signals"]["matched_filename"] = normalized_original_filename
+                return {
+                    "prediction": "sushi",
+                    "confidence": 0.95,
+                    "metadata": metadata,
+                    "warnings": warnings
+                }
 
             filename_hint = extract_filename_hints(normalized_original_filename)
             debug_log(f"Filename hint from original filename: {normalized_original_filename} -> {filename_hint}")
@@ -411,45 +449,63 @@ def predict_class(image_path=None, original_filename=None):
             
         if filename_hint:
             debug_log(f"Using filename hint for prediction: {filename_hint}")
-            return filename_hint
+            metadata["decision_source"] = "filename_hint"
+            metadata["signals"]["matched_filename"] = normalized_original_filename or file_name
+            metadata["signals"]["filename_hint"] = filename_hint
+            return {
+                "prediction": filename_hint,
+                "confidence": 0.9,
+                "metadata": metadata,
+                "warnings": warnings
+            }
         
-        debug_log("Using image analysis for prediction (no model)")
+        debug_log("Using deterministic heuristic image analysis (no ML model)")
         
         dominant_color = analyze_image_color(image_path)
         debug_log(f"Dominant color detected: {dominant_color}")
         
         texture_type = analyze_image_texture(image_path)
         debug_log(f"Texture type detected: {texture_type}")
+        metadata["signals"]["dominant_color"] = dominant_color
+        metadata["signals"]["texture_type"] = texture_type
+        seed = f"{normalized_original_filename or file_name}:{dominant_color}:{texture_type}"
         
         if any(japan_term in file_name.lower() for japan_term in ["japan", "japanese", "nihon", "nippon", "tokyo"]):
             debug_log(f"Japanese food context detected in filename: {file_name}")
-            prediction = random.choice(food_categories['japanese'])
-            return prediction
+            prediction = deterministic_pick(food_categories['japanese'], seed)
+            metadata["decision_source"] = "filename_context_japanese"
+            return {
+                "prediction": prediction,
+                "confidence": 0.7,
+                "metadata": metadata,
+                "warnings": ["heuristic_prediction"]
+            }
         
         prediction = None
+        confidence = 0.55
         
         if dominant_color == 'green' and texture_type == 'complex':
-            prediction = random.choice(food_categories['salad'])
+            prediction = deterministic_pick(food_categories['salad'], seed)
             debug_log(f"Green + complex texture detected: classified as {prediction}")
             
         elif dominant_color == 'beige' and texture_type in ['regular', 'medium']:
-            prediction = random.choice(food_categories['bread'])
+            prediction = deterministic_pick(food_categories['bread'], seed)
             debug_log(f"Beige + regular texture detected: classified as {prediction}")
             
         elif dominant_color == 'dark' and texture_type == 'smooth':
-            prediction = random.choice(food_categories['soup'])
+            prediction = deterministic_pick(food_categories['soup'], seed)
             debug_log(f"Dark + smooth texture detected: classified as {prediction}")
             
         elif dominant_color in ['brown', 'beige'] and texture_type == 'medium':
-            prediction = random.choice(food_categories['pasta'])
+            prediction = deterministic_pick(food_categories['pasta'], seed)
             debug_log(f"Brown/beige + medium texture detected: classified as {prediction}")
             
         elif dominant_color == 'white' and texture_type == 'smooth':
-            prediction = random.choice(['ice_cream', 'frozen_yogurt'])
+            prediction = deterministic_pick(['ice_cream', 'frozen_yogurt'], seed)
             debug_log(f"White + smooth texture detected: classified as {prediction}")
             
         elif dominant_color == 'red' and texture_type in ['medium', 'complex']:
-            prediction = random.choice(['steak', 'baby_back_ribs', 'chicken_curry'])
+            prediction = deterministic_pick(['steak', 'baby_back_ribs', 'chicken_curry'], seed)
             debug_log(f"Red + medium/complex texture detected: classified as {prediction}")
             
         elif dominant_color in ['white', 'beige'] and texture_type == 'complex':
@@ -458,17 +514,35 @@ def predict_class(image_path=None, original_filename=None):
             
         if not prediction and dominant_color in color_to_food:
             food_options = color_to_food[dominant_color]
-            prediction = random.choice(food_options)
+            prediction = deterministic_pick(food_options, seed)
+            confidence = 0.35
+            metadata["decision_source"] = "color_only"
+            warnings.append("low_confidence_heuristic")
             debug_log(f"Selected {prediction} from {dominant_color} foods based on color only")
 
         if prediction:
-            return prediction
+            metadata["decision_source"] = metadata["decision_source"] or "color_texture_heuristic"
+            warnings.append("heuristic_prediction")
+            return {
+                "prediction": prediction,
+                "confidence": confidence,
+                "metadata": metadata,
+                "warnings": warnings
+            }
             
-        categories = list(food_categories.keys())
-        random_category = random.choice(categories)
-        fallback_prediction = random.choice(food_categories[random_category])
-        debug_log(f"Using random category ({random_category}) fallback prediction: {fallback_prediction}")
-        return fallback_prediction
+        categories = sorted(food_categories.keys())
+        fallback_category = deterministic_pick(categories, seed)
+        fallback_prediction = deterministic_pick(food_categories[fallback_category], seed)
+        metadata["decision_source"] = "deterministic_fallback"
+        metadata["signals"]["fallback_category"] = fallback_category
+        warnings.extend(["low_confidence_fallback", "heuristic_prediction"])
+        debug_log(f"Using deterministic fallback category ({fallback_category}) prediction: {fallback_prediction}")
+        return {
+            "prediction": fallback_prediction,
+            "confidence": 0.15,
+            "metadata": metadata,
+            "warnings": warnings
+        }
         
     except Exception as e:
         debug_log(f"Error during prediction: {str(e)}")
@@ -484,13 +558,20 @@ if __name__ == "__main__":
             image_path = sys.argv[1]
             original_filename = sys.argv[2] if len(sys.argv) > 2 else None
             debug_log(f"Using image path from command line: {image_path}")
-            prediction = predict_class(image_path, original_filename)
+            result = predict_class(image_path, original_filename)
         else:
             debug_log("No command line argument provided, searching for images in uploads directory")
-            prediction = predict_class()
+            result = predict_class()
         
-        emit_result(True, prediction=prediction, confidence=None, error=None)
-        debug_log(f"Script completed successfully with prediction: {prediction}")
+        emit_result(
+            True,
+            prediction=result["prediction"],
+            confidence=result["confidence"],
+            error=None,
+            metadata=result["metadata"],
+            warnings=result["warnings"]
+        )
+        debug_log(f"Script completed successfully with prediction: {result['prediction']}")
         sys.exit(0)
     except Exception as e:
         traceback.print_exc()

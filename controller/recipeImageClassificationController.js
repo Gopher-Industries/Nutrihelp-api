@@ -1,6 +1,6 @@
-//FOR THIS API TO WORK, YOU MUST HAVE THE AI MODEL FILE SAVED TO THE PREDICTION_MODELS FOLDER
-//THIS FILE CAN BE FOUND UPLOADED TO THE NUTRIHELP TEAMS SITE
-// IT IS CALLED BEST_MODEL_CLASS.HDF5
+// This route currently delegates to a Python heuristic classifier.
+// It does not load a trained ML model yet, so the response includes
+// metadata describing the heuristic decision source and any warnings.
 
 const fs = require("fs");
 const path = require("path");
@@ -79,7 +79,9 @@ const predictRecipeImage = async (req, res) => {
             success: true,
             prediction: result.prediction,
             confidence: result.confidence,
-            error: null
+            error: null,
+            metadata: result.metadata || null,
+            warnings: result.warnings || []
         });
     } catch (error) {
         console.error("Unexpected error in predictRecipeImage:", error);

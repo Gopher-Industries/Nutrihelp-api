@@ -128,4 +128,60 @@ describe('AI Controllers', () => {
       error: 'AI script timed out after 30000ms'
     });
   });
+
+  it('surfaces heuristic recipe classifier metadata to the caller', async () => {
+    const executePythonScript = sinon.stub().resolves({
+      success: true,
+      prediction: 'sushi',
+      confidence: 0.15,
+      error: null,
+      metadata: {
+        classifier_type: 'heuristic',
+        decision_source: 'deterministic_fallback',
+        model_used: false
+      },
+      warnings: ['low_confidence_fallback', 'heuristic_prediction']
+    });
+
+    sinon.stub(fs, 'existsSync').returns(true);
+    sinon.stub(fs.promises, 'unlink').resolves();
+
+    const controller = proxyquire('../controller/recipeImageClassificationController', {
+      '../services/aiExecutionService': { executePythonScript }
+    });
+
+    const req = {
+      file: {
+        path: 'uploads/temp/test.png',
+        originalname: 'test.png'
+      }
+    };
+    const res = {
+      headersSent: false,
+      status(code) {
+        this.statusCode = code;
+        return this;
+      },
+      json(payload) {
+        this.payload = payload;
+        return this;
+      }
+    };
+
+    await controller.predictRecipeImage(req, res);
+
+    expect(res.statusCode).to.equal(200);
+    expect(res.payload).to.deep.equal({
+      success: true,
+      prediction: 'sushi',
+      confidence: 0.15,
+      error: null,
+      metadata: {
+        classifier_type: 'heuristic',
+        decision_source: 'deterministic_fallback',
+        model_used: false
+      },
+      warnings: ['low_confidence_fallback', 'heuristic_prediction']
+    });
+  });
 });
