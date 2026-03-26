@@ -1,0 +1,29 @@
+# .github/codeql/codeql-config.yml
+# CodeQL Configuration for NutriHelp API
+
+name: "NutriHelp CodeQL Configuration"
+
+queries:
+  - uses: security-and-quality
+  - uses: security-extended
+
+paths:
+  - server.js
+  - controllers/
+  - models/
+  - routes/
+  - utils/
+  - middleware/
+  - services/
+
+paths-ignore:
+  - node_modules
+  - test
+  - tests
+  - coverage
+  - dist
+  - build
+  - '**/*.test.js'
+  - '**/*.spec.js'
+  - '**/migrations/**'
+  - '**/seeders/**'
