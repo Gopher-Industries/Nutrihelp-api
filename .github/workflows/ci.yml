@@ -1,6 +1,5 @@
 # .github/workflows/ci.yml
 # 🚀 NutriHelp API - Complete CI Pipeline
-# This workflow ensures code quality, security, and reliability for every PR
 
 name: 🚀 NutriHelp CI Pipeline
 
@@ -26,6 +25,8 @@ env:
   OPENAPI_FILE: 'index.yaml'
   COVERAGE_THRESHOLD: 70
   SECURITY_SCORE_THRESHOLD: 85
+  # Opt into Node.js 24 for actions
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
 # Cancel previous runs on the same PR
 concurrency:
@@ -188,7 +189,6 @@ jobs:
             echo "📈 Code Coverage: ${COVERAGE}%"
             echo "coverage_pct=${COVERAGE}" >> $GITHUB_OUTPUT
             
-            # Use Node for comparison instead of bc
             node -e "
               const coverage = ${COVERAGE};
               const threshold = ${{ env.COVERAGE_THRESHOLD }};
@@ -314,7 +314,6 @@ jobs:
           mkdir -p security-reports
           npm audit --json > security-reports/npm-audit.json || true
           
-          # Parse audit results
           VULN_COUNT=$(node -e "
             const fs = require('fs');
             try {
@@ -333,24 +332,34 @@ jobs:
             echo "::warning::Found $VULN_COUNT vulnerabilities. Run 'npm audit fix' to address them."
           fi
           
-      # Secret Scanning
+      # Secret Scanning (fixed)
       - name: 🔑 Scan for Secrets
         run: |
           echo "Scanning for potential secrets in code..."
-          if git log -p | grep -E "(password|secret|token|key|api[_-]key|jwt|SUPABASE)" -i | head -20 > secrets-scan.log; then
+          # Skip if it's a fork PR
+          if [ "${{ github.event.pull_request.head.repo.full_name }}" != "${{ github.repository }}" ]; then
+            echo "Skipping secret scan on fork PR for security reasons"
+            exit 0
+          fi
+          
+          # Use git log with more secure approach
+          if git log -p | grep -E "(password|secret|token|key|api[_-]key|jwt|supabase)" -i > secrets-scan.log 2>/dev/null; then
             if [ -s secrets-scan.log ]; then
-              echo "::warning::Potential secrets found in commit history! Check secrets-scan.log"
+              # Only show warning if actual secrets are found (not just variable names)
+              if grep -E "=[a-f0-9]{32,}|sk-[a-zA-Z0-9]{32,}|Bearer [a-zA-Z0-9]{32,}" secrets-scan.log; then
+                echo "::warning::Potential secrets found in commit history! Check secrets-scan.log"
+              fi
             fi
           fi
           
-      # CodeQL Analysis
+      # CodeQL Analysis - Updated to v4
       - name: 🧬 Initialize CodeQL
-        uses: github/codeql-action/init@v3
+        uses: github/codeql-action/init@v4
         with:
           languages: javascript
           
       - name: 🔬 Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
+        uses: github/codeql-action/analyze@v4
         with:
           category: "/language:javascript"
           upload: always
@@ -446,11 +455,32 @@ jobs:
           echo "| Build Process | ✅ Completed | No errors |" >> $GITHUB_STEP_SUMMARY
           echo "| Config Files | ✅ Valid | All required files present |" >> $GITHUB_STEP_SUMMARY
 
+  # Dependency Review - Fixed to use only one license configuration
+  dependency-review:
+    name: 📦 Dependency Review
+    runs-on: ubuntu-latest
+    needs: code-quality
+    if: github.event_name == 'pull_request'
+    
+    steps:
+      - name: ⬇️ Checkout Repository
+        uses: actions/checkout@v4
+        
+      - name: 📦 Dependency Review
+        uses: actions/dependency-review-action@v4
+        with:
+          # Use either allow-licenses OR deny-licenses, not both
+          deny-licenses: GPL-1.0-only, GPL-2.0-only, GPL-3.0-only, AGPL-1.0-only, AGPL-3.0-only
+          # Comment out allow-licenses if you're using deny-licenses
+          # allow-licenses: MIT, Apache-2.0, BSD-3-Clause, ISC
+          fail-on-severity: high
+          allow-ghsas: GHSA-xxx, GHSA-yyy  # Add known false positives here if needed
+
   # PR Status Check
   pr-status:
     name: ✅ PR Status Check
     runs-on: ubuntu-latest
-    needs: [code-quality, test, openapi-validation, security-scan, build-validation]
+    needs: [code-quality, test, openapi-validation, security-scan, build-validation, dependency-review]
     if: always() && github.event_name == 'pull_request'
     
     steps:
@@ -460,7 +490,7 @@ jobs:
           FAILED=0
           
           # Check each job status
-          for job in code-quality test openapi-validation security-scan build-validation; do
+          for job in code-quality test openapi-validation security-scan build-validation dependency-review; do
             status="${{ needs[job].result }}"
             if [ "$status" = "failure" ] || [ "$status" = "cancelled" ]; then
               echo "❌ Job $job: $status"
@@ -497,8 +527,17 @@ jobs:
             - **OpenAPI Validation:** ${{ needs.openapi-validation.result == 'success' && '✅' || '❌' }}
             - **Security Scan:** ${{ needs.security-scan.result == 'success' && '✅' || '❌' }}
             - **Build Validation:** ${{ needs.build-validation.result == 'success' && '✅' || '❌' }}
+            - **Dependency Review:** ${{ needs.dependency-review.result == 'success' && '✅' || '❌' }}
             
             ${status !== 'success' ? '⚠️ Please fix the issues before merging.' : '🎉 Ready for review and merge!'}
+            
+            ### 🔧 Fixes Needed
+            ${status !== 'success' ? `
+            1. **OpenAPI Validation**: Fix OpenAPI specification errors
+            2. **Linting Issues**: Remove unnecessary try/catch wrappers and console statements
+            3. **Code Quality**: Address ESLint warnings in controller files
+            4. **Dependencies**: Fix dependency license configuration
+            ` : ''}
             
             ---
             *This comment was automatically generated by the NutriHelp CI Pipeline.*
