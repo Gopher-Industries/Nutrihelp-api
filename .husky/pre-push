@@ -1,0 +1,33 @@
+#!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
+
+echo "🚀 Running pre-push checks..."
+
+# Run tests
+echo "🧪 Running tests..."
+if npm test --if-present; then
+  echo "✅ Tests passed"
+else
+  echo "❌ Tests failed! Please fix them before pushing."
+  exit 1
+fi
+
+# Run validation
+echo "📋 Validating environment..."
+if npm run validate-env --if-present; then
+  echo "✅ Environment validation passed"
+fi
+
+# Check for vulnerabilities (warning only, not blocking)
+echo "🔒 Checking for vulnerabilities..."
+if npm audit --audit-level=high; then
+  echo "✅ No high severity vulnerabilities found"
+else
+  echo "⚠️  High severity vulnerabilities found!"
+  echo "Run 'npm audit fix' to address them."
+  echo ""
+  echo "Press Enter to continue pushing, or Ctrl+C to cancel..."
+  read -r response
+fi
+
+echo "✅ All pre-push checks passed! Pushing changes..."
