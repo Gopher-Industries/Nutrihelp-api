@@ -1,0 +1,28 @@
+services:
+  api:
+    container_name: nutrihelp-api
+    build:
+      context: .
+      target: dev
+      args:
+        # Set to "false" if TensorFlow/Python deps are problematic on your machine
+        INSTALL_PY_DEPS: "true"
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: development
+      CHOKIDAR_USEPOLLING: "true"
+      PORT: "80"
+    ports:
+      - "80:80"
+    volumes:
+      - .:/usr/src/app
+      - api_node_modules:/usr/src/app/node_modules
+      - api_uploads:/usr/src/app/uploads
+      - api_logs:/usr/src/app/logs
+    restart: unless-stopped
+
+volumes:
+  api_node_modules:
+  api_uploads:
+  api_logs:
