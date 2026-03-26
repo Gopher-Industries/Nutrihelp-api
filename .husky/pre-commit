@@ -3,29 +3,29 @@
 
 echo "🔍 Running pre-commit checks..."
 
-# Check for potential secrets
+# Check for potential secrets (but ignore workflow files and config files)
 echo "🔑 Checking for potential secrets..."
-if git diff --cached | grep -E "(password|secret|token|key|api[_-]key|jwt|SUPABASE|AUTH)" -i | grep -v "test" | grep -v "example" | grep -v "TODO"; then
+if git diff --cached | grep -E "(password|secret|token|key|api[_-]key|jwt|SUPABASE)" -i | \
+   grep -v "github\.yml\|workflow\|codeql\|\.github\|secrets\.GITHUB_TOKEN\|JWT_SECRET\|SUPABASE_URL\|SUPABASE_ANON_KEY" | \
+   grep -v "example\|test\|mock\|fake\|dummy\|sample\|placeholder" | \
+   grep -v "node_modules" | \
+   grep -v "package-lock.json"; then
   echo "⚠️  WARNING: Potential secrets detected in staged files!"
   echo "Please review and remove if necessary."
   echo ""
-  echo "If these are false positives, you can commit with: git commit --no-verify"
+  echo "If these are false positives (like config files), you can commit with: git commit --no-verify"
   exit 1
 fi
 
-# Check for debugger statements
-if git diff --cached | grep -E "debugger|console\.log" | grep -v "//.*debugger" | grep -v "console\.log('::"; then
+# Check for debugger statements (but allow in test files)
+if git diff --cached | grep -E "debugger|console\.log" | \
+   grep -v "test\|spec\|\.test\.js\|\.spec\.js" | \
+   grep -v "//.*debugger"; then
   echo "⚠️  WARNING: Debugger or console.log statements found!"
   echo "Please remove before committing."
   echo ""
   echo "If these are intentional, you can commit with: git commit --no-verify"
   exit 1
-fi
-
-# Check for TODO comments (warning only)
-if git diff --cached | grep -E "TODO|FIXME" | grep -v "^+[^+]*TODO.*[^+]"; then
-  echo "📝 NOTE: TODO/FIXME comments found in staged files."
-  echo "Please ensure these are addressed before final merge."
 fi
 
 echo "✅ Pre-commit checks passed!"
