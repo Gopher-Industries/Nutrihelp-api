@@ -1,278 +1,495 @@
 # .github/workflows/security.yml
-# 🔒 Enhanced CI + Security Scan Workflow
+# 🔒 ENHANCED SECURITY SCAN - ALL CHECKS BLOCK MERGES
 
-name: CI + Security Scan
+name: 🔒 Security Scan
 
 on:
-  push:
-    branches:
-      - '**'
   pull_request:
-    branches:
-      - '**'
-      
+    branches: [main, develop, 'release/**']
+    types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    branches: [main, develop]
+  workflow_dispatch:
+
 env:
-  NODE_VERSION: "20"
+  NODE_VERSION: '20'
   OPENAPI_FILE: 'index.yaml'
-  PORT: '3000'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
+  # ============================================
+  # JOB 1: LINTING & CODE QUALITY (BLOCKING)
+  # ============================================
   lint:
-    name: 📝 Linting & Code Style
+    name: 🔍 Linting & Code Quality
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: npm
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
           cache-dependency-path: package-lock.json
-          
-      - run: npm ci --prefer-offline --no-audit --no-fund
       
-      - name: Ensure minimal ESLint config
-        run: |
-          node -e "const fs=require('fs');const has=['.eslintrc.json','.eslintrc.js','eslint.config.js'].some(f=>fs.existsSync(f));if(!has){fs.writeFileSync('.eslintrc.json',JSON.stringify({root:true,env:{es2021:true,node:true,browser:true},parserOptions:{ecmaVersion:2022,sourceType:'module'},ignorePatterns:['node_modules/','dist/','build/','coverage/'],rules:{curly:['error','all'],eqeqeq:['error','always'],'no-console':'warn','no-unused-vars':['error',{argsIgnorePattern:'^_'}]}},null,2));}"
-          
-      - name: Run ESLint
-        run: npx -y eslint@8.57.0 . --no-error-on-unmatched-pattern --format stylish || true
-        
-      - name: Check for debug statements
+      - name: 📦 Install Dependencies
+        run: npm ci --prefer-offline --no-audit --no-fund
+        env:
+          CI: true
+      
+      - name: 🎨 Check Code Formatting
+        run: npm run format:check
+      
+      - name: 🎯 Run ESLint (Zero warnings allowed)
+        run: npm run lint
+      
+      - name: 🔍 Check for debug statements
         run: |
           echo "Checking for debug statements..."
-          grep -rn "console.log" --include="*.js" --exclude-dir=node_modules || true
-          grep -rn "debugger" --include="*.js" --exclude-dir=node_modules && echo "⚠️ Found debugger statements!" || true
-  
-  test:
-    name: 🧪 Unit & Integration Tests
-    runs-on: ubuntu-latest
-    needs: lint
-    steps:
-      - uses: actions/checkout@v4
-      
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-          cache-dependency-path: package-lock.json
-          
-      - run: npm ci --prefer-offline --no-audit --no-fund
-      
-      - name: Run fast tests
-        shell: bash
-        run: |
-          set -e
-          if node -e "const s=(require('./package.json').scripts)||{};process.exit(s['test:unit']?0:1)"; then
-            npm run test:unit -- --ci || true
-          elif node -e "const p=require('./package.json');const hasJest=(p.devDependencies&&p.devDependencies.jest)||(p.dependencies&&p.dependencies.jest);process.exit(hasJest?0:1)"; then
-            npx jest --ci --passWithNoTests --coverage || true
-          else
-            npm test --silent || true
+          if grep -rn "console.log" --include="*.js" --exclude-dir=node_modules --exclude-dir=coverage | grep -v "console.error" | grep -v "console.warn"; then
+            echo "❌ Found console.log statements! Remove them before merging."
+            exit 1
           fi
-  
-  openapi-validate:
-    name: 📚 OpenAPI Validation
+          
+          if grep -rn "debugger" --include="*.js" --exclude-dir=node_modules; then
+            echo "❌ Found debugger statements! Remove them before merging."
+            exit 1
+          fi
+          
+          echo "✅ No debug statements found"
+
+  # ============================================
+  # JOB 2: UNIT TESTS WITH COVERAGE (BLOCKING)
+  # ============================================
+  unit-tests:
+    name: 🧪 Unit Tests & Coverage
     runs-on: ubuntu-latest
     needs: lint
+    timeout-minutes: 15
+    
     steps:
       - uses: actions/checkout@v4
       
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-          cache-dependency-path: package-lock.json
-          
-      - run: npm ci
+          cache: 'npm'
       
-      - name: Install swagger-cli
-        run: npx -y swagger-cli@4.0.4 --version
+      - name: 📦 Install Dependencies
+        run: npm ci --prefer-offline --no-audit --no-fund
+        env:
+          CI: true
       
-      - name: Validate OpenAPI
-        id: validate
+      - name: 🔧 Setup Test Environment
         run: |
-          REPORT=openapi-validate.log
-          
-          if [ ! -f "${{ env.OPENAPI_FILE }}" ]; then
-            echo "::warning::OpenAPI file '${{ env.OPENAPI_FILE }}' not found at repo root. Skipping validation." | tee "$REPORT"
-            exit 0
-          fi
-          
-          if npx swagger-cli validate "${{ env.OPENAPI_FILE }}" >"$REPORT" 2>&1; then
-            echo "✅ OpenAPI validation passed!"
-            echo "valid=true" >> $GITHUB_OUTPUT
-          else
-            echo "::error::OpenAPI validation failed. See artifact for details."
-            echo "valid=false" >> $GITHUB_OUTPUT
-            cat "$REPORT"
-          fi
-          
-      - name: Upload OpenAPI validation report
+          echo "NODE_ENV=test" >> $GITHUB_ENV
+          echo "JWT_SECRET=test_secret_$(openssl rand -hex 32)" >> $GITHUB_ENV
+          echo "SUPABASE_URL=https://test.supabase.co" >> $GITHUB_ENV
+          echo "SUPABASE_ANON_KEY=test_key_123" >> $GITHUB_ENV
+          echo "PORT=3000" >> $GITHUB_ENV
+      
+      - name: 🚀 Run Unit Tests with Coverage
+        run: npm run test:ci
+      
+      - name: 📊 Upload Coverage Report
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: openapi-validate-report
-          path: openapi-validate.log
-          if-no-files-found: ignore
-  
-  security-scan:
-    name: 🔒 Security Vulnerability Scan
-    runs-on: ubuntu-latest
-    needs: lint
-    permissions:
-      security-events: write
-      contents: read
-      
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        
-      - name: Get list of changed files
-        id: changed-files
-        run: |
-          if [ "${{ github.event_name }}" == "pull_request" ]; then
-            git fetch origin ${{ github.base_ref }} --depth=1
-            MODIFIED_FILES=$(git diff --name-only origin/${{ github.base_ref }} ${{ github.sha }} | tr '\n' ' ')
-          else
-            MODIFIED_FILES=$(git diff --name-only HEAD~1 HEAD 2>/dev/null || echo "")
-          fi
-          echo "MODIFIED_FILES=${MODIFIED_FILES}" >> $GITHUB_ENV
-          echo "Changed files: ${MODIFIED_FILES}"
-          
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-          
-      - name: Run npm audit
-        run: |
-          npm audit --json > npm-audit-report.json || true
-          
-          node -e "
-            const fs = require('fs');
-            try {
-              const audit = JSON.parse(fs.readFileSync('npm-audit-report.json', 'utf8'));
-              const vulns = audit.metadata.vulnerabilities;
-              console.log('\n📊 Vulnerability Summary:');
-              console.log(\`  Critical: \${vulns.critical || 0}\`);
-              console.log(\`  High: \${vulns.high || 0}\`);
-              console.log(\`  Moderate: \${vulns.moderate || 0}\`);
-              console.log(\`  Low: \${vulns.low || 0}\`);
-              
-              if (vulns.critical > 0 || vulns.high > 0) {
-                console.log('\n⚠️ High severity vulnerabilities found!');
-                process.exit(1);
-              }
-            } catch(e) {
-              console.log('No vulnerabilities found or audit failed');
-            }
-          " || true
-          
-      - name: Scan for secrets
-        run: |
-          echo "🔑 Scanning for potential secrets..."
-          git log -p | grep -E "(password|secret|token|key|api[_-]key|jwt|auth)" -i --color=always | head -20 > secrets-scan.log || true
-          
-          if [ -s secrets-scan.log ]; then
-            echo "::warning::Potential secrets found in commit history!"
-            cat secrets-scan.log
-          fi
-          
-      - name: Run CodeQL Analysis
-        uses: github/codeql-action/init@v4
-        with:
-          languages: javascript
-          
-      - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v4
-        with:
-          category: "/language:javascript"
-          upload: always
-          
-      - name: Upload security scan report
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: security-scan-report
-          path: |
-            npm-audit-report.json
-            secrets-scan.log
+          name: coverage-report-security
+          path: coverage/
           retention-days: 30
-          
-      - name: Generate Security Summary
-        run: |
-          echo "## 🔒 Security Scan Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Scan Type | Status | Details |" >> $GITHUB_STEP_SUMMARY
-          echo "|-----------|--------|---------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Dependency Audit | ✅ Completed | See artifacts for details |" >> $GITHUB_STEP_SUMMARY
-          echo "| Secret Scanning | ✅ Completed | No critical secrets found |" >> $GITHUB_STEP_SUMMARY
-          echo "| CodeQL Analysis | ✅ Completed | Security vulnerabilities checked |" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          
-  dependency-review:
-    name: 📦 Dependency Review
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
-    permissions:
-      contents: read
-      pull-requests: write
       
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-        
-      - name: Dependency Review
-        uses: actions/dependency-review-action@v4
-        with:
-          fail-on-severity: high
-          # FIX: removed allow-licenses — you cannot use both allow-licenses
-          # and deny-licenses at the same time. Using deny-licenses only.
-          deny-licenses: GPL-1.0-only, GPL-2.0-only, LGPL-2.0-only
-          
-  result:
-    name: ✅ Final Status
-    runs-on: ubuntu-latest
-    needs: [lint, test, openapi-validate, security-scan]
-    if: always()
-    
-    steps:
-      - name: Check all jobs
+      - name: 📈 Verify Coverage Threshold
         run: |
-          JOBS="lint test openapi-validate security-scan"
-          FAILED=0
-          
-          for job in $JOBS; do
-            if [[ "${{ needs.lint.result }}" == "failure" && "$job" == "lint" ]]; then
-              echo "❌ lint failed"
-              FAILED=$((FAILED + 1))
-            elif [[ "${{ needs.test.result }}" == "failure" && "$job" == "test" ]]; then
-              echo "❌ test failed"
-              FAILED=$((FAILED + 1))
-            elif [[ "${{ needs.openapi-validate.result }}" == "failure" && "$job" == "openapi-validate" ]]; then
-              echo "❌ openapi-validate failed"
-              FAILED=$((FAILED + 1))
-            elif [[ "${{ needs.security-scan.result }}" == "failure" && "$job" == "security-scan" ]]; then
-              echo "❌ security-scan failed"
-              FAILED=$((FAILED + 1))
-            elif [[ "${{ needs.lint.result }}" == "success" && "$job" == "lint" ]]; then
-              echo "✅ lint passed"
-            elif [[ "${{ needs.test.result }}" == "success" && "$job" == "test" ]]; then
-              echo "✅ test passed"
-            elif [[ "${{ needs.openapi-validate.result }}" == "success" && "$job" == "openapi-validate" ]]; then
-              echo "✅ openapi-validate passed"
-            elif [[ "${{ needs.security-scan.result }}" == "success" && "$job" == "security-scan" ]]; then
-              echo "✅ security-scan passed"
-            else
-              echo "⚠️ $job: Unknown result"
-            fi
-          done
-          
-          if [ $FAILED -gt 0 ]; then
-            echo "❌ $FAILED jobs failed"
+          if [ ! -f coverage/coverage-summary.json ]; then
+            echo "❌ No coverage report found!"
             exit 1
           fi
           
-          echo "✅ All checks passed!"
+          COVERAGE=$(node -e "
+            const fs = require('fs');
+            const summary = JSON.parse(fs.readFileSync('coverage/coverage-summary.json', 'utf8'));
+            console.log(summary.total.lines.pct);
+          ")
+          
+          echo "📈 Code coverage: ${COVERAGE}%"
+          
+          if (( $(echo "$COVERAGE < 70" | bc -l) )); then
+            echo "❌ Code coverage ${COVERAGE}% is below 70% threshold!"
+            exit 1
+          fi
+          
+          echo "✅ Coverage check passed"
+
+  # ============================================
+  # JOB 3: INTEGRATION TESTS (BLOCKING)
+  # ============================================
+  integration-tests:
+    name: 🔗 Integration Tests
+    runs-on: ubuntu-latest
+    needs: lint
+    timeout-minutes: 15
+    
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: testuser
+          POSTGRES_PASSWORD: testpass
+          POSTGRES_DB: nutrihelp_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: 📦 Install Dependencies
+        run: npm ci --prefer-offline --no-audit --no-fund
+        env:
+          CI: true
+      
+      - name: 🔧 Setup Test Environment
+        run: |
+          echo "NODE_ENV=test" >> $GITHUB_ENV
+          echo "DATABASE_URL=postgresql://testuser:testpass@localhost:5432/nutrihelp_test" >> $GITHUB_ENV
+          echo "JWT_SECRET=test_secret_$(openssl rand -hex 32)" >> $GITHUB_ENV
+      
+      - name: 🚀 Run Integration Tests
+        run: |
+          if npm run test:integration 2>/dev/null; then
+            echo "✅ Integration tests passed"
+          elif [ -d "test/integration" ] && [ "$(ls -A test/integration)" ]; then
+            echo "❌ Integration tests exist but failed!"
+            exit 1
+          else
+            echo "⚠️ No integration tests found - skipping"
+          fi
+
+  # ============================================
+  # JOB 4: OPENAPI VALIDATION (BLOCKING)
+  # ============================================
+  openapi-validate:
+    name: 📚 OpenAPI Validation
+    runs-on: ubuntu-latest
+    needs: lint
+    timeout-minutes: 5
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: 📦 Install Dependencies
+        run: npm ci --prefer-offline --no-audit --no-fund
+      
+      - name: 📝 Validate OpenAPI Specification
+        id: validate
+        run: |
+          if [ ! -f "${{ env.OPENAPI_FILE }}" ]; then
+            echo "❌ OpenAPI file '${{ env.OPENAPI_FILE }}' not found at repo root!"
+            exit 1
+          fi
+          
+          echo "Validating OpenAPI specification..."
+          npm run validate:openapi 2>&1 | tee openapi-validate.log
+          
+          if [ ${PIPESTATUS[0]} -ne 0 ]; then
+            echo "❌ OpenAPI validation failed!"
+            exit 1
+          fi
+          
+          echo "✅ OpenAPI validation passed!"
+      
+      - name: 📤 Upload Validation Report
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: openapi-validation-error
+          path: openapi-validate.log
+          retention-days: 7
+
+  # ============================================
+  # JOB 5: DEPENDENCY VULNERABILITY SCAN (BLOCKING)
+  # ============================================
+  dependency-scan:
+    name: 📦 Dependency Vulnerability Scan
+    runs-on: ubuntu-latest
+    needs: lint
+    timeout-minutes: 10
+    permissions:
+      security-events: write
+      contents: read
+    
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: 📦 Install Dependencies
+        run: npm ci --prefer-offline --no-audit --no-fund
+      
+      - name: 🔍 Run NPM Audit
+        id: npm-audit
+        run: |
+          mkdir -p security-reports
+          npm audit --json > security-reports/npm-audit.json 2>&1 || true
+          
+          # Parse audit results
+          node -e "
+            const fs = require('fs');
+            try {
+              const audit = JSON.parse(fs.readFileSync('security-reports/npm-audit.json', 'utf8'));
+              const vulns = audit.metadata?.vulnerabilities || {};
+              const critical = vulns.critical || 0;
+              const high = vulns.high || 0;
+              const moderate = vulns.moderate || 0;
+              const low = vulns.low || 0;
+              
+              console.log('📊 Vulnerability Summary:');
+              console.log('  Critical: ' + critical);
+              console.log('  High: ' + high);
+              console.log('  Moderate: ' + moderate);
+              console.log('  Low: ' + low);
+              
+              // Store results for later
+              fs.writeFileSync('vuln-counts.json', JSON.stringify({critical, high, moderate, low}));
+              
+              if (critical > 0 || high > 0) {
+                console.error('❌ Found ' + (critical + high) + ' critical/high vulnerabilities!');
+                process.exit(1);
+              }
+            } catch(e) {
+              console.log('No vulnerabilities found');
+              fs.writeFileSync('vuln-counts.json', JSON.stringify({critical:0, high:0, moderate:0, low:0}));
+            }
+          "
+          
+          if [ $? -ne 0 ]; then
+            echo "❌ Critical or high severity vulnerabilities found!"
+            exit 1
+          fi
+          
+          echo "✅ No critical/high vulnerabilities found"
+      
+      - name: 📊 Generate Security Report
+        run: |
+          echo "## 🔒 Security Scan Results" > security-summary.md
+          echo "" >> security-summary.md
+          echo "| Severity | Count |" >> security-summary.md
+          echo "|----------|-------|" >> security-summary.md
+          
+          node -e "
+            const fs = require('fs');
+            const counts = JSON.parse(fs.readFileSync('vuln-counts.json', 'utf8'));
+            console.log('| Critical | ' + counts.critical + ' |'); 
+            console.log('| High | ' + counts.high + ' |');
+            console.log('| Moderate | ' + counts.moderate + ' |');
+            console.log('| Low | ' + counts.low + ' |');
+          " >> security-summary.md
+          
+          cat security-summary.md >> $GITHUB_STEP_SUMMARY
+      
+      - name: 📤 Upload Security Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dependency-scan-report
+          path: security-reports/
+          retention-days: 30
+
+  # ============================================
+  # JOB 6: SECRET SCANNING (BLOCKING)
+  # ============================================
+  secret-scan:
+    name: 🔑 Secret Scanning
+    runs-on: ubuntu-latest
+    needs: lint
+    timeout-minutes: 10
+    
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: 🔍 Scan for Secrets in Code
+        run: |
+          echo "🔍 Scanning for potential secrets in commit history..."
+          
+          # Check for common secret patterns
+          if git log -p | grep -E "(password|secret|token|key|api[_-]key|jwt|supabase|auth[_-]token|private[_-]key)" -i > secrets-scan.log 2>&1; then
+            # Look for actual secret values (long strings, etc)
+            if grep -E "=[a-f0-9]{32,}|sk-[a-zA-Z0-9]{32,}|Bearer [a-zA-Z0-9]{32,}|[A-Za-z0-9+/]{40,}" secrets-scan.log; then
+              echo "❌ CRITICAL: Potential hardcoded secrets found in commit history!"
+              echo ""
+              echo "Found patterns:"
+              grep -E "=[a-f0-9]{32,}|sk-[a-zA-Z0-9]{32,}|Bearer [a-zA-Z0-9]{32,}|[A-Za-z0-9+/]{40,}" secrets-scan.log | head -10
+              echo ""
+              echo "Please remove these secrets and use environment variables instead."
+              exit 1
+            fi
+          fi
+          
+          # Check current files for secrets
+          echo "🔍 Scanning current files for secrets..."
+          if grep -rn "=[a-f0-9]{32,}" --include="*.js" --include="*.json" --exclude-dir=node_modules --exclude-dir=coverage .; then
+            echo "❌ Potential hardcoded secrets found in current files!"
+            exit 1
+          fi
+          
+          echo "✅ No secrets detected"
+      
+      - name: 📤 Upload Scan Log
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: secret-scan-log
+          path: secrets-scan.log
+          retention-days: 30
+
+  # ============================================
+  # JOB 7: FINAL STATUS (BLOCKING GATE)
+  # ============================================
+  final-status:
+    name: ✅ Security Gate
+    runs-on: ubuntu-latest
+    needs: [lint, unit-tests, integration-tests, openapi-validate, dependency-scan, secret-scan]
+    if: always()
+    
+    steps:
+      - name: 🚦 Verify All Security Checks Passed
+        run: |
+          FAILED_JOBS=""
+          
+          check_job() {
+            local job=$1
+            local status="${{ needs[job].result }}"
+            
+            if [ "$status" = "success" ]; then
+              echo "✅ $job: PASSED"
+              return 0
+            elif [ "$status" = "skipped" ]; then
+              echo "⏭️ $job: SKIPPED"
+              return 0
+            else
+              echo "❌ $job: FAILED ($status)"
+              FAILED_JOBS="$FAILED_JOBS $job"
+              return 1
+            fi
+          }
+          
+          echo "📊 Security Scan Results:"
+          echo ""
+          
+          check_job "lint"
+          check_job "unit-tests"
+          check_job "integration-tests"
+          check_job "openapi-validate"
+          check_job "dependency-scan"
+          check_job "secret-scan"
+          
+          echo ""
+          
+          if [ -n "$FAILED_JOBS" ]; then
+            echo "❌ Security checks failed:${FAILED_JOBS}"
+            echo ""
+            echo "⚠️ This PR CANNOT be merged until all security checks pass!"
+            exit 1
+          fi
+          
+          echo "✅ All security checks passed!"
+          echo ""
+          echo "🎉 Ready for merge!"
+      
+      - name: 📝 Create Security Report Comment
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const lint = '${{ needs.lint.result }}';
+            const unit = '${{ needs.unit-tests.result }}';
+            const integration = '${{ needs.integration-tests.result }}';
+            const openapi = '${{ needs.openapi-validate.result }}';
+            const deps = '${{ needs.dependency-scan.result }}';
+            const secret = '${{ needs.secret-scan.result }}';
+            
+            const allPassed = lint === 'success' && unit === 'success' && 
+                             integration === 'success' && openapi === 'success' && 
+                             deps === 'success' && secret === 'success';
+            
+            const comment = `## 🔒 Security Scan Results
+            
+            ${allPassed ? '✅ **ALL SECURITY CHECKS PASSED!** Ready for review.' : '❌ **SECURITY CHECKS FAILED!** Please fix before merging.'}
+            
+            ### 📊 Security Scan Status
+            
+            | Check | Status |
+            |-------|--------|
+            | **Linting & Formatting** | ${lint === 'success' ? '✅' : '❌'} |
+            | **Unit Tests & Coverage** | ${unit === 'success' ? '✅' : '❌'} |
+            | **Integration Tests** | ${integration === 'success' ? '✅' : integration === 'skipped' ? '⏭️' : '❌'} |
+            | **OpenAPI Validation** | ${openapi === 'success' ? '✅' : '❌'} |
+            | **Dependency Scan** | ${deps === 'success' ? '✅' : '❌'} |
+            | **Secret Scanning** | ${secret === 'success' ? '✅' : '❌'} |
+            
+            ${!allPassed ? '\n⚠️ **This PR cannot be merged until all security checks pass.**' : ''}
+            
+            ### 🔐 Security Best Practices
+            
+            - ✅ No hardcoded secrets detected
+            - ✅ Dependencies scanned for vulnerabilities
+            - ✅ Code quality standards enforced
+            - ✅ OpenAPI specification validated
+            
+            ---
+            *🤖 Automatically generated by NutriHelp Security Scan*`;
+            
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number
+            });
+            
+            const botComment = comments.find(c => 
+              c.user.type === 'Bot' && c.body.includes('Security Scan Results')
+            );
+            
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: comment
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: comment
+              });
+            }

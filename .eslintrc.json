@@ -1,0 +1,43 @@
+{
+    "root": true,
+    "env": {
+      "node": true,
+      "es2022": true,
+      "mocha": true
+    },
+    "parserOptions": {
+      "ecmaVersion": 2022,
+      "sourceType": "module"
+    },
+    "extends": ["eslint:recommended"],
+    "plugins": ["security"],
+    "ignorePatterns": [
+      "node_modules/",
+      "coverage/",
+      ".nyc_output/",
+      "dist/",
+      "build/"
+    ],
+    "rules": {
+      "no-console": ["error", { "allow": ["warn", "error"] }],
+      "no-unused-vars": ["error", { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_" }],
+      "no-undef": "error",
+      "no-var": "error",
+      "prefer-const": "error",
+      "eqeqeq": ["error", "always"],
+      "curly": ["error", "all"],
+      "semi": ["error", "always"],
+      "quotes": ["error", "single", { "avoidEscape": true }],
+      "indent": ["error", 2, { "SwitchCase": 1 }],
+      "comma-dangle": ["error", "never"],
+      "no-trailing-spaces": "error",
+      "eol-last": ["error", "always"],
+      "no-multiple-empty-lines": ["error", { "max": 1, "maxEOF": 0 }],
+      "camelcase": ["error", { "properties": "never" }],
+      "no-duplicate-imports": "error",
+      "no-return-await": "error",
+      "no-throw-literal": "error",
+      "no-useless-catch": "error",
+      "no-useless-return": "error"
+    }
+  }

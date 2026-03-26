@@ -1,115 +1,132 @@
 # .github/workflows/ci.yml
-# 🚀 NutriHelp API - Complete CI Pipeline
+# 🔥 PRODUCTION-GRADE CI PIPELINE - ALL CHECKS ARE BLOCKING 🔥
 
-name: 🚀 NutriHelp CI Pipeline
+name: 🔥 CI Pipeline
 
 on:
   pull_request:
-    branches:
-      - main
-      - develop
-      - 'release/**'
-    types:
-      - opened
-      - synchronize
-      - reopened
-      - ready_for_review
+    branches: [main, develop, 'release/**']
+    types: [opened, synchronize, reopened, ready_for_review]
   push:
-    branches:
-      - main
-      - develop
+    branches: [main, develop]
   workflow_dispatch:
 
 env:
   NODE_VERSION: '20'
   OPENAPI_FILE: 'index.yaml'
   COVERAGE_THRESHOLD: 70
-  SECURITY_SCORE_THRESHOLD: 85
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
-# Cancel previous runs on the same PR
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
-  # Step 1-3: Code Quality & Linting
-  code-quality:
-    name: 📝 Code Quality & Linting
+  # ============================================
+  # JOB 1: LINTING & CODE QUALITY (BLOCKING)
+  # ============================================
+  lint:
+    name: 🔍 Linting & Code Style
     runs-on: ubuntu-latest
     timeout-minutes: 10
     
     steps:
-      - name: ⬇️ Checkout Repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          
-      - name: 🔧 Setup Node.js
-        uses: actions/setup-node@v4
+      
+      - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
-          
-      - name: 📦 Install Dependencies
-        run: npm ci --prefer-offline --no-audit --no-fund
+      
+      - run: npm ci --prefer-offline
         env:
           CI: true
-          
-      - name: 🎨 Check Code Formatting
-        run: |
-          if npx prettier --version &> /dev/null; then
-            npx prettier --check "**/*.{js,json,md,yaml,yml}" --no-error-on-unmatched-pattern || {
-              echo "::warning::Code formatting issues found. Run 'npm run format' to fix."
-            }
-          else
-            echo "::notice::Prettier not configured. Skipping formatting check."
-          fi
-          
-      - name: 🔍 ESLint Check
-        run: |
-          if npm run lint --if-present; then
-            echo "✅ ESLint check completed"
-          else
-            echo "::notice::ESLint not configured. Skipping lint check."
-          fi
-          
-      - name: 📊 Run Dependency Audit
-        run: |
-          echo "🔒 Running security audit on dependencies..."
-          npm audit --audit-level=moderate || {
-            echo "::warning::Security vulnerabilities found. Run 'npm audit fix' to address them."
-          }
-          
-      - name: 🗜️ Check for Unused Dependencies
-        run: |
-          if npx depcheck --version &> /dev/null; then
-            npx depcheck --ignores="eslint,prettier,jest,mocha,chai,nyc" || true
-          else
-            echo "::notice::depcheck not installed. Skipping unused dependencies check."
-          fi
-          
-      - name: 📝 Validate Commit Messages (PR context)
-        if: github.event_name == 'pull_request'
-        run: |
-          echo "Checking commit messages in this PR..."
-          COMMITS=$(git log origin/${{ github.base_ref }}..HEAD --format=%s)
-          echo "$COMMITS" | while read line; do
-            if [ -n "$line" ] && ! echo "$line" | grep -qE "^(feat|fix|docs|style|refactor|test|chore|perf|ci|build|revert)(\(.+\))?: .{1,100}$"; then
-              echo "::warning::Commit message format may not follow Conventional Commits: $line"
-            fi
-          done
+      
+      - name: 📝 Check Code Formatting
+        run: npm run format:check
+      
+      - name: 🎯 Run ESLint (Zero warnings allowed)
+        run: npm run lint
+      
+      - name: 🔒 Check for vulnerabilities
+        run: npm audit --audit-level=moderate
+      
+      - name: 📦 Check for outdated packages
+        run: npm outdated || echo "All packages up to date"
 
-  # Step 4: Testing Suite with Coverage
-  test:
-    name: 🧪 Testing Suite
+  # ============================================
+  # JOB 2: UNIT TESTS WITH COVERAGE (BLOCKING)
+  # ============================================
+  unit-tests:
+    name: 🧪 Unit Tests & Coverage
     runs-on: ubuntu-latest
-    needs: code-quality
+    needs: lint
+    timeout-minutes: 15
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - run: npm ci --prefer-offline
+        env:
+          CI: true
+      
+      - name: 🔧 Setup test environment
+        run: |
+          echo "NODE_ENV=test" >> $GITHUB_ENV
+          echo "JWT_SECRET=test_secret_$(openssl rand -hex 32)" >> $GITHUB_ENV
+          echo "SUPABASE_URL=https://test.supabase.co" >> $GITHUB_ENV
+          echo "SUPABASE_ANON_KEY=test_key_123" >> $GITHUB_ENV
+          echo "PORT=3000" >> $GITHUB_ENV
+      
+      - name: 🚀 Run tests with coverage
+        run: npm run test:ci
+      
+      - name: 📊 Upload coverage report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 30
+      
+      - name: 📈 Check coverage threshold
+        run: |
+          if [ ! -f coverage/coverage-summary.json ]; then
+            echo "❌ No coverage report found!"
+            exit 1
+          fi
+          
+          COVERAGE=$(node -e "
+            const fs = require('fs');
+            const summary = JSON.parse(fs.readFileSync('coverage/coverage-summary.json'));
+            console.log(summary.total.lines.pct);
+          ")
+          
+          echo "✅ Code coverage: ${COVERAGE}%"
+          
+          if (( $(echo "$COVERAGE < ${{ env.COVERAGE_THRESHOLD }}" | bc -l) )); then
+            echo "❌ Coverage ${COVERAGE}% is below threshold ${{ env.COVERAGE_THRESHOLD }}%"
+            exit 1
+          fi
+
+  # ============================================
+  # JOB 3: INTEGRATION TESTS (BLOCKING)
+  # ============================================
+  integration-tests:
+    name: 🔗 Integration Tests
+    runs-on: ubuntu-latest
+    needs: lint
     timeout-minutes: 15
     
     services:
       postgres:
-        image: postgres:15
+        image: postgres:15-alpine
         env:
           POSTGRES_USER: testuser
           POSTGRES_PASSWORD: testpass
@@ -121,417 +138,297 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-          
+    
     steps:
-      - name: ⬇️ Checkout Repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          
-      - name: 🔧 Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
-          
-      - name: 📦 Install Dependencies
-        run: npm ci --prefer-offline --no-audit --no-fund
+      
+      - run: npm ci --prefer-offline
         env:
           CI: true
-          
-      - name: 🗄️ Setup Test Environment Variables
+      
+      - name: 🔧 Setup test environment
         run: |
           echo "NODE_ENV=test" >> $GITHUB_ENV
-          echo "JWT_SECRET=test_secret_key_for_ci_pipeline_only" >> $GITHUB_ENV
-          echo "SUPABASE_URL=https://test.supabase.co" >> $GITHUB_ENV
-          echo "SUPABASE_ANON_KEY=test_anon_key_123" >> $GITHUB_ENV
-          echo "PORT=3000" >> $GITHUB_ENV
-          
-      - name: 🏃 Run Tests with Coverage
-        run: |
-          if npm run test:ci --if-present; then
-            echo "✅ Tests completed with coverage"
-          elif npm run test:coverage --if-present; then
-            echo "✅ Tests completed with coverage"
-          elif npm test --if-present; then
-            echo "✅ Basic tests completed"
-          else
-            echo "::warning::No test script found. Skipping tests."
-          fi
-          
-      - name: 📊 Upload Coverage Report
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: coverage-report
-          path: |
-            coverage/
-            .nyc_output/
-          retention-days: 30
-          
-      - name: 🔍 Check Coverage Threshold
-        if: always()
-        run: |
-          if [ -f coverage/coverage-summary.json ]; then
-            COVERAGE=$(node -e "
-              const fs = require('fs');
-              try {
-                const summary = JSON.parse(fs.readFileSync('coverage/coverage-summary.json', 'utf8'));
-                const total = summary.total;
-                const pct = total.lines.pct;
-                console.log(pct);
-              } catch(e) {
-                console.log('0');
-              }
-            ")
-            
-            echo "📈 Code Coverage: ${COVERAGE}%"
-            echo "coverage_pct=${COVERAGE}" >> $GITHUB_OUTPUT
-            
-            node -e "
-              const coverage = ${COVERAGE};
-              const threshold = ${{ env.COVERAGE_THRESHOLD }};
-              if (coverage < threshold) {
-                console.log('::warning::Code coverage (' + coverage + '%) is below threshold (' + threshold + '%)');
-              }
-            "
-          else
-            echo "::notice::No coverage report found"
-          fi
-          
-      - name: 🧪 Run Integration Tests
-        if: always()
-        run: |
-          if npm run test:integration --if-present; then
-            echo "✅ Integration tests passed"
-          else
-            echo "::notice::No integration tests configured"
-          fi
-          
-      - name: 📝 Generate Test Report
-        if: always()
-        run: |
-          echo "## 📊 Test Results Summary" > test-summary.md
-          echo "" >> test-summary.md
-          echo "| Test Type | Status | Coverage |" >> test-summary.md
-          echo "|-----------|--------|----------|" >> test-summary.md
-          COVERAGE_PCT=$(node -e "
-            const fs = require('fs');
-            try {
-              const summary = JSON.parse(fs.readFileSync('coverage/coverage-summary.json', 'utf8'));
-              const total = summary.total;
-              console.log(total.lines.pct.toFixed(2));
-            } catch(e) {
-              console.log('N/A');
-            }
-          ")
-          echo "| Unit Tests | ✅ Passed | ${COVERAGE_PCT}% |" >> test-summary.md
-          echo "| Integration Tests | ⏳ Executed | N/A |" >> test-summary.md
-          
-          cat test-summary.md >> $GITHUB_STEP_SUMMARY
+          echo "DATABASE_URL=postgresql://testuser:testpass@localhost:5432/nutrihelp_test" >> $GITHUB_ENV
+          echo "JWT_SECRET=test_secret_$(openssl rand -hex 32)" >> $GITHUB_ENV
+      
+      - name: 🚀 Run integration tests
+        run: npm run test:integration
 
-  # Step 5: OpenAPI/Swagger Validation
-  openapi-validation:
+  # ============================================
+  # JOB 4: OPENAPI VALIDATION (BLOCKING)
+  # ============================================
+  openapi:
     name: 📚 OpenAPI Validation
     runs-on: ubuntu-latest
-    needs: code-quality
+    needs: lint
     timeout-minutes: 5
     
     steps:
-      - name: ⬇️ Checkout Repository
-        uses: actions/checkout@v4
-        
-      - name: 🔧 Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
-          
-      - name: 📦 Install Dependencies
-        run: npm ci --prefer-offline --no-audit --no-fund
-        
-      - name: 🔍 Validate OpenAPI Specification
-        id: openapi-validate
+      
+      - run: npm ci --prefer-offline
+      
+      - name: 🔍 Validate OpenAPI spec
         run: |
           if [ ! -f "${{ env.OPENAPI_FILE }}" ]; then
-            echo "::error::OpenAPI file '${{ env.OPENAPI_FILE }}' not found!"
+            echo "❌ OpenAPI file '${{ env.OPENAPI_FILE }}' not found!"
             exit 1
           fi
           
-          if npm run validate:openapi --if-present; then
-            echo "✅ OpenAPI validation completed via npm script"
-          else
-            echo "::notice::OpenAPI validation not configured in package.json"
-          fi
-          
-      - name: 📤 Upload Validation Report
+          npm run validate:openapi
+      
+      - name: 📤 Upload validation report
         uses: actions/upload-artifact@v4
-        if: always()
+        if: failure()
         with:
-          name: openapi-validation-report
+          name: openapi-validation-error
           path: openapi-validate.log
-          retention-days: 30
-          
-      - name: 🏷️ Generate API Documentation
-        run: |
-          echo "## 📖 API Documentation Preview" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "The OpenAPI specification has been validated successfully." >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "View the full documentation at: https://editor.swagger.io/" >> $GITHUB_STEP_SUMMARY
+          retention-days: 7
 
-  # Step 6: Security Scanning
-  security-scan:
-    name: 🔒 Security Scanning
+  # ============================================
+  # JOB 5: SECURITY SCAN (BLOCKING)
+  # ============================================
+  security:
+    name: 🔒 Security Scan
     runs-on: ubuntu-latest
-    needs: code-quality
+    needs: lint
     timeout-minutes: 15
     permissions:
       security-events: write
       contents: read
-      actions: read
-      
+    
     steps:
-      - name: ⬇️ Checkout Repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          
-      - name: 🔧 Setup Node.js
-        uses: actions/setup-node@v4
+      
+      - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
-          
-      - name: 📦 Install Dependencies
-        run: npm ci --prefer-offline --no-audit --no-fund
-        
-      - name: 📦 Dependency Vulnerability Scan
+      
+      - run: npm ci --prefer-offline
+      
+      - name: 📦 NPM Audit
+        run: npm run security:audit
+      
+      - name: 🔑 Secret scanning
         run: |
-          mkdir -p security-reports
-          npm audit --json > security-reports/npm-audit.json || true
+          echo "🔍 Scanning for secrets in commit history..."
           
-          VULN_COUNT=$(node -e "
-            const fs = require('fs');
-            try {
-              const audit = JSON.parse(fs.readFileSync('security-reports/npm-audit.json', 'utf8'));
-              const vulns = audit.metadata?.vulnerabilities || {};
-              const total = (vulns.low || 0) + (vulns.moderate || 0) + (vulns.high || 0) + (vulns.critical || 0);
-              console.log(total);
-            } catch(e) {
-              console.log('0');
-            }
-          ")
-          
-          echo "vulnerabilities=$VULN_COUNT" >> $GITHUB_OUTPUT
-          
-          if [ $VULN_COUNT -gt 0 ]; then
-            echo "::warning::Found $VULN_COUNT vulnerabilities. Run 'npm audit fix' to address them."
-          fi
-          
-      - name: 🔑 Scan for Secrets
-        run: |
-          echo "Scanning for potential secrets in code..."
-          if [ "${{ github.event.pull_request.head.repo.full_name }}" != "${{ github.repository }}" ]; then
-            echo "Skipping secret scan on fork PR for security reasons"
-            exit 0
-          fi
-          
-          if git log -p | grep -E "(password|secret|token|key|api[_-]key|jwt|supabase)" -i > secrets-scan.log 2>/dev/null; then
-            if [ -s secrets-scan.log ]; then
-              if grep -E "=[a-f0-9]{32,}|sk-[a-zA-Z0-9]{32,}|Bearer [a-zA-Z0-9]{32,}" secrets-scan.log; then
-                echo "::warning::Potential secrets found in commit history! Check secrets-scan.log"
-              fi
+          if git log -p | grep -E "(password|secret|token|key|api[_-]key|jwt|supabase)" -i > secrets.log 2>&1; then
+            if grep -E "=[a-f0-9]{32,}|sk-[a-zA-Z0-9]{32,}|Bearer [a-zA-Z0-9]{32,}" secrets.log; then
+              echo "❌ CRITICAL: Potential secrets found in commit history!"
+              cat secrets.log
+              exit 1
             fi
           fi
           
-      - name: 🧬 Initialize CodeQL
+          echo "✅ No secrets detected"
+      
+      - name: 🧬 CodeQL Analysis
         uses: github/codeql-action/init@v4
         with:
           languages: javascript
-          
-      - name: 🔬 Perform CodeQL Analysis
+      
+      - name: 🔬 Run CodeQL
         uses: github/codeql-action/analyze@v4
         with:
           category: "/language:javascript"
           upload: always
-          
-      - name: 📊 Generate Security Score
-        id: security-score
-        run: |
-          VULNS=$(node -e "
-            const fs = require('fs');
-            try {
-              const audit = JSON.parse(fs.readFileSync('security-reports/npm-audit.json', 'utf8'));
-              const vulns = audit.metadata?.vulnerabilities || {};
-              const total = (vulns.critical || 0) * 10 + (vulns.high || 0) * 5 + (vulns.moderate || 0) * 2;
-              console.log(Math.min(100, total));
-            } catch(e) {
-              console.log('0');
-            }
-          ")
-          SCORE=$((100 - VULNS))
-          [ $SCORE -lt 0 ] && SCORE=0
-          
-          echo "security_score=$SCORE" >> $GITHUB_OUTPUT
-          echo "🔒 Security Score: $SCORE%" >> $GITHUB_STEP_SUMMARY
-          
-          if [ $SCORE -lt ${{ env.SECURITY_SCORE_THRESHOLD }} ]; then
-            echo "::warning::Security score ($SCORE%) below threshold (${{ env.SECURITY_SCORE_THRESHOLD }}%)"
-          fi
-          
-      - name: 📤 Upload Security Reports
+      
+      - name: 📤 Upload security reports
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: security-scan-reports
+          name: security-reports
           path: |
-            security-reports/
-            secrets-scan.log
-          retention-days: 90
+            npm-audit-report.json
+            secrets.log
+          retention-days: 30
 
-  # Step 7: Build & Container Validation
-  build-validation:
+  # ============================================
+  # JOB 6: BUILD VALIDATION (BLOCKING)
+  # ============================================
+  build:
     name: 🏗️ Build Validation
     runs-on: ubuntu-latest
-    needs: [test, openapi-validation, security-scan]
-    if: always()
-    timeout-minutes: 15
+    needs: [unit-tests, integration-tests, openapi, security]
+    timeout-minutes: 10
     
     steps:
-      - name: ⬇️ Checkout Repository
-        uses: actions/checkout@v4
-        
-      - name: 🔧 Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
-          
-      - name: 📦 Install Dependencies
-        run: npm ci --prefer-offline --no-audit --no-fund
-        
-      - name: 🏭 Build Application
+      
+      - run: npm ci --prefer-offline
+      
+      - name: 🏭 Build application
+        run: npm run build
+      
+      - name: ✅ Verify required files
         run: |
-          if npm run build --if-present; then
-            echo "✅ Build completed successfully"
-          else
-            echo "::notice::No build script found"
-          fi
-          
-      - name: 📋 Check for Required Files
-        run: |
-          echo "Checking for required configuration files..."
-          
           REQUIRED_FILES=(
             "package.json"
             "server.js"
-            "${{ env.OPENAPI_FILE }}"
+            "index.yaml"
           )
           
           for file in "${REQUIRED_FILES[@]}"; do
-            if [ -f "$file" ]; then
-              echo "✅ $file found"
-            else
-              echo "⚠️ $file not found"
+            if [ ! -f "$file" ]; then
+              echo "❌ Required file missing: $file"
+              exit 1
             fi
+            echo "✅ $file exists"
           done
-          
-      - name: 📊 Generate Build Report
-        run: |
-          echo "## 🏗️ Build Validation Report" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Check | Status | Details |" >> $GITHUB_STEP_SUMMARY
-          echo "|-------|--------|---------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Dependencies | ✅ Installed | $(npm list --depth=0 2>/dev/null | wc -l) packages |" >> $GITHUB_STEP_SUMMARY
-          echo "| Build Process | ✅ Completed | No errors |" >> $GITHUB_STEP_SUMMARY
-          echo "| Config Files | ✅ Valid | All required files present |" >> $GITHUB_STEP_SUMMARY
 
-  # Dependency Review - FIXED: removed allow-licenses to avoid conflict
+  # ============================================
+  # JOB 7: DEPENDENCY REVIEW (BLOCKING FOR PRs)
+  # ============================================
   dependency-review:
     name: 📦 Dependency Review
     runs-on: ubuntu-latest
-    needs: code-quality
+    needs: lint
     if: github.event_name == 'pull_request'
     permissions:
       contents: read
-      pull-requests: read
+      pull-requests: write
     
     steps:
-      - name: ⬇️ Checkout Repository
-        uses: actions/checkout@v4
-        
-      - name: 📦 Dependency Review
-        uses: actions/dependency-review-action@v4
+      - uses: actions/checkout@v4
+      
+      - uses: actions/dependency-review-action@v4
         with:
           fail-on-severity: high
+          deny-licenses: GPL-1.0-only, GPL-2.0-only, LGPL-2.0-only, AGPL-1.0-only
 
-  # PR Status Check
-  pr-status:
-    name: ✅ PR Status Check
+  # ============================================
+  # JOB 8: FINAL STATUS (GATEKEEPER)
+  # ============================================
+  final-status:
+    name: ✅ Final Gatekeeper
     runs-on: ubuntu-latest
-    needs: [code-quality, test, openapi-validation, security-scan, build-validation, dependency-review]
+    needs: [lint, unit-tests, integration-tests, openapi, security, build, dependency-review]
     if: always() && github.event_name == 'pull_request'
     
     steps:
-      - name: 📊 Check Status
-        id: check
+      - name: 🚦 Check all required jobs
         run: |
+          echo "## 🚦 CI Pipeline Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Check | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          
           FAILED=0
           
-          for job in code-quality test openapi-validation security-scan build-validation dependency-review; do
-            status="${{ needs[job].result }}"
-            if [ "$status" = "failure" ] || [ "$status" = "cancelled" ]; then
-              echo "❌ Job $job: $status"
+          check_job() {
+            local job=$1
+            local status="${{ needs[job].result }}"
+            local icon=""
+            
+            if [ "$status" = "success" ]; then
+              icon="✅"
+            elif [ "$status" = "failure" ]; then
+              icon="❌"
               FAILED=$((FAILED + 1))
-            elif [ "$status" = "success" ]; then
-              echo "✅ Job $job: $status"
+            elif [ "$status" = "cancelled" ]; then
+              icon="🚫"
+              FAILED=$((FAILED + 1))
             else
-              echo "⚠️ Job $job: $status"
+              icon="⚠️"
             fi
-          done
+            
+            echo "| ${job//-/ } | ${icon} ${status:-pending} |" >> $GITHUB_STEP_SUMMARY
+            return $([ "$status" = "success" ])
+          }
           
-          if [ $FAILED -gt 0 ]; then
-            echo "status=failed" >> $GITHUB_OUTPUT
-            echo "message=$FAILED jobs failed. Please check the logs." >> $GITHUB_OUTPUT
-          else
-            echo "status=success" >> $GITHUB_OUTPUT
-            echo "message=All checks passed! ✅" >> $GITHUB_OUTPUT
+          check_job "lint"
+          check_job "unit-tests"
+          check_job "integration-tests"
+          check_job "openapi"
+          check_job "security"
+          check_job "build"
+          
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            check_job "dependency-review"
           fi
           
-      - name: 📝 Create PR Comment
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ $FAILED -gt 0 ]; then
+            echo "## ❌ ${FAILED} checks failed!" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "⚠️ **This PR CANNOT be merged until all checks pass.**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Please fix the failing checks and push again." >> $GITHUB_STEP_SUMMARY
+            exit 1
+          else
+            echo "## ✅ All checks passed!" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "🎉 **This PR is ready to merge!**" >> $GITHUB_STEP_SUMMARY
+          fi
+      
+      - name: 📝 Create PR comment
         uses: actions/github-script@v7
+        if: always()
         with:
           script: |
-            const status = '${{ steps.check.outputs.status }}';
-            const message = '${{ steps.check.outputs.message }}';
+            const lint = '${{ needs.lint.result }}';
+            const unit = '${{ needs.unit-tests.result }}';
+            const integration = '${{ needs.integration-tests.result }}';
+            const openapi = '${{ needs.openapi.result }}';
+            const security = '${{ needs.security.result }}';
+            const build = '${{ needs.build.result }}';
+            const deps = '${{ needs.dependency-review.result }}';
             
-            const comment = `## ${status === 'success' ? '✅' : '❌'} CI Pipeline Results
+            const allPassed = lint === 'success' && unit === 'success' && 
+                             integration === 'success' && openapi === 'success' && 
+                             security === 'success' && build === 'success' &&
+                             (deps === 'success' || deps === 'skipped');
             
-            ${message}
+            const comment = `## 🔥 CI Pipeline Results
             
-            ### 📊 Pipeline Summary
-            - **Code Quality:** ${{ needs.code-quality.result == 'success' && '✅' || '❌' }}
-            - **Tests:** ${{ needs.test.result == 'success' && '✅' || '❌' }}
-            - **OpenAPI Validation:** ${{ needs.openapi-validation.result == 'success' && '✅' || '❌' }}
-            - **Security Scan:** ${{ needs.security-scan.result == 'success' && '✅' || '❌' }}
-            - **Build Validation:** ${{ needs.build-validation.result == 'success' && '✅' || '❌' }}
-            - **Dependency Review:** ${{ needs.dependency-review.result == 'success' && '✅' || '❌' }}
+            ${allPassed ? '✅ **ALL CHECKS PASSED!** Ready for review and merge.' : '❌ **SOME CHECKS FAILED!** Please fix before merging.'}
             
-            ${status !== 'success' ? '⚠️ Please fix the issues before merging.' : '🎉 Ready for review and merge!'}
+            ### 📊 Detailed Status
+            
+            | Check | Status |
+            |-------|--------|
+            | **Linting & Formatting** | ${lint === 'success' ? '✅' : '❌'} |
+            | **Unit Tests & Coverage** | ${unit === 'success' ? '✅' : '❌'} |
+            | **Integration Tests** | ${integration === 'success' ? '✅' : '❌'} |
+            | **OpenAPI Validation** | ${openapi === 'success' ? '✅' : '❌'} |
+            | **Security Scan** | ${security === 'success' ? '✅' : '❌'} |
+            | **Build Validation** | ${build === 'success' ? '✅' : '❌'} |
+            | **Dependency Review** | ${deps === 'success' ? '✅' : deps === 'skipped' ? '⏭️ Skipped' : '❌'} |
+            
+            ${!allPassed ? '\n⚠️ **This PR cannot be merged until all checks pass.**' : ''}
             
             ---
-            *This comment was automatically generated by the NutriHelp CI Pipeline.*
-            `;
+            *🤖 Automatically generated by NutriHelp CI Pipeline*`;
             
-            const { data: existingComments } = await github.rest.issues.listComments({
+            const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              issue_number: context.issue.number,
+              issue_number: context.issue.number
             });
             
-            const botComment = existingComments.find(comment => 
-              comment.user.type === 'Bot' && comment.body.includes('CI Pipeline Results')
+            const botComment = comments.find(c => 
+              c.user.type === 'Bot' && c.body.includes('CI Pipeline Results')
             );
             
             if (botComment) {
@@ -539,17 +436,13 @@ jobs:
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 comment_id: botComment.id,
-                body: comment,
+                body: comment
               });
             } else {
               await github.rest.issues.createComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: context.issue.number,
-                body: comment,
+                body: comment
               });
             }
-            
-      - name: 🚦 Fail if checks failed
-        if: steps.check.outputs.status == 'failed'
-        run: exit 1
