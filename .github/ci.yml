@@ -455,7 +455,7 @@ jobs:
           echo "| Build Process | ✅ Completed | No errors |" >> $GITHUB_STEP_SUMMARY
           echo "| Config Files | ✅ Valid | All required files present |" >> $GITHUB_STEP_SUMMARY
 
-  # Dependency Review - Fixed to use only one license configuration
+    # Dependency Review - Fixed version
   dependency-review:
     name: 📦 Dependency Review
     runs-on: ubuntu-latest
@@ -469,12 +469,10 @@ jobs:
       - name: 📦 Dependency Review
         uses: actions/dependency-review-action@v4
         with:
-          # Use either allow-licenses OR deny-licenses, not both
-          deny-licenses: GPL-1.0-only, GPL-2.0-only, GPL-3.0-only, AGPL-1.0-only, AGPL-3.0-only
-          # Comment out allow-licenses if you're using deny-licenses
-          # allow-licenses: MIT, Apache-2.0, BSD-3-Clause, ISC
+          # Use allow-licenses ONLY (removed deny-licenses)
+          allow-licenses: MIT, Apache-2.0, BSD-3-Clause, ISC, BSD-2-Clause, 0BSD
           fail-on-severity: high
-          allow-ghsas: GHSA-xxx, GHSA-yyy  # Add known false positives here if needed
+  
 
   # PR Status Check
   pr-status:
