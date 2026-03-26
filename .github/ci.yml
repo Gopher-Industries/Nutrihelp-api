@@ -469,14 +469,10 @@ jobs:
       - name: ⬇️ Checkout Repository
         uses: actions/checkout@v4
         
-      - name: 📦 Dependency Review
+        - name: 📦 Dependency Review
         uses: actions/dependency-review-action@v4
         with:
-          # Allow common open source licenses
-          allow-licenses: MIT, Apache-2.0, BSD-3-Clause, ISC, BSD-2-Clause, 0BSD, LGPL-2.0, LGPL-2.0-or-later, LGPL-3.0, LGPL-3.0-or-later, GPL-2.0, GPL-3.0, Unlicense, CC0-1.0, MPL-2.0
-          # Only fail on high severity vulnerabilities
           fail-on-severity: high
-          # Allow known false positives
           allow-ghsas: GHSA-xxx, GHSA-yyy
 
   # PR Status Check
