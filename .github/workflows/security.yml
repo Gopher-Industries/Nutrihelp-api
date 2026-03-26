@@ -99,7 +99,6 @@ jobs:
             exit 0
           fi
           
-          # Run validation, capture output
           if npx swagger-cli validate "${{ env.OPENAPI_FILE }}" >"$REPORT" 2>&1; then
             echo "✅ OpenAPI validation passed!"
             echo "valid=true" >> $GITHUB_OUTPUT
@@ -151,17 +150,16 @@ jobs:
         run: |
           npm audit --json > npm-audit-report.json || true
           
-          # Parse and display vulnerabilities
           node -e "
             const fs = require('fs');
             try {
               const audit = JSON.parse(fs.readFileSync('npm-audit-report.json', 'utf8'));
               const vulns = audit.metadata.vulnerabilities;
               console.log('\n📊 Vulnerability Summary:');
-              console.log(`  Critical: ${vulns.critical || 0}`);
-              console.log(`  High: ${vulns.high || 0}`);
-              console.log(`  Moderate: ${vulns.moderate || 0}`);
-              console.log(`  Low: ${vulns.low || 0}`);
+              console.log(\`  Critical: \${vulns.critical || 0}\`);
+              console.log(\`  High: \${vulns.high || 0}\`);
+              console.log(\`  Moderate: \${vulns.moderate || 0}\`);
+              console.log(\`  Low: \${vulns.low || 0}\`);
               
               if (vulns.critical > 0 || vulns.high > 0) {
                 console.log('\n⚠️ High severity vulnerabilities found!');
@@ -183,12 +181,12 @@ jobs:
           fi
           
       - name: Run CodeQL Analysis
-        uses: github/codeql-action/init@v3
+        uses: github/codeql-action/init@v4
         with:
           languages: javascript
           
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
+        uses: github/codeql-action/analyze@v4
         with:
           category: "/language:javascript"
           upload: always
@@ -229,8 +227,9 @@ jobs:
       - name: Dependency Review
         uses: actions/dependency-review-action@v4
         with:
-          fail-on-severity: moderate
-          allow-licenses: MIT, ISC, Apache-2.0, BSD-3-Clause
+          fail-on-severity: high
+          # FIX: removed allow-licenses — you cannot use both allow-licenses
+          # and deny-licenses at the same time. Using deny-licenses only.
           deny-licenses: GPL-1.0-only, GPL-2.0-only, LGPL-2.0-only
           
   result:
