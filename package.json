@@ -1,62 +1,165 @@
 {
   "name": "nutrihelp-api",
   "version": "1.0.0",
-  "description": "nutrihelp-api",
+  "description": "NutriHelp API - Comprehensive Health & Nutrition Platform for Elderly Care",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
-    "test:rce": "mocha ./test/costEstimationTest.js",
-    "test": "mocha ./test/**/*.test.js",
-    "validate-env": "node scripts/validateEnv.js"
+    "debug": "nodemon --inspect server.js",
+    
+    "test": "npm run test:unit && npm run test:integration",
+    "test:unit": "mocha test/unit/**/*.test.js --exit",
+    "test:integration": "mocha test/integration/**/*.test.js --timeout 10000 --exit",
+    "test:coverage": "nyc --reporter=lcov --reporter=text --reporter=html --reporter=json-summary npm run test:unit",
+    "test:ci": "nyc --reporter=lcov --reporter=text --reporter=json-summary --check-coverage --branches=70 --functions=80 --lines=80 --statements=80 npm run test:unit",
+    
+    "lint": "eslint . --ext .js --max-warnings=0",
+    "lint:fix": "eslint . --ext .js --fix",
+    "format": "prettier --write \"**/*.{js,json,md,yaml,yml}\"",
+    "format:check": "prettier --check \"**/*.{js,json,md,yaml,yml}\"",
+    
+    "validate": "npm run validate:openapi && npm run validate:env",
+    "validate:openapi": "swagger-cli validate index.yaml",
+    "validate:env": "node scripts/validateEnv.js",
+    "validate:env:ci": "NODE_ENV=test node scripts/validateEnv.js",
+    
+    "security": "npm run security:audit && npm run security:outdated",
+    "security:audit": "npm audit --audit-level=moderate",
+    "security:outdated": "npm outdated --long || true",
+    
+    "build": "npm ci --prefer-offline --no-audit --no-fund",
+    "build:prod": "npm ci --production --prefer-offline",
+    "clean": "rm -rf node_modules package-lock.json coverage .nyc_output security-reports",
+    
+    "precommit": "npm run lint && npm run format:check && npm test",
+    "prepare": "husky install",
+    
+    "openapi:serve": "npx swagger-ui-express index.yaml",
+    "openapi:generate": "npx swagger-cli bundle index.yaml -o swagger-bundled.yaml",
+    
+    "db:migrate": "node scripts/migrate.js || echo 'No migration script found'",
+    "db:seed": "node scripts/seed.js || echo 'No seed script found'",
+    "db:reset": "npm run db:migrate && npm run db:seed",
+    
+    "monitoring:health": "curl -f http://localhost:3000/health || curl -f http://localhost:3000/ || exit 1",
+    "monitoring:metrics": "node scripts/metrics.js || echo 'No metrics script found'",
+    
+    "ci:all": "npm run ci:lint && npm run ci:test && npm run ci:security && npm run ci:validate",
+    "ci:lint": "npm run lint && npm run format:check",
+    "ci:test": "npm run test:ci",
+    "ci:security": "npm run security:audit",
+    "ci:validate": "npm run validate",
+    
+    "postinstall": "npm run validate:env || true"
+  },
+  "nyc": {
+    "reporter": ["lcov", "text", "html", "json-summary"],
+    "all": true,
+    "include": ["**/*.js", "!**/test/**", "!**/scripts/**"],
+    "exclude": [
+      "node_modules/**",
+      "test/**",
+      "coverage/**",
+      "scripts/**",
+      "**/*.test.js",
+      "**/*.spec.js"
+    ],
+    "check-coverage": true,
+    "branches": 70,
+    "functions": 80,
+    "lines": 80,
+    "statements": 80,
+    "watermarks": {
+      "lines": [70, 85],
+      "functions": [70, 85],
+      "branches": [65, 80],
+      "statements": [70, 85]
+    },
+    "temp-dir": ".nyc_output",
+    "report-dir": "coverage"
+  },
+  "mocha": {
+    "reporter": "spec",
+    "recursive": true,
+    "timeout": 5000,
+    "exit": true,
+    "slow": 75,
+    "reporter-options": ["mocha-junit-reporter"]
   },
   "jest": {
-    "testMatch": [
-      "**/test/**/*.js"
-    ]
+    "testMatch": ["**/test/**/*.js", "**/test/**/*.test.js", "**/test/**/*.spec.js"],
+    "collectCoverageFrom": [
+      "**/*.js",
+      "!**/node_modules/**",
+      "!**/test/**",
+      "!**/coverage/**",
+      "!**/scripts/**",
+      "!**/config/**",
+      "!**/*.test.js",
+      "!**/*.spec.js"
+    ],
+    "coverageThreshold": {
+      "global": {
+        "branches": 70,
+        "functions": 80,
+        "lines": 80,
+        "statements": 80
+      }
+    },
+    "coverageReporters": ["text", "lcov", "html", "json-summary"],
+    "testEnvironment": "node",
+    "verbose": true
   },
   "keywords": [
     "NutriHelp",
     "health",
     "elderly",
-    "senior"
+    "senior",
+    "nutrition",
+    "meal-planning",
+    "healthcare",
+    "api",
+    "express",
+    "supabase"
   ],
   "author": "Gopher Industries",
   "license": "ISC",
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  },
   "dependencies": {
-    "@sendgrid/mail": "8.1.3",
-    "@supabase/supabase-js": "2.86.0",
-    "base64-arraybuffer": "1.0.2",
-    "bcrypt": "5.1.1",
-    "bcryptjs": "2.4.3",
-    "cors": "2.8.5",
-    "crypto": "1.0.1",
-    "dotenv": "16.6.1",
-    "express": "4.19.1",
-    "express-rate-limit": "7.5.0",
-    "express-validator": "7.2.1",
-    "fs-extra": "11.3.1",
-    "helmet": "8.1.0",
-    "jsonwebtoken": "9.0.2",
-    "multer": "1.4.5-lts.1",
-    "mysql2": "3.9.2",
-    "node-fetch": "3.3.2",
-    "nodemailer": "8.0.2",
-    "sinon": "18.0.0",
-    "swagger-ui-express": "5.0.0",
-    "twilio": "5.9.0",
-    "yamljs": "0.3.0"
+    "@sendgrid/mail": "^8.1.3",
+    "@supabase/supabase-js": "^2.86.0",
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.6.1",
+    "express": "^4.19.1",
+    "express-rate-limit": "^7.5.0",
+    "express-validator": "^7.2.1",
+    "helmet": "^8.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^1.4.5-lts.1",
+    "node-fetch": "^3.3.2",
+    "swagger-ui-express": "^5.0.0"
   },
   "devDependencies": {
-    "axios": "1.13.2",
-    "chai": "6.0.1",
-    "chai-http": "5.1.2",
-    "concurrently": "8.2.2",
-    "form-data": "4.0.2",
-    "jest": "30.2.0",
-    "mocha": "11.7.2",
-    "nodemon": "3.1.10",
-    "proxyquire": "2.1.3",
-    "supertest": "7.1.4"
+    "chai": "^6.0.1",
+    "chai-http": "^5.1.2",
+    "eslint": "^8.57.0",
+    "eslint-plugin-security": "^3.0.0",
+    "husky": "^9.0.11",
+    "mocha": "^11.7.2",
+    "mocha-junit-reporter": "^2.2.1",
+    "nodemon": "^3.1.10",
+    "nyc": "^15.1.0",
+    "prettier": "^3.2.5",
+    "supertest": "^7.1.4",
+    "swagger-cli": "^4.0.4"
+  },
+  "lint-staged": {
+    "*.js": ["eslint --fix", "prettier --write"],
+    "*.{json,md,yaml,yml}": ["prettier --write"]
   }
 }

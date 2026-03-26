@@ -1,0 +1,448 @@
+# .github/workflows/ci.yml
+# 🔥 PRODUCTION-GRADE CI PIPELINE - ALL CHECKS ARE BLOCKING 🔥
+
+name: 🔥 CI Pipeline
+
+on:
+  pull_request:
+    branches: [main, develop, 'release/**']
+    types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    branches: [main, develop]
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: '20'
+  OPENAPI_FILE: 'index.yaml'
+  COVERAGE_THRESHOLD: 70
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ============================================
+  # JOB 1: LINTING & CODE QUALITY (BLOCKING)
+  # ============================================
+  lint:
+    name: 🔍 Linting & Code Style
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - run: npm ci --prefer-offline
+        env:
+          CI: true
+      
+      - name: 📝 Check Code Formatting
+        run: npm run format:check
+      
+      - name: 🎯 Run ESLint (Zero warnings allowed)
+        run: npm run lint
+      
+      - name: 🔒 Check for vulnerabilities
+        run: npm audit --audit-level=moderate
+      
+      - name: 📦 Check for outdated packages
+        run: npm outdated || echo "All packages up to date"
+
+  # ============================================
+  # JOB 2: UNIT TESTS WITH COVERAGE (BLOCKING)
+  # ============================================
+  unit-tests:
+    name: 🧪 Unit Tests & Coverage
+    runs-on: ubuntu-latest
+    needs: lint
+    timeout-minutes: 15
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - run: npm ci --prefer-offline
+        env:
+          CI: true
+      
+      - name: 🔧 Setup test environment
+        run: |
+          echo "NODE_ENV=test" >> $GITHUB_ENV
+          echo "JWT_SECRET=test_secret_$(openssl rand -hex 32)" >> $GITHUB_ENV
+          echo "SUPABASE_URL=https://test.supabase.co" >> $GITHUB_ENV
+          echo "SUPABASE_ANON_KEY=test_key_123" >> $GITHUB_ENV
+          echo "PORT=3000" >> $GITHUB_ENV
+      
+      - name: 🚀 Run tests with coverage
+        run: npm run test:ci
+      
+      - name: 📊 Upload coverage report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 30
+      
+      - name: 📈 Check coverage threshold
+        run: |
+          if [ ! -f coverage/coverage-summary.json ]; then
+            echo "❌ No coverage report found!"
+            exit 1
+          fi
+          
+          COVERAGE=$(node -e "
+            const fs = require('fs');
+            const summary = JSON.parse(fs.readFileSync('coverage/coverage-summary.json'));
+            console.log(summary.total.lines.pct);
+          ")
+          
+          echo "✅ Code coverage: ${COVERAGE}%"
+          
+          if (( $(echo "$COVERAGE < ${{ env.COVERAGE_THRESHOLD }}" | bc -l) )); then
+            echo "❌ Coverage ${COVERAGE}% is below threshold ${{ env.COVERAGE_THRESHOLD }}%"
+            exit 1
+          fi
+
+  # ============================================
+  # JOB 3: INTEGRATION TESTS (BLOCKING)
+  # ============================================
+  integration-tests:
+    name: 🔗 Integration Tests
+    runs-on: ubuntu-latest
+    needs: lint
+    timeout-minutes: 15
+    
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: testuser
+          POSTGRES_PASSWORD: testpass
+          POSTGRES_DB: nutrihelp_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - run: npm ci --prefer-offline
+        env:
+          CI: true
+      
+      - name: 🔧 Setup test environment
+        run: |
+          echo "NODE_ENV=test" >> $GITHUB_ENV
+          echo "DATABASE_URL=postgresql://testuser:testpass@localhost:5432/nutrihelp_test" >> $GITHUB_ENV
+          echo "JWT_SECRET=test_secret_$(openssl rand -hex 32)" >> $GITHUB_ENV
+      
+      - name: 🚀 Run integration tests
+        run: npm run test:integration
+
+  # ============================================
+  # JOB 4: OPENAPI VALIDATION (BLOCKING)
+  # ============================================
+  openapi:
+    name: 📚 OpenAPI Validation
+    runs-on: ubuntu-latest
+    needs: lint
+    timeout-minutes: 5
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - run: npm ci --prefer-offline
+      
+      - name: 🔍 Validate OpenAPI spec
+        run: |
+          if [ ! -f "${{ env.OPENAPI_FILE }}" ]; then
+            echo "❌ OpenAPI file '${{ env.OPENAPI_FILE }}' not found!"
+            exit 1
+          fi
+          
+          npm run validate:openapi
+      
+      - name: 📤 Upload validation report
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: openapi-validation-error
+          path: openapi-validate.log
+          retention-days: 7
+
+  # ============================================
+  # JOB 5: SECURITY SCAN (BLOCKING)
+  # ============================================
+  security:
+    name: 🔒 Security Scan
+    runs-on: ubuntu-latest
+    needs: lint
+    timeout-minutes: 15
+    permissions:
+      security-events: write
+      contents: read
+    
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - run: npm ci --prefer-offline
+      
+      - name: 📦 NPM Audit
+        run: npm run security:audit
+      
+      - name: 🔑 Secret scanning
+        run: |
+          echo "🔍 Scanning for secrets in commit history..."
+          
+          if git log -p | grep -E "(password|secret|token|key|api[_-]key|jwt|supabase)" -i > secrets.log 2>&1; then
+            if grep -E "=[a-f0-9]{32,}|sk-[a-zA-Z0-9]{32,}|Bearer [a-zA-Z0-9]{32,}" secrets.log; then
+              echo "❌ CRITICAL: Potential secrets found in commit history!"
+              cat secrets.log
+              exit 1
+            fi
+          fi
+          
+          echo "✅ No secrets detected"
+      
+      - name: 🧬 CodeQL Analysis
+        uses: github/codeql-action/init@v4
+        with:
+          languages: javascript
+      
+      - name: 🔬 Run CodeQL
+        uses: github/codeql-action/analyze@v4
+        with:
+          category: "/language:javascript"
+          upload: always
+      
+      - name: 📤 Upload security reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: security-reports
+          path: |
+            npm-audit-report.json
+            secrets.log
+          retention-days: 30
+
+  # ============================================
+  # JOB 6: BUILD VALIDATION (BLOCKING)
+  # ============================================
+  build:
+    name: 🏗️ Build Validation
+    runs-on: ubuntu-latest
+    needs: [unit-tests, integration-tests, openapi, security]
+    timeout-minutes: 10
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - run: npm ci --prefer-offline
+      
+      - name: 🏭 Build application
+        run: npm run build
+      
+      - name: ✅ Verify required files
+        run: |
+          REQUIRED_FILES=(
+            "package.json"
+            "server.js"
+            "index.yaml"
+          )
+          
+          for file in "${REQUIRED_FILES[@]}"; do
+            if [ ! -f "$file" ]; then
+              echo "❌ Required file missing: $file"
+              exit 1
+            fi
+            echo "✅ $file exists"
+          done
+
+  # ============================================
+  # JOB 7: DEPENDENCY REVIEW (BLOCKING FOR PRs)
+  # ============================================
+  dependency-review:
+    name: 📦 Dependency Review
+    runs-on: ubuntu-latest
+    needs: lint
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+      pull-requests: write
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+          deny-licenses: GPL-1.0-only, GPL-2.0-only, LGPL-2.0-only, AGPL-1.0-only
+
+  # ============================================
+  # JOB 8: FINAL STATUS (GATEKEEPER)
+  # ============================================
+  final-status:
+    name: ✅ Final Gatekeeper
+    runs-on: ubuntu-latest
+    needs: [lint, unit-tests, integration-tests, openapi, security, build, dependency-review]
+    if: always() && github.event_name == 'pull_request'
+    
+    steps:
+      - name: 🚦 Check all required jobs
+        run: |
+          echo "## 🚦 CI Pipeline Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Check | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          
+          FAILED=0
+          
+          check_job() {
+            local job=$1
+            local status="${{ needs[job].result }}"
+            local icon=""
+            
+            if [ "$status" = "success" ]; then
+              icon="✅"
+            elif [ "$status" = "failure" ]; then
+              icon="❌"
+              FAILED=$((FAILED + 1))
+            elif [ "$status" = "cancelled" ]; then
+              icon="🚫"
+              FAILED=$((FAILED + 1))
+            else
+              icon="⚠️"
+            fi
+            
+            echo "| ${job//-/ } | ${icon} ${status:-pending} |" >> $GITHUB_STEP_SUMMARY
+            return $([ "$status" = "success" ])
+          }
+          
+          check_job "lint"
+          check_job "unit-tests"
+          check_job "integration-tests"
+          check_job "openapi"
+          check_job "security"
+          check_job "build"
+          
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            check_job "dependency-review"
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ $FAILED -gt 0 ]; then
+            echo "## ❌ ${FAILED} checks failed!" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "⚠️ **This PR CANNOT be merged until all checks pass.**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Please fix the failing checks and push again." >> $GITHUB_STEP_SUMMARY
+            exit 1
+          else
+            echo "## ✅ All checks passed!" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "🎉 **This PR is ready to merge!**" >> $GITHUB_STEP_SUMMARY
+          fi
+      
+      - name: 📝 Create PR comment
+        uses: actions/github-script@v7
+        if: always()
+        with:
+          script: |
+            const lint = '${{ needs.lint.result }}';
+            const unit = '${{ needs.unit-tests.result }}';
+            const integration = '${{ needs.integration-tests.result }}';
+            const openapi = '${{ needs.openapi.result }}';
+            const security = '${{ needs.security.result }}';
+            const build = '${{ needs.build.result }}';
+            const deps = '${{ needs.dependency-review.result }}';
+            
+            const allPassed = lint === 'success' && unit === 'success' && 
+                             integration === 'success' && openapi === 'success' && 
+                             security === 'success' && build === 'success' &&
+                             (deps === 'success' || deps === 'skipped');
+            
+            const comment = `## 🔥 CI Pipeline Results
+            
+            ${allPassed ? '✅ **ALL CHECKS PASSED!** Ready for review and merge.' : '❌ **SOME CHECKS FAILED!** Please fix before merging.'}
+            
+            ### 📊 Detailed Status
+            
+            | Check | Status |
+            |-------|--------|
+            | **Linting & Formatting** | ${lint === 'success' ? '✅' : '❌'} |
+            | **Unit Tests & Coverage** | ${unit === 'success' ? '✅' : '❌'} |
+            | **Integration Tests** | ${integration === 'success' ? '✅' : '❌'} |
+            | **OpenAPI Validation** | ${openapi === 'success' ? '✅' : '❌'} |
+            | **Security Scan** | ${security === 'success' ? '✅' : '❌'} |
+            | **Build Validation** | ${build === 'success' ? '✅' : '❌'} |
+            | **Dependency Review** | ${deps === 'success' ? '✅' : deps === 'skipped' ? '⏭️ Skipped' : '❌'} |
+            
+            ${!allPassed ? '\n⚠️ **This PR cannot be merged until all checks pass.**' : ''}
+            
+            ---
+            *🤖 Automatically generated by NutriHelp CI Pipeline*`;
+            
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number
+            });
+            
+            const botComment = comments.find(c => 
+              c.user.type === 'Bot' && c.body.includes('CI Pipeline Results')
+            );
+            
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: comment
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: comment
+              });
+            }

@@ -1,33 +1,16 @@
+---
 Nutrihelp-api: V1.4
-
-
-
-
-
+---
 Nutrihelp-api: V1.3
-
-
-
-
-
+---
 Nutrihelp-api: V1.2
-
-
-
-
-
+---
 Nutrihelp-api: V1.1
-  Description:
-
-
-  ChangeLog
-  - Added Version Control
-  - 
-
-
-
-
+  Description: Initial version control
+  ChangeLog:
+    - Added Version Control
+---
 Nutrihelp-api: V1.0
-
-
-COME BACK TOO
+  Description: Initial release
+  ChangeLog:
+    - COME BACK TOO

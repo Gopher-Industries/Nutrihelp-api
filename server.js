@@ -156,6 +156,9 @@ app.use("/uploads", express.static("uploads"));
 // Signup
 app.use("/api/signup", require("./routes/signup"));
 
+// SMS Route
+app.use('/api/sms', require('./routes/sms'));
+
 // Error handler
 app.use(errorLogger);
 
@@ -192,7 +195,3 @@ app.listen(port, async () => {
   console.log("💡 Press Ctrl+C to stop the server \n");
   exec(`start http://localhost:${port}/api-docs`);
 });
-
-app.use(express.json({ limit: "50mb" }));
-app.use(express.urlencoded({ limit: "50mb", extended: true }));
-app.use("/api/sms", require("./routes/sms"));
