@@ -2,6 +2,10 @@ const { expect } = require('chai');
 const sinon = require('sinon');
 const proxyquire = require('proxyquire');
 
+process.env.SUPABASE_URL = process.env.SUPABASE_URL || 'https://example.supabase.co';
+process.env.SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || 'anon-key';
+process.env.SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || 'service-role-key';
+
 describe('Recommendation Controller', () => {
   afterEach(() => {
     sinon.restore();
@@ -114,6 +118,32 @@ describe('Recommendation Controller', () => {
     expect(res.json.calledWith({
       success: false,
       error: 'aiInsights must be an object when provided'
+    })).to.equal(true);
+  });
+
+  it('returns a generic 500 error when the service throws an unexpected internal error', async () => {
+    const generateRecommendations = sinon.stub().rejects(new Error('database connection string leaked'));
+    const controller = proxyquire('../controller/recommendationController', {
+      '../services/recommendationService': { generateRecommendations }
+    });
+
+    const req = {
+      user: { userId: 42, email: 'test@example.com' },
+      body: {
+        dietaryConstraints: {}
+      }
+    };
+    const res = {
+      status: sinon.stub().returnsThis(),
+      json: sinon.stub()
+    };
+
+    await controller.getRecommendations(req, res);
+
+    expect(res.status.calledWith(500)).to.equal(true);
+    expect(res.json.calledWith({
+      success: false,
+      error: 'Failed to generate recommendations'
     })).to.equal(true);
   });
 });

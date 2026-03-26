@@ -51,9 +51,14 @@ async function getRecommendations(req, res) {
     return res.status(200).json(result);
   } catch (error) {
     console.error('[recommendationController] error:', error);
-    return res.status(error.statusCode || 500).json({
+    const statusCode = error.statusCode || 500;
+    const clientMessage = statusCode >= 500
+      ? 'Failed to generate recommendations'
+      : (error.message || 'Invalid recommendation request');
+
+    return res.status(statusCode).json({
       success: false,
-      error: error.message || 'Failed to generate recommendations'
+      error: clientMessage
     });
   }
 }
