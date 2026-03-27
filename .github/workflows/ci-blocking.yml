@@ -21,6 +21,8 @@ jobs:
   install-deps:
     name: 📦 Install Dependencies
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
       
@@ -45,6 +47,8 @@ jobs:
     name: ✨ ESLint Code Quality
     runs-on: ubuntu-latest
     needs: install-deps
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
       
@@ -75,9 +79,10 @@ jobs:
             "parserOptions": {
               "ecmaVersion": 12
             },
+            "extends": ["eslint:recommended"],
             "rules": {
               "no-console": "off",
-              "no-unused-vars": "warn",
+              "no-unused-vars": ["warn", { "argsIgnorePattern": "^_" }],
               "no-undef": "off"
             },
             "ignorePatterns": ["node_modules/", "dist/", "coverage/", "uploads/"]
@@ -85,14 +90,15 @@ jobs:
           EOF
       
       - name: Run ESLint (BLOCKING)
-        run: npx eslint . --ext .js --max-warnings=1000 --format=stylish || exit 0
-        continue-on-error: false
+        run: npx eslint . --ext .js --max-warnings=1000 --format=stylish
 
   # ==================== JOB 3: PRETTIER - BLOCKING ====================
   format-check:
     name: 🎨 Prettier Format Check
     runs-on: ubuntu-latest
     needs: install-deps
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
       
@@ -122,14 +128,15 @@ jobs:
           EOF
       
       - name: Check formatting (BLOCKING)
-        run: npx prettier --check "**/*.{js,json,md}" --list-different || exit 0
-        continue-on-error: false
+        run: npx prettier --check "**/*.{js,json,md}" --list-different
 
   # ==================== JOB 4: UNIT TESTS - BLOCKING ====================
   unit-tests:
     name: 🧪 Unit Tests
     runs-on: ubuntu-latest
     needs: install-deps
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
       
@@ -172,16 +179,17 @@ jobs:
           EOF
       
       - name: Run unit tests (BLOCKING)
-        run: npx mocha ./test/**/*.test.js --timeout 5000 --exit || exit 0
+        run: npx mocha ./test/**/*.test.js --timeout 5000 --exit
         env:
           NODE_ENV: test
-        continue-on-error: false
 
   # ==================== JOB 5: OPENAPI VALIDATION - BLOCKING ====================
   openapi-validate:
     name: 📝 OpenAPI Validation
     runs-on: ubuntu-latest
     needs: install-deps
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
       
@@ -200,14 +208,15 @@ jobs:
         run: npm install --no-save swagger-cli@4.0.4
       
       - name: Validate OpenAPI (BLOCKING)
-        run: npx swagger-cli validate ${{ env.OPENAPI_FILE }} || exit 0
-        continue-on-error: false
+        run: npx swagger-cli validate ${{ env.OPENAPI_FILE }}
 
   # ==================== JOB 6: SECURITY SCAN - BLOCKING ====================
   security-scan:
     name: 🔒 Security Vulnerability Scan
     runs-on: ubuntu-latest
     needs: install-deps
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
       
@@ -222,14 +231,15 @@ jobs:
           key: ${{ runner.os }}-node-${{ hashFiles('package-lock.json') }}
       
       - name: Run npm audit (BLOCKING)
-        run: npm audit --audit-level=high || exit 0
-        continue-on-error: false
+        run: npm audit --audit-level=high
 
   # ==================== JOB 7: BUILD CHECK - BLOCKING ====================
   build-check:
     name: 🏗️ Build & Syntax Check
     runs-on: ubuntu-latest
     needs: install-deps
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
       
@@ -245,30 +255,72 @@ jobs:
       
       - name: Check JavaScript syntax
         run: |
+          echo "🔍 Checking JavaScript syntax..."
           if [ -f "server.js" ]; then
+            echo "Checking server.js..."
             node -c server.js
+            echo "✅ server.js syntax OK"
           fi
+          if [ -f "index.js" ]; then
+            echo "Checking index.js..."
+            node -c index.js
+            echo "✅ index.js syntax OK"
+          fi
+          # Check all JS files
+          find . -name "*.js" -not -path "./node_modules/*" -not -path "./coverage/*" -not -path "./dist/*" -exec node -c {} \;
       
-      - name: Verify server can load (without starting)
+      - name: Verify server can load
         run: |
+          echo "🔍 Verifying server can load..."
           node -e "
+          const assert = require('assert');
           try {
             // Mock environment variables for testing
-            process.env.SUPABASE_URL = 'https://test.supabase.co';
-            process.env.SUPABASE_ANON_KEY = 'test-key';
-            require('./server.js');
+            process.env.SUPABASE_URL = process.env.SUPABASE_URL || 'https://test.supabase.co';
+            process.env.SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || 'test-key';
+            process.env.NODE_ENV = 'test';
+            
+            // Try to load the server
+            const server = require('./server.js');
+            assert.ok(true, 'Server loaded successfully');
             console.log('✅ Server loaded successfully');
           } catch(e) {
-            console.log('⚠️ Server load warning:', e.message);
-            // Don't fail on missing dependencies for CI
+            console.error('❌ Server failed to load:', e.message);
+            console.error('Stack trace:', e.stack);
+            process.exit(1);
           }
-          " || true
+          "
+      
+      - name: Verify package.json
+        run: |
+          echo "🔍 Validating package.json..."
+          node -e "
+          try {
+            const pkg = require('./package.json');
+            console.log('✅ Package.json is valid');
+            console.log('📦 Dependencies:', Object.keys(pkg.dependencies || {}).length);
+            console.log('📦 DevDependencies:', Object.keys(pkg.devDependencies || {}).length);
+            
+            // Check for required scripts
+            const requiredScripts = ['start', 'test'];
+            requiredScripts.forEach(script => {
+              if (!pkg.scripts || !pkg.scripts[script]) {
+                console.warn('⚠️ Missing script:', script);
+              }
+            });
+          } catch(e) {
+            console.error('❌ Invalid package.json:', e.message);
+            process.exit(1);
+          }
+          "
 
   # ==================== JOB 8: CODE COVERAGE - BLOCKING ====================
   code-coverage:
     name: 📊 Code Coverage Check
     runs-on: ubuntu-latest
     needs: [unit-tests]
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
       
@@ -286,28 +338,39 @@ jobs:
         run: npm install --no-save nyc@15.1.0
       
       - name: Run coverage
-        run: npx nyc --reporter=text-summary npx mocha ./test/**/*.test.js --exit || true
+        run: npx nyc --reporter=text-summary npx mocha ./test/**/*.test.js --exit
         env:
           NODE_ENV: test
       
-      - name: Check coverage (BLOCKING - 30% minimum)
+      - name: Check coverage threshold
         run: |
           COVERAGE=$(npx nyc report --reporter=text-summary 2>/dev/null | grep -oE '[0-9]+(\.[0-9]+)?%' | head -1 | tr -d '%' || echo "0")
           if [ -z "$COVERAGE" ]; then COVERAGE=0; fi
           echo "Code coverage: ${COVERAGE}%"
-          # Don't fail on coverage for now
-          exit 0
+          
+          THRESHOLD=30
+          if (( $(echo "$COVERAGE < $THRESHOLD" | bc -l) )); then
+            echo "❌ Code coverage ${COVERAGE}% is below threshold ${THRESHOLD}%"
+            exit 1
+          else
+            echo "✅ Code coverage meets minimum threshold of ${THRESHOLD}%"
+          fi
 
   # ==================== JOB 9: PR COMMENT ====================
   pr-comment:
     name: 🤖 PR Results Comment
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' && github.repository == 'Gopher-Industries/Nutrihelp-api'
     needs: [lint, format-check, unit-tests, openapi-validate, security-scan, build-check, code-coverage]
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
     steps:
       - name: Create PR comment
         uses: actions/github-script@v7
         with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const results = {
               lint: '${{ needs.lint.result }}',
@@ -319,44 +382,95 @@ jobs:
               coverage: '${{ needs.code-coverage.result }}'
             };
             
-            const getIcon = (s) => s === 'success' ? '✅' : (s === 'failure' ? '❌' : '⏳');
+            const getIcon = (status) => {
+              if (status === 'success') return '✅';
+              if (status === 'failure') return '❌';
+              if (status === 'cancelled') return '⚠️';
+              return '⏳';
+            };
+            
+            const getStatusText = (status) => {
+              if (status === 'success') return 'Passed';
+              if (status === 'failure') return 'Failed';
+              if (status === 'cancelled') return 'Cancelled';
+              return 'Pending';
+            };
+            
             const allPassed = Object.values(results).every(s => s === 'success');
+            const anyFailed = Object.values(results).some(s => s === 'failure');
             
             const summary = `
             ## 🔒 BLOCKING CI/CD Pipeline Results
             
             ### 📊 Quality Gates
             
-            | Check | Status |
-            |-------|--------|
-            | **ESLint** | ${getIcon(results.lint)} |
-            | **Prettier** | ${getIcon(results.format)} |
-            | **Unit Tests** | ${getIcon(results.tests)} |
-            | **OpenAPI** | ${getIcon(results.openapi)} |
-            | **Security** | ${getIcon(results.security)} |
-            | **Build** | ${getIcon(results.build)} |
-            | **Coverage** | ${getIcon(results.coverage)} |
+            | Check | Status | Result |
+            |-------|--------|--------|
+            | **ESLint** | ${getIcon(results.lint)} | ${getStatusText(results.lint)} |
+            | **Prettier** | ${getIcon(results.format)} | ${getStatusText(results.format)} |
+            | **Unit Tests** | ${getIcon(results.tests)} | ${getStatusText(results.tests)} |
+            | **OpenAPI** | ${getIcon(results.openapi)} | ${getStatusText(results.openapi)} |
+            | **Security** | ${getIcon(results.security)} | ${getStatusText(results.security)} |
+            | **Build** | ${getIcon(results.build)} | ${getStatusText(results.build)} |
+            | **Coverage** | ${getIcon(results.coverage)} | ${getStatusText(results.coverage)} |
             
             ### 🔒 Merge Status
-            ${allPassed ? '✅ **READY TO MERGE** - All checks passed!' : '❌ **BLOCKED** - Please fix failing checks'}
+            ${allPassed ? '✅ **READY TO MERGE** - All checks passed!' : (anyFailed ? '❌ **BLOCKED** - Please fix failing checks' : '⏳ **IN PROGRESS** - Waiting for checks to complete')}
             
             ### 📝 Details
             Click on "Details" next to each check to see full logs.
+            
+            ---
+            *This comment was automatically generated by the CI/CD pipeline*
             `;
             
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: summary
-            });
+            try {
+              // Check if comment already exists
+              const { data: comments } = await github.rest.issues.listComments({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                per_page: 100
+              });
+              
+              const botComment = comments.find(comment => 
+                comment.user.type === 'Bot' && 
+                comment.body.includes('BLOCKING CI/CD Pipeline Results')
+              );
+              
+              if (botComment) {
+                // Update existing comment
+                await github.rest.issues.updateComment({
+                  comment_id: botComment.id,
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  body: summary
+                });
+                console.log('✅ Updated existing comment');
+              } else {
+                // Create new comment
+                await github.rest.issues.createComment({
+                  issue_number: context.issue.number,
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  body: summary
+                });
+                console.log('✅ Created new comment');
+              }
+            } catch (error) {
+              console.log('⚠️ Could not create/update comment:', error.message);
+              // Don't fail the workflow if comment creation fails
+            }
 
   # ==================== JOB 10: FINAL BLOCKING GATE ====================
   final-gate:
     name: 🔒 FINAL BLOCKING GATE
     runs-on: ubuntu-latest
-    needs: [lint, format-check, unit-tests, openapi-validate, security-scan, build-check]
-    if: always()
+    needs: [lint, format-check, unit-tests, openapi-validate, security-scan, build-check, code-coverage]
+    if: always() && github.event_name == 'pull_request'
+    permissions:
+      contents: read
+      statuses: write
     steps:
       - name: Verify all critical checks passed
         run: |
@@ -365,13 +479,35 @@ jobs:
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
           
           FAILED=0
+          SKIPPED=0
           
-          [ "${{ needs.lint.result }}" != "success" ] && echo "❌ ESLint: FAILED" && FAILED=1 || echo "✅ ESLint: PASSED"
-          [ "${{ needs.format-check.result }}" != "success" ] && echo "❌ Prettier: FAILED" && FAILED=1 || echo "✅ Prettier: PASSED"
-          [ "${{ needs.unit-tests.result }}" != "success" ] && echo "❌ Unit Tests: FAILED" && FAILED=1 || echo "✅ Unit Tests: PASSED"
-          [ "${{ needs.openapi-validate.result }}" != "success" ] && echo "❌ OpenAPI: FAILED" && FAILED=1 || echo "✅ OpenAPI: PASSED"
-          [ "${{ needs.security-scan.result }}" != "success" ] && echo "❌ Security: FAILED" && FAILED=1 || echo "✅ Security: PASSED"
-          [ "${{ needs.build-check.result }}" != "success" ] && echo "❌ Build: FAILED" && FAILED=1 || echo "✅ Build: PASSED"
+          check_status() {
+            local name=$1
+            local status=$2
+            if [ "$status" = "success" ]; then
+              echo "✅ $name: PASSED"
+            elif [ "$status" = "skipped" ]; then
+              echo "⚠️ $name: SKIPPED"
+              SKIPPED=$((SKIPPED + 1))
+            elif [ "$status" = "cancelled" ]; then
+              echo "⚠️ $name: CANCELLED"
+              SKIPPED=$((SKIPPED + 1))
+            elif [ "$status" = "failure" ]; then
+              echo "❌ $name: FAILED"
+              FAILED=1
+            else
+              echo "⏳ $name: $status"
+              FAILED=1
+            fi
+          }
+          
+          check_status "ESLint" "${{ needs.lint.result }}"
+          check_status "Prettier" "${{ needs.format-check.result }}"
+          check_status "Unit Tests" "${{ needs.unit-tests.result }}"
+          check_status "OpenAPI" "${{ needs.openapi-validate.result }}"
+          check_status "Security" "${{ needs.security-scan.result }}"
+          check_status "Build" "${{ needs.build-check.result }}"
+          check_status "Coverage" "${{ needs.code-coverage.result }}"
           
           echo ""
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -379,6 +515,9 @@ jobs:
           if [ $FAILED -eq 1 ]; then
             echo "❌ BLOCKING GATE: Some checks failed!"
             echo "❌ This PR cannot be merged until all issues are fixed."
+            exit 1
+          elif [ $SKIPPED -eq 7 ]; then
+            echo "⚠️ No checks were executed. This might be a configuration issue."
             exit 1
           else
             echo "🎉 ALL CHECKS PASSED! 🎉"
@@ -392,3 +531,5 @@ jobs:
             echo "║  🚀 Ready to merge and deploy!                               ║"
             echo "╚══════════════════════════════════════════════════════════════╝"
           fi
+
+  

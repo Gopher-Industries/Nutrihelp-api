@@ -2,37 +2,36 @@
 
 ## Required Checks Before Merge
 
-All pull requests to `main` and `develop` branches MUST pass:
+All pull requests MUST pass these 6 BLOCKING checks:
 
-### ✅ BLOCKING CHECKS (All Required)
+| Check Name | Purpose |
+|------------|---------|
+| **lint** | ESLint code quality |
+| **format-check** | Prettier formatting |
+| **unit-tests** | Unit test suite |
+| **openapi-validate** | OpenAPI spec validation |
+| **security-scan** | Vulnerability audit |
+| **build-check** | Syntax verification |
 
-| Check Name | Purpose | Failure Action |
-|------------|---------|----------------|
-| **lint** | ESLint code quality | ❌ Blocks merge |
-| **format-check** | Prettier formatting | ❌ Blocks merge |
-| **unit-tests** | Unit test suite | ❌ Blocks merge |
-| **integration-tests** | API integration tests | ❌ Blocks merge |
-| **openapi-validate** | OpenAPI spec validation | ❌ Blocks merge |
-| **security-scan** | Vulnerability audit | ❌ Blocks merge |
-| **build-check** | Syntax & build verification | ❌ Blocks merge |
-| **code-coverage** | ≥70% test coverage | ❌ Blocks merge |
+## Setup Instructions
 
-## Setting Up Branch Protection
-
-### Via GitHub UI:
 1. Go to **Settings** → **Branches** → **Add branch protection rule**
-2. Enter branch name pattern: `main` or `develop`
+2. Branch name pattern: `main` or `develop`
 3. Enable:
-   - ✅ **Require pull request reviews before merging** (1 reviewer)
-   - ✅ **Require status checks to pass before merging**
-   - ✅ Select all checks listed above
-   - ✅ **Require branches to be up to date**
-   - ✅ **Include administrators**
+   - ✅ Require pull request reviews before merging
+   - ✅ Require status checks to pass before merging
+   - ✅ Select all 6 checks above
+   - ✅ Require branches to be up to date
+   - ✅ Include administrators
 
-### Via GitHub CLI:
+## Local Testing
+
 ```bash
-gh api repos/Gopher-Industries/Nutrihelp-api/branches/main/protection \
-  --method PUT \
-  -f required_status_checks='{"strict":true,"contexts":["lint","format-check","unit-tests","integration-tests","openapi-validate","security-scan","build-check","code-coverage"]}' \
-  -f enforce_admins=true \
-  -f required_pull_request_reviews='{"required_approving_review_count":1}'
+# Run all checks locally
+npm run validate
+
+# Individual checks
+npm run lint
+npm run format:check
+npm test
+npm run openapi:validate
