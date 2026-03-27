@@ -14,13 +14,13 @@ class SecurityChecklist {
       'databaseSecurity',
       'apiSecurity',
       'environmentSecurity',
-      'accessControlChecks'
+      'accessControlChecks',
     ];
   }
 
-/**
- * Run a full security assessment
- */
+  /**
+   * Run a full security assessment
+   */
   async runSecurityAssessment() {
     const results = {
       timestamp: new Date().toISOString(),
@@ -30,7 +30,7 @@ class SecurityChecklist {
       failed_checks: 0,
       warnings: 0,
       critical_issues: 0,
-      checks: {}
+      checks: {},
     };
 
     console.log('🔒 Starting Security Assessment...');
@@ -40,46 +40,43 @@ class SecurityChecklist {
         console.log(`  ✓ Running ${checkName}...`);
         const checkResult = await this[checkName]();
         results.checks[checkName] = checkResult;
-        
+
         if (checkResult.status === 'pass') results.passed_checks++;
         else if (checkResult.status === 'fail') results.failed_checks++;
         else if (checkResult.status === 'warning') results.warnings++;
-        
+
         if (checkResult.severity === 'critical') results.critical_issues++;
-        
       } catch (error) {
         console.error(`  ✗ Error in ${checkName}:`, error.message);
         results.checks[checkName] = {
           status: 'error',
           message: error.message,
-          severity: 'high'
+          severity: 'high',
         };
         results.failed_checks++;
       }
     }
 
     // Calculate overall security score
-    results.overall_score = Math.round(
-      (results.passed_checks / results.total_checks) * 100
-    );
+    results.overall_score = Math.round((results.passed_checks / results.total_checks) * 100);
 
     return results;
   }
 
-/**
- * Check SSL certificate expiry
- */
+  /**
+   * Check SSL certificate expiry
+   */
   async certificateExpiry() {
     return new Promise((resolve) => {
       const domain = process.env.DOMAIN || 'localhost';
       const port = process.env.HTTPS_PORT || 443;
 
-    // Skip this check if running in local development environment
+      // Skip this check if running in local development environment
       if (domain === 'localhost' || process.env.NODE_ENV === 'development') {
         return resolve({
           status: 'skip',
           message: 'Certificate check skipped for development environment',
-          severity: 'low'
+          severity: 'low',
         });
       }
 
@@ -87,7 +84,7 @@ class SecurityChecklist {
         hostname: domain,
         port: port,
         method: 'GET',
-        timeout: 5000
+        timeout: 5000,
       };
 
       const req = https.request(options, (res) => {
@@ -101,21 +98,21 @@ class SecurityChecklist {
             status: 'fail',
             message: `Certificate expires in ${daysUntilExpiry} days`,
             severity: 'critical',
-            details: { expiry_date: expiryDate, days_remaining: daysUntilExpiry }
+            details: { expiry_date: expiryDate, days_remaining: daysUntilExpiry },
           });
         } else if (daysUntilExpiry < 30) {
           resolve({
             status: 'warning',
             message: `Certificate expires in ${daysUntilExpiry} days`,
             severity: 'medium',
-            details: { expiry_date: expiryDate, days_remaining: daysUntilExpiry }
+            details: { expiry_date: expiryDate, days_remaining: daysUntilExpiry },
           });
         } else {
           resolve({
             status: 'pass',
             message: `Certificate valid for ${daysUntilExpiry} days`,
             severity: 'low',
-            details: { expiry_date: expiryDate, days_remaining: daysUntilExpiry }
+            details: { expiry_date: expiryDate, days_remaining: daysUntilExpiry },
           });
         }
       });
@@ -124,7 +121,7 @@ class SecurityChecklist {
         resolve({
           status: 'fail',
           message: 'Unable to check certificate',
-          severity: 'medium'
+          severity: 'medium',
         });
       });
 
@@ -133,7 +130,7 @@ class SecurityChecklist {
         resolve({
           status: 'fail',
           message: 'Certificate check timeout',
-          severity: 'medium'
+          severity: 'medium',
         });
       });
 
@@ -141,9 +138,9 @@ class SecurityChecklist {
     });
   }
 
-/**
- * Check security response headers
- */
+  /**
+   * Check security response headers
+   */
   async securityHeaders() {
     const requiredHeaders = {
       'X-Content-Type-Options': 'nosniff',
@@ -151,14 +148,14 @@ class SecurityChecklist {
       'X-XSS-Protection': '1; mode=block',
       'Strict-Transport-Security': 'max-age=31536000',
       'Content-Security-Policy': true,
-      'Referrer-Policy': 'strict-origin-when-cross-origin'
+      'Referrer-Policy': 'strict-origin-when-cross-origin',
     };
     // Skip this check in CI environments
     if (process.env.GITHUB_ACTIONS) {
       return {
         status: 'skip',
         message: 'Security headers check skipped in CI environment (no running server)',
-        severity: 'low'
+        severity: 'low',
       };
     }
     // Perform real HTTP(S) requests to configured API endpoints and validate response headers.
@@ -167,84 +164,104 @@ class SecurityChecklist {
     // Fallback: http://localhost:3000/
     const defaultPort = process.env.PORT || 3000;
     const endpointsEnv = process.env.SECURITY_CHECK_ENDPOINTS || `http://localhost:${defaultPort}/`;
-    const endpoints = endpointsEnv.split(',').map(s => s.trim()).filter(Boolean);
+    const endpoints = endpointsEnv
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
 
     const results = [];
 
-    const checkSingle = (urlStr) => new Promise((resolve) => {
-      try {
-        const urlObj = new URL(urlStr);
-        const isHttps = urlObj.protocol === 'https:';
-        const lib = isHttps ? https : http;
-        const options = {
-          method: 'HEAD', // HEAD is sufficient to get headers
-          hostname: urlObj.hostname,
-          port: urlObj.port || (isHttps ? 443 : 80),
-          path: urlObj.pathname || '/',
-          timeout: 5000
-        };
+    const checkSingle = (urlStr) =>
+      new Promise((resolve) => {
+        try {
+          const urlObj = new URL(urlStr);
+          const isHttps = urlObj.protocol === 'https:';
+          const lib = isHttps ? https : http;
+          const options = {
+            method: 'HEAD', // HEAD is sufficient to get headers
+            hostname: urlObj.hostname,
+            port: urlObj.port || (isHttps ? 443 : 80),
+            path: urlObj.pathname || '/',
+            timeout: 5000,
+          };
 
-        const req = lib.request(options, (res) => {
-          const headers = {};
-          for (const [k, v] of Object.entries(res.headers)) headers[k.toLowerCase()] = v;
+          const req = lib.request(options, (res) => {
+            const headers = {};
+            for (const [k, v] of Object.entries(res.headers)) headers[k.toLowerCase()] = v;
 
-          const missing = [];
-          const warnings = [];
+            const missing = [];
+            const warnings = [];
 
-          // Check required headers presence/value
-          for (const [h, expected] of Object.entries(requiredHeaders)) {
-            const key = h.toLowerCase();
-            if (!headers[key]) {
-              missing.push(h);
-            } else if (expected === true) {
-              // any value acceptable
-            } else if (typeof expected === 'string') {
-              if (!headers[key] || !headers[key].toLowerCase().includes(expected.toLowerCase())) {
-                warnings.push(`${h} value unexpected`);
+            // Check required headers presence/value
+            for (const [h, expected] of Object.entries(requiredHeaders)) {
+              const key = h.toLowerCase();
+              if (!headers[key]) {
+                missing.push(h);
+              } else if (expected === true) {
+                // any value acceptable
+              } else if (typeof expected === 'string') {
+                if (!headers[key] || !headers[key].toLowerCase().includes(expected.toLowerCase())) {
+                  warnings.push(`${h} value unexpected`);
+                }
               }
             }
-          }
 
-          const status = missing.length > 0 ? 'fail' : (warnings.length > 0 ? 'warning' : 'pass');
-          const severity = status === 'fail' ? 'high' : (status === 'warning' ? 'medium' : 'low');
+            const status = missing.length > 0 ? 'fail' : warnings.length > 0 ? 'warning' : 'pass';
+            const severity = status === 'fail' ? 'high' : status === 'warning' ? 'medium' : 'low';
 
-          resolve({ url: urlStr, status, severity, missing, warnings, headers });
-        });
+            resolve({ url: urlStr, status, severity, missing, warnings, headers });
+          });
 
-        req.on('error', (e) => {
-          resolve({ url: urlStr, status: 'fail', severity: 'medium', message: `Request error: ${e.message}` });
-        });
+          req.on('error', (e) => {
+            resolve({
+              url: urlStr,
+              status: 'fail',
+              severity: 'medium',
+              message: `Request error: ${e.message}`,
+            });
+          });
 
-        req.on('timeout', () => {
-          req.destroy();
-          resolve({ url: urlStr, status: 'fail', severity: 'medium', message: 'Request timeout' });
-        });
+          req.on('timeout', () => {
+            req.destroy();
+            resolve({
+              url: urlStr,
+              status: 'fail',
+              severity: 'medium',
+              message: 'Request timeout',
+            });
+          });
 
-        req.end();
-      } catch (err) {
-        resolve({ url: urlStr, status: 'fail', severity: 'medium', message: `Invalid URL: ${err.message}` });
-      }
-    });
+          req.end();
+        } catch (err) {
+          resolve({
+            url: urlStr,
+            status: 'fail',
+            severity: 'medium',
+            message: `Invalid URL: ${err.message}`,
+          });
+        }
+      });
 
     try {
       for (const ep of endpoints) {
         // ensure url has protocol
         const url = ep.match(/^https?:\/\//) ? ep : `http://${ep}`;
-        // eslint-disable-next-line no-await-in-loop - keep sequential to avoid bursts
+        // Keep sequential requests here to avoid bursting external endpoints.
+        // eslint-disable-next-line no-await-in-loop
         const r = await checkSingle(url);
         results.push(r);
       }
 
       // Aggregate results
-      const anyFail = results.some(r => r.status === 'fail');
-      const anyWarning = results.some(r => r.status === 'warning');
+      const anyFail = results.some((r) => r.status === 'fail');
+      const anyWarning = results.some((r) => r.status === 'warning');
 
       if (anyFail) {
         return {
           status: 'fail',
           message: 'One or more endpoints missing security headers',
           severity: 'high',
-          details: { results }
+          details: { results },
         };
       }
 
@@ -253,7 +270,7 @@ class SecurityChecklist {
           status: 'warning',
           message: 'Some endpoints returned header values that should be reviewed',
           severity: 'medium',
-          details: { results }
+          details: { results },
         };
       }
 
@@ -261,21 +278,21 @@ class SecurityChecklist {
         status: 'pass',
         message: 'All checked endpoints include required security headers',
         severity: 'low',
-        details: { results }
+        details: { results },
       };
     } catch (error) {
       return {
         status: 'fail',
         message: 'Unable to verify security headers configuration',
         severity: 'medium',
-        details: { error: error.message }
+        details: { error: error.message },
       };
     }
   }
 
-/**
- * Check dependency vulnerabilities
- */
+  /**
+   * Check dependency vulnerabilities
+   */
   async dependencyVulnerabilities() {
     const { exec } = require('child_process');
     const { promisify } = require('util');
@@ -283,14 +300,14 @@ class SecurityChecklist {
 
     try {
       // Run npm audit
-      const { stdout } = await execAsync('npm audit --json', { 
+      const { stdout } = await execAsync('npm audit --json', {
         cwd: process.cwd(),
-        timeout: 30000 
+        timeout: 30000,
       });
-      
+
       const auditResult = JSON.parse(stdout);
       const vulnerabilities = auditResult.metadata?.vulnerabilities || {};
-      
+
       const criticalCount = vulnerabilities.critical || 0;
       const highCount = vulnerabilities.high || 0;
       const moderateCount = vulnerabilities.moderate || 0;
@@ -301,7 +318,7 @@ class SecurityChecklist {
           message: `${criticalCount} critical vulnerabilities found`,
           severity: 'critical',
           details: vulnerabilities,
-          recommendations: ['Run npm audit fix', 'Update vulnerable dependencies']
+          recommendations: ['Run npm audit fix', 'Update vulnerable dependencies'],
         };
       } else if (highCount > 0) {
         return {
@@ -309,7 +326,7 @@ class SecurityChecklist {
           message: `${highCount} high severity vulnerabilities found`,
           severity: 'high',
           details: vulnerabilities,
-          recommendations: ['Run npm audit fix', 'Review and update dependencies']
+          recommendations: ['Run npm audit fix', 'Review and update dependencies'],
         };
       } else if (moderateCount > 0) {
         return {
@@ -317,14 +334,14 @@ class SecurityChecklist {
           message: `${moderateCount} moderate vulnerabilities found`,
           severity: 'medium',
           details: vulnerabilities,
-          recommendations: ['Consider updating affected packages']
+          recommendations: ['Consider updating affected packages'],
         };
       } else {
         return {
           status: 'pass',
           message: 'No known vulnerabilities found',
           severity: 'low',
-          details: vulnerabilities
+          details: vulnerabilities,
         };
       }
     } catch (error) {
@@ -332,7 +349,7 @@ class SecurityChecklist {
         status: 'fail',
         message: 'Unable to run dependency vulnerability check',
         severity: 'medium',
-        details: { error: error.message }
+        details: { error: error.message },
       };
     }
   }
@@ -357,13 +374,13 @@ class SecurityChecklist {
       // Check bcrypt configuration -
       const authFiles = [
         'controller/authController.js',
-        'controller/loginController.js', 
-        'controller/signupController.js'
+        'controller/loginController.js',
+        'controller/signupController.js',
       ];
-      
+
       let hasBcrypt = false;
-      let authController = ''; 
-      
+      let authController = '';
+
       for (const file of authFiles) {
         try {
           const content = await fs.readFile(path.join(process.cwd(), file), 'utf8');
@@ -373,19 +390,19 @@ class SecurityChecklist {
           if (file.includes('authController.js')) {
             authController = content;
           }
-        } catch (error) {
-        }
+        } catch (error) {}
       }
-      
+
       if (!hasBcrypt) {
         issues.push('Password hashing not detected');
         recommendations.push('Implement bcrypt for password hashing');
       }
 
       // Check rate limiting
-      const hasRateLimit = authController.includes('rateLimit') || 
-                          await this.checkFileExists('middleware/rateLimiter.js');
-      
+      const hasRateLimit =
+        authController.includes('rateLimit') ||
+        (await this.checkFileExists('middleware/rateLimiter.js'));
+
       if (!hasRateLimit) {
         issues.push('Rate limiting not configured for authentication');
         recommendations.push('Implement rate limiting for login endpoints');
@@ -396,22 +413,22 @@ class SecurityChecklist {
         return {
           status: 'pass',
           message: 'Authentication security properly configured',
-          severity: 'low'
+          severity: 'low',
         };
       } else {
         return {
-          status: issues.some(i => i.includes('JWT_SECRET')) ? 'fail' : 'warning',
+          status: issues.some((i) => i.includes('JWT_SECRET')) ? 'fail' : 'warning',
           message: `Authentication security issues: ${issues.join(', ')}`,
-          severity: issues.some(i => i.includes('JWT_SECRET')) ? 'critical' : 'medium',
+          severity: issues.some((i) => i.includes('JWT_SECRET')) ? 'critical' : 'medium',
           details: { issues },
-          recommendations
+          recommendations,
         };
       }
     } catch (error) {
       return {
         status: 'fail',
         message: 'Unable to verify authentication security',
-        severity: 'medium'
+        severity: 'medium',
       };
     }
   }
@@ -430,8 +447,7 @@ class SecurityChecklist {
     }
 
     // Check for sensitive information usage
-    if (process.env.SUPABASE_SERVICE_ROLE_KEY && 
-        process.env.NODE_ENV === 'production') {
+    if (process.env.SUPABASE_SERVICE_ROLE_KEY && process.env.NODE_ENV === 'production') {
       issues.push('Service role key detected in production');
       recommendations.push('Avoid using service role key in client-side code');
     }
@@ -439,8 +455,8 @@ class SecurityChecklist {
     // Check RLS policies
     try {
       const dbFiles = await fs.readdir(path.join(process.cwd(), 'database'));
-      const hasPolicies = dbFiles.some(file => file.includes('policy') || file.includes('rls'));
-      
+      const hasPolicies = dbFiles.some((file) => file.includes('policy') || file.includes('rls'));
+
       if (!hasPolicies) {
         issues.push('Row Level Security policies not detected');
         recommendations.push('Implement RLS policies for data protection');
@@ -453,7 +469,7 @@ class SecurityChecklist {
       return {
         status: 'pass',
         message: 'Database security properly configured',
-        severity: 'low'
+        severity: 'low',
       };
     } else {
       return {
@@ -461,7 +477,7 @@ class SecurityChecklist {
         message: `Database security issues: ${issues.join(', ')}`,
         severity: 'medium',
         details: { issues },
-        recommendations
+        recommendations,
       };
     }
   }
@@ -475,7 +491,7 @@ class SecurityChecklist {
 
     try {
       const serverFile = await fs.readFile(path.join(process.cwd(), 'server.js'), 'utf8');
-      
+
       // Check CORS configuration
       if (!serverFile.includes('cors')) {
         issues.push('CORS not configured');
@@ -499,7 +515,7 @@ class SecurityChecklist {
         return {
           status: 'pass',
           message: 'API security properly configured',
-          severity: 'low'
+          severity: 'low',
         };
       } else {
         return {
@@ -507,14 +523,14 @@ class SecurityChecklist {
           message: `API security issues: ${issues.join(', ')}`,
           severity: 'medium',
           details: { issues },
-          recommendations
+          recommendations,
         };
       }
     } catch (error) {
       return {
         status: 'fail',
         message: 'Unable to verify API security configuration',
-        severity: 'medium'
+        severity: 'medium',
       };
     }
   }
@@ -537,9 +553,8 @@ class SecurityChecklist {
     // Check .env file security
     try {
       const envContent = await fs.readFile(path.join(process.cwd(), '.env'), 'utf8');
-      
-      if (envContent.includes('password=password') || 
-          envContent.includes('secret=secret')) {
+
+      if (envContent.includes('password=password') || envContent.includes('secret=secret')) {
         issues.push('Default credentials detected in .env file');
         recommendations.push('Change default credentials');
       }
@@ -550,7 +565,7 @@ class SecurityChecklist {
     // Check .gitignore
     try {
       const gitignore = await fs.readFile(path.join(process.cwd(), '.gitignore'), 'utf8');
-      
+
       if (!gitignore.includes('.env')) {
         issues.push('.env file not in .gitignore');
         recommendations.push('Add .env file to .gitignore');
@@ -564,66 +579,63 @@ class SecurityChecklist {
       return {
         status: 'pass',
         message: 'Environment security properly configured',
-        severity: 'low'
+        severity: 'low',
       };
     } else {
       return {
-        status: issues.some(i => i.includes('Default credentials')) ? 'fail' : 'warning',
+        status: issues.some((i) => i.includes('Default credentials')) ? 'fail' : 'warning',
         message: `Environment security issues: ${issues.join(', ')}`,
-        severity: issues.some(i => i.includes('Default credentials')) ? 'high' : 'medium',
+        severity: issues.some((i) => i.includes('Default credentials')) ? 'high' : 'medium',
         details: { issues },
-        recommendations
+        recommendations,
       };
     }
   }
 
-/**
- * Check access control configuration
- */
+  /**
+   * Check access control configuration
+   */
   async accessControlChecks() {
     const issues = [];
     const recommendations = [];
 
     try {
-    // Check authentication middleware
+      // Check authentication middleware
       const hasAuthMiddleware = await this.checkFileExists('middleware/authenticateToken.js');
       if (!hasAuthMiddleware) {
         issues.push('Authentication middleware not found');
         recommendations.push('Implement authentication middleware');
       }
 
-    // Check role-based access control
+      // Check role-based access control
       const authController = await fs.readFile(
-        path.join(process.cwd(), 'controller/authController.js'), 
+        path.join(process.cwd(), 'controller/authController.js'),
         'utf8'
       );
-      
+
       if (!authController.includes('role') && !authController.includes('permission')) {
         issues.push('Role-based access control not implemented');
         recommendations.push('Implement RBAC for fine-grained access control');
       }
 
-    // Check route protection
+      // Check route protection
       const routeFiles = await fs.readdir(path.join(process.cwd(), 'routes'));
       let protectedRoutes = 0;
       let totalRoutes = 0;
 
       for (const file of routeFiles) {
         if (file.endsWith('.js')) {
-          const routeContent = await fs.readFile(
-            path.join(process.cwd(), 'routes', file), 
-            'utf8'
-          );
+          const routeContent = await fs.readFile(path.join(process.cwd(), 'routes', file), 'utf8');
           const routeMatches = routeContent.match(/router\.(get|post|put|delete)/g) || [];
           totalRoutes += routeMatches.length;
-          
+
           const protectedMatches = routeContent.match(/authenticateToken/g) || [];
           protectedRoutes += protectedMatches.length;
         }
       }
 
       const protectionRate = totalRoutes > 0 ? (protectedRoutes / totalRoutes) * 100 : 0;
-      
+
       if (protectionRate < 50) {
         issues.push(`Only ${protectionRate.toFixed(1)}% of routes are protected`);
         recommendations.push('Protect more API routes with authentication');
@@ -634,7 +646,7 @@ class SecurityChecklist {
           status: 'pass',
           message: 'Access control properly configured',
           severity: 'low',
-          details: { protection_rate: protectionRate }
+          details: { protection_rate: protectionRate },
         };
       } else {
         return {
@@ -642,21 +654,21 @@ class SecurityChecklist {
           message: `Access control issues: ${issues.join(', ')}`,
           severity: 'medium',
           details: { issues, protection_rate: protectionRate },
-          recommendations
+          recommendations,
         };
       }
     } catch (error) {
       return {
         status: 'fail',
         message: 'Unable to verify access control configuration',
-        severity: 'medium'
+        severity: 'medium',
       };
     }
   }
 
-/**
- * Helper method: Check if a file exists
- */
+  /**
+   * Helper method: Check if a file exists
+   */
   async checkFileExists(filePath) {
     try {
       await fs.access(path.join(process.cwd(), filePath));

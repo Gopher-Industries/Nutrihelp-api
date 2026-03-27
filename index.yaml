@@ -938,12 +938,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
     get:
       summary: Retrieve all appointment data
       description: Returns a JSON array containing all appointments
@@ -1714,68 +1708,68 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
   /userprofile:
     get:
-     summary: Get user profile
-     description: |
-       - Normal users can only fetch their own profile.  
-       - Admins can fetch any profile using `?email=xxx`.
-     security:
-       - BearerAuth: []
-     parameters:
-       - in: query
-         name: email
-         schema:
-           type: string
-         required: false
-         description: (Admin only) Email of the user whose profile to fetch
-     responses:
-       '200':
-         description: User profile fetched successfully
-         content:
-           application/json:
-             schema:
-               $ref: '#/components/schemas/UserProfileResponse'
-       '400':
-         description: Email is required
-         content:
-           application/json:
-             schema:
-               $ref: '#/components/schemas/ErrorResponse'
-       '500':
-         description: Internal server error
-         content:
-           application/json:
-             schema:
-               $ref: '#/components/schemas/ErrorResponse'
-  put:
-     summary: Update user profile
-     description: |
-       - Normal users can update only their own profile.  
-       - Admins can update any profile using `email`.
-     security:
-       - BearerAuth: []
-     requestBody:
-       required: true
-       content:
-         application/json:
-           schema:
-             $ref: '#/components/schemas/UserUpdateRequest'
-     responses:
-       '204':
-         description: User profile updated successfully
-         content:
-           application/json:
-             schema:
-               $ref: '#/components/schemas/SuccessResponse'
-       '400':
-         description: Email is required or invalid request body
-         content:
-           application/json:
-             schema:
-               $ref: '#/components/schemas/ErrorResponse'
-       '500':
-         description: Internal server error
-         content:
-           application/json:
+      summary: Get user profile
+      description: |
+        - Normal users can only fetch their own profile.
+        - Admins can fetch any profile using `?email=xxx`.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: email
+          schema:
+            type: string
+          required: false
+          description: (Admin only) Email of the user whose profile to fetch
+      responses:
+        '200':
+          description: User profile fetched successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfileResponse'
+        '400':
+          description: Email is required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    put:
+      summary: Update user profile
+      description: |
+        - Normal users can update only their own profile.
+        - Admins can update any profile using `email`.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserUpdateRequest'
+      responses:
+        '204':
+          description: User profile updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          description: Email is required or invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
              schema:
                $ref: '#/components/schemas/ErrorResponse'
   /notifications:
@@ -2175,12 +2169,9 @@ paths:
   
   /health-news:
     get:
-      summary: Calculate estimated cost for a recipe
-      description: Returns JSON array containing total cost and corresponding ingredients price
+      summary: Retrieve and filter health news
+      description: Returns health news data, optionally filtered by action and related entity identifiers.
       parameters:
-        - in: path
-          name: recipe_id
-          required: true
         - name: action
           in: query
           required: false
@@ -2291,7 +2282,6 @@ paths:
           description: Number of records to return
           schema:
             type: integer
-          description: Integer ID of the recipe for cost calculation
             default: 20
         - name: page
           in: query
@@ -2668,7 +2658,7 @@ paths:
         - name: page
           in: query
           required: false
-          description: 
+          description: Page number for pagination
           schema:
             type: integer
             minimum: 1
@@ -2676,7 +2666,7 @@ paths:
         - name: limit
           in: query
           required: false
-          description: 
+          description: Maximum number of articles to return
           schema:
             type: integer
             minimum: 1
@@ -2684,7 +2674,7 @@ paths:
         - name: sortBy
           in: query
           required: false
-          description: 
+          description: Field to sort the results by
           schema:
             type: string
             enum: [created_at, title, views]
@@ -3365,6 +3355,99 @@ components:
         email:
           type: string
           format: email
+    IngredientSubstitutionItem:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 14
+        name:
+          type: string
+          example: "Almond Milk"
+        category:
+          type: string
+          example: "Dairy Alternatives"
+    IngredientSubstitutionResponse:
+      type: object
+      properties:
+        original:
+          $ref: '#/components/schemas/IngredientSubstitutionItem'
+        substitutes:
+          type: array
+          items:
+            $ref: '#/components/schemas/IngredientSubstitutionItem'
+    HealthPlanRequest:
+      type: object
+      required:
+        - medical_report
+        - survey_data
+      properties:
+        medical_report:
+          description: Medical report object or array of report objects used for plan generation
+          oneOf:
+            - type: object
+            - type: array
+              items:
+                type: object
+        survey_data:
+          type: object
+          description: Survey answers used to derive health goal and optional profile data
+          additionalProperties: true
+        user_id:
+          type: string
+          nullable: true
+        survey_id:
+          type: string
+          nullable: true
+    HealthPlanWeek:
+      type: object
+      properties:
+        week:
+          type: integer
+          example: 1
+        target_calories_per_day:
+          type: number
+          example: 1800
+        focus:
+          type: string
+          example: "Weight management"
+        workouts:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        meal_notes:
+          type: string
+          nullable: true
+        reminders:
+          type: array
+          items:
+            type: string
+    HealthPlanResponse:
+      type: object
+      properties:
+        plan_id:
+          type: integer
+          nullable: true
+          example: null
+        suggestion:
+          type: string
+        weekly_plan:
+          type: array
+          items:
+            $ref: '#/components/schemas/HealthPlanWeek'
+        progress_analysis:
+          nullable: true
+          oneOf:
+            - type: object
+              additionalProperties: true
+            - type: string
+        goal:
+          type: string
+          nullable: true
+        length:
+          type: integer
+          nullable: true
         contact_number:
           type: string
         mfa_enabled:
@@ -3924,7 +4007,6 @@ components:
         user_id:
           type: integer
     MedicalReportRequest:
-      MedicalReportRequest:
       type: object
       required:
         - Gender

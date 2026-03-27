@@ -12,21 +12,21 @@ const checkAllergen = async (req, res) => {
     const result = await getBarcodeAllergen.fetchBarcodeInformation(code);
     if (!result.success) {
       return res.status(404).json({
-        error: `Error when fetching barcode information: Invalid barcode`
-      })
+        error: `Error when fetching barcode information: Invalid barcode`,
+      });
     }
     const barcode_info = result.data.product;
     if (!barcode_info) {
       return res.status(404).json({
-        error: `Error when getting barcode information: Barcode information not found`
-      })
+        error: `Error when getting barcode information: Barcode information not found`,
+      });
     }
     let barcode_ingredients = [];
     if (barcode_info.allergens_from_ingredients.length > 0) {
-      barcode_ingredients = barcode_info.ingredients_text_en.split(",").map((item) => {
-        return item.trim().toLowerCase().replace(".", "");
+      barcode_ingredients = barcode_info.ingredients_text_en.split(',').map((item) => {
+        return item.trim().toLowerCase().replace('.', '');
       });
-    } 
+    }
 
     // If user_id is not provided, return barcode information only
     if (!user_id) {
@@ -34,7 +34,7 @@ const checkAllergen = async (req, res) => {
         product_name: barcode_info.product_name,
         detection_result: {},
         barcode_ingredients,
-        user_allergen_ingredients: []
+        user_allergen_ingredients: [],
       });
     }
 
@@ -42,11 +42,14 @@ const checkAllergen = async (req, res) => {
     const user_allergen_ingredient_names = await getBarcodeAllergen.getUserAllergen(user_id);
 
     // Compare the result
-    barcode_ingredients_keys = barcode_ingredients.reduce((accumulatedIngredients, currentIngredient) => {
-      return accumulatedIngredients.concat(currentIngredient.split(" "));
-    }, []);
+    const barcodeIngredientsKeys = barcode_ingredients.reduce(
+      (accumulatedIngredients, currentIngredient) => {
+        return accumulatedIngredients.concat(currentIngredient.split(' '));
+      },
+      []
+    );
     const matchingAllergens = user_allergen_ingredient_names.filter((ingredient) => {
-      return barcode_ingredients_keys.includes(ingredient);
+      return barcodeIngredientsKeys.includes(ingredient);
     });
     const hasUserAllergen = matchingAllergens.length > 0;
 
@@ -54,19 +57,19 @@ const checkAllergen = async (req, res) => {
       product_name: barcode_info.product_name,
       detection_result: {
         hasUserAllergen,
-        matchingAllergens
+        matchingAllergens,
       },
       barcode_ingredients,
-      user_allergen_ingredients: user_allergen_ingredient_names
+      user_allergen_ingredients: user_allergen_ingredient_names,
     });
   } catch (error) {
-    console.error("Error in getting barcode information: ", error);
+    console.error('Error in getting barcode information: ', error);
     return res.status(500).json({
-      error: "Internal server error: " + error
-    })
+      error: 'Internal server error: ' + error,
+    });
   }
-}
+};
 
 module.exports = {
-  checkAllergen
-}
+  checkAllergen,
+};
