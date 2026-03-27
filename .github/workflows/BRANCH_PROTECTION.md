@@ -1,36 +1,38 @@
-# Branch Protection Rules
+# 🔒 Branch Protection Rules - NutriHelp API
 
-## Protected Branches
-- `main` - Production branch
-- `develop` - Development branch
+## Required Checks Before Merge
 
-## Required Checks for PR Merge
-All pull requests must pass the following checks before merging:
+All pull requests to `main` and `develop` branches MUST pass:
 
-1. **Lint** - ESLint validation with zero errors
-2. **Format Check** - Prettier formatting validation
-3. **Unit Tests** - All tests must pass
-4. **OpenAPI Validation** - API specification must be valid
-5. **Security Scan** - No critical vulnerabilities
-6. **Build Check** - Application must start without errors
+### ✅ BLOCKING CHECKS (All Required)
 
-## How to Set Up Branch Protection
+| Check Name | Purpose | Failure Action |
+|------------|---------|----------------|
+| **lint** | ESLint code quality | ❌ Blocks merge |
+| **format-check** | Prettier formatting | ❌ Blocks merge |
+| **unit-tests** | Unit test suite | ❌ Blocks merge |
+| **integration-tests** | API integration tests | ❌ Blocks merge |
+| **openapi-validate** | OpenAPI spec validation | ❌ Blocks merge |
+| **security-scan** | Vulnerability audit | ❌ Blocks merge |
+| **build-check** | Syntax & build verification | ❌ Blocks merge |
+| **code-coverage** | ≥70% test coverage | ❌ Blocks merge |
+
+## Setting Up Branch Protection
 
 ### Via GitHub UI:
-1. Go to repository Settings > Branches
-2. Click "Add branch protection rule"
-3. For branch name pattern, enter `main` and `develop`
-4. Enable:
-   - "Require pull request reviews before merging"
-   - "Require status checks to pass before merging"
-   - Select all CI checks listed above
-   - "Require branches to be up-to-date"
-   - "Include administrators"
+1. Go to **Settings** → **Branches** → **Add branch protection rule**
+2. Enter branch name pattern: `main` or `develop`
+3. Enable:
+   - ✅ **Require pull request reviews before merging** (1 reviewer)
+   - ✅ **Require status checks to pass before merging**
+   - ✅ Select all checks listed above
+   - ✅ **Require branches to be up to date**
+   - ✅ **Include administrators**
 
 ### Via GitHub CLI:
 ```bash
-gh api repos/:owner/:repo/branches/main/protection \
+gh api repos/Gopher-Industries/Nutrihelp-api/branches/main/protection \
   --method PUT \
-  -f required_status_checks='{"strict":true,"contexts":["lint","format-check","test-unit","openapi-validate","security-scan","build-check"]}' \
+  -f required_status_checks='{"strict":true,"contexts":["lint","format-check","unit-tests","integration-tests","openapi-validate","security-scan","build-check","code-coverage"]}' \
   -f enforce_admins=true \
   -f required_pull_request_reviews='{"required_approving_review_count":1}'

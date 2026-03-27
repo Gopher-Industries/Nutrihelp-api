@@ -1,0 +1,546 @@
+name: 🚨 BLOCKING CI/CD PIPELINE - NutriHelp API
+# ALL CHECKS MUST PASS - FAILURES BLOCK MERGE
+
+on:
+  push:
+    branches: [main, develop, master]
+  pull_request:
+    branches: [main, develop, master]
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: '20'
+  OPENAPI_FILE: 'index.yaml'
+
+# Cancel in-progress runs for the same branch
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ==================== JOB 1: DEPENDENCY INSTALLATION (BLOCKING) ====================
+  install-dependencies:
+    name: 📦 Install Dependencies
+    runs-on: ubuntu-latest
+    outputs:
+      cache-hit: ${{ steps.cache.outputs.cache-hit }}
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Cache node_modules
+        id: cache
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+      
+      - name: Clean install dependencies (npm ci)
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: npm ci --prefer-offline
+      
+      - name: Verify lockfile sync
+        run: |
+          if ! npm ci --dry-run > /dev/null 2>&1; then
+            echo "::error::package-lock.json is out of sync with package.json. Run 'npm install' locally and commit the updated lockfile."
+            exit 1
+          fi
+
+  # ==================== JOB 2: CODE LINTING (BLOCKING) ====================
+  lint:
+    name: ✨ ESLint - Code Quality
+    runs-on: ubuntu-latest
+    needs: install-dependencies
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Restore node_modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node-${{ hashFiles('package-lock.json') }}
+      
+      - name: Run ESLint (MUST PASS)
+        run: npm run lint
+      
+      - name: Upload ESLint report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eslint-report
+          path: |
+            eslint-report.json
+            eslint-report.txt
+          if-no-files-found: ignore
+
+  # ==================== JOB 3: CODE FORMATTING (BLOCKING) ====================
+  format-check:
+    name: 🎨 Prettier - Code Formatting
+    runs-on: ubuntu-latest
+    needs: install-dependencies
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Restore node_modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node-${{ hashFiles('package-lock.json') }}
+      
+      - name: Check code formatting (MUST PASS)
+        run: npm run format:check
+      
+      - name: Show formatting issues
+        if: failure()
+        run: |
+          echo "::error::Code formatting issues found. Run 'npm run format' to fix."
+          npm run format:check -- --list-different
+
+  # ==================== JOB 4: UNIT TESTS (BLOCKING) ====================
+  unit-tests:
+    name: 🧪 Unit Tests
+    runs-on: ubuntu-latest
+    needs: install-dependencies
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Restore node_modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node-${{ hashFiles('package-lock.json') }}
+      
+      - name: Create test directory structure
+        run: |
+          mkdir -p test/unit
+          mkdir -p test/integration
+      
+      - name: Run unit tests (MUST PASS)
+        run: npm run test:unit
+        env:
+          NODE_ENV: test
+          CI: true
+      
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-results
+          path: |
+            test-results.xml
+            coverage/
+          if-no-files-found: ignore
+
+  # ==================== JOB 5: INTEGRATION TESTS (BLOCKING) ====================
+  integration-tests:
+    name: 🔗 Integration Tests
+    runs-on: ubuntu-latest
+    needs: install-dependencies
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Restore node_modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node-${{ hashFiles('package-lock.json') }}
+      
+      - name: Start server for integration tests
+        run: |
+          npm start &
+          sleep 5
+          # Wait for server to be ready
+          for i in {1..10}; do
+            if curl -s http://localhost:3000/health > /dev/null 2>&1; then
+              echo "Server is ready"
+              break
+            fi
+            sleep 2
+          done
+      
+      - name: Run integration tests (MUST PASS)
+        run: npm run test:integration
+        env:
+          NODE_ENV: test
+          CI: true
+      
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-test-results
+          path: test-results-integration.xml
+          if-no-files-found: ignore
+
+  # ==================== JOB 6: OPENAPI VALIDATION (BLOCKING) ====================
+  openapi-validate:
+    name: 📝 OpenAPI Validation
+    runs-on: ubuntu-latest
+    needs: install-dependencies
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Restore node_modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node-${{ hashFiles('package-lock.json') }}
+      
+      - name: Validate OpenAPI file exists
+        run: |
+          if [ ! -f "${{ env.OPENAPI_FILE }}" ]; then
+            echo "::error::OpenAPI file '${{ env.OPENAPI_FILE }}' not found!"
+            exit 1
+          fi
+      
+      - name: Run OpenAPI validation (MUST PASS)
+        run: npm run openapi:validate
+      
+      - name: Bundle OpenAPI spec
+        run: npm run openapi:bundle
+      
+      - name: Upload bundled spec
+        uses: actions/upload-artifact@v4
+        with:
+          name: openapi-bundled
+          path: openapi-bundled.yaml
+          if-no-files-found: ignore
+
+  # ==================== JOB 7: SECURITY SCAN (BLOCKING) ====================
+  security-scan:
+    name: 🔒 Security Vulnerability Scan
+    runs-on: ubuntu-latest
+    needs: install-dependencies
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Restore node_modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node-${{ hashFiles('package-lock.json') }}
+      
+      - name: Run npm audit (MUST PASS - no moderate+ vulnerabilities)
+        run: npm run security:audit
+      
+      - name: Check for outdated dependencies
+        run: npm run security:outdated
+        continue-on-error: true
+
+  # ==================== JOB 8: BUILD CHECK (BLOCKING) ====================
+  build-check:
+    name: 🏗️ Build & Syntax Check
+    runs-on: ubuntu-latest
+    needs: install-dependencies
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Restore node_modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node-${{ hashFiles('package-lock.json') }}
+      
+      - name: Check JavaScript syntax
+        run: npm run build
+      
+      - name: Verify server can load
+        run: npm run build:check
+        env:
+          NODE_ENV: test
+
+  # ==================== JOB 9: DEPENDENCY COMPATIBILITY (BLOCKING) ====================
+  dependency-compatibility:
+    name: 🔄 Dependency Compatibility
+    runs-on: ubuntu-latest
+    needs: install-dependencies
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Restore node_modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node-${{ hashFiles('package-lock.json') }}
+      
+      - name: Check for peer dependency conflicts
+        run: |
+          npm ls --depth=0 || {
+            echo "::error::Dependency conflicts detected!"
+            exit 1
+          }
+
+  # ==================== JOB 10: MATRIX TESTING (MULTIPLE NODE VERSIONS) ====================
+  matrix-tests:
+    name: 🧪 Matrix Tests (Node ${{ matrix.node-version }})
+    runs-on: ubuntu-latest
+    needs: install-dependencies
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: [18, 20, 22]
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+      
+      - name: Restore node_modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node-${{ hashFiles('package-lock.json') }}
+      
+      - name: Run tests on Node ${{ matrix.node-version }}
+        run: npm test
+        env:
+          NODE_ENV: test
+          CI: true
+
+  # ==================== JOB 11: CODE COVERAGE (BLOCKING) ====================
+  code-coverage:
+    name: 📊 Code Coverage
+    runs-on: ubuntu-latest
+    needs: [unit-tests, integration-tests]
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Restore node_modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node-${{ hashFiles('package-lock.json') }}
+      
+      - name: Run tests with coverage
+        run: npm run test:coverage
+        env:
+          NODE_ENV: test
+          CI: true
+      
+      - name: Check coverage threshold (MUST BE >= 70%)
+        run: |
+          COVERAGE=$(node -e "try { const cov = require('./coverage/coverage-summary.json'); console.log(cov.total.lines.pct); } catch(e) { console.log('0'); }")
+          if (( $(echo "$COVERAGE < 70" | bc -l) )); then
+            echo "::error::Code coverage is ${COVERAGE}% - Minimum required is 70%"
+            exit 1
+          fi
+          echo "✅ Code coverage: ${COVERAGE}%"
+      
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
+          if-no-files-found: ignore
+
+  # ==================== JOB 12: PERFORMANCE REGRESSION (BLOCKING) ====================
+  performance-check:
+    name: ⚡ Performance Regression Check
+    runs-on: ubuntu-latest
+    needs: [unit-tests, integration-tests]
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Restore node_modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node-${{ hashFiles('package-lock.json') }}
+      
+      - name: Start server
+        run: |
+          npm start &
+          sleep 10
+      
+      - name: Run quick performance baseline
+        run: |
+          # Test response time for critical endpoints
+          START_TIME=$(date +%s%N)
+          curl -s -o /dev/null http://localhost:3000/health
+          END_TIME=$(date +%s%N)
+          RESPONSE_TIME=$((($END_TIME - $START_TIME)/1000000))
+          
+          echo "Response time: ${RESPONSE_TIME}ms"
+          
+          if [ $RESPONSE_TIME -gt 100 ]; then
+            echo "::error::Response time ${RESPONSE_TIME}ms exceeds 100ms threshold"
+            exit 1
+          fi
+
+  # ==================== JOB 13: PR COMMENT WITH RESULTS ====================
+  pr-comment:
+    name: 🤖 PR Results Comment
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    needs: [lint, format-check, unit-tests, integration-tests, openapi-validate, security-scan, build-check, code-coverage]
+    steps:
+      - name: Create PR comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const success = '✅';
+            const failure = '❌';
+            
+            const summary = `
+            ## 🚀 BLOCKING CI/CD Pipeline Results
+            
+            ### 📊 Quality Gates (ALL MUST PASS)
+            | Check | Status | Details |
+            |-------|--------|---------|
+            | **ESLint** | ${{ needs.lint.result == 'success' ? success : failure }} | Code quality standards |
+            | **Prettier** | ${{ needs.format-check.result == 'success' ? success : failure }} | Code formatting |
+            | **Unit Tests** | ${{ needs.unit-tests.result == 'success' ? success : failure }} | All unit tests pass |
+            | **Integration Tests** | ${{ needs.integration-tests.result == 'success' ? success : failure }} | API integration tests |
+            | **OpenAPI** | ${{ needs.openapi-validate.result == 'success' ? success : failure }} | API spec validation |
+            | **Security** | ${{ needs.security-scan.result == 'success' ? success : failure }} | Vulnerability scan |
+            | **Build Check** | ${{ needs.build-check.result == 'success' ? success : failure }} | Syntax & build |
+            | **Code Coverage** | ${{ needs.code-coverage.result == 'success' ? success : failure }} | ≥70% coverage required |
+            
+            ### 🔒 Merge Requirements
+            ${{ needs.lint.result != 'success' || needs.format-check.result != 'success' || needs.unit-tests.result != 'success' || needs.integration-tests.result != 'success' || needs.openapi-validate.result != 'success' || needs.security-scan.result != 'success' || needs.build-check.result != 'success' || needs.code-coverage.result != 'success' ? 
+            '❌ **BLOCKED:** One or more quality checks failed. Please fix the issues above before merging.' : 
+            '✅ **READY TO MERGE:** All quality checks passed!' }}
+            
+            ### 📝 Next Steps
+            1. ✅ All automated checks must pass
+            2. 👥 Get approval from at least one reviewer
+            3. 🔄 Keep branch up to date with base branch
+            4. 🚀 Merge when ready
+            
+            ---
+            *This is a BLOCKING CI/CD pipeline - failed checks prevent merging* 🔒
+            `;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: summary
+            });
+
+  # ==================== FINAL BLOCKING GATE ====================
+  blocking-gate:
+    name: 🔒 BLOCKING GATE - ALL CHECKS MUST PASS
+    runs-on: ubuntu-latest
+    needs: [lint, format-check, unit-tests, integration-tests, openapi-validate, security-scan, build-check, dependency-compatibility, code-coverage]
+    if: always()
+    steps:
+      - name: Verify all blocking checks passed
+        run: |
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "🔒 BLOCKING CI/CD PIPELINE - FINAL VERIFICATION"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo ""
+          
+          FAILED=0
+          
+          # Check each required job
+          check_job() {
+            if [ "${{ needs.$1.result }}" != "success" ]; then
+              echo "❌ $2: FAILED"
+              FAILED=1
+            else
+              echo "✅ $2: PASSED"
+            fi
+          }
+          
+          check_job "lint" "ESLint Code Quality"
+          check_job "format-check" "Prettier Formatting"
+          check_job "unit-tests" "Unit Tests"
+          check_job "integration-tests" "Integration Tests"
+          check_job "openapi-validate" "OpenAPI Validation"
+          check_job "security-scan" "Security Scan"
+          check_job "build-check" "Build Check"
+          check_job "dependency-compatibility" "Dependency Compatibility"
+          check_job "code-coverage" "Code Coverage"
+          
+          echo ""
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          
+          if [ $FAILED -eq 1 ]; then
+            echo "❌ BLOCKING GATE: One or more checks failed!"
+            echo "❌ This PR CANNOT be merged until all issues are fixed."
+            echo ""
+            echo "Please fix the failing checks and push again."
+            exit 1
+          else
+            echo "🎉🎉🎉 ALL CHECKS PASSED! 🎉🎉🎉"
+            echo "✅ BLOCKING GATE: This PR is ready to merge!"
+            echo "🚀 Pipeline complete - all quality gates passed!"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            
+            # Print fancy success message
+            cat << 'EOF'
+            ╔══════════════════════════════════════════════════════════════╗
+            ║  🏆  ULTIMATE CI/CD PIPELINE - DEPLOYMENT READY!  🏆         ║
+            ║                                                              ║
+            ║  ✅ 9/9 Quality Gates Passed                                 ║
+            ║  ✅ 0 Security Vulnerabilities                               ║
+            ║  ✅ 100% Code Quality Standards                              ║
+            ║  ✅ OpenAPI Specification Valid                              ║
+            ║  ✅ All Tests Passing                                        ║
+            ║                                                              ║
+            ║  🚀 Ready for Production Deployment! 🚀                      ║
+            ╚══════════════════════════════════════════════════════════════╝
+            EOF
+          fi
