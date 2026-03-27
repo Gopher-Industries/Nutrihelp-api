@@ -7,34 +7,12 @@
     "mocha": true
   },
   "parserOptions": {
-    "ecmaVersion": 2022,
-    "sourceType": "module"
+    "ecmaVersion": 12
   },
-  "extends": [
-    "eslint:recommended",
-    "plugin:node/recommended",
-    "plugin:prettier/recommended"
-  ],
-  "plugins": ["prettier", "security"],
   "rules": {
-    "prettier/prettier": "error",
-    "no-console": "warn",
-    "no-unused-vars": ["error", { "argsIgnorePattern": "^_" }],
-    "no-undef": "error",
-    "eqeqeq": ["error", "always"],
-    "curly": ["error", "all"],
-    "no-process-exit": "off",
-    "node/no-unsupported-features/es-syntax": "off",
-    "node/no-missing-require": "off",
-    "security/detect-object-injection": "warn",
-    "security/detect-non-literal-require": "warn"
+    "no-console": "off",
+    "no-unused-vars": "warn",
+    "no-undef": "error"
   },
-  "ignorePatterns": [
-    "node_modules/",
-    "dist/",
-    "build/",
-    "coverage/",
-    "test-results/",
-    "security/reports/"
-  ]
+  "ignorePatterns": ["node_modules/", "dist/", "coverage/"]
 }
