@@ -1,0 +1,279 @@
+name: CI - NutriHelp Backend
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+      - 'feature/*'
+      - 'bugfix/*'
+      - 'hotfix/*'
+  pull_request:
+    branches:
+      - main
+      - develop
+    types: [opened, synchronize, reopened, ready_for_review]
+
+env:
+  NODE_VERSION: '20'
+  OPENAPI_FILE: 'index.yaml'
+
+jobs:
+  # Job 1: Dependency Installation (cached)
+  install-deps:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Clean install dependencies
+        run: npm ci --prefer-offline --no-audit --no-fund
+      
+      - name: Cache node_modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+
+  # Job 2: Linting (BLOCKING)
+  lint:
+    needs: install-deps
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Restore node_modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node-${{ hashFiles('package-lock.json') }}
+      
+      - name: Run ESLint
+        run: npm run lint
+      
+      - name: Upload ESLint report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eslint-report
+          path: |
+            eslint-report.json
+            eslint-report.txt
+          if-no-files-found: ignore
+
+  # Job 3: Format Check (BLOCKING)
+  format-check:
+    needs: install-deps
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Restore node_modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node-${{ hashFiles('package-lock.json') }}
+      
+      - name: Check code formatting with Prettier
+        run: npm run format:check
+      
+      - name: Show formatting issues
+        if: failure()
+        run: |
+          echo "::error::Code formatting issues found. Run 'npm run format' to fix."
+          npm run format:check -- --list-different
+
+  # Job 4: Unit Tests (BLOCKING)
+  test-unit:
+    needs: install-deps
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Restore node_modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node-${{ hashFiles('package-lock.json') }}
+      
+      - name: Run unit tests
+        run: npm run test:ci
+        env:
+          NODE_ENV: test
+          CI: true
+      
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: test-results.xml
+          if-no-files-found: ignore
+
+  # Job 5: OpenAPI Validation (BLOCKING)
+  openapi-validate:
+    needs: install-deps
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Restore node_modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node-${{ hashFiles('package-lock.json') }}
+      
+      - name: Validate OpenAPI specification
+        run: npm run openapi:validate
+      
+      - name: Validate OpenAPI file existence
+        run: |
+          if [ ! -f "${{ env.OPENAPI_FILE }}" ]; then
+            echo "::error::OpenAPI file '${{ env.OPENAPI_FILE }}' not found at repository root!"
+            exit 1
+          fi
+      
+      - name: Additional OpenAPI checks
+        run: |
+          echo "Running additional OpenAPI validations..."
+          npx swagger-cli validate ${{ env.OPENAPI_FILE }} --verbose
+          npx swagger-cli bundle ${{ env.OPENAPI_FILE }} --type yaml > /dev/null 2>&1 || {
+            echo "::error::OpenAPI bundling failed - check for duplicate operation IDs or invalid references"
+            exit 1
+          }
+
+  # Job 6: Security Scan (BLOCKING for PRs)
+  security-scan:
+    needs: install-deps
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Restore node_modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node-${{ hashFiles('package-lock.json') }}
+      
+      - name: Run npm audit for security vulnerabilities
+        run: |
+          npm audit --audit-level=moderate || {
+            echo "::warning::Security vulnerabilities found. Run 'npm audit fix' to address them."
+            exit 1
+          }
+      
+      - name: Run Snyk security scan
+        uses: snyk/actions/node@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=high
+        continue-on-error: true
+
+  # Job 7: Build Check (BLOCKING)
+  build-check:
+    needs: install-deps
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Restore node_modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node-${{ hashFiles('package-lock.json') }}
+      
+      - name: Verify server starts without errors
+        run: |
+          timeout 30s node server.js &
+          SERVER_PID=$!
+          sleep 10
+          if ps -p $SERVER_PID > /dev/null; then
+            echo "Server started successfully"
+            kill $SERVER_PID
+            exit 0
+          else
+            echo "::error::Server failed to start or crashed"
+            exit 1
+          fi
+        env:
+          NODE_ENV: test
+          CI: true
+
+  # Job 8: Dependency Check (BLOCKING)
+  dependency-check:
+    needs: install-deps
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Check for outdated dependencies
+        run: |
+          npm outdated || {
+            echo "::warning::Outdated dependencies found. Consider updating packages."
+          }
+      
+      - name: Check for unused dependencies
+        run: |
+          npx depcheck --ignores="eslint,prettier,mocha,chai" || true
+
+  # Final Status Check - Aggregates all blocking jobs
+  ci-success:
+    needs: [lint, format-check, test-unit, openapi-validate, security-scan, build-check]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Check all jobs succeeded
+        run: |
+          if [ "${{ needs.lint.result }}" != "success" ] || \
+             [ "${{ needs.format-check.result }}" != "success" ] || \
+             [ "${{ needs.test-unit.result }}" != "success" ] || \
+             [ "${{ needs.openapi-validate.result }}" != "success" ] || \
+             [ "${{ needs.security-scan.result }}" != "success" ] || \
+             [ "${{ needs.build-check.result }}" != "success" ]; then
+            echo "::error::CI pipeline failed. Please check the failing jobs above."
+            exit 1
+          fi
+          echo "✅ All CI checks passed successfully!"

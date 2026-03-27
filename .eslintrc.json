@@ -1,0 +1,36 @@
+{
+    "root": true,
+    "env": {
+      "es2021": true,
+      "node": true,
+      "browser": true,
+      "mocha": true
+    },
+    "parserOptions": {
+      "ecmaVersion": 2022,
+      "sourceType": "module"
+    },
+    "extends": [
+      "eslint:recommended",
+      "plugin:node/recommended",
+      "plugin:prettier/recommended"
+    ],
+    "plugins": ["prettier"],
+    "rules": {
+      "prettier/prettier": "error",
+      "no-console": "warn",
+      "no-unused-vars": ["error", { "argsIgnorePattern": "^_" }],
+      "no-undef": "error",
+      "eqeqeq": ["error", "always"],
+      "curly": ["error", "all"],
+      "node/no-unsupported-features/es-syntax": "off"
+    },
+    "ignorePatterns": [
+      "node_modules/",
+      "dist/",
+      "build/",
+      "coverage/",
+      "test-results/",
+      "security/reports/"
+    ]
+  }
