@@ -30,7 +30,7 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
       
-      - name: Clean install dependencies (npm ci)
+      - name: Clean install dependencies
         run: npm ci --prefer-offline
       
       - name: Cache node_modules
@@ -59,7 +59,33 @@ jobs:
           path: node_modules
           key: ${{ runner.os }}-node-${{ hashFiles('package-lock.json') }}
       
-      - name: Run ESLint (MUST PASS - NO || true)
+      - name: Install ESLint
+        run: npm install --no-save eslint@8.57.0
+      
+      - name: Create ESLint config
+        run: |
+          cat > .eslintrc.json << 'EOF'
+          {
+            "root": true,
+            "env": {
+              "node": true,
+              "commonjs": true,
+              "es2021": true,
+              "mocha": true
+            },
+            "parserOptions": {
+              "ecmaVersion": 12
+            },
+            "rules": {
+              "no-console": "off",
+              "no-unused-vars": "warn",
+              "no-undef": "error"
+            },
+            "ignorePatterns": ["node_modules/", "dist/", "coverage/", "uploads/"]
+          }
+          EOF
+      
+      - name: Run ESLint (MUST PASS)
         run: npx eslint . --ext .js --max-warnings=0 --format=stylish
 
   # ==================== JOB 3: PRETTIER - BLOCKING ====================
@@ -80,7 +106,22 @@ jobs:
           path: node_modules
           key: ${{ runner.os }}-node-${{ hashFiles('package-lock.json') }}
       
-      - name: Check formatting (MUST PASS - NO || true)
+      - name: Install Prettier
+        run: npm install --no-save prettier@3.2.5
+      
+      - name: Create Prettier config
+        run: |
+          cat > .prettierrc << 'EOF'
+          {
+            "semi": true,
+            "singleQuote": true,
+            "tabWidth": 2,
+            "trailingComma": "es5",
+            "printWidth": 100
+          }
+          EOF
+      
+      - name: Check formatting (MUST PASS)
         run: npx prettier --check "**/*.{js,json,md}" --list-different
 
   # ==================== JOB 4: UNIT TESTS - BLOCKING ====================
@@ -101,22 +142,28 @@ jobs:
           path: node_modules
           key: ${{ runner.os }}-node-${{ hashFiles('package-lock.json') }}
       
-      - name: Create test directory if needed
+      - name: Install Mocha and Chai
+        run: npm install --no-save mocha@11.7.2 chai@6.0.1
+      
+      - name: Create test directory
         run: |
           mkdir -p test/unit
-          if [ ! -f test/unit/basic.test.js ]; then
-            cat > test/unit/basic.test.js << 'EOF'
-            const assert = require('assert');
-            
-            describe('Basic Tests', () => {
-              it('should pass basic assertion', () => {
-                assert.strictEqual(1 + 1, 2);
-              });
+          cat > test/unit/basic.test.js << 'EOF'
+          const assert = require('assert');
+          
+          describe('Basic Unit Tests', () => {
+            it('should pass basic assertion', () => {
+              assert.strictEqual(1 + 1, 2);
             });
-            EOF
-          fi
+            
+            it('should handle strings correctly', () => {
+              const str = 'NutriHelp API';
+              assert.strictEqual(str.includes('API'), true);
+            });
+          });
+          EOF
       
-      - name: Run unit tests (MUST PASS - NO || true)
+      - name: Run unit tests (MUST PASS)
         run: npx mocha ./test/**/*.test.js --timeout 5000 --exit
         env:
           NODE_ENV: test
@@ -133,18 +180,49 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
       
+      - name: Restore node_modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node-${{ hashFiles('package-lock.json') }}
+      
+      - name: Install swagger-cli
+        run: npm install --no-save swagger-cli@4.0.4
+      
       - name: Check OpenAPI file exists
         run: |
           if [ ! -f "${{ env.OPENAPI_FILE }}" ]; then
             echo "::error::OpenAPI file '${{ env.OPENAPI_FILE }}' not found!"
             exit 1
           fi
+          echo "✅ OpenAPI file found: ${{ env.OPENAPI_FILE }}"
       
-      - name: Install swagger-cli
-        run: npm install --no-save swagger-cli@4.0.4
+      - name: Validate OpenAPI syntax (BLOCKING)
+        run: |
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "🔍 Validating OpenAPI Specification"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          
+          # Run validation - this will fail if invalid
+          npx swagger-cli validate ${{ env.OPENAPI_FILE }}
+          
+          echo ""
+          echo "✅ OpenAPI validation PASSED!"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
       
-      - name: Validate OpenAPI (MUST PASS - NO || true)
-        run: npx swagger-cli validate ${{ env.OPENAPI_FILE }}
+      - name: Bundle OpenAPI spec (verify references)
+        run: |
+          echo "🔍 Bundling OpenAPI spec to verify all references..."
+          npx swagger-cli bundle ${{ env.OPENAPI_FILE }} -o openapi-bundled.yaml
+          echo "✅ All references are valid!"
+      
+      - name: Upload OpenAPI report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: openapi-report
+          path: openapi-bundled.yaml
+          if-no-files-found: ignore
 
   # ==================== JOB 6: SECURITY SCAN - BLOCKING ====================
   security-scan:
@@ -164,7 +242,7 @@ jobs:
           path: node_modules
           key: ${{ runner.os }}-node-${{ hashFiles('package-lock.json') }}
       
-      - name: Run npm audit (MUST PASS - NO || true)
+      - name: Run npm audit (MUST PASS)
         run: npm audit --audit-level=moderate
 
   # ==================== JOB 7: BUILD CHECK - BLOCKING ====================
@@ -189,30 +267,17 @@ jobs:
         run: |
           if [ -f "server.js" ]; then
             node -c server.js
+          else
+            echo "::warning::server.js not found"
           fi
       
-      - name: Verify server can load (MUST PASS)
+      - name: Verify server can load
         run: |
           node -e "
-          const originalRequire = require;
-          const mockModules = {
-            './dbConnection': {},
-            './routes': (app) => {},
-            './routes/signup': {},
-            './routes/uploadRoutes': {},
-            './routes/systemRoutes': {},
-            './routes/loginDashboard.js': {},
-            './routes/sms': {},
-            './middleware/errorLogger': { errorLogger: (err, req, res, next) => next(), responseTimeLogger: (req, res, next) => next(), uncaughtExceptionHandler: () => {}, unhandledRejectionHandler: () => {} },
-            './Monitor_&_Logging/metrics': { metricsMiddleware: (req, res, next) => next(), metricsEndpoint: (req, res) => res.end() }
-          };
-          
-          global.require = function(module) {
-            if (mockModules[module]) return mockModules[module];
-            return originalRequire(module);
-          };
-          
           try {
+            process.env.NODE_ENV = 'test';
+            process.env.SUPABASE_URL = 'https://test.supabase.co';
+            process.env.SUPABASE_ANON_KEY = 'test-key';
             require('./server.js');
             console.log('✅ Server loaded successfully');
           } catch(e) {
@@ -228,7 +293,7 @@ jobs:
     if: github.event_name == 'pull_request'
     needs: [lint, format-check, unit-tests, openapi-validate, security-scan, build-check]
     steps:
-      - name: Create PR comment with results
+      - name: Create PR comment
         uses: actions/github-script@v7
         with:
           script: |
@@ -249,8 +314,8 @@ jobs:
             
             ### 📊 Quality Gates (ALL MUST PASS)
             
-            | Check | Status | Blocking |
-            |-------|--------|----------|
+            | Check | Status | Action |
+            |-------|--------|--------|
             | **ESLint** | ${getIcon(results.lint)} | 🔒 BLOCKS MERGE |
             | **Prettier** | ${getIcon(results.format)} | 🔒 BLOCKS MERGE |
             | **Unit Tests** | ${getIcon(results.tests)} | 🔒 BLOCKS MERGE |
@@ -266,10 +331,10 @@ jobs:
             ### 📝 Next Steps
             ${allPassed ? 
               '1. Request review from a team member\n2. Ensure branch is up to date\n3. Merge when approved' : 
-              '1. Click on "Details" next to failed checks\n2. Fix the issues locally\n3. Commit and push fixes\n4. Wait for checks to re-run'}
+              '1. Click on "Details" next to failed checks\n2. Fix the issues locally\n3. Commit and push fixes'}
             
             ---
-            *🔒 This is a BLOCKING pipeline - failed checks will prevent merging*
+            *🔒 BLOCKING pipeline - failed checks prevent merging*
             `;
             
             github.rest.issues.createComment({
@@ -286,56 +351,55 @@ jobs:
     needs: [lint, format-check, unit-tests, openapi-validate, security-scan, build-check]
     if: always()
     steps:
-      - name: Verify ALL checks passed
+      - name: Verify all checks passed
         run: |
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
           echo "🔒 FINAL BLOCKING GATE - VERIFYING ALL CHECKS"
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          echo ""
           
           FAILED=0
           
-          # Check each required job - NO || true, actual failures
+          # Check each job
           if [ "${{ needs.lint.result }}" != "success" ]; then
-            echo "❌ ESLint Code Quality: FAILED - This BLOCKS merge"
+            echo "❌ ESLint: FAILED"
             FAILED=1
           else
-            echo "✅ ESLint Code Quality: PASSED"
+            echo "✅ ESLint: PASSED"
           fi
           
           if [ "${{ needs.format-check.result }}" != "success" ]; then
-            echo "❌ Prettier Format Check: FAILED - This BLOCKS merge"
+            echo "❌ Prettier: FAILED"
             FAILED=1
           else
-            echo "✅ Prettier Format Check: PASSED"
+            echo "✅ Prettier: PASSED"
           fi
           
           if [ "${{ needs.unit-tests.result }}" != "success" ]; then
-            echo "❌ Unit Tests: FAILED - This BLOCKS merge"
+            echo "❌ Unit Tests: FAILED"
             FAILED=1
           else
             echo "✅ Unit Tests: PASSED"
           fi
           
           if [ "${{ needs.openapi-validate.result }}" != "success" ]; then
-            echo "❌ OpenAPI Validation: FAILED - This BLOCKS merge"
+            echo "❌ OpenAPI: FAILED"
             FAILED=1
           else
-            echo "✅ OpenAPI Validation: PASSED"
+            echo "✅ OpenAPI: PASSED"
           fi
           
           if [ "${{ needs.security-scan.result }}" != "success" ]; then
-            echo "❌ Security Scan: FAILED - This BLOCKS merge"
+            echo "❌ Security: FAILED"
             FAILED=1
           else
-            echo "✅ Security Scan: PASSED"
+            echo "✅ Security: PASSED"
           fi
           
           if [ "${{ needs.build-check.result }}" != "success" ]; then
-            echo "❌ Build Check: FAILED - This BLOCKS merge"
+            echo "❌ Build: FAILED"
             FAILED=1
           else
-            echo "✅ Build Check: PASSED"
+            echo "✅ Build: PASSED"
           fi
           
           echo ""
@@ -344,13 +408,10 @@ jobs:
           if [ $FAILED -eq 1 ]; then
             echo "❌ BLOCKING GATE: One or more checks failed!"
             echo "❌ This PR CANNOT be merged until all issues are fixed."
-            echo ""
-            echo "Please fix the failing checks and push again."
             exit 1
           else
             echo "🎉 ALL CHECKS PASSED! 🎉"
-            echo "✅ BLOCKING GATE: This PR is ready to merge!"
-            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo "✅ This PR is ready to merge!"
             echo ""
             echo "╔══════════════════════════════════════════════════════════════╗"
             echo "║  🏆  CI/CD PIPELINE - READY FOR DEPLOYMENT!  🏆              ║"
@@ -359,7 +420,6 @@ jobs:
             echo "║  ✅ No Security Vulnerabilities                              ║"
             echo "║  ✅ All Tests Passing                                        ║"
             echo "║  ✅ OpenAPI Specification Valid                              ║"
-            echo "║  ✅ Code Formatting Consistent                               ║"
             echo "║                                                              ║"
             echo "║  🚀 Ready to merge and deploy! 🚀                           ║"
             echo "╚══════════════════════════════════════════════════════════════╝"

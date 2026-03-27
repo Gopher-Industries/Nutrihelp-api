@@ -13,6 +13,7 @@
     "format": "prettier --write \"**/*.{js,json,md}\"",
     "format:check": "prettier --check \"**/*.{js,json,md}\"",
     "openapi:validate": "swagger-cli validate index.yaml",
+    "openapi:bundle": "swagger-cli bundle index.yaml -o openapi-bundled.yaml",
     "security:audit": "npm audit --audit-level=moderate",
     "build": "node -c server.js",
     "validate": "npm run lint && npm run format:check && npm test && npm run openapi:validate && npm run security:audit"
