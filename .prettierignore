@@ -1,8 +1,9 @@
 node_modules/
 dist/
-build/
 coverage/
-test-results/
-security/reports/
-*.log
-package-lock.json
+uploads/
+logs/
+jwt package.json
+jwt routes.js
+jwt server.js
+jwt users.js

@@ -11,29 +11,53 @@ const router = express.Router();
 
 // Canonical allergen keys (12 common)
 const CANON = [
-  'milk', 'egg', 'peanut', 'tree_nut',
-  'soy', 'wheat_gluten', 'fish', 'shellfish',
-  'sesame', 'mustard', 'celery', 'sulphite'
+  'milk',
+  'egg',
+  'peanut',
+  'tree_nut',
+  'soy',
+  'wheat_gluten',
+  'fish',
+  'shellfish',
+  'sesame',
+  'mustard',
+  'celery',
+  'sulphite',
 ];
 
 // Synonyms / triggers mapped to canonical keys
 const SYNONYMS = [
   // milk / dairy
-  { re: /\b(milk|dairy|cream|whey|casein|lactose|butter|ghee|yogurt|cheese|kefir)\b/i, canon: 'milk' },
+  {
+    re: /\b(milk|dairy|cream|whey|casein|lactose|butter|ghee|yogurt|cheese|kefir)\b/i,
+    canon: 'milk',
+  },
   // eggs
   { re: /\b(egg|albumin|ovalbumin|ovomucoid|mayonnaise)\b/i, canon: 'egg' },
   // peanuts
   { re: /\b(peanut|groundnut|arachis)\b/i, canon: 'peanut' },
   // tree nuts
-  { re: /\b(almond|hazelnut|walnut|pecan|cashew|pistachio|brazil nut|macadamia|pine nut|praline|marzipan)\b/i, canon: 'tree_nut' },
+  {
+    re: /\b(almond|hazelnut|walnut|pecan|cashew|pistachio|brazil nut|macadamia|pine nut|praline|marzipan)\b/i,
+    canon: 'tree_nut',
+  },
   // soy
   { re: /\b(soy|soya|tofu|edamame|tempeh|soybean|shoyu|miso|lecithin\s*e322)\b/i, canon: 'soy' },
   // gluten/wheat
-  { re: /\b(wheat|gluten|barley|rye|spelt|kamut|farro|semolina|malt|seitan|bulgur|couscous)\b/i, canon: 'wheat_gluten' },
+  {
+    re: /\b(wheat|gluten|barley|rye|spelt|kamut|farro|semolina|malt|seitan|bulgur|couscous)\b/i,
+    canon: 'wheat_gluten',
+  },
   // fish
-  { re: /\b(cod|salmon|tuna|haddock|anchovy|sardine|mackerel|trout|pollock|fish\s*sauce)\b/i, canon: 'fish' },
+  {
+    re: /\b(cod|salmon|tuna|haddock|anchovy|sardine|mackerel|trout|pollock|fish\s*sauce)\b/i,
+    canon: 'fish',
+  },
   // shellfish / crustaceans / molluscs
-  { re: /\b(shrimp|prawn|lobster|crab|crayfish|scampi|clam|mussel|oyster|squid|cuttlefish|octopus)\b/i, canon: 'shellfish' },
+  {
+    re: /\b(shrimp|prawn|lobster|crab|crayfish|scampi|clam|mussel|oyster|squid|cuttlefish|octopus)\b/i,
+    canon: 'shellfish',
+  },
   // sesame
   { re: /\b(sesame|tahini|benne)\b/i, canon: 'sesame' },
   // mustard
@@ -85,7 +109,7 @@ function normalizeUserAllergens(userAllergens = []) {
     if (/\b(nut|tree\s*nut)\b/.test(t)) return 'tree_nut';
     return null;
   };
-  userAllergens.forEach(a => {
+  userAllergens.forEach((a) => {
     const canon = mapGuess(a);
     if (canon) result.add(canon);
   });
@@ -109,10 +133,10 @@ router.get('/common', (req, res) => {
     sesame: 'Sesame',
     mustard: 'Mustard',
     celery: 'Celery',
-    sulphite: 'Sulphites'
+    sulphite: 'Sulphites',
   };
   res.json({
-    allergens: CANON.map(k => ({ key: k, label: labels[k] }))
+    allergens: CANON.map((k) => ({ key: k, label: labels[k] })),
   });
 });
 
@@ -134,23 +158,24 @@ router.post('/check', (req, res) => {
       const matched = matchIngredients(ingredientList); // { canon: [{ingredient, trigger}] }
       // If user allergens are provided, filter to those. Otherwise return all matched.
       const keys = Object.keys(matched);
-      const filteredKeys = userCanon.length
-        ? keys.filter(k => userCanon.includes(k))
-        : keys;
+      const filteredKeys = userCanon.length ? keys.filter((k) => userCanon.includes(k)) : keys;
 
       return {
         itemName,
-        warnings: filteredKeys.map(k => ({
+        warnings: filteredKeys.map((k) => ({
           allergen: k,
-          occurrences: matched[k]   // [{ingredient, trigger}]
-        }))
+          occurrences: matched[k], // [{ingredient, trigger}]
+        })),
       };
     };
 
     let result = [];
     if (Array.isArray(items) && items.length) {
       result = items.map((it, i) =>
-        buildWarningBlock(norm(it.name) || `Item ${i + 1}`, Array.isArray(it.ingredients) ? it.ingredients : [])
+        buildWarningBlock(
+          norm(it.name) || `Item ${i + 1}`,
+          Array.isArray(it.ingredients) ? it.ingredients : []
+        )
       );
     } else {
       // Single batch mode
@@ -159,18 +184,18 @@ router.post('/check', (req, res) => {
 
     // Flatten to build summary set
     const summarySet = new Set();
-    result.forEach(block => {
-      block.warnings.forEach(w => summarySet.add(w.allergen));
+    result.forEach((block) => {
+      block.warnings.forEach((w) => summarySet.add(w.allergen));
     });
 
     res.json({
       ok: true,
-      userAllergens: userCanon,        // normalized filter (if any)
+      userAllergens: userCanon, // normalized filter (if any)
       summary: {
         hasRisk: summarySet.size > 0,
-        allergens: Array.from(summarySet)
+        allergens: Array.from(summarySet),
       },
-      result
+      result,
     });
   } catch (err) {
     console.error('[allergy/check] error:', err);

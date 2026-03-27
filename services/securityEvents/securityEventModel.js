@@ -6,13 +6,13 @@
 const SecurityEvent = {
   // Core identifiers
   id: null,
-  occurredAt: null,        // ISO timestamp
-  type: null,              // SecurityEventType
-  severity: null,          // LOW | MEDIUM | HIGH
+  occurredAt: null, // ISO timestamp
+  type: null, // SecurityEventType
+  severity: null, // LOW | MEDIUM | HIGH
 
   // Correlation (Week 8)
   correlationId: null,
-  confidence: null,        // 0.0 – 1.0
+  confidence: null, // 0.0 – 1.0
 
   // Actor context
   actor: {

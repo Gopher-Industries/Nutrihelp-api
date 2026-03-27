@@ -20,7 +20,7 @@ async function testSecurityAssessmentsTable() {
       .from('security_assessments')
       .select('*')
       .limit(1);
-    
+
     if (queryError) {
       console.error('Query Error:', queryError);
     } else {
@@ -31,24 +31,25 @@ async function testSecurityAssessmentsTable() {
     console.log('\n2. Testing INSERT...');
     let { data: insertData, error: insertError } = await supabase
       .from('security_assessments')
-      .insert([{
-        timestamp: new Date().toISOString(),
-        overall_score: 75,
-        total_checks: 8,
-        passed_checks: 6,
-        failed_checks: 1,
-        warnings: 1,
-        critical_issues: 0,
-        risk_level: 'low',
-        detailed_results: { test: 'connection_test' }
-      }]);
-    
+      .insert([
+        {
+          timestamp: new Date().toISOString(),
+          overall_score: 75,
+          total_checks: 8,
+          passed_checks: 6,
+          failed_checks: 1,
+          warnings: 1,
+          critical_issues: 0,
+          risk_level: 'low',
+          detailed_results: { test: 'connection_test' },
+        },
+      ]);
+
     if (insertError) {
       console.error('Insert Error:', insertError);
     } else {
       console.log('Insert successful:', insertData);
     }
-
   } catch (err) {
     console.error('Connection failed:', err.message);
   }

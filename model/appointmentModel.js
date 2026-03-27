@@ -1,9 +1,9 @@
-const supabase = require("../dbConnection.js");
+const supabase = require('../dbConnection.js');
 
 async function addAppointment(userId, date, time, description) {
   try {
     let { data, error } = await supabase
-      .from("appointments")
+      .from('appointments')
       .insert({ user_id: userId, date, time, description });
     return data;
   } catch (error) {
@@ -26,7 +26,7 @@ async function addAppointmentModelV2({
 }) {
   try {
     const { data, error } = await supabase
-      .from("appointments")
+      .from('appointments')
       .insert({
         user_id: userId,
         title,
@@ -52,22 +52,11 @@ async function addAppointmentModelV2({
 
 async function updateAppointmentModel(
   id,
-  {
-    title,
-    doctor,
-    type,
-    date,
-    time,
-    location,
-    address,
-    phone,
-    notes,
-    reminder,
-  },
+  { title, doctor, type, date, time, location, address, phone, notes, reminder }
 ) {
   try {
     const { data, error } = await supabase
-      .from("appointments")
+      .from('appointments')
       .update({
         title,
         doctor,
@@ -80,7 +69,7 @@ async function updateAppointmentModel(
         notes,
         reminder,
       })
-      .eq("id", id)
+      .eq('id', id)
       .select()
       .single();
 
@@ -94,9 +83,9 @@ async function updateAppointmentModel(
 async function deleteAppointmentById(id) {
   try {
     const { data, error } = await supabase
-      .from("appointments")
+      .from('appointments')
       .delete()
-      .eq("id", id)
+      .eq('id', id)
       .select()
       .single();
 

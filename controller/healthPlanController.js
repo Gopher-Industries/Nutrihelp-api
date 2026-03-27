@@ -4,10 +4,9 @@
 // const fetch = require("node-fetch");
 
 // [TEMP-DB-OFF] keep import for easy revert; safe to leave unused
-const supabase = require("../dbConnection.js");
+const supabase = require('../dbConnection.js');
 
-const AI_BASE =
-  process.env.AI_BASE_URL || "http://localhost:8000/ai-model/medical-report";
+const AI_BASE = process.env.AI_BASE_URL || 'http://localhost:8000/ai-model/medical-report';
 
 // ---------- helpers ----------
 const toNum = (x) => {
@@ -18,28 +17,28 @@ const toNum = (x) => {
 const normGender = (v) => {
   if (v == null) return undefined;
   const s = String(v).trim().toLowerCase();
-  if (["m", "male"].includes(s)) return "male";
-  if (["f", "female"].includes(s)) return "female";
-  if (["prefer_not_to_say", "prefer not to say", "na", "n/a"].includes(s)) {
-    return "prefer_not_to_say";
+  if (['m', 'male'].includes(s)) return 'male';
+  if (['f', 'female'].includes(s)) return 'female';
+  if (['prefer_not_to_say', 'prefer not to say', 'na', 'n/a'].includes(s)) {
+    return 'prefer_not_to_say';
   }
-  return "other";
+  return 'other';
 };
 
 function pick(src, keys) {
   if (!src) return undefined;
   for (const k of keys) {
-    if (src[k] !== undefined && src[k] !== null && src[k] !== "") return src[k];
+    if (src[k] !== undefined && src[k] !== null && src[k] !== '') return src[k];
   }
   return undefined;
 }
 
 /** Build the minimal survey (AI HealthSurvey): { gender, age, height, weight } */
 function buildHealthSurvey(survey) {
-  const gender = normGender(pick(survey, ["Gender", "gender"]));
-  const age = toNum(pick(survey, ["Age", "age"]));
-  const height = toNum(pick(survey, ["Height", "height"]));
-  const weight = toNum(pick(survey, ["Weight", "weight"]));
+  const gender = normGender(pick(survey, ['Gender', 'gender']));
+  const age = toNum(pick(survey, ['Age', 'age']));
+  const height = toNum(pick(survey, ['Height', 'height']));
+  const weight = toNum(pick(survey, ['Weight', 'weight']));
 
   const out = {};
   if (gender != null) out.gender = gender;
@@ -52,25 +51,25 @@ function buildHealthSurvey(survey) {
 
 /** Extract & validate health_goal from survey_data (days_per_week required) */
 function buildHealthGoalFromSurvey(survey) {
-  const dpwRaw = pick(survey, ["days_per_week", "daysPerWeek", "DaysPerWeek"]);
+  const dpwRaw = pick(survey, ['days_per_week', 'daysPerWeek', 'DaysPerWeek']);
   const dpw = Number(dpwRaw);
   if (!Number.isInteger(dpw) || dpw < 0 || dpw > 7) {
-    return { error: "survey_data.days_per_week must be an integer 0–7" };
+    return { error: 'survey_data.days_per_week must be an integer 0–7' };
   }
 
   const out = { days_per_week: dpw };
 
-  const twRaw = pick(survey, ["target_weight", "targetWeight", "TargetWeight"]);
+  const twRaw = pick(survey, ['target_weight', 'targetWeight', 'TargetWeight']);
   if (twRaw !== undefined) {
     const tw = Number(twRaw);
-    if (!(tw > 0)) return { error: "survey_data.target_weight must be > 0 if provided" };
+    if (!(tw > 0)) return { error: 'survey_data.target_weight must be > 0 if provided' };
     out.target_weight = tw;
   }
 
-  const wpRaw = pick(survey, ["workout_place", "workoutPlace", "WorkoutPlace"]);
+  const wpRaw = pick(survey, ['workout_place', 'workoutPlace', 'WorkoutPlace']);
   if (wpRaw !== undefined) {
     const wp = String(wpRaw).trim().toLowerCase();
-    if (!["home", "gym"].includes(wp)) {
+    if (!['home', 'gym'].includes(wp)) {
       return { error: "survey_data.workout_place must be 'home' or 'gym' if provided" };
     }
     out.workout_place = wp;
@@ -103,11 +102,11 @@ function buildHealthGoalFromSurvey(survey) {
 
 function derivePlanGoal(weekly) {
   if (!Array.isArray(weekly) || weekly.length === 0) return null;
-  const all = weekly.map((w) => (w?.focus || "").trim()).filter(Boolean);
+  const all = weekly.map((w) => (w?.focus || '').trim()).filter(Boolean);
   if (all.length === 0) return null;
   const first = all[0];
   const allSame = all.every((x) => x === first);
-  return allSame ? first : "Mixed";
+  return allSame ? first : 'Mixed';
 }
 
 /**
@@ -124,10 +123,10 @@ const generateWeeklyPlan = async (req, res) => {
 
   try {
     if (!body.medical_report) {
-      return res.status(400).json({ error: "Missing medical_report in request" });
+      return res.status(400).json({ error: 'Missing medical_report in request' });
     }
     if (!body.survey_data) {
-      return res.status(400).json({ error: "Missing survey_data in request" });
+      return res.status(400).json({ error: 'Missing survey_data in request' });
     }
 
     // health goal
@@ -152,8 +151,8 @@ const generateWeeklyPlan = async (req, res) => {
 
     // call AI
     const aiResponse = await fetch(`${AI_BASE}/plan/generate`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
 
@@ -167,14 +166,14 @@ const generateWeeklyPlan = async (req, res) => {
 
     if (!aiResponse.ok) {
       return res.status(aiResponse.status).json({
-        error: "AI server error",
-        detail: typeof result === "string" ? result : result?.detail || result,
+        error: 'AI server error',
+        detail: typeof result === 'string' ? result : result?.detail || result,
       });
     }
 
     if (!result.weekly_plan) {
       return res.status(502).json({
-        error: "AI server did not return weekly_plan",
+        error: 'AI server did not return weekly_plan',
         message: result,
       });
     }
@@ -218,7 +217,7 @@ const generateWeeklyPlan = async (req, res) => {
     // Return AI result only (no DB persistence while TEMP-DB-OFF is active)
     return res.status(200).json({
       plan_id: null, // [TEMP-DB-OFF] no DB id
-      suggestion: result.suggestion || "",
+      suggestion: result.suggestion || '',
       weekly_plan: result.weekly_plan,
       progress_analysis: result.progress_analysis ?? null,
       // optional: echo derived goal/length for FE convenience
@@ -226,8 +225,8 @@ const generateWeeklyPlan = async (req, res) => {
       length: Array.isArray(result.weekly_plan) ? result.weekly_plan.length : null,
     });
   } catch (err) {
-    console.error("[healthPlanController] Unexpected error:", err);
-    return res.status(500).json({ error: "Internal server error" });
+    console.error('[healthPlanController] Unexpected error:', err);
+    return res.status(500).json({ error: 'Internal server error' });
   }
 };
 

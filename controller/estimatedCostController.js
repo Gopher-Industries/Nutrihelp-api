@@ -5,30 +5,34 @@ const getCost = async (req, res) => {
   var { desired_servings, exclude_ids } = req.query;
 
   try {
-    if (!desired_servings) { 
-      desired_servings = 0; 
+    if (!desired_servings) {
+      desired_servings = 0;
     }
-    if (!exclude_ids) { 
-      exclude_ids = ""; 
+    if (!exclude_ids) {
+      exclude_ids = '';
     }
 
-    const result = await getFullorPartialCost.estimateCost(recipe_id, desired_servings, exclude_ids);
-    
+    const result = await getFullorPartialCost.estimateCost(
+      recipe_id,
+      desired_servings,
+      exclude_ids
+    );
+
     if (result.status != 200) {
       return res.status(result.status).json({
-        error: result.error
+        error: result.error,
       });
     }
 
     return res.status(200).json(result.estimatedCost);
   } catch (error) {
-    console.error("Error in estimation process: ", error);
+    console.error('Error in estimation process: ', error);
     return res.status(500).json({
-      error: "Internal server error"
-    })
+      error: 'Internal server error',
+    });
   }
-}
+};
 
 module.exports = {
-  getCost
-}
+  getCost,
+};

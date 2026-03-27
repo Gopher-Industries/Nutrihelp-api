@@ -6,7 +6,7 @@ const loginLimiter = rateLimit({
   max: 20,
   message: {
     status: 429,
-    error: "Too many login attempts, please try again after 10 minutes.",
+    error: 'Too many login attempts, please try again after 10 minutes.',
   },
   standardHeaders: true,
   legacyHeaders: false,
@@ -18,7 +18,7 @@ const signupLimiter = rateLimit({
   max: 10,
   message: {
     status: 429,
-    error: "Too many signup attempts, please try again later.",
+    error: 'Too many signup attempts, please try again later.',
   },
   standardHeaders: true,
   legacyHeaders: false,
@@ -30,7 +30,7 @@ const formLimiter = rateLimit({
   max: 20,
   message: {
     status: 429,
-    error: "Too many form submissions from this IP, please try again after an hour.",
+    error: 'Too many form submissions from this IP, please try again after an hour.',
   },
   standardHeaders: true,
   legacyHeaders: false,

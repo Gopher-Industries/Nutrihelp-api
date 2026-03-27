@@ -33,7 +33,7 @@ function normalizeResult({ stdout, stderr, exitCode, timedOut, scriptPath }) {
       stderr,
       exitCode,
       timedOut,
-      data: parsedPayload
+      data: parsedPayload,
     };
   }
 
@@ -56,8 +56,8 @@ function normalizeResult({ stdout, stderr, exitCode, timedOut, scriptPath }) {
         success: true,
         prediction: trimmedStdout,
         confidence: null,
-        error: null
-      }
+        error: null,
+      },
     };
   }
 
@@ -74,7 +74,7 @@ function normalizeResult({ stdout, stderr, exitCode, timedOut, scriptPath }) {
     stderr,
     exitCode,
     timedOut,
-    data: null
+    data: null,
   };
 }
 
@@ -85,13 +85,13 @@ function executePythonScript({
   timeoutMs = DEFAULT_TIMEOUT_MS,
   cwd = process.cwd(),
   env = process.env,
-  pythonCommand = env.PYTHON_BIN || DEFAULT_PYTHON_COMMAND
+  pythonCommand = env.PYTHON_BIN || DEFAULT_PYTHON_COMMAND,
 }) {
   return new Promise((resolve) => {
     const pythonProcess = spawn(pythonCommand, [scriptPath, ...args], {
       cwd,
       env,
-      stdio: ['pipe', 'pipe', 'pipe']
+      stdio: ['pipe', 'pipe', 'pipe'],
     });
 
     let stdout = '';
@@ -125,7 +125,7 @@ function executePythonScript({
         stderr: stderr ? `${stderr}\n${error.message}` : error.message,
         exitCode: null,
         timedOut: false,
-        data: null
+        data: null,
       });
     });
 
@@ -137,7 +137,7 @@ function executePythonScript({
         stderr,
         exitCode,
         timedOut,
-        scriptPath
+        scriptPath,
       });
 
       if (timedOut) {
@@ -158,5 +158,5 @@ function executePythonScript({
 module.exports = {
   DEFAULT_TIMEOUT_MS,
   DEFAULT_PYTHON_COMMAND,
-  executePythonScript
+  executePythonScript,
 };

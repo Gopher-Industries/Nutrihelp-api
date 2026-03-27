@@ -28,6 +28,7 @@ node test/createTestUser.js
 ```
 
 This script will:
+
 - Check if a user with ID 1 already exists
 - If not, try to create a user with ID 1
 - If unable to set ID as 1, create a user with auto-generated ID
@@ -35,6 +36,7 @@ This script will:
 ### Solution 2: Use Dynamic User Creation
 
 The modified test code now uses the `getOrCreateTestUserForShoppingList()` function, which will:
+
 - First look for existing test users
 - If none found, automatically create a new test user
 - Return the real user ID for testing
@@ -48,6 +50,7 @@ node test/checkDatabaseStatus.js
 ```
 
 This script will:
+
 - Test database connection
 - Check the status of the users table
 - Verify if a user with ID 1 exists
@@ -97,10 +100,13 @@ Ensure your database has the following structure:
 ## FAQ
 
 ### Q: Why can't I directly set user ID to 1?
+
 A: This depends on your database configuration. If using auto-increment primary keys, you may not be able to manually set the ID.
 
 ### Q: How do I know which user ID to use?
+
 A: Use the `checkDatabaseStatus.js` script to view existing users, or use `createTestUser.js` to create a new user.
 
 ### Q: Do I need to delete the test user after testing?
+
 A: It's recommended to delete it to avoid test data pollution. The modified test code will handle this automatically.

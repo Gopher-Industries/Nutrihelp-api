@@ -1,8 +1,6 @@
 const { body } = require('express-validator');
 
-const sendValidator = [
-  body('email').isEmail().withMessage('Valid email is required'),
-];
+const sendValidator = [body('email').isEmail().withMessage('Valid email is required')];
 
 const verifyValidator = [
   body('email').isEmail().withMessage('Valid email is required'),

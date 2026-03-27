@@ -2,16 +2,14 @@ const supabase = require('../dbConnection.js');
 
 async function addHistory(user_id, user_input, chatbot_response) {
   try {
-    const { data, error } = await supabase
-      .from('chat_history')
-      .insert([
-        {
-          user_id,
-          user_input,
-          chatbot_response,
-          timestamp: new Date().toISOString()
-        }
-      ]);
+    const { data, error } = await supabase.from('chat_history').insert([
+      {
+        user_id,
+        user_input,
+        chatbot_response,
+        timestamp: new Date().toISOString(),
+      },
+    ]);
 
     if (error) throw error;
     return data;
@@ -39,10 +37,7 @@ async function getHistory(user_id) {
 
 async function deleteHistory(user_id) {
   try {
-    const { data, error } = await supabase
-      .from('chat_history')
-      .delete()
-      .eq('user_id', user_id);
+    const { data, error } = await supabase.from('chat_history').delete().eq('user_id', user_id);
 
     if (error) throw error;
     return data;

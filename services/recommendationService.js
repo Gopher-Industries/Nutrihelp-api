@@ -1,10 +1,7 @@
 const supabase = require('../dbConnection');
 const fetchUserPreferences = require('../model/fetchUserPreferences');
 const getUserProfile = require('../model/getUserProfile');
-const {
-  AI_ADAPTER_VERSION,
-  resolveAiRecommendationSignals
-} = require('./recommendationAiAdapter');
+const { AI_ADAPTER_VERSION, resolveAiRecommendationSignals } = require('./recommendationAiAdapter');
 
 const DEFAULT_MAX_RESULTS = 5;
 const DEFAULT_CACHE_TTL_MS = 5 * 60 * 1000;
@@ -17,7 +14,10 @@ function stableStringify(value) {
   }
 
   if (value && typeof value === 'object') {
-    return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${stableStringify(value[key])}`).join(',')}}`;
+    return `{${Object.keys(value)
+      .sort()
+      .map((key) => `${JSON.stringify(key)}:${stableStringify(value[key])}`)
+      .join(',')}}`;
   }
 
   return JSON.stringify(value);
@@ -33,25 +33,31 @@ function unique(arr) {
 
 function normalizeNameList(items) {
   const normalizedItems = Array.isArray(items) ? items : [];
-  return unique(normalizedItems.map((item) => {
-    if (!item) return null;
-    if (typeof item === 'string') return item.trim().toLowerCase();
-    return item.name ? String(item.name).trim().toLowerCase() : null;
-  }));
+  return unique(
+    normalizedItems.map((item) => {
+      if (!item) return null;
+      if (typeof item === 'string') return item.trim().toLowerCase();
+      return item.name ? String(item.name).trim().toLowerCase() : null;
+    })
+  );
 }
 
 function normalizeIdList(items) {
   const normalizedItems = Array.isArray(items) ? items : [];
-  return unique(normalizedItems.map((item) => {
-    if (item == null) return null;
-    if (typeof item === 'number') return Number.isInteger(item) && item > 0 ? item : null;
-    if (typeof item === 'string' && /^[1-9]\d*$/.test(item.trim())) return Number(item.trim());
-    if (typeof item === 'object' && item.id != null) {
-      if (typeof item.id === 'number') return Number.isInteger(item.id) && item.id > 0 ? item.id : null;
-      if (typeof item.id === 'string' && /^[1-9]\d*$/.test(item.id.trim())) return Number(item.id.trim());
-    }
-    return null;
-  }));
+  return unique(
+    normalizedItems.map((item) => {
+      if (item == null) return null;
+      if (typeof item === 'number') return Number.isInteger(item) && item > 0 ? item : null;
+      if (typeof item === 'string' && /^[1-9]\d*$/.test(item.trim())) return Number(item.trim());
+      if (typeof item === 'object' && item.id != null) {
+        if (typeof item.id === 'number')
+          return Number.isInteger(item.id) && item.id > 0 ? item.id : null;
+        if (typeof item.id === 'string' && /^[1-9]\d*$/.test(item.id.trim()))
+          return Number(item.id.trim());
+      }
+      return null;
+    })
+  );
 }
 
 function safeNumber(value) {
@@ -71,17 +77,13 @@ function normalizeHealthGoals(healthGoals) {
       prioritizeProtein: false,
       prioritizeFiber: false,
       limitSugar: false,
-      limitSodium: false
+      limitSodium: false,
     };
   }
 
   const labels = Array.isArray(healthGoals)
     ? normalizeNameList(healthGoals)
-    : normalizeNameList([
-        ...(healthGoals.labels || []),
-        healthGoals.primaryGoal,
-        healthGoals.goal
-      ]);
+    : normalizeNameList([...(healthGoals.labels || []), healthGoals.primaryGoal, healthGoals.goal]);
 
   return {
     labels,
@@ -91,7 +93,7 @@ function normalizeHealthGoals(healthGoals) {
     prioritizeProtein: Boolean(healthGoals.prioritizeProtein),
     prioritizeFiber: Boolean(healthGoals.prioritizeFiber),
     limitSugar: Boolean(healthGoals.limitSugar),
-    limitSodium: Boolean(healthGoals.limitSodium)
+    limitSodium: Boolean(healthGoals.limitSodium),
   };
 }
 
@@ -112,7 +114,9 @@ async function fetchRecentRecipeIds(userId) {
 async function fetchCandidateRecipes(limit = 50) {
   const { data, error } = await supabase
     .from('recipes')
-    .select('id, recipe_name, cuisine_id, cooking_method_id, total_servings, preparation_time, calories, fat, carbohydrates, protein, fiber, sodium, sugar, allergy, dislike')
+    .select(
+      'id, recipe_name, cuisine_id, cooking_method_id, total_servings, preparation_time, calories, fat, carbohydrates, protein, fiber, sodium, sugar, allergy, dislike'
+    )
     .limit(limit);
 
   if (error) {
@@ -227,7 +231,10 @@ function scoreRecipe(recipe, context) {
     recipeId: recipe.id,
     title: recipe.recipe_name,
     score,
-    explanation: buildExplanation(reasons, 'fallback recommendation based on available nutrition data'),
+    explanation: buildExplanation(
+      reasons,
+      'fallback recommendation based on available nutrition data'
+    ),
     metadata: {
       cuisineId: recipe.cuisine_id,
       cookingMethodId: recipe.cooking_method_id,
@@ -238,7 +245,7 @@ function scoreRecipe(recipe, context) {
         sugar,
         sodium,
         fat,
-        carbohydrates
+        carbohydrates,
       },
       preparationTime: recipe.preparation_time ?? null,
       totalServings: recipe.total_servings ?? null,
@@ -246,14 +253,14 @@ function scoreRecipe(recipe, context) {
       sourceTags: unique([
         context.aiSource,
         context.strategy,
-        ...(context.aiExplanationTags || [])
+        ...(context.aiExplanationTags || []),
       ]),
       explanationMetadata: {
         aiApplied: context.aiApplied,
         fallbackUsed: context.fallbackUsed,
-        adapterFailed: context.adapterFailed
-      }
-    }
+        adapterFailed: context.adapterFailed,
+      },
+    },
   };
 }
 
@@ -276,7 +283,7 @@ function getCachedRecommendation(key) {
 function setCachedRecommendation(key, value, ttlMs = DEFAULT_CACHE_TTL_MS) {
   recommendationCache.set(key, {
     expiresAt: Date.now() + ttlMs,
-    value
+    value,
   });
 }
 
@@ -293,24 +300,25 @@ async function generateRecommendations({
   medicalReport = null,
   aiAdapterInput = null,
   maxResults = DEFAULT_MAX_RESULTS,
-  refreshCache = false
+  refreshCache = false,
 }) {
   if (!userId) {
     throw new Error('userId is required');
   }
 
-  const normalizedMaxResults = maxResults == null
-    ? DEFAULT_MAX_RESULTS
-    : Math.max(1, Math.min(maxResults, 20));
+  const normalizedMaxResults =
+    maxResults == null ? DEFAULT_MAX_RESULTS : Math.max(1, Math.min(maxResults, 20));
   const goalState = normalizeHealthGoals(healthGoals);
   const aiContext = await resolveAiRecommendationSignals({
     aiInsights,
     medicalReport,
-    aiAdapterInput
+    aiAdapterInput,
   });
   const effectiveDietaryConstraints = {
-    dietaryRequirementIds: normalizeIdList(dietaryConstraints.dietaryRequirementIds || dietaryConstraints.dietary_requirements),
-    allergyIds: normalizeIdList(dietaryConstraints.allergyIds || dietaryConstraints.allergies)
+    dietaryRequirementIds: normalizeIdList(
+      dietaryConstraints.dietaryRequirementIds || dietaryConstraints.dietary_requirements
+    ),
+    allergyIds: normalizeIdList(dietaryConstraints.allergyIds || dietaryConstraints.allergies),
   };
 
   const cacheKey = buildCacheKey({
@@ -319,7 +327,7 @@ async function generateRecommendations({
     goalState,
     effectiveDietaryConstraints,
     aiContext,
-    normalizedMaxResults
+    normalizedMaxResults,
   });
 
   if (!refreshCache) {
@@ -329,8 +337,8 @@ async function generateRecommendations({
         ...cached,
         cache: {
           ...cached.cache,
-          hit: true
-        }
+          hit: true,
+        },
       };
     }
   }
@@ -339,7 +347,7 @@ async function generateRecommendations({
     email ? getUserProfile(email) : Promise.resolve([]),
     fetchUserPreferences(userId),
     fetchRecentRecipeIds(userId),
-    fetchCandidateRecipes(100)
+    fetchCandidateRecipes(100),
   ]);
 
   const profile = Array.isArray(profileRows) ? profileRows[0] || null : profileRows || null;
@@ -351,24 +359,26 @@ async function generateRecommendations({
     dislikes: normalizeNameList(preferenceData.dislikes),
     healthConditions: normalizeNameList(preferenceData.health_conditions),
     spiceLevels: normalizeNameList(preferenceData.spice_levels),
-    cookingMethods: normalizeNameList(preferenceData.cooking_methods)
+    cookingMethods: normalizeNameList(preferenceData.cooking_methods),
   };
 
   const mergedGoalState = {
     ...goalState,
-    prioritizeFiber: goalState.prioritizeFiber
-      || aiContext.hints.prioritizeFiber === true
-      || preferenceSummary.healthConditions.some((condition) => condition.includes('diabetes')),
+    prioritizeFiber:
+      goalState.prioritizeFiber ||
+      aiContext.hints.prioritizeFiber === true ||
+      preferenceSummary.healthConditions.some((condition) => condition.includes('diabetes')),
     prioritizeProtein: goalState.prioritizeProtein || aiContext.hints.prioritizeProtein === true,
-    limitSugar: goalState.limitSugar
-      || aiContext.hints.limitSugar === true
-      || preferenceSummary.healthConditions.some((condition) => condition.includes('diabetes')),
-    limitSodium: goalState.limitSodium
-      || preferenceSummary.healthConditions.some((condition) => condition.includes('hypertension') || condition.includes('blood pressure')),
-    labels: unique([
-      ...goalState.labels,
-      ...(normalizeNameList(aiContext.hints.goalLabels))
-    ])
+    limitSugar:
+      goalState.limitSugar ||
+      aiContext.hints.limitSugar === true ||
+      preferenceSummary.healthConditions.some((condition) => condition.includes('diabetes')),
+    limitSodium:
+      goalState.limitSodium ||
+      preferenceSummary.healthConditions.some(
+        (condition) => condition.includes('hypertension') || condition.includes('blood pressure')
+      ),
+    labels: unique([...goalState.labels, ...normalizeNameList(aiContext.hints.goalLabels)]),
   };
 
   const scoringContext = {
@@ -383,7 +393,7 @@ async function generateRecommendations({
     aiApplied: aiContext.source !== 'none',
     fallbackUsed: aiContext.fallbackUsed,
     adapterFailed: aiContext.adapterFailed,
-    aiExplanationTags: normalizeNameList(aiContext.hints.explanationTags)
+    aiExplanationTags: normalizeNameList(aiContext.hints.explanationTags),
   };
 
   const recommendations = candidateRecipes
@@ -393,7 +403,7 @@ async function generateRecommendations({
     .slice(0, normalizedMaxResults)
     .map((item, index) => ({
       rank: index + 1,
-      ...item
+      ...item,
     }));
 
   const response = {
@@ -403,7 +413,7 @@ async function generateRecommendations({
     cache: {
       key: cacheKey,
       hit: false,
-      ttlMs: DEFAULT_CACHE_TTL_MS
+      ttlMs: DEFAULT_CACHE_TTL_MS,
     },
     source: {
       strategy: 'hybrid_rule_based',
@@ -413,21 +423,21 @@ async function generateRecommendations({
         applied: aiContext.source !== 'none',
         fallbackUsed: aiContext.fallbackUsed,
         adapterFailed: aiContext.adapterFailed,
-        warnings: aiContext.warnings || []
-      }
+        warnings: aiContext.warnings || [],
+      },
     },
     input: {
       userId,
       healthGoals: mergedGoalState,
       dietaryConstraints: effectiveDietaryConstraints,
-      maxResults: normalizedMaxResults
+      maxResults: normalizedMaxResults,
     },
     userContext: {
       profile,
       preferences: preferenceSummary,
-      recentRecipeIds
+      recentRecipeIds,
     },
-    recommendations
+    recommendations,
   };
 
   setCachedRecommendation(cacheKey, response);
@@ -438,5 +448,5 @@ module.exports = {
   DEFAULT_CACHE_TTL_MS,
   RECOMMENDATION_RESPONSE_VERSION,
   clearRecommendationCache,
-  generateRecommendations
+  generateRecommendations,
 };

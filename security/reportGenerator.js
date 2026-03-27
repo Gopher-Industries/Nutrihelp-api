@@ -6,12 +6,12 @@ class SecurityReportGenerator {
     this.reportDir = path.join(process.cwd(), 'security/reports');
   }
 
-/**
- * Generate security report
- */
+  /**
+   * Generate security report
+   */
   async generateReport(assessmentResults) {
     await this.ensureReportDirectory();
-    
+
     const reportData = {
       ...assessmentResults,
       generated_by: 'NutriHelp Security Assessment Tool',
@@ -19,7 +19,7 @@ class SecurityReportGenerator {
       report_format: 'v1',
       recommendations: this.generateRecommendations(assessmentResults),
       risk_level: this.calculateRiskLevel(assessmentResults),
-      compliance_status: this.checkCompliance(assessmentResults)
+      compliance_status: this.checkCompliance(assessmentResults),
     };
 
     // Generate reports in multiple formats
@@ -27,7 +27,7 @@ class SecurityReportGenerator {
       this.generateJSONReport(reportData),
       this.generateHTMLReport(reportData),
       this.generateMarkdownReport(reportData),
-      this.generateCSVSummary(reportData)
+      this.generateCSVSummary(reportData),
     ]);
 
     return reportData;
@@ -40,7 +40,7 @@ class SecurityReportGenerator {
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const filename = `security-report-${timestamp}.json`;
     const filepath = path.join(this.reportDir, filename);
-    
+
     await fs.writeFile(filepath, JSON.stringify(reportData, null, 2));
     console.log(`📄 JSON report generated: ${filename}`);
     return filename;
@@ -53,7 +53,7 @@ class SecurityReportGenerator {
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const filename = `security-report-${timestamp}.html`;
     const filepath = path.join(this.reportDir, filename);
-    
+
     const html = this.generateHTMLContent(reportData);
     await fs.writeFile(filepath, html);
     console.log(`📄 HTML report generated: ${filename}`);
@@ -67,7 +67,7 @@ class SecurityReportGenerator {
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const filename = `security-report-${timestamp}.md`;
     const filepath = path.join(this.reportDir, filename);
-    
+
     const markdown = this.generateMarkdownContent(reportData);
     await fs.writeFile(filepath, markdown);
     console.log(`📄 Markdown report generated: ${filename}`);
@@ -81,7 +81,7 @@ class SecurityReportGenerator {
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const filename = `security-summary-${timestamp}.csv`;
     const filepath = path.join(this.reportDir, filename);
-    
+
     const csv = this.generateCSVContent(reportData);
     await fs.writeFile(filepath, csv);
     console.log(`📄 CSV summary generated: ${filename}`);
@@ -93,8 +93,12 @@ class SecurityReportGenerator {
    */
   generateHTMLContent(reportData) {
     const riskColor = this.getRiskColor(reportData.risk_level);
-    const scoreColor = reportData.overall_score >= 80 ? '#28a745' : 
-                      reportData.overall_score >= 60 ? '#ffc107' : '#dc3545';
+    const scoreColor =
+      reportData.overall_score >= 80
+        ? '#28a745'
+        : reportData.overall_score >= 60
+          ? '#ffc107'
+          : '#dc3545';
 
     return `
 <!DOCTYPE html>
@@ -160,31 +164,47 @@ class SecurityReportGenerator {
 
         <h2>🔍 Security Check Details</h2>
         <div class="check-grid">
-            ${Object.entries(reportData.checks).map(([name, check]) => `
+            ${Object.entries(reportData.checks)
+              .map(
+                ([name, check]) => `
                 <div class="check-card status-${check.status}">
                     <h3>${this.formatCheckName(name)}</h3>
                     <p><strong>Status:</strong> ${check.status.toUpperCase()}</p>
                     <p><strong>Message:</strong> ${check.message}</p>
                     ${check.severity ? `<p><strong>Severity:</strong> <span class="severity-${check.severity}">${check.severity.toUpperCase()}</span></p>` : ''}
-                    ${check.recommendations ? `
+                    ${
+                      check.recommendations
+                        ? `
                         <div><strong>Recommendations:</strong>
-                            <ul>${check.recommendations.map(rec => `<li>${rec}</li>`).join('')}</ul>
+                            <ul>${check.recommendations.map((rec) => `<li>${rec}</li>`).join('')}</ul>
                         </div>
-                    ` : ''}
+                    `
+                        : ''
+                    }
                 </div>
-            `).join('')}
+            `
+              )
+              .join('')}
         </div>
 
-        ${reportData.recommendations.length > 0 ? `
+        ${
+          reportData.recommendations.length > 0
+            ? `
             <div class="recommendations">
                 <h2>📋 Priority Recommendations</h2>
-                ${reportData.recommendations.map(rec => `
+                ${reportData.recommendations
+                  .map(
+                    (rec) => `
                     <div class="recommendation-item">
                         <strong>${rec.priority}:</strong> ${rec.description}
                     </div>
-                `).join('')}
+                `
+                  )
+                  .join('')}
             </div>
-        ` : ''}
+        `
+            : ''
+        }
 
         <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #ddd; text-align: center; color: #666;">
             <p>Generated by NutriHelp Security Assessment Tool v1.0.0</p>
@@ -216,26 +236,42 @@ class SecurityReportGenerator {
 
 ## 🔍 Detailed Results
 
-${Object.entries(reportData.checks).map(([name, check]) => `
+${Object.entries(reportData.checks)
+  .map(
+    ([name, check]) => `
 ### ${this.formatCheckName(name)}
 
 - **Status:** ${check.status.toUpperCase()}
 - **Message:** ${check.message}
 ${check.severity ? `- **Severity:** ${check.severity.toUpperCase()}` : ''}
-${check.recommendations ? `
+${
+  check.recommendations
+    ? `
 - **Recommendations:**
-${check.recommendations.map(rec => `  - ${rec}`).join('\n')}` : ''}
+${check.recommendations.map((rec) => `  - ${rec}`).join('\n')}`
+    : ''
+}
 
-`).join('')}
+`
+  )
+  .join('')}
 
-${reportData.recommendations.length > 0 ? `
+${
+  reportData.recommendations.length > 0
+    ? `
 ## 📋 Priority Recommendations
 
-${reportData.recommendations.map(rec => `
+${reportData.recommendations
+  .map(
+    (rec) => `
 ### ${rec.priority}
 ${rec.description}
-`).join('')}
-` : ''}
+`
+  )
+  .join('')}
+`
+    : ''
+}
 
 ---
 *Generated by NutriHelp Security Assessment Tool v1.0.0*`;
@@ -246,11 +282,13 @@ ${rec.description}
    */
   generateCSVContent(reportData) {
     const headers = 'Check Name,Status,Severity,Message,Recommendations\n';
-    const rows = Object.entries(reportData.checks).map(([name, check]) => {
-      const recommendations = check.recommendations ? check.recommendations.join('; ') : '';
-      return `"${this.formatCheckName(name)}","${check.status}","${check.severity || ''}","${check.message}","${recommendations}"`;
-    }).join('\n');
-    
+    const rows = Object.entries(reportData.checks)
+      .map(([name, check]) => {
+        const recommendations = check.recommendations ? check.recommendations.join('; ') : '';
+        return `"${this.formatCheckName(name)}","${check.status}","${check.severity || ''}","${check.message}","${recommendations}"`;
+      })
+      .join('\n');
+
     return headers + rows;
   }
 
@@ -264,24 +302,27 @@ ${rec.description}
     if (assessmentResults.critical_issues > 0) {
       recommendations.push({
         priority: 'CRITICAL',
-        description: 'Address all critical security issues immediately. These pose significant risk to the application.'
+        description:
+          'Address all critical security issues immediately. These pose significant risk to the application.',
       });
     }
-    
+
     if (assessmentResults.overall_score < 60) {
       recommendations.push({
         priority: 'HIGH',
-        description: 'Overall security score is below acceptable threshold. Implement a comprehensive security improvement plan.'
+        description:
+          'Overall security score is below acceptable threshold. Implement a comprehensive security improvement plan.',
       });
     }
-    
+
     if (assessmentResults.failed_checks > 2) {
       recommendations.push({
         priority: 'MEDIUM',
-        description: 'Multiple security checks failed. Review and address each failed check systematically.'
+        description:
+          'Multiple security checks failed. Review and address each failed check systematically.',
       });
     }
-    
+
     return recommendations;
   }
 
@@ -302,9 +343,10 @@ ${rec.description}
     const compliance = {
       owasp_top_10: assessmentResults.overall_score >= 80,
       internal_standards: assessmentResults.critical_issues === 0,
-      production_ready: assessmentResults.overall_score >= 90 && assessmentResults.critical_issues === 0
+      production_ready:
+        assessmentResults.overall_score >= 90 && assessmentResults.critical_issues === 0,
     };
-    
+
     return compliance;
   }
 
@@ -316,7 +358,7 @@ ${rec.description}
       critical: '#dc3545',
       high: '#fd7e14',
       medium: '#ffc107',
-      low: '#28a745'
+      low: '#28a745',
     };
     return colors[riskLevel] || '#6c757d';
   }
@@ -327,7 +369,7 @@ ${rec.description}
   formatCheckName(name) {
     return name
       .replace(/([A-Z])/g, ' $1')
-      .replace(/^./, str => str.toUpperCase())
+      .replace(/^./, (str) => str.toUpperCase())
       .trim();
   }
 

@@ -21,7 +21,11 @@ async function getSecurityEvents(fromDate, toDate) {
     { data: sessions, error: sessionError },
   ] = await Promise.all([
     supabase.from('auth_logs').select('*').gte('created_at', fromIso).lte('created_at', toIso),
-    supabase.from('brute_force_logs').select('*').gte('created_at', fromIso).lte('created_at', toIso),
+    supabase
+      .from('brute_force_logs')
+      .select('*')
+      .gte('created_at', fromIso)
+      .lte('created_at', toIso),
     supabase.from('user_session').select('*').gte('created_at', fromIso).lte('created_at', toIso),
   ]);
 
@@ -31,9 +35,7 @@ async function getSecurityEvents(fromDate, toDate) {
   } else if (authLogs && authLogs.length > 0) {
     for (const row of authLogs) {
       const isSuccess =
-        row.success === true ||
-        row.outcome === 'success' ||
-        row.status === 'success';
+        row.success === true || row.outcome === 'success' || row.status === 'success';
 
       events.push({
         ...SecurityEvent,

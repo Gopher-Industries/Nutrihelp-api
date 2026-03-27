@@ -18,20 +18,32 @@ function strictPositiveId(value) {
 }
 
 function normalizeIdList(items) {
-  return [...new Set((items || []).map((item) => {
-    if (item == null) return null;
-    if (typeof item === 'number' || typeof item === 'string') return strictPositiveId(item);
-    if (typeof item === 'object' && item.id != null) return strictPositiveId(item.id);
-    return null;
-  }).filter((item) => item != null))];
+  return [
+    ...new Set(
+      (items || [])
+        .map((item) => {
+          if (item == null) return null;
+          if (typeof item === 'number' || typeof item === 'string') return strictPositiveId(item);
+          if (typeof item === 'object' && item.id != null) return strictPositiveId(item.id);
+          return null;
+        })
+        .filter((item) => item != null)
+    ),
+  ];
 }
 
 function normalizeNameList(items) {
-  return [...new Set((items || []).map((item) => {
-    if (!item) return null;
-    if (typeof item === 'string') return item.trim().toLowerCase();
-    return item.name ? String(item.name).trim().toLowerCase() : null;
-  }).filter(Boolean))];
+  return [
+    ...new Set(
+      (items || [])
+        .map((item) => {
+          if (!item) return null;
+          if (typeof item === 'string') return item.trim().toLowerCase();
+          return item.name ? String(item.name).trim().toLowerCase() : null;
+        })
+        .filter(Boolean)
+    ),
+  ];
 }
 
 function normalizeAiHints(rawHints = {}) {
@@ -45,7 +57,7 @@ function normalizeAiHints(rawHints = {}) {
     prioritizeFiber: rawHints.prioritizeFiber === true,
     limitSugar: rawHints.limitSugar === true,
     limitSodium: rawHints.limitSodium === true,
-    explanationTags: normalizeNameList(rawHints.explanationTags)
+    explanationTags: normalizeNameList(rawHints.explanationTags),
   };
 }
 
@@ -53,7 +65,7 @@ function deriveHintsFromMedicalReport(medicalReport) {
   const reports = Array.isArray(medicalReport) ? medicalReport : [medicalReport];
   const hints = {
     goalLabels: [],
-    explanationTags: ['medical_report']
+    explanationTags: ['medical_report'],
   };
 
   reports.filter(Boolean).forEach((report) => {
@@ -78,7 +90,7 @@ async function resolveAiRecommendationSignals({
   medicalReport = null,
   aiAdapterInput = null,
   fetchImpl = global.fetch,
-  timeoutMs = DEFAULT_AI_TIMEOUT_MS
+  timeoutMs = DEFAULT_AI_TIMEOUT_MS,
 } = {}) {
   if (aiInsights) {
     return {
@@ -87,7 +99,7 @@ async function resolveAiRecommendationSignals({
       fallbackUsed: false,
       adapterFailed: false,
       warnings: [],
-      hints: normalizeAiHints(aiInsights)
+      hints: normalizeAiHints(aiInsights),
     };
   }
 
@@ -98,7 +110,7 @@ async function resolveAiRecommendationSignals({
       fallbackUsed: false,
       adapterFailed: false,
       warnings: [],
-      hints: deriveHintsFromMedicalReport(medicalReport)
+      hints: deriveHintsFromMedicalReport(medicalReport),
     };
   }
 
@@ -111,7 +123,7 @@ async function resolveAiRecommendationSignals({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(aiAdapterInput),
-        signal: controller.signal
+        signal: controller.signal,
       });
 
       clearTimeout(timeoutHandle);
@@ -127,7 +139,7 @@ async function resolveAiRecommendationSignals({
         fallbackUsed: false,
         adapterFailed: false,
         warnings: [],
-        hints: normalizeAiHints(payload.hints || payload)
+        hints: normalizeAiHints(payload.hints || payload),
       };
     } catch (error) {
       clearTimeout(timeoutHandle);
@@ -137,7 +149,7 @@ async function resolveAiRecommendationSignals({
         fallbackUsed: true,
         adapterFailed: true,
         warnings: [error.message],
-        hints: normalizeAiHints({})
+        hints: normalizeAiHints({}),
       };
     }
   }
@@ -149,7 +161,7 @@ async function resolveAiRecommendationSignals({
       fallbackUsed: true,
       adapterFailed: true,
       warnings: ['AI recommendation service is not configured'],
-      hints: normalizeAiHints({})
+      hints: normalizeAiHints({}),
     };
   }
 
@@ -159,12 +171,12 @@ async function resolveAiRecommendationSignals({
     fallbackUsed: true,
     adapterFailed: false,
     warnings: [],
-    hints: normalizeAiHints({})
+    hints: normalizeAiHints({}),
   };
 }
 
 module.exports = {
   AI_ADAPTER_VERSION,
   DEFAULT_AI_TIMEOUT_MS,
-  resolveAiRecommendationSignals
+  resolveAiRecommendationSignals,
 };

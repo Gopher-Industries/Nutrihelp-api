@@ -6,13 +6,13 @@ const multer = require('multer');
 const fs = require('fs');
 
 const uploadsDir = 'uploads';
-if (!fs.existsSync(uploadsDir)){
+if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
 const upload = multer({
-  dest: 'uploads/', 
-  fileFilter: (req, file, cb) => cb(null, ['image/jpeg', 'image/png'].includes(file.mimetype))
+  dest: 'uploads/',
+  fileFilter: (req, file, cb) => cb(null, ['image/jpeg', 'image/png'].includes(file.mimetype)),
 });
 
 // Define route for receiving input data and returning predictions

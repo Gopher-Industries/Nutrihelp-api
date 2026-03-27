@@ -6,7 +6,7 @@ const dotenv = require('dotenv');
 const tryPaths = [
   path.resolve(__dirname, '.env'),
   path.resolve(__dirname, '..', '.env'),
-  path.resolve(process.cwd(), '.env')
+  path.resolve(process.cwd(), '.env'),
 ];
 
 let loaded = false;
@@ -42,14 +42,14 @@ async function testErrorLogging() {
   // Testing basic error logging
   const testError = new Error('Test error logging');
   testError.code = 'TEST_ERROR';
-  
+
   try {
     await errorLogService.logError({
       error: testError,
       category: 'info',
-      type: 'system'
+      type: 'system',
     });
-    
+
     console.log('✅ Basic error logging test passed');
 
     // Testing critical error alerting
@@ -57,11 +57,10 @@ async function testErrorLogging() {
     await errorLogService.logError({
       error: criticalError,
       category: 'critical',
-      type: 'system'
+      type: 'system',
     });
-    
+
     console.log('✅ Critical error logging test passed');
-    
   } catch (error) {
     console.error('❌ Test failed:', error);
   }

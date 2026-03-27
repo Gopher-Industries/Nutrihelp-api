@@ -18,7 +18,7 @@ const predictImage = async (req, res) => {
       success: false,
       prediction: null,
       confidence: null,
-      error: 'No image uploaded. Please upload a JPEG or PNG image.'
+      error: 'No image uploaded. Please upload a JPEG or PNG image.',
     });
   }
 
@@ -30,7 +30,7 @@ const predictImage = async (req, res) => {
       success: false,
       prediction: null,
       confidence: null,
-      error: 'Image path is missing.'
+      error: 'Image path is missing.',
     });
   }
 
@@ -38,7 +38,7 @@ const predictImage = async (req, res) => {
     const imageData = await fs.promises.readFile(imagePath);
     const result = await executePythonScript({
       scriptPath: path.join(__dirname, '..', 'model', 'imageClassification.py'),
-      stdin: imageData
+      stdin: imageData,
     });
 
     if (!result.success) {
@@ -47,7 +47,7 @@ const predictImage = async (req, res) => {
         success: false,
         prediction: null,
         confidence: null,
-        error: result.error || 'Model execution failed.'
+        error: result.error || 'Model execution failed.',
       });
     }
 
@@ -55,7 +55,7 @@ const predictImage = async (req, res) => {
       success: true,
       prediction: result.prediction,
       confidence: result.confidence,
-      error: null
+      error: null,
     });
   } catch (error) {
     console.error('Error reading image file:', error);
@@ -63,7 +63,7 @@ const predictImage = async (req, res) => {
       success: false,
       prediction: null,
       confidence: null,
-      error: 'Internal server error'
+      error: 'Internal server error',
     });
   } finally {
     deleteFile(imagePath);
@@ -71,5 +71,5 @@ const predictImage = async (req, res) => {
 };
 
 module.exports = {
-  predictImage
+  predictImage,
 };

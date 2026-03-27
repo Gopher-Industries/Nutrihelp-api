@@ -18,12 +18,12 @@ if (!fs.existsSync('./uploads/temp')) {
 
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, './uploads/temp/');  
+    cb(null, './uploads/temp/');
   },
   filename: function (req, file, cb) {
     const uniquePrefix = Date.now() + '-';
     cb(null, uniquePrefix + file.originalname);
-  }
+  },
 });
 
 const fileFilter = (req, file, cb) => {
@@ -35,19 +35,19 @@ const fileFilter = (req, file, cb) => {
 };
 
 // Initialize multer upload middleware
-const upload = multer({ 
+const upload = multer({
   storage: storage,
   fileFilter: fileFilter,
   limits: {
-    fileSize: 5 * 1024 * 1024 // 5MB max file size
-  }
+    fileSize: 5 * 1024 * 1024, // 5MB max file size
+  },
 });
 
 // Define route for receiving input data and returning predictions
 router.post(
   '/',
   upload.single('image'),
-  validateRecipeImageUpload,  // 👈 validate image file
+  validateRecipeImageUpload, // 👈 validate image file
   predictionController.predictRecipeImage
 );
 

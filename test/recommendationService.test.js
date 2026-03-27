@@ -19,21 +19,21 @@ function createSupabaseStub({ recentRecipeIds = [], recipes = [] } = {}) {
           if (table === 'recipe_meal') {
             return Promise.resolve({
               data: recentRecipeIds.map((recipeId) => ({ recipe_id: recipeId })),
-              error: null
+              error: null,
             });
           }
 
           if (table === 'recipes') {
             return Promise.resolve({
               data: recipes,
-              error: null
+              error: null,
             });
           }
 
           return Promise.resolve({ data: [], error: null });
-        }
+        },
       };
-    }
+    },
   };
 }
 
@@ -56,7 +56,7 @@ describe('Recommendation Service', () => {
             fat: 14,
             carbohydrates: 40,
             allergy: false,
-            dislike: false
+            dislike: false,
           },
           {
             id: 2,
@@ -71,9 +71,9 @@ describe('Recommendation Service', () => {
             fat: 18,
             carbohydrates: 80,
             allergy: false,
-            dislike: false
-          }
-        ]
+            dislike: false,
+          },
+        ],
       }),
       '../model/fetchUserPreferences': async () => ({
         dietary_requirements: [{ id: 1, name: 'High Protein' }],
@@ -82,9 +82,11 @@ describe('Recommendation Service', () => {
         dislikes: [],
         health_conditions: [{ id: 7, name: 'Diabetes' }],
         spice_levels: [],
-        cooking_methods: [{ id: 3, name: 'Grilled' }]
+        cooking_methods: [{ id: 3, name: 'Grilled' }],
       }),
-      '../model/getUserProfile': async () => ([{ user_id: 5, email: 'user@example.com', first_name: 'Alex' }]),
+      '../model/getUserProfile': async () => [
+        { user_id: 5, email: 'user@example.com', first_name: 'Alex' },
+      ],
       './recommendationAiAdapter': {
         AI_ADAPTER_VERSION: 'v1',
         resolveAiRecommendationSignals: async () => ({
@@ -103,10 +105,10 @@ describe('Recommendation Service', () => {
             prioritizeFiber: true,
             limitSugar: true,
             limitSodium: false,
-            explanationTags: ['ranking_signal']
-          }
-        })
-      }
+            explanationTags: ['ranking_signal'],
+          },
+        }),
+      },
     });
 
     const result = await service.generateRecommendations({
@@ -114,7 +116,7 @@ describe('Recommendation Service', () => {
       email: 'user@example.com',
       healthGoals: { prioritizeProtein: true, targetCalories: 500 },
       aiInsights: { preferredCuisineIds: [10], preferredRecipeIds: [1] },
-      maxResults: 2
+      maxResults: 2,
     });
 
     expect(result.success).to.equal(true);
@@ -145,26 +147,28 @@ describe('Recommendation Service', () => {
 
               recipeQueryCount += 1;
               return Promise.resolve({
-                data: [{
-                  id: 1,
-                  recipe_name: 'Cached Meal',
-                  cuisine_id: 1,
-                  cooking_method_id: 1,
-                  calories: 450,
-                  protein: 20,
-                  fiber: 5,
-                  sugar: 5,
-                  sodium: 300,
-                  fat: 10,
-                  carbohydrates: 35,
-                  allergy: false,
-                  dislike: false
-                }],
-                error: null
+                data: [
+                  {
+                    id: 1,
+                    recipe_name: 'Cached Meal',
+                    cuisine_id: 1,
+                    cooking_method_id: 1,
+                    calories: 450,
+                    protein: 20,
+                    fiber: 5,
+                    sugar: 5,
+                    sodium: 300,
+                    fat: 10,
+                    carbohydrates: 35,
+                    allergy: false,
+                    dislike: false,
+                  },
+                ],
+                error: null,
               });
-            }
+            },
           };
-        }
+        },
       },
       '../model/fetchUserPreferences': async () => ({
         dietary_requirements: [],
@@ -173,9 +177,9 @@ describe('Recommendation Service', () => {
         dislikes: [],
         health_conditions: [],
         spice_levels: [],
-        cooking_methods: []
+        cooking_methods: [],
       }),
-      '../model/getUserProfile': async () => ([{ user_id: 8, email: 'cache@example.com' }]),
+      '../model/getUserProfile': async () => [{ user_id: 8, email: 'cache@example.com' }],
       './recommendationAiAdapter': {
         AI_ADAPTER_VERSION: 'v1',
         resolveAiRecommendationSignals: async () => ({
@@ -184,9 +188,9 @@ describe('Recommendation Service', () => {
           fallbackUsed: true,
           adapterFailed: false,
           warnings: [],
-          hints: {}
-        })
-      }
+          hints: {},
+        }),
+      },
     });
 
     service.clearRecommendationCache();
@@ -202,21 +206,23 @@ describe('Recommendation Service', () => {
   it('falls back cleanly when the AI adapter reports failure', async () => {
     const service = proxyquire('../services/recommendationService', {
       '../dbConnection': createSupabaseStub({
-        recipes: [{
-          id: 4,
-          recipe_name: 'Fallback Soup',
-          cuisine_id: 1,
-          cooking_method_id: 2,
-          calories: 350,
-          protein: 14,
-          fiber: 7,
-          sugar: 4,
-          sodium: 250,
-          fat: 8,
-          carbohydrates: 30,
-          allergy: false,
-          dislike: false
-        }]
+        recipes: [
+          {
+            id: 4,
+            recipe_name: 'Fallback Soup',
+            cuisine_id: 1,
+            cooking_method_id: 2,
+            calories: 350,
+            protein: 14,
+            fiber: 7,
+            sugar: 4,
+            sodium: 250,
+            fat: 8,
+            carbohydrates: 30,
+            allergy: false,
+            dislike: false,
+          },
+        ],
       }),
       '../model/fetchUserPreferences': async () => ({
         dietary_requirements: [],
@@ -225,9 +231,9 @@ describe('Recommendation Service', () => {
         dislikes: [],
         health_conditions: [],
         spice_levels: [],
-        cooking_methods: []
+        cooking_methods: [],
       }),
-      '../model/getUserProfile': async () => ([{ user_id: 12, email: 'fallback@example.com' }]),
+      '../model/getUserProfile': async () => [{ user_id: 12, email: 'fallback@example.com' }],
       './recommendationAiAdapter': {
         AI_ADAPTER_VERSION: 'v1',
         resolveAiRecommendationSignals: async () => ({
@@ -236,15 +242,15 @@ describe('Recommendation Service', () => {
           fallbackUsed: true,
           adapterFailed: true,
           warnings: ['AI recommendation service error: 503'],
-          hints: {}
-        })
-      }
+          hints: {},
+        }),
+      },
     });
 
     const result = await service.generateRecommendations({
       userId: 12,
       email: 'fallback@example.com',
-      aiAdapterInput: { user_id: 12 }
+      aiAdapterInput: { user_id: 12 },
     });
 
     expect(result.success).to.equal(true);
@@ -260,32 +266,34 @@ describe('Recommendation Service', () => {
 
     const service = proxyquire('../services/recommendationService', {
       '../dbConnection': createSupabaseStub({
-        recipes: [{
-          id: 4,
-          recipe_name: 'Fallback Soup',
-          cuisine_id: 1,
-          cooking_method_id: 2,
-          calories: 350,
-          protein: 14,
-          fiber: 7,
-          sugar: 4,
-          sodium: 250,
-          fat: 8,
-          carbohydrates: 30,
-          allergy: false,
-          dislike: false
-        }]
+        recipes: [
+          {
+            id: 4,
+            recipe_name: 'Fallback Soup',
+            cuisine_id: 1,
+            cooking_method_id: 2,
+            calories: 350,
+            protein: 14,
+            fiber: 7,
+            sugar: 4,
+            sodium: 250,
+            fat: 8,
+            carbohydrates: 30,
+            allergy: false,
+            dislike: false,
+          },
+        ],
       }),
       '../model/fetchUserPreferences': async () => null,
-      '../model/getUserProfile': async () => ([{ user_id: 12, email: 'fallback@example.com' }]),
-      './recommendationAiAdapter': proxyquire('../services/recommendationAiAdapter', {})
+      '../model/getUserProfile': async () => [{ user_id: 12, email: 'fallback@example.com' }],
+      './recommendationAiAdapter': proxyquire('../services/recommendationAiAdapter', {}),
     });
 
     const result = await service.generateRecommendations({
       userId: 12,
       email: 'fallback@example.com',
       dietaryConstraints: {},
-      aiAdapterInput: { user_id: 12 }
+      aiAdapterInput: { user_id: 12 },
     });
 
     process.env.AI_RECOMMENDATION_URL = originalUrl;
@@ -307,16 +315,19 @@ describe('Recommendation Service', () => {
             },
             limit() {
               if (table === 'recipe_meal') {
-                return Promise.resolve({ data: null, error: new Error('recent recipe query failed') });
+                return Promise.resolve({
+                  data: null,
+                  error: new Error('recent recipe query failed'),
+                });
               }
 
               return Promise.resolve({ data: [], error: null });
-            }
+            },
           };
-        }
+        },
       },
       '../model/fetchUserPreferences': async () => ({}),
-      '../model/getUserProfile': async () => ([{ user_id: 8, email: 'cache@example.com' }]),
+      '../model/getUserProfile': async () => [{ user_id: 8, email: 'cache@example.com' }],
       './recommendationAiAdapter': {
         AI_ADAPTER_VERSION: 'v1',
         resolveAiRecommendationSignals: async () => ({
@@ -325,14 +336,18 @@ describe('Recommendation Service', () => {
           fallbackUsed: true,
           adapterFailed: false,
           warnings: [],
-          hints: {}
-        })
-      }
+          hints: {},
+        }),
+      },
     });
 
     let caughtError = null;
     try {
-      await service.generateRecommendations({ userId: 8, email: 'cache@example.com', dietaryConstraints: {} });
+      await service.generateRecommendations({
+        userId: 8,
+        email: 'cache@example.com',
+        dietaryConstraints: {},
+      });
     } catch (error) {
       caughtError = error;
     }
@@ -344,25 +359,29 @@ describe('Recommendation Service', () => {
   it('handles multiple medical reports and combines hint derivation signals', async () => {
     const service = proxyquire('../services/recommendationService', {
       '../dbConnection': createSupabaseStub({
-        recipes: [{
-          id: 1,
-          recipe_name: 'Protein Bowl',
-          cuisine_id: 10,
-          cooking_method_id: 3,
-          calories: 520,
-          protein: 32,
-          fiber: 9,
-          sugar: 6,
-          sodium: 250,
-          fat: 14,
-          carbohydrates: 40,
-          allergy: false,
-          dislike: false
-        }]
+        recipes: [
+          {
+            id: 1,
+            recipe_name: 'Protein Bowl',
+            cuisine_id: 10,
+            cooking_method_id: 3,
+            calories: 520,
+            protein: 32,
+            fiber: 9,
+            sugar: 6,
+            sodium: 250,
+            fat: 14,
+            carbohydrates: 40,
+            allergy: false,
+            dislike: false,
+          },
+        ],
       }),
       '../model/fetchUserPreferences': async () => ({}),
-      '../model/getUserProfile': async () => ([{ user_id: 5, email: 'user@example.com', first_name: 'Alex' }]),
-      './recommendationAiAdapter': proxyquire('../services/recommendationAiAdapter', {})
+      '../model/getUserProfile': async () => [
+        { user_id: 5, email: 'user@example.com', first_name: 'Alex' },
+      ],
+      './recommendationAiAdapter': proxyquire('../services/recommendationAiAdapter', {}),
     });
 
     const result = await service.generateRecommendations({
@@ -371,8 +390,8 @@ describe('Recommendation Service', () => {
       dietaryConstraints: {},
       medicalReport: [
         { diabetes_prediction: { diabetes: true } },
-        { obesity_prediction: { obesity_level: 'Overweight' } }
-      ]
+        { obesity_prediction: { obesity_level: 'Overweight' } },
+      ],
     });
 
     expect(result.source.ai.source).to.equal('medical_report');

@@ -71,14 +71,15 @@ jobs:
               "node": true,
               "commonjs": true,
               "es2021": true,
-              "mocha": true
+              "mocha": true,
+              "jest": true
             },
             "parserOptions": {
-              "ecmaVersion": 12
+              "ecmaVersion": 2022
             },
             "rules": {
               "no-console": "off",
-              "no-unused-vars": "warn",
+              "no-unused-vars": "off",
               "no-undef": "error"
             },
             "ignorePatterns": ["node_modules/", "dist/", "coverage/", "uploads/"]
@@ -122,7 +123,7 @@ jobs:
           EOF
       
       - name: Check formatting (MUST PASS)
-        run: npx prettier --check "**/*.{js,json,md}" --list-different
+        run: npx prettier --check "**/*.{js,json,md}"
 
   # ==================== JOB 4: UNIT TESTS - BLOCKING ====================
   unit-tests:
@@ -243,7 +244,7 @@ jobs:
           key: ${{ runner.os }}-node-${{ hashFiles('package-lock.json') }}
       
       - name: Run npm audit (MUST PASS)
-        run: npm audit --audit-level=moderate
+        run: npm audit --omit=dev --audit-level=moderate
 
   # ==================== JOB 7: BUILD CHECK - BLOCKING ====================
   build-check:

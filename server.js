@@ -1,52 +1,43 @@
-require("dotenv").config();
+require('dotenv').config();
 
 //Logging & Metrics
-const {
-  metricsMiddleware,
-  metricsEndpoint,
-} = require("./Monitor_&_Logging/metrics");
+const { metricsMiddleware, metricsEndpoint } = require('./Monitor_&_Logging/metrics');
 
 // Debug environment variables
-console.log("🔧 Environment Variables Check:");
-console.log(
-  "   SUPABASE_URL:",
-  process.env.SUPABASE_URL ? "✓ Set" : "✗ Missing",
-);
-console.log(
-  "   SUPABASE_ANON_KEY:",
-  process.env.SUPABASE_ANON_KEY ? "✓ Set" : "✗ Missing",
-);
-console.log("   PORT:", process.env.PORT || "80 (default)");
-console.log("");
+console.log('🔧 Environment Variables Check:');
+console.log('   SUPABASE_URL:', process.env.SUPABASE_URL ? '✓ Set' : '✗ Missing');
+console.log('   SUPABASE_ANON_KEY:', process.env.SUPABASE_ANON_KEY ? '✓ Set' : '✗ Missing');
+console.log('   PORT:', process.env.PORT || '80 (default)');
+console.log('');
 
-const express = require("express");
-const { errorLogger, responseTimeLogger } = require("./middleware/errorLogger");
-const FRONTEND_ORIGIN = "http://localhost:3000";
+const express = require('express');
+const { errorLogger, responseTimeLogger } = require('./middleware/errorLogger');
+const FRONTEND_ORIGIN = 'http://localhost:3000';
 
-const helmet = require("helmet");
-const cors = require("cors");
-const swaggerUi = require("swagger-ui-express");
-const yaml = require("yamljs");
-const { exec } = require("child_process");
-const rateLimit = require("express-rate-limit");
-const uploadRoutes = require("./routes/uploadRoutes");
-const fs = require("fs");
-const path = require("path");
-const systemRoutes = require("./routes/systemRoutes");
-const loginDashboard = require("./routes/loginDashboard.js");
+const helmet = require('helmet');
+const cors = require('cors');
+const swaggerUi = require('swagger-ui-express');
+const { exec } = require('child_process');
+const rateLimit = require('express-rate-limit');
+const uploadRoutes = require('./routes/uploadRoutes');
+const fs = require('fs');
+const path = require('path');
+const YAML = require('yaml');
+const systemRoutes = require('./routes/systemRoutes');
+const loginDashboard = require('./routes/loginDashboard.js');
 
 // Ensure uploads directory exists
-const uploadsDir = path.join(__dirname, "uploads");
+const uploadsDir = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
-  console.log("Created uploads directory");
+  console.log('Created uploads directory');
 }
 
 // Create temp directory for uploads
-const tempDir = path.join(__dirname, "uploads", "temp");
+const tempDir = path.join(__dirname, 'uploads', 'temp');
 if (!fs.existsSync(tempDir)) {
   fs.mkdirSync(tempDir, { recursive: true });
-  console.log("Created temp uploads directory");
+  console.log('Created temp uploads directory');
 }
 
 // Cleanup temp files
@@ -60,21 +51,19 @@ function cleanupOldFiles() {
       if (now - stats.mtimeMs > ONE_DAY) fs.unlinkSync(filePath);
     }
   } catch (err) {
-    console.error("Error during file cleanup:", err);
+    console.error('Error during file cleanup:', err);
   }
 }
-cleanupOldFiles();
-setInterval(cleanupOldFiles, 3 * 60 * 60 * 1000);
 
 // ✅ Create the app BEFORE using it
 const app = express();
 const port = process.env.PORT || 80;
 
 // DB
-let db = require("./dbConnection");
+let db = require('./dbConnection');
 
 // System routes
-app.use("/api/system", systemRoutes);
+app.use('/api/system', systemRoutes);
 
 // CORS
 app.use(
@@ -83,13 +72,11 @@ app.use(
       if (!origin) return callback(null, true);
 
       if (
-        origin.startsWith("http://localhost") ||
-        origin.startsWith("http://127.0.0.1") ||
-        origin.startsWith("http://localhost") ||
-        origin.startsWith(
-          "chrome-extension://eggdlmopfankeonchoflhfoglaakobma",
-        ) ||
-        origin.startsWith("https://apifox.cn-hangzhou.log.aliyuncs.com")
+        origin.startsWith('http://localhost') ||
+        origin.startsWith('http://127.0.0.1') ||
+        origin.startsWith('http://localhost') ||
+        origin.startsWith('chrome-extension://eggdlmopfankeonchoflhfoglaakobma') ||
+        origin.startsWith('https://apifox.cn-hangzhou.log.aliyuncs.com')
       ) {
         callback(null, true);
       } else {
@@ -97,14 +84,14 @@ app.use(
       }
     },
     credentials: true,
-  }),
+  })
 );
-app.options("*", cors({ origin: FRONTEND_ORIGIN, credentials: true }));
+app.options('*', cors({ origin: FRONTEND_ORIGIN, credentials: true }));
 app.use((req, res, next) => {
-  res.header("Access-Control-Allow-Credentials", "true");
+  res.header('Access-Control-Allow-Credentials', 'true');
   next();
 });
-app.set("trust proxy", 1);
+app.set('trust proxy', 1);
 
 // Security
 app.use(
@@ -112,14 +99,14 @@ app.use(
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
-        scriptSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net"],
-        styleSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net"],
+        scriptSrc: ["'self'", "'unsafe-inline'", 'https://cdn.jsdelivr.net'],
+        styleSrc: ["'self'", "'unsafe-inline'", 'https://cdn.jsdelivr.net'],
         objectSrc: ["'none'"],
       },
     },
     crossOriginEmbedderPolicy: true,
-    referrerPolicy: { policy: "strict-origin-when-cross-origin" },
-  }),
+    referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+  })
 );
 
 // Rate Limiter
@@ -128,33 +115,33 @@ const limiter = rateLimit({
   max: 1000,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { status: 429, error: "Too many requests, please try again later." },
+  message: { status: 429, error: 'Too many requests, please try again later.' },
 });
 app.use(limiter);
 
 // Swagger
-const swaggerDocument = yaml.load("./index.yaml");
-app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+const swaggerDocument = YAML.parse(fs.readFileSync(path.join(__dirname, 'index.yaml'), 'utf8'));
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 // Response time monitoring
 app.use(responseTimeLogger);
 // JSON & URL parser
-app.use(express.json({ limit: "50mb" }));
-app.use(express.urlencoded({ limit: "50mb", extended: true }));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 //Logging & Metrics routes
 app.use(metricsMiddleware);
-app.get("/metrics", metricsEndpoint);
+app.get('/metrics', metricsEndpoint);
 
 // Main routes registrar
-const routes = require("./routes");
+const routes = require('./routes');
 routes(app);
 
 // File uploads & static
-app.use("/api", uploadRoutes);
-app.use("/uploads", express.static("uploads"));
+app.use('/api', uploadRoutes);
+app.use('/uploads', express.static('uploads'));
 
 // Signup
-app.use("/api/signup", require("./routes/signup"));
+app.use('/api/signup', require('./routes/signup'));
 
 // Error handler
 app.use(errorLogger);
@@ -162,10 +149,7 @@ app.use(errorLogger);
 // Final error handler
 app.use((err, req, res, next) => {
   const status = err.status || 500;
-  const message =
-    process.env.NODE_ENV === "production"
-      ? "Internal Server Error"
-      : err.message;
+  const message = process.env.NODE_ENV === 'production' ? 'Internal Server Error' : err.message;
 
   res.status(status).json({
     success: false,
@@ -175,24 +159,27 @@ app.use((err, req, res, next) => {
 });
 
 // Global error handler
-const {
-  uncaughtExceptionHandler,
-  unhandledRejectionHandler,
-} = require("./middleware/errorLogger");
-process.on("uncaughtException", uncaughtExceptionHandler);
-process.on("unhandledRejection", unhandledRejectionHandler);
+const { uncaughtExceptionHandler, unhandledRejectionHandler } = require('./middleware/errorLogger');
+process.on('uncaughtException', uncaughtExceptionHandler);
+process.on('unhandledRejection', unhandledRejectionHandler);
 
-// Start
-app.listen(port, async () => {
-  console.log("\n🎉 NutriHelp API launched successfully!");
-  console.log("=".repeat(50));
-  console.log(`Server is running on port ${port}`);
-  console.log(`📚 Swagger UI: http://localhost/api-docs`);
-  console.log("=".repeat(50));
-  console.log("💡 Press Ctrl+C to stop the server \n");
-  exec(`start http://localhost:${port}/api-docs`);
-});
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
+app.use('/api/sms', require('./routes/sms'));
 
-app.use(express.json({ limit: "50mb" }));
-app.use(express.urlencoded({ limit: "50mb", extended: true }));
-app.use("/api/sms", require("./routes/sms"));
+if (require.main === module) {
+  cleanupOldFiles();
+  setInterval(cleanupOldFiles, 3 * 60 * 60 * 1000);
+
+  app.listen(port, async () => {
+    console.log('\n🎉 NutriHelp API launched successfully!');
+    console.log('='.repeat(50));
+    console.log(`Server is running on port ${port}`);
+    console.log(`📚 Swagger UI: http://localhost/api-docs`);
+    console.log('='.repeat(50));
+    console.log('💡 Press Ctrl+C to stop the server \n');
+    exec(`start http://localhost:${port}/api-docs`);
+  });
+}
+
+module.exports = app;

@@ -1,8 +1,8 @@
-const supabase = require("../dbConnection.js");
+const supabase = require('../dbConnection.js');
 
 async function createServiceModel({ title, description, image, online }) {
   const { data, error } = await supabase
-    .from("nutrihelp_services")
+    .from('nutrihelp_services')
     .insert({
       title,
       description,
@@ -23,9 +23,9 @@ async function updateServiceModel(id, fields) {
   };
 
   const { data, error } = await supabase
-    .from("nutrihelp_services")
+    .from('nutrihelp_services')
     .update(updateData)
-    .eq("id", id)
+    .eq('id', id)
     .select()
     .single();
 
@@ -34,19 +34,16 @@ async function updateServiceModel(id, fields) {
 }
 
 async function deleteServiceModel(id) {
-  const { error } = await supabase
-    .from("nutrihelp_services")
-    .delete()
-    .eq("id", id);
+  const { error } = await supabase.from('nutrihelp_services').delete().eq('id', id);
 
   if (error) throw error;
 }
 
 async function addSubscribeModel({ email }) {
   const { data, error } = await supabase
-    .from("newsletter")
+    .from('newsletter')
     .insert({
-      email
+      email,
     })
     .select()
     .single();
@@ -55,4 +52,4 @@ async function addSubscribeModel({ email }) {
   return data;
 }
 
-module.exports = { createServiceModel, updateServiceModel,deleteServiceModel, addSubscribeModel };
+module.exports = { createServiceModel, updateServiceModel, deleteServiceModel, addSubscribeModel };

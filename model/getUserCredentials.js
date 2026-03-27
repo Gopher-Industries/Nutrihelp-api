@@ -4,7 +4,8 @@ async function getUserCredentials(email) {
   try {
     const { data, error } = await supabase
       .from('users')
-      .select(`
+      .select(
+        `
         user_id,
         email,
         password,
@@ -14,18 +15,19 @@ async function getUserCredentials(email) {
           id,
           role_name
         )
-      `)
+      `
+      )
       .eq('email', email.trim())
       .maybeSingle();
 
     if (error) {
-      console.error("Supabase error in getUserCredentials:", error);
+      console.error('Supabase error in getUserCredentials:', error);
       return null;
     }
 
     return data || null;
   } catch (error) {
-    console.error("getUserCredentials failed:", error);
+    console.error('getUserCredentials failed:', error);
     return null;
   }
 }

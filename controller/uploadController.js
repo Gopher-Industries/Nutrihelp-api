@@ -1,13 +1,9 @@
 const multer = require('multer');
 const { createClient } = require('@supabase/supabase-js');
 
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_ANON_KEY
-);
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
 
-
-const storage = multer.memoryStorage();  
+const storage = multer.memoryStorage();
 const upload = multer({
   storage: storage,
   limits: { fileSize: 5 * 1024 * 1024 },
@@ -18,13 +14,12 @@ const upload = multer({
     } else {
       cb(new Error('Unsupported file type'), false);
     }
-  }
+  },
 }).single('file');
-
 
 exports.uploadFile = async (req, res) => {
   const token = req.headers.authorization?.split(' ')[1];
-  
+
   if (!token) {
     return res.status(401).json({ error: 'No authorization token provided' });
   }
@@ -44,18 +39,14 @@ exports.uploadFile = async (req, res) => {
     const filePath = `files/${user_id}/${file.originalname}`;
 
     try {
-    
-      const { data, error } = await supabase.storage
-        .from('uploads')
-        .upload(filePath, file.buffer, {
-          contentType: file.mimetype,
-          cacheControl: '3600',
-        });
+      const { data, error } = await supabase.storage.from('uploads').upload(filePath, file.buffer, {
+        contentType: file.mimetype,
+        cacheControl: '3600',
+      });
 
       if (error) throw error;
 
-      const { data: urlData, error: urlError } = await supabase
-        .storage
+      const { data: urlData, error: urlError } = await supabase.storage
         .from('uploads')
         .getPublicUrl(filePath);
 
@@ -69,7 +60,7 @@ exports.uploadFile = async (req, res) => {
           file_name: file.originalname,
           file_url: fileUrl,
           upload_time: uploadTime,
-        }
+        },
       ]);
 
       if (logError) throw logError;

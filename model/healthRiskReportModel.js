@@ -1,11 +1,11 @@
 // models/healthRiskReportModel.js
-const supabase = require("../dbConnection.js");
+const supabase = require('../dbConnection.js');
 
 async function insertRiskReport(report) {
   const { data, error } = await supabase
-    .from("health_risk_reports")
+    .from('health_risk_reports')
     .insert(report)
-    .select("id")
+    .select('id')
     .single();
 
   if (error) throw error;

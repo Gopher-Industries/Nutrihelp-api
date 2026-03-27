@@ -1,6 +1,6 @@
 // rateLimiter.js
 const rateLimit = require('express-rate-limit');
- 
+
 const uploadLimiter = rateLimit({
   windowMs: 10 * 60 * 1000, // 10 minutes
   max: 3, // Limit to 3 uploads per 10 mins
@@ -11,6 +11,5 @@ const uploadLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
- 
+
 module.exports = { uploadLimiter };
- 

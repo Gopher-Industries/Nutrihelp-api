@@ -3,9 +3,7 @@
 const express = require('express');
 const router = express.Router();
 
-const {
-  exportSecurityEvents,
-} = require('../controller/securityEventsController');
+const { exportSecurityEvents } = require('../controller/securityEventsController');
 
 // GET /security/events/export
 router.get('/events/export', exportSecurityEvents);

@@ -1,5 +1,5 @@
-let { updateUser, saveImage } = require("../model/updateUserProfile.js");
-let getUser = require("../model/getUserProfile.js");
+let { updateUser, saveImage } = require('../model/updateUserProfile.js');
+let getUser = require('../model/getUserProfile.js');
 
 /**
  * Update User Profile
@@ -7,17 +7,17 @@ let getUser = require("../model/getUserProfile.js");
  * - Admins can update any profile by providing email in the body.
  */
 const updateUserProfile = async (req, res) => {
-	try {
+  try {
     const { role, email: tokenEmail } = req.user || {};
     let targetEmail = req.body.email;
 
     // Normal users must always use their own email
-    if (role !== "admin") {
+    if (role !== 'admin') {
       targetEmail = tokenEmail;
     }
 
     if (!targetEmail) {
-      return res.status(400).json({ error: "Email is required" });
+      return res.status(400).json({ error: 'Email is required' });
     }
 
     const userProfile = await updateUser(
@@ -30,7 +30,7 @@ const updateUserProfile = async (req, res) => {
     );
 
     if (!userProfile || userProfile.length === 0) {
-      return res.status(404).json({ error: "User not found" });
+      return res.status(404).json({ error: 'User not found' });
     }
 
     // If user image provided, save it and update image_url
@@ -41,8 +41,8 @@ const updateUserProfile = async (req, res) => {
 
     res.status(200).json(userProfile);
   } catch (error) {
-    console.error("Error updating user profile:", error);
-    res.status(500).json({ message: "Internal server error" });
+    console.error('Error updating user profile:', error);
+    res.status(500).json({ message: 'Internal server error' });
   }
 };
 
@@ -52,31 +52,31 @@ const updateUserProfile = async (req, res) => {
  * - Admins can fetch any profile using `?email=xxx`.
  */
 const getUserProfile = async (req, res) => {
-	try {
+  try {
     const { role, email: tokenEmail } = req.user || {};
     const { email: queryEmail } = req.query;
 
     let targetEmail = tokenEmail;
 
     // Admin can override with query email
-    if (role === "admin" && queryEmail) {
+    if (role === 'admin' && queryEmail) {
       targetEmail = queryEmail;
     }
 
     if (!targetEmail) {
-      return res.status(400).json({ error: "Email is required" });
+      return res.status(400).json({ error: 'Email is required' });
     }
 
     const userProfile = await getUser(targetEmail);
 
     if (!userProfile) {
-      return res.status(404).json({ error: "User not found" });
+      return res.status(404).json({ error: 'User not found' });
     }
 
     res.status(200).json(userProfile);
   } catch (error) {
-    console.error("Error fetching user profile:", error);
-    res.status(500).json({ message: "Internal server error" });
+    console.error('Error fetching user profile:', error);
+    res.status(500).json({ message: 'Internal server error' });
   }
 };
 

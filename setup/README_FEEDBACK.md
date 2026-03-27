@@ -31,6 +31,7 @@ node collect_feedback.js <image_path> <correct_class>
 ```
 
 Example:
+
 ```bash
 node collect_feedback.js ./uploads/sushi.jpg "sushi"
 ```
@@ -46,7 +47,7 @@ const addImageClassificationFeedback = require('./model/addImageClassificationFe
 app.post('/api/classification-feedback', async (req, res) => {
   try {
     const { user_id, image_path, predicted_class, correct_class, metadata } = req.body;
-    
+
     await addImageClassificationFeedback(
       user_id,
       image_path,
@@ -54,7 +55,7 @@ app.post('/api/classification-feedback', async (req, res) => {
       correct_class,
       metadata
     );
-    
+
     res.status(200).json({ message: 'Feedback submitted successfully' });
   } catch (error) {
     console.error('Failed to submit feedback:', error);
@@ -108,4 +109,4 @@ The feedback system stores the following information:
 
 - The database is configured to automatically clean up image data older than 90 days to save storage.
 - Regularly review the feedback data to identify trends and implement improvements.
-- Update the keyword mappings in `add_keywords.js` based on feedback analysis. 
+- Update the keyword mappings in `add_keywords.js` based on feedback analysis.

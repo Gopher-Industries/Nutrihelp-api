@@ -1,4 +1,4 @@
-const express = require("express");
+const express = require('express');
 const router = express.Router();
 const controller = require('../controller/userProfileController.js');
 const updateUserProfileController = require('../controller/updateUserProfileController.js');
@@ -23,11 +23,14 @@ router.put('/', authenticateToken, (req, res) => {
   if (req.user.role === 'admin' || req.user.userId == req.body.user_id) {
     return controller.updateUserProfile(req, res);
   }
-  return res.status(403).json({ success: false, error: 'Forbidden: You can only update your own profile' });
+  return res
+    .status(403)
+    .json({ success: false, error: 'Forbidden: You can only update your own profile' });
 });
 
 // Update profile by unique identifier (admin only)
-router.put('/update-by-identifier',
+router.put(
+  '/update-by-identifier',
   authenticateToken,
   authorizeRoles('admin'),
   updateUserProfileController.updateUserProfile

@@ -4,7 +4,7 @@ const notificationController = require('../controller/notificationController');
 const {
   validateCreateNotification,
   validateUpdateNotification,
-  validateDeleteNotification
+  validateDeleteNotification,
 } = require('../validators/notificationValidator');
 
 const validateResult = require('../middleware/validateRequest.js');
@@ -29,8 +29,8 @@ router.get(
     if (req.user.role !== 'admin' && req.user.userId != req.params.user_id) {
       return res.status(403).json({
         success: false,
-        error: "You can only view your own notifications",
-        code: "ACCESS_DENIED"
+        error: 'You can only view your own notifications',
+        code: 'ACCESS_DENIED',
       });
     }
     next();

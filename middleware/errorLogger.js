@@ -9,21 +9,23 @@ const errorLogger = (err, req, res, next) => {
   const classification = errorLogService.categorizeError(err, { req, res });
 
   // Log the error
-  errorLogService.logError({
-    error: err,
-    req,
-    res,
-    category: classification.category,
-    type: classification.type,
-    additionalContext: {
-      route: req.route?.path,
-      middleware_stack: req.route?.stack?.map(s => s.handle.name),
-      query_params: req.query,
-      path_params: req.params
-    }
-  }).catch(loggingError => {
-    console.error('Error in error logging middleware:', loggingError);
-  });
+  errorLogService
+    .logError({
+      error: err,
+      req,
+      res,
+      category: classification.category,
+      type: classification.type,
+      additionalContext: {
+        route: req.route?.path,
+        middleware_stack: req.route?.stack?.map((s) => s.handle.name),
+        query_params: req.query,
+        path_params: req.params,
+      },
+    })
+    .catch((loggingError) => {
+      console.error('Error in error logging middleware:', loggingError);
+    });
 
   next(err);
 };
@@ -40,7 +42,7 @@ const responseTimeLogger = (req, res, next) => {
     res.responseTime = responseTime;
 
     // Log slow requests
-    if (responseTime > 5000) { 
+    if (responseTime > 5000) {
       errorLogService.logError({
         error: new Error(`Slow request detected: ${responseTime}ms`),
         req,
@@ -49,12 +51,12 @@ const responseTimeLogger = (req, res, next) => {
         type: 'performance',
         additionalContext: {
           response_time_ms: responseTime,
-          slow_request: true
-        }
+          slow_request: true,
+        },
       });
     }
   });
-  
+
   next();
 };
 
@@ -68,10 +70,10 @@ const uncaughtExceptionHandler = (error) => {
     type: 'system',
     additionalContext: {
       uncaught_exception: true,
-      process_uptime: process.uptime()
-    }
+      process_uptime: process.uptime(),
+    },
   });
-  
+
   console.error('Uncaught Exception:', error);
   // Graceful shutdown
   process.exit(1);
@@ -87,10 +89,10 @@ const unhandledRejectionHandler = (reason, promise) => {
     type: 'system',
     additionalContext: {
       unhandled_rejection: true,
-      promise_state: promise
-    }
+      promise_state: promise,
+    },
   });
-  
+
   console.error('Unhandled Rejection:', reason);
 };
 
@@ -98,5 +100,5 @@ module.exports = {
   errorLogger,
   responseTimeLogger,
   uncaughtExceptionHandler,
-  unhandledRejectionHandler
+  unhandledRejectionHandler,
 };

@@ -7,14 +7,17 @@ This system automatically improves the image classification accuracy based on us
 The feedback optimization system consists of the following components:
 
 1. **Feedback Collection** (`collect_feedback.js`)
+
    - Collects user feedback on image classifications
    - Stores the feedback in the Supabase database
 
 2. **Feedback Analysis** (`analyze_feedback.js`)
+
    - Analyzes collected feedback to identify patterns
    - Provides statistics on commonly misclassified foods
 
 3. **Feedback Optimization** (`apply_feedback_improvements.js`)
+
    - Automatically applies improvements based on feedback patterns
    - Updates food mappings, keywords, and classification rules
 
@@ -74,6 +77,7 @@ This script is designed to be run on a schedule (e.g., daily or weekly) using a 
 - On Windows: Use Task Scheduler
 
 Example cron job (runs daily at 2 AM):
+
 ```
 0 2 * * * cd /path/to/Nutrihelp-api && node tools/feedback/scheduled_optimization.js >> logs/cron.log 2>&1
 ```
@@ -110,4 +114,4 @@ The system uses a semi-supervised learning approach:
 2. **Keyword Extraction**: Finding words in filenames that correlate with specific classes
 3. **Rule-Based Improvements**: Updating classification rules based on feedback patterns
 
-This approach allows for continuous improvement without requiring complex model retraining. 
+This approach allows for continuous improvement without requiring complex model retraining.

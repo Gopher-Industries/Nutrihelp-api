@@ -21,8 +21,8 @@ router.get('/dashboard', authenticateToken, (req, res) => {
     user: {
       id: req.user.userId,
       email: req.user.email,
-      role: req.user.role
-    }
+      role: req.user.role,
+    },
   });
 });
 
@@ -30,7 +30,7 @@ router.get('/health', (req, res) => {
   res.json({
     success: true,
     message: 'Auth service is running',
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   });
 });
 

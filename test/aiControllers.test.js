@@ -16,7 +16,7 @@ describe('AI Controllers', () => {
       json(payload) {
         this.payload = payload;
         return this;
-      }
+      },
     };
   }
 
@@ -34,18 +34,18 @@ describe('AI Controllers', () => {
       success: true,
       prediction: 'banana',
       confidence: 0.87,
-      error: null
+      error: null,
     });
 
     const readFileStub = sinon.stub(fs.promises, 'readFile').resolves(Buffer.from('image-data'));
     stubFileCleanup();
 
     const controller = proxyquire('../controller/imageClassificationController', {
-      '../services/aiExecutionService': { executePythonScript }
+      '../services/aiExecutionService': { executePythonScript },
     });
 
     const req = {
-      file: { path: 'uploads/test.png' }
+      file: { path: 'uploads/test.png' },
     };
     const res = createResponseMock();
 
@@ -53,14 +53,16 @@ describe('AI Controllers', () => {
 
     expect(readFileStub.calledOnce).to.equal(true);
     expect(executePythonScript.calledOnce).to.equal(true);
-    expect(executePythonScript.firstCall.args[0].scriptPath).to.match(/model\/imageClassification\.py$/);
+    expect(executePythonScript.firstCall.args[0].scriptPath).to.match(
+      /model\/imageClassification\.py$/
+    );
     expect(executePythonScript.firstCall.args[0].stdin).to.deep.equal(Buffer.from('image-data'));
     expect(res.statusCode).to.equal(200);
     expect(res.payload).to.deep.equal({
       success: true,
       prediction: 'banana',
       confidence: 0.87,
-      error: null
+      error: null,
     });
   });
 
@@ -70,32 +72,34 @@ describe('AI Controllers', () => {
       prediction: null,
       confidence: null,
       error: 'model failure',
-      timedOut: false
+      timedOut: false,
     });
 
     sinon.stub(fs.promises, 'readFile').resolves(Buffer.from('image-data'));
     stubFileCleanup();
 
     const controller = proxyquire('../controller/imageClassificationController', {
-      '../services/aiExecutionService': { executePythonScript }
+      '../services/aiExecutionService': { executePythonScript },
     });
 
     const req = {
-      file: { path: 'uploads/test.png' }
+      file: { path: 'uploads/test.png' },
     };
     const res = createResponseMock();
 
     await controller.predictImage(req, res);
 
     expect(executePythonScript.calledOnce).to.equal(true);
-    expect(executePythonScript.firstCall.args[0].scriptPath).to.match(/model\/imageClassification\.py$/);
+    expect(executePythonScript.firstCall.args[0].scriptPath).to.match(
+      /model\/imageClassification\.py$/
+    );
     expect(executePythonScript.firstCall.args[0].stdin).to.deep.equal(Buffer.from('image-data'));
     expect(res.statusCode).to.equal(500);
     expect(res.payload).to.deep.equal({
       success: false,
       prediction: null,
       confidence: null,
-      error: 'model failure'
+      error: 'model failure',
     });
   });
 
@@ -104,7 +108,7 @@ describe('AI Controllers', () => {
     stubFileCleanup();
 
     const controller = proxyquire('../controller/imageClassificationController', {
-      '../services/aiExecutionService': { executePythonScript }
+      '../services/aiExecutionService': { executePythonScript },
     });
 
     const req = {};
@@ -118,7 +122,7 @@ describe('AI Controllers', () => {
       success: false,
       prediction: null,
       confidence: null,
-      error: 'No image uploaded. Please upload a JPEG or PNG image.'
+      error: 'No image uploaded. Please upload a JPEG or PNG image.',
     });
   });
 
@@ -128,21 +132,21 @@ describe('AI Controllers', () => {
       prediction: null,
       confidence: null,
       error: 'AI script timed out after 30000ms',
-      timedOut: true
+      timedOut: true,
     });
 
     sinon.stub(fs, 'existsSync').returns(true);
     stubFileCleanup();
 
     const controller = proxyquire('../controller/recipeImageClassificationController', {
-      '../services/aiExecutionService': { executePythonScript }
+      '../services/aiExecutionService': { executePythonScript },
     });
 
     const req = {
       file: {
         path: 'uploads/temp/test.png',
-        originalname: 'test.png'
-      }
+        originalname: 'test.png',
+      },
     };
     const res = createResponseMock();
 
@@ -151,14 +155,14 @@ describe('AI Controllers', () => {
     expect(executePythonScript.calledOnce).to.equal(true);
     expect(executePythonScript.firstCall.args[0].args).to.deep.equal([
       'uploads/temp/test.png',
-      'test.png'
+      'test.png',
     ]);
     expect(res.statusCode).to.equal(504);
     expect(res.payload).to.deep.equal({
       success: false,
       prediction: null,
       confidence: null,
-      error: 'AI script timed out after 30000ms'
+      error: 'AI script timed out after 30000ms',
     });
   });
 
@@ -171,23 +175,23 @@ describe('AI Controllers', () => {
       metadata: {
         classifier_type: 'heuristic',
         decision_source: 'deterministic_fallback',
-        model_used: false
+        model_used: false,
       },
-      warnings: ['low_confidence_fallback', 'heuristic_prediction']
+      warnings: ['low_confidence_fallback', 'heuristic_prediction'],
     });
 
     sinon.stub(fs, 'existsSync').returns(true);
     stubFileCleanup();
 
     const controller = proxyquire('../controller/recipeImageClassificationController', {
-      '../services/aiExecutionService': { executePythonScript }
+      '../services/aiExecutionService': { executePythonScript },
     });
 
     const req = {
       file: {
         path: 'uploads/temp/test.png',
-        originalname: 'test.png'
-      }
+        originalname: 'test.png',
+      },
     };
     const res = createResponseMock();
 
@@ -196,7 +200,7 @@ describe('AI Controllers', () => {
     expect(executePythonScript.calledOnce).to.equal(true);
     expect(executePythonScript.firstCall.args[0].args).to.deep.equal([
       'uploads/temp/test.png',
-      'test.png'
+      'test.png',
     ]);
     expect(res.statusCode).to.equal(200);
     expect(res.payload).to.deep.equal({
@@ -207,9 +211,9 @@ describe('AI Controllers', () => {
       metadata: {
         classifier_type: 'heuristic',
         decision_source: 'deterministic_fallback',
-        model_used: false
+        model_used: false,
       },
-      warnings: ['low_confidence_fallback', 'heuristic_prediction']
+      warnings: ['low_confidence_fallback', 'heuristic_prediction'],
     });
   });
 });

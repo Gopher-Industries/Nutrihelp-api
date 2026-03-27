@@ -1,20 +1,20 @@
-const bcrypt = require("bcryptjs");
-const jwt = require("jsonwebtoken");
-const logLoginEvent = require("../Monitor_&_Logging/loginLogger");
-const getUserCredentials = require("../model/getUserCredentials.js");
-const { addMfaToken, verifyMfaToken } = require("../model/addMfaToken.js");
-const nodemailer = require("nodemailer");
-const crypto = require("crypto");
-const supabase = require("../dbConnection");
-const { validationResult } = require("express-validator");
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const logLoginEvent = require('../Monitor_&_Logging/loginLogger');
+const getUserCredentials = require('../model/getUserCredentials.js');
+const { addMfaToken, verifyMfaToken } = require('../model/addMfaToken.js');
+const nodemailer = require('nodemailer');
+const crypto = require('crypto');
+const supabase = require('../dbConnection');
+const { validationResult } = require('express-validator');
 
 // Nodemailer transporter using Gmail no-reply account
 const transporter = nodemailer.createTransport({
-  service: "gmail",
+  service: 'gmail',
   auth: {
     user: process.env.GMAIL_USER,
-    pass: process.env.GMAIL_APP_PASSWORD
-  }
+    pass: process.env.GMAIL_APP_PASSWORD,
+  },
 });
 
 const login = async (req, res) => {
@@ -26,11 +26,11 @@ const login = async (req, res) => {
   const email = req.body.email?.trim().toLowerCase();
   const password = req.body.password;
 
-  let clientIp = req.headers["x-forwarded-for"] || req.socket.remoteAddress || req.ip;
-  clientIp = clientIp === "::1" ? "127.0.0.1" : clientIp;
+  let clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.ip;
+  clientIp = clientIp === '::1' ? '127.0.0.1' : clientIp;
 
   if (!email || !password) {
-    return res.status(400).json({ error: "Email and password are required" });
+    return res.status(400).json({ error: 'Email and password are required' });
   }
 
   const tenMinutesAgoISO = new Date(Date.now() - 10 * 60 * 1000).toISOString();
@@ -38,17 +38,17 @@ const login = async (req, res) => {
   try {
     // Count failed login attempts
     const { data: failuresByEmail } = await supabase
-      .from("brute_force_logs")
-      .select("id")
-      .eq("email", email)
-      .eq("success", false)
-      .gte("created_at", tenMinutesAgoISO);
+      .from('brute_force_logs')
+      .select('id')
+      .eq('email', email)
+      .eq('success', false)
+      .gte('created_at', tenMinutesAgoISO);
 
     const failureCount = failuresByEmail?.length || 0;
 
     if (failureCount >= 10) {
       return res.status(429).json({
-        error: "❌ Too many failed login attempts. Please try again after 10 minutes."
+        error: '❌ Too many failed login attempts. Please try again after 10 minutes.',
       });
     }
 
@@ -57,48 +57,52 @@ const login = async (req, res) => {
     const userExists = user !== null && user !== undefined;
 
     if (!userExists) {
-      await supabase.from("brute_force_logs").insert([{
-        email,
-        ip_address: clientIp,
-        success: false,
-        created_at: new Date().toISOString()
-      }]);
+      await supabase.from('brute_force_logs').insert([
+        {
+          email,
+          ip_address: clientIp,
+          success: false,
+          created_at: new Date().toISOString(),
+        },
+      ]);
       await sendFailedLoginAlert(email, clientIp);
       return res.status(404).json({
-        error: "Account not found. Please create an account first."
+        error: 'Account not found. Please create an account first.',
       });
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
 
     if (!isPasswordValid) {
-      await supabase.from("brute_force_logs").insert([{
-        email,
-        ip_address: clientIp,
-        success: false,
-        created_at: new Date().toISOString()
-      }]);
+      await supabase.from('brute_force_logs').insert([
+        {
+          email,
+          ip_address: clientIp,
+          success: false,
+          created_at: new Date().toISOString(),
+        },
+      ]);
 
       if (failureCount === 4) {
         return res.status(429).json({
-          warning: "⚠ You have one attempt left before your account is temporarily locked."
+          warning: '⚠ You have one attempt left before your account is temporarily locked.',
         });
       }
 
       await sendFailedLoginAlert(email, clientIp);
-      return res.status(401).json({ error: "Invalid password" });
+      return res.status(401).json({ error: 'Invalid password' });
     }
 
     // Log successful login attempt and clear failures
-    await supabase.from("brute_force_logs").insert([{
-      email,
-      success: true,
-      created_at: new Date().toISOString()
-    }]);
+    await supabase.from('brute_force_logs').insert([
+      {
+        email,
+        success: true,
+        created_at: new Date().toISOString(),
+      },
+    ]);
 
-    await supabase.from("brute_force_logs").delete()
-      .eq("email", email)
-      .eq("success", false);
+    await supabase.from('brute_force_logs').delete().eq('email', email).eq('success', false);
 
     // MFA handling
     if (user.mfa_enabled) {
@@ -106,31 +110,30 @@ const login = async (req, res) => {
       await addMfaToken(user.user_id, token);
       await sendOtpEmail(user.email, token);
       return res.status(202).json({
-        message: "An MFA Token has been sent to your email address"
+        message: 'An MFA Token has been sent to your email address',
       });
     }
 
     await logLoginEvent({
       userId: user.user_id,
-      eventType: "LOGIN_SUCCESS",
+      eventType: 'LOGIN_SUCCESS',
       ip: clientIp,
-      userAgent: req.headers["user-agent"]
+      userAgent: req.headers['user-agent'],
     });
 
     const token = jwt.sign(
       {
         userId: user.user_id,
-        role: user.user_roles?.role_name || "unknown"
+        role: user.user_roles?.role_name || 'unknown',
       },
       process.env.JWT_TOKEN,
-      { expiresIn: "1h" }
+      { expiresIn: '1h' }
     );
 
     return res.status(200).json({ user, token });
-
   } catch (err) {
-    console.error("Login error:", err);
-    return res.status(500).json({ error: "Internal server error" });
+    console.error('Login error:', err);
+    return res.status(500).json({ error: 'Internal server error' });
   }
 };
 
@@ -145,39 +148,38 @@ const loginMfa = async (req, res) => {
   const mfa_token = req.body.mfa_token;
 
   if (!email || !password || !mfa_token) {
-    return res.status(400).json({ error: "Email, password, and token are required" });
+    return res.status(400).json({ error: 'Email, password, and token are required' });
   }
 
   try {
     const user = await getUserCredentials(email);
     if (!user) {
-      return res.status(401).json({ error: "Invalid email or password" });
+      return res.status(401).json({ error: 'Invalid email or password' });
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
-      return res.status(401).json({ error: "Invalid email or password" });
+      return res.status(401).json({ error: 'Invalid email or password' });
     }
 
     const tokenValid = await verifyMfaToken(user.user_id, mfa_token);
     if (!tokenValid) {
-      return res.status(401).json({ error: "Token is invalid or has expired" });
+      return res.status(401).json({ error: 'Token is invalid or has expired' });
     }
 
     const token = jwt.sign(
       {
         userId: user.user_id,
-        role: user.user_roles?.role_name || "unknown"
+        role: user.user_roles?.role_name || 'unknown',
       },
       process.env.JWT_TOKEN,
-      { expiresIn: "1h" }
+      { expiresIn: '1h' }
     );
 
     return res.status(200).json({ user, token });
-
   } catch (err) {
-    console.error("MFA login error:", err);
-    return res.status(500).json({ error: "Internal server error" });
+    console.error('MFA login error:', err);
+    return res.status(500).json({ error: 'Internal server error' });
   }
 };
 
@@ -187,7 +189,7 @@ async function sendOtpEmail(email, token) {
     await transporter.sendMail({
       from: `"NutriHelp Security" <${process.env.GMAIL_USER}>`,
       to: email,
-      subject: "NutriHelp Login Token",
+      subject: 'NutriHelp Login Token',
       text: `Your one-time login token is: ${token}\n\nThis token expires in 10 minutes.\n\nIf you did not request this, please ignore this email.\n\n– NutriHelp Security Team`,
       html: `
         <p>Your one-time login token is:</p>
@@ -196,11 +198,11 @@ async function sendOtpEmail(email, token) {
         <p>If you did not request this, please ignore this email.</p>
         <br/>
         <p>– NutriHelp Security Team</p>
-      `
+      `,
     });
-    console.log("✅ OTP email sent successfully to", email);
+    console.log('✅ OTP email sent successfully to', email);
   } catch (err) {
-    console.error("Error sending OTP email:", err.message);
+    console.error('Error sending OTP email:', err.message);
   }
 }
 
@@ -210,7 +212,7 @@ async function sendFailedLoginAlert(email, ip) {
     await transporter.sendMail({
       from: `"NutriHelp Security" <${process.env.GMAIL_USER}>`,
       to: email,
-      subject: "Failed Login Attempt on NutriHelp",
+      subject: 'Failed Login Attempt on NutriHelp',
       text: `Hi,\n\nSomeone tried to log in to NutriHelp using your email address from IP: ${ip}.\n\nIf this wasn't you, please ignore this message. If you're concerned, consider resetting your password or contacting support.\n\n– NutriHelp Security Team`,
       html: `
         <p>Hi,</p>
@@ -218,11 +220,11 @@ async function sendFailedLoginAlert(email, ip) {
         <p>If this wasn't you, please ignore this message. If you're concerned, consider resetting your password or contacting support.</p>
         <br/>
         <p>– NutriHelp Security Team</p>
-      `
+      `,
     });
     console.log(`✅ Failed login alert sent to ${email}`);
   } catch (err) {
-    console.error("Failed to send alert email:", err.message);
+    console.error('Failed to send alert email:', err.message);
   }
 }
 

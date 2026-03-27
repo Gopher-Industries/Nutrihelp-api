@@ -7,7 +7,7 @@ describe('AI Execution Service', () => {
 
   it('returns normalized success data from Python JSON output', async () => {
     const result = await executePythonScript({
-      scriptPath: path.join(fixturesDir, 'ai_success.py')
+      scriptPath: path.join(fixturesDir, 'ai_success.py'),
     });
 
     expect(result.success).to.equal(true);
@@ -20,7 +20,7 @@ describe('AI Execution Service', () => {
   it('writes stdin to the Python process and reads the normalized JSON response', async () => {
     const result = await executePythonScript({
       scriptPath: path.join(fixturesDir, 'ai_stdin_echo.py'),
-      stdin: Buffer.from('hello-from-stdin')
+      stdin: Buffer.from('hello-from-stdin'),
     });
 
     expect(result.success).to.equal(true);
@@ -32,7 +32,7 @@ describe('AI Execution Service', () => {
 
   it('returns normalized failure data when the script exits with an error', async () => {
     const result = await executePythonScript({
-      scriptPath: path.join(fixturesDir, 'ai_failure.py')
+      scriptPath: path.join(fixturesDir, 'ai_failure.py'),
     });
 
     expect(result.success).to.equal(false);
@@ -44,7 +44,7 @@ describe('AI Execution Service', () => {
   it('terminates long-running scripts when the timeout is reached', async () => {
     const result = await executePythonScript({
       scriptPath: path.join(fixturesDir, 'ai_timeout.py'),
-      timeoutMs: 100
+      timeoutMs: 100,
     });
 
     expect(result.success).to.equal(false);
@@ -54,7 +54,7 @@ describe('AI Execution Service', () => {
 
   it('returns a backend-friendly error when the script path does not exist', async () => {
     const result = await executePythonScript({
-      scriptPath: path.join(fixturesDir, 'does_not_exist.py')
+      scriptPath: path.join(fixturesDir, 'does_not_exist.py'),
     });
 
     expect(result.success).to.equal(false);

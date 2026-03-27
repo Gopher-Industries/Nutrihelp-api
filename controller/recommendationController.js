@@ -23,11 +23,18 @@ function validateRecommendationRequest(body = {}) {
     throw validationError('aiAdapterInput must be an object when provided');
   }
 
-  if (body.healthGoals != null && !isPlainObject(body.healthGoals) && !Array.isArray(body.healthGoals)) {
+  if (
+    body.healthGoals != null &&
+    !isPlainObject(body.healthGoals) &&
+    !Array.isArray(body.healthGoals)
+  ) {
     throw validationError('healthGoals must be an object or array when provided');
   }
 
-  if (body.maxResults != null && (!Number.isInteger(body.maxResults) || body.maxResults < 1 || body.maxResults > 20)) {
+  if (
+    body.maxResults != null &&
+    (!Number.isInteger(body.maxResults) || body.maxResults < 1 || body.maxResults > 20)
+  ) {
     throw validationError('maxResults must be an integer between 1 and 20');
   }
 }
@@ -45,24 +52,25 @@ async function getRecommendations(req, res) {
       medicalReport: req.body?.medicalReport || null,
       aiAdapterInput: req.body?.aiAdapterInput || null,
       maxResults: req.body?.maxResults,
-      refreshCache: req.body?.refreshCache === true
+      refreshCache: req.body?.refreshCache === true,
     });
 
     return res.status(200).json(result);
   } catch (error) {
     console.error('[recommendationController] error:', error);
     const statusCode = error.statusCode || 500;
-    const clientMessage = statusCode >= 500
-      ? 'Failed to generate recommendations'
-      : (error.message || 'Invalid recommendation request');
+    const clientMessage =
+      statusCode >= 500
+        ? 'Failed to generate recommendations'
+        : error.message || 'Invalid recommendation request';
 
     return res.status(statusCode).json({
       success: false,
-      error: clientMessage
+      error: clientMessage,
     });
   }
 }
 
 module.exports = {
-  getRecommendations
+  getRecommendations,
 };

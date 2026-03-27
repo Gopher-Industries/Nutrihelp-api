@@ -1,9 +1,11 @@
 # AI Recommendation Integration Contract
 
 ## Purpose
+
 This document defines the backend contract for integrating nutrition recommendation signals from the AI team.
 
 The backend recommendation layer accepts AI-derived recommendation signals as optional input and combines them with:
+
 - user profile
 - user preferences
 - dietary constraints
@@ -18,6 +20,7 @@ The backend must still return recommendations when AI signals are missing or una
 `POST /api/recommendations`
 
 Authentication:
+
 - Bearer access token required
 
 ## Request Shape

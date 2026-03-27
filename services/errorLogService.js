@@ -19,7 +19,7 @@ class UnifiedErrorLogService {
       critical: 4,
       warning: 3,
       info: 2,
-      minor: 1
+      minor: 1,
     };
 
     // Configuration options
@@ -27,7 +27,7 @@ class UnifiedErrorLogService {
       enableDatabaseLogging: !!supabase,
       enableFileLogging: true,
       enableConsoleLogging: true,
-      logLevel: process.env.LOG_LEVEL || 'info'
+      logLevel: process.env.LOG_LEVEL || 'info',
     };
 
     // Ensure log directory exists (for file logging)
@@ -46,7 +46,7 @@ class UnifiedErrorLogService {
     res = null,
     category = 'warning',
     type = 'system',
-    additionalContext = {}
+    additionalContext = {},
   }) {
     try {
       // Create unified log entry
@@ -56,20 +56,20 @@ class UnifiedErrorLogService {
         res,
         category,
         type,
-        additionalContext
+        additionalContext,
       });
 
       // Execute all logging methods in parallel
       const logPromises = [];
-      
+
       if (this.config.enableDatabaseLogging && supabase) {
         logPromises.push(this.logToDatabase(logEntry));
       }
-      
+
       if (this.config.enableFileLogging) {
         logPromises.push(this.logToFile(logEntry));
       }
-      
+
       if (this.config.enableConsoleLogging) {
         logPromises.push(this.logToConsole(logEntry));
       }
@@ -86,15 +86,14 @@ class UnifiedErrorLogService {
       return {
         success: true,
         methods: {
-          database: this.config.enableDatabaseLogging ? 
-            (results[0]?.status === 'fulfilled') : false,
-          file: this.config.enableFileLogging ? 
-            (results[this.config.enableDatabaseLogging ? 1 : 0]?.status === 'fulfilled') : false,
-          console: this.config.enableConsoleLogging
+          database: this.config.enableDatabaseLogging ? results[0]?.status === 'fulfilled' : false,
+          file: this.config.enableFileLogging
+            ? results[this.config.enableDatabaseLogging ? 1 : 0]?.status === 'fulfilled'
+            : false,
+          console: this.config.enableConsoleLogging,
         },
-        timestamp: logEntry.timestamp || logEntry.created_at
+        timestamp: logEntry.timestamp || logEntry.created_at,
       };
-
     } catch (loggingError) {
       console.error('Unified error logging service failed:', loggingError);
       // Fallback emergency logging
@@ -114,7 +113,7 @@ class UnifiedErrorLogService {
       code: error?.code || null,
       category,
       type,
-      additionalContext
+      additionalContext,
     };
 
     // If request object is available, add detailed context information (feature of Extended_Middleware_Error_Logging branch)
@@ -134,7 +133,7 @@ class UnifiedErrorLogService {
         // Extended context information
         request_context: this.extractRequestContext(req),
         user_context: this.extractUserContext(req),
-        system_context: this.getSystemContext()
+        system_context: this.getSystemContext(),
       });
     }
 
@@ -163,7 +162,7 @@ class UnifiedErrorLogService {
       request_body: logEntry.request_body,
       user_id: logEntry.user_id,
       ip_address: logEntry.ip_address,
-      created_at: logEntry.created_at || logEntry.timestamp
+      created_at: logEntry.created_at || logEntry.timestamp,
     };
 
     const { data, error: insertError } = await supabase
@@ -190,12 +189,12 @@ class UnifiedErrorLogService {
       code: logEntry.code,
       category: logEntry.category,
       type: logEntry.type,
-      additionalContext: logEntry.additionalContext
+      additionalContext: logEntry.additionalContext,
     };
 
     const logFile = path.join(this.logDir, 'error_log.jsonl');
     const logLine = JSON.stringify(fileEntry) + '\n';
-    
+
     return new Promise((resolve, reject) => {
       fs.appendFile(logFile, logLine, 'utf8', (err) => {
         if (err) reject(err);
@@ -210,12 +209,12 @@ class UnifiedErrorLogService {
   async logToConsole(logEntry) {
     const severity = logEntry.category || 'info';
     const emoji = this.getSeverityEmoji(severity);
-    
+
     console.log(`${emoji} Error logged: ${logEntry.message}`);
     if (logEntry.stack && severity === 'critical') {
       console.error('Stack trace:', logEntry.stack);
     }
-    
+
     return { success: true };
   }
 
@@ -227,7 +226,7 @@ class UnifiedErrorLogService {
       critical: '🚨',
       warning: '⚠️',
       info: '📝',
-      minor: '💡'
+      minor: '💡',
     };
     return emojis[severity] || '📝';
   }
@@ -260,7 +259,7 @@ class UnifiedErrorLogService {
       request_user_agent: req.headers['user-agent'],
       request_ip_address: this.getClientIP(req),
       request_headers: this.sanitizeHeaders(req.headers),
-      request_body: this.sanitizeRequestBody(req.body)
+      request_body: this.sanitizeRequestBody(req.body),
     };
   }
 
@@ -269,7 +268,7 @@ class UnifiedErrorLogService {
     return {
       user_id: user.userId || user.id,
       session_id: req.sessionID || req.headers['x-session-id'],
-      user_role: user.role
+      user_role: user.role,
     };
   }
 
@@ -282,54 +281,57 @@ class UnifiedErrorLogService {
         rss: memUsage.rss,
         heapTotal: memUsage.heapTotal,
         heapUsed: memUsage.heapUsed,
-        external: memUsage.external
+        external: memUsage.external,
       },
-      cpu_usage: process.cpuUsage ? this.getCPUUsage() : null
+      cpu_usage: process.cpuUsage ? this.getCPUUsage() : null,
     };
   }
 
   extractResponseContext(res) {
     return {
       response_status: res.statusCode,
-      response_time_ms: res.responseTime || null
+      response_time_ms: res.responseTime || null,
     };
   }
 
   getClientIP(req) {
     if (!req) return null;
-    return req.ip || 
-      (req.connection && req.connection.remoteAddress) || 
+    return (
+      req.ip ||
+      (req.connection && req.connection.remoteAddress) ||
       (req.socket && req.socket.remoteAddress) ||
-      (req.connection && req.connection.socket ? req.connection.socket.remoteAddress : null) || null;
+      (req.connection && req.connection.socket ? req.connection.socket.remoteAddress : null) ||
+      null
+    );
   }
 
   sanitizeHeaders(headers) {
     if (!headers || typeof headers !== 'object') return headers;
     const sanitized = { ...headers };
     const sensitiveHeaders = ['authorization', 'cookie', 'x-api-key'];
-    
-    sensitiveHeaders.forEach(header => {
-      const key = Object.keys(sanitized).find(k => k.toLowerCase() === header);
+
+    sensitiveHeaders.forEach((header) => {
+      const key = Object.keys(sanitized).find((k) => k.toLowerCase() === header);
       if (key && sanitized[key]) {
         sanitized[key] = '[REDACTED]';
       }
     });
-    
+
     return sanitized;
   }
 
   sanitizeRequestBody(body) {
     if (!body || typeof body !== 'object') return body;
-    
+
     const sanitized = { ...body };
     const sensitiveFields = ['password', 'token', 'secret', 'key'];
-    
-    sensitiveFields.forEach(field => {
+
+    sensitiveFields.forEach((field) => {
       if (sanitized[field]) {
         sanitized[field] = '[REDACTED]';
       }
     });
-    
+
     return sanitized;
   }
 
@@ -347,29 +349,31 @@ class UnifiedErrorLogService {
       type: logEntry.error_type || logEntry.type,
       timestamp: logEntry.created_at || logEntry.timestamp,
       user_id: logEntry.user_id,
-      url: logEntry.endpoint
+      url: logEntry.endpoint,
     });
   }
 
   categorizeError(error, context = {}) {
-    if (error.message.includes('ECONNREFUSED') || 
-        error.message.includes('database') ||
-        error.code === 'ENOTFOUND') {
+    if (
+      error.message.includes('ECONNREFUSED') ||
+      error.message.includes('database') ||
+      error.code === 'ENOTFOUND'
+    ) {
       return { category: 'critical', type: 'database' };
     }
-    
+
     if (error.status === 401 || error.status === 403) {
       return { category: 'warning', type: 'authentication' };
     }
-    
+
     if (error.status >= 400 && error.status < 500) {
       return { category: 'info', type: 'validation' };
     }
-    
+
     if (error.status >= 500) {
       return { category: 'critical', type: 'system' };
     }
-    
+
     return { category: 'warning', type: 'system' };
   }
 
@@ -402,7 +406,7 @@ class UnifiedErrorLogService {
       database: false,
       file: false,
       console: true, // Console is always available
-      overall: false
+      overall: false,
     };
 
     // Check database connection
@@ -426,7 +430,7 @@ class UnifiedErrorLogService {
     }
 
     health.overall = health.database || health.file || health.console;
-    
+
     return health;
   }
 }

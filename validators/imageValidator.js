@@ -12,7 +12,9 @@ const validateImageUpload = (req, res, next) => {
   // Check MIME type
   const allowedTypes = ['image/jpeg', 'image/png'];
   if (!allowedTypes.includes(file.mimetype)) {
-    return res.status(400).json({ error: 'Invalid file type. Only JPEG and PNG images are allowed.' });
+    return res
+      .status(400)
+      .json({ error: 'Invalid file type. Only JPEG and PNG images are allowed.' });
   }
 
   // Check file size limit (e.g., 5MB)

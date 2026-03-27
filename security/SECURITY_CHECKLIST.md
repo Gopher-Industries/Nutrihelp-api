@@ -8,6 +8,7 @@ Overview: This checklist is based on the current repository implementation (Expr
 ---
 
 ## Overall security context (observed from code)
+
 - Framework: Express.js (`server.js` is the entry point).
 - Authentication: JWT (middleware authenticates tokens, using `process.env.JWT_TOKEN` as the key in some places).
 - Authorization: role-based `authorizeRoles` middleware using the `role` field inside the token.
@@ -20,6 +21,7 @@ Overview: This checklist is based on the current repository implementation (Expr
 ---
 
 ### 1. JWT secret & session management (Critical)
+
 - Purpose / Risk: If the JWT secret is weak or leaked, attackers can forge tokens and escalate privileges. Long-lived tokens or lack of revocation increases impact.
 - Files / Locations: `middleware/authenticateToken.js`, `.env` (JWT_TOKEN), all uses of `jsonwebtoken`.
 - Automated checks:
@@ -33,6 +35,7 @@ Overview: This checklist is based on the current repository implementation (Expr
 ---
 
 ### 2. Authentication & Authorization (Broken Access Control) (Critical)
+
 - Purpose / Risk: Ensure `authorizeRoles` is applied to protected routes and tokens are not forgeable.
 - Files / Locations: `middleware/authorizeRoles.js`, route definitions under `routes/`.
 - Automated checks:
@@ -43,6 +46,7 @@ Overview: This checklist is based on the current repository implementation (Expr
 ---
 
 ### 3. File uploads and public exposure (High)
+
 - Purpose / Risk: Publicly exposing `uploads` risks hosting user-uploaded scripts or sensitive files.
 - Files / Locations: `server.js` (static `uploads`), upload routes, multer usage.
 - Automated checks:
@@ -53,6 +57,7 @@ Overview: This checklist is based on the current repository implementation (Expr
 ---
 
 ### 4. CORS & CSRF (Medium)
+
 - Purpose / Risk: Avoid overly permissive CORS in production (no `*` or localhost in prod).
 - Files / Locations: `server.js` (CORS config).
 - Automated checks: detect `localhost` or `*` in production CORS settings.
@@ -61,6 +66,7 @@ Overview: This checklist is based on the current repository implementation (Expr
 ---
 
 ### 5. Security headers & CSP (Medium)
+
 - Purpose / Risk: CSP containing `unsafe-inline` weakens XSS protections.
 - Files / Locations: `server.js` (helmet/csp config).
 - Automated checks: flag `unsafe-inline` or `unsafe-eval` in CSP.
@@ -69,6 +75,7 @@ Overview: This checklist is based on the current repository implementation (Expr
 ---
 
 ### 6. Dependencies & supply chain (Critical)
+
 - Purpose / Risk: Outdated or vulnerable packages pose high risk.
 - Files / Locations: `package.json`, `package-lock.json`, `.github/workflows`.
 - Automated checks: run `npm audit`, `dependabot`, integrate `snyk` or `trivy` in CI.
@@ -77,6 +84,7 @@ Overview: This checklist is based on the current repository implementation (Expr
 ---
 
 ### 7. Rate limiting & brute-force (High)
+
 - Purpose / Risk: Ensure login and sensitive endpoints have strict rate limits.
 - Files / Locations: `middleware/rateLimiter.js`, login/signup routes.
 - Automated checks: test login throttling, check dedicated limiters on sensitive endpoints.
@@ -85,6 +93,7 @@ Overview: This checklist is based on the current repository implementation (Expr
 ---
 
 ### 8. Error handling & information leakage (Medium)
+
 - Purpose / Risk: Avoid returning stack traces or sensitive info in production responses.
 - Files / Locations: global error handlers in `server.js`.
 - Automated checks: trigger errors and inspect responses.
@@ -93,6 +102,7 @@ Overview: This checklist is based on the current repository implementation (Expr
 ---
 
 ### 9. Logging & monitoring (High)
+
 - Purpose / Risk: Capture failed logins, privilege changes, and anomalies.
 - Files / Locations: `Monitor_&_Logging/`, `server.js`.
 - Automated checks: ensure critical events are logged and forwarded to central system.
@@ -101,6 +111,7 @@ Overview: This checklist is based on the current repository implementation (Expr
 ---
 
 ### 10. Static code security rules (Medium)
+
 - Purpose / Risk: Prevent common issues via static checks (hard-coded creds, eval, SQL concat).
 - Files / Locations: whole repository.
 - Automated checks: semgrep/ESLint rules for security patterns.
@@ -109,6 +120,7 @@ Overview: This checklist is based on the current repository implementation (Expr
 ---
 
 ## Recommended automation priorities & integration points
+
 - PR time: semgrep, dependency scanning, `.env` commit check, basic lint.
 - Merge/Release: container scanning, DAST baseline (ZAP), authorization tests.
 - Nightly/Weekly: full DAST, fuzzing, re-scan dependencies.
@@ -116,6 +128,7 @@ Overview: This checklist is based on the current repository implementation (Expr
 ---
 
 ## Suggested JSON output schema (simplified)
+
 - id: string
 - title: string
 - severity: Critical|High|Medium|Low

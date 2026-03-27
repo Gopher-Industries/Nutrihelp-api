@@ -34,10 +34,12 @@ router.get('/assessment/latest', authenticateToken, async (req, res) => {
 router.get('/assessment/history', authenticateToken, async (req, res) => {
   try {
     const { limit = 10, offset = 0 } = req.query;
-    
+
     const { data, error } = await supabase
       .from('security_assessments')
-      .select('id, timestamp, overall_score, risk_level, critical_issues, passed_checks, total_checks')
+      .select(
+        'id, timestamp, overall_score, risk_level, critical_issues, passed_checks, total_checks'
+      )
       .order('timestamp', { ascending: false })
       .range(offset, offset + limit - 1);
 
@@ -97,16 +99,16 @@ router.get('/error-logs/stats', authenticateToken, async (req, res) => {
       total_errors: data.length,
       by_category: {},
       by_type: {},
-      hourly_distribution: {}
+      hourly_distribution: {},
     };
 
-    data.forEach(log => {
+    data.forEach((log) => {
       // Count by category
       stats.by_category[log.error_category] = (stats.by_category[log.error_category] || 0) + 1;
-      
+
       // Statistics by type
       stats.by_type[log.error_type] = (stats.by_type[log.error_type] || 0) + 1;
-      
+
       // Statistics by hour
       const hour = new Date(log.timestamp).getHours();
       stats.hourly_distribution[hour] = (stats.hourly_distribution[hour] || 0) + 1;
@@ -130,11 +132,11 @@ router.post('/assessment/run', authenticateToken, async (req, res) => {
 
     // Run the assessment asynchronously and return response immediately
     runner.run().catch(console.error);
-    
-    res.json({ 
-      success: true, 
+
+    res.json({
+      success: true,
       message: 'Security assessment started',
-      note: 'Results will be available in a few minutes'
+      note: 'Results will be available in a few minutes',
     });
   } catch (error) {
     res.status(500).json({ error: 'Failed to start security assessment' });

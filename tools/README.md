@@ -14,6 +14,7 @@ This directory contains utility tools for the Nutrihelp image classification API
 ### Image Classification Tools
 
 - **add_keywords.js** - Adds new food keyword mappings to the classification system
+
   ```
   node tools/image_classification/add_keywords.js
   ```
@@ -26,11 +27,13 @@ This directory contains utility tools for the Nutrihelp image classification API
 ### Feedback Collection Tools
 
 - **collect_feedback.js** - Collects user feedback on incorrect classifications
+
   ```
   node tools/feedback/collect_feedback.js <image_path> <correct_class>
   ```
 
 - **analyze_feedback.js** - Analyzes collected feedback to identify patterns
+
   ```
   node tools/feedback/analyze_feedback.js [class_name]
   ```
@@ -43,6 +46,7 @@ This directory contains utility tools for the Nutrihelp image classification API
 ### Testing Tools
 
 - **test_image_classification.js** - Tests the image classification on specific images
+
   ```
   node tools/test/test_image_classification.js <image_path>
   ```
@@ -73,4 +77,4 @@ The feedback system uses Supabase for storing user feedback. To set up the datab
 1. Run the SQL script in `setup/create_feedback_table.sql` in your Supabase SQL editor
 2. Ensure your `.env` file contains the correct Supabase connection details
 
-See `setup/README_FEEDBACK.md` for detailed instructions on setting up and using the feedback system. 
+See `setup/README_FEEDBACK.md` for detailed instructions on setting up and using the feedback system.

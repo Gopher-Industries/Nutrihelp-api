@@ -4,14 +4,14 @@
 
 All pull requests MUST pass these 6 BLOCKING checks:
 
-| Check Name | Purpose |
-|------------|---------|
-| **lint** | ESLint code quality |
-| **format-check** | Prettier formatting |
-| **unit-tests** | Unit test suite |
+| Check Name           | Purpose                 |
+| -------------------- | ----------------------- |
+| **lint**             | ESLint code quality     |
+| **format-check**     | Prettier formatting     |
+| **unit-tests**       | Unit test suite         |
 | **openapi-validate** | OpenAPI spec validation |
-| **security-scan** | Vulnerability audit |
-| **build-check** | Syntax verification |
+| **security-scan**    | Vulnerability audit     |
+| **build-check**      | Syntax verification     |
 
 ## Setup Instructions
 
@@ -35,3 +35,4 @@ npm run lint
 npm run format:check
 npm test
 npm run openapi:validate
+```

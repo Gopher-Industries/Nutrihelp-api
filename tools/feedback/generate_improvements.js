@@ -1,6 +1,6 @@
 /**
  * Generate Improvement Suggestions Based on Feedback Data
- * 
+ *
  * Analyzes collected feedback data and generates specific code improvement suggestions
  */
 
@@ -52,13 +52,13 @@ try {
 
 // Analyze feedback data, find most common classes
 const classCounts = {};
-feedbackData.forEach(feedback => {
+feedbackData.forEach((feedback) => {
   const className = feedback.correct_class.toLowerCase();
-  
+
   if (!classCounts[className]) {
     classCounts[className] = 0;
   }
-  
+
   classCounts[className]++;
 });
 
@@ -77,11 +77,11 @@ console.log('------------------');
 
 // Check if there are keywords that need to be added to DISH_OVERRIDES
 const suggestedKeywords = {};
-sortedClasses.forEach(className => {
+sortedClasses.forEach((className) => {
   // Generate possible keywords for each class
   const keywords = generateKeywordsForClass(className);
-  
-  keywords.forEach(keyword => {
+
+  keywords.forEach((keyword) => {
     // Check if keyword already exists in Python script
     if (!pythonContent.includes(`"${keyword}": `)) {
       // Determine which existing class this should map to
@@ -93,13 +93,13 @@ sortedClasses.forEach(className => {
 
 if (Object.keys(suggestedKeywords).length > 0) {
   console.log('Recommended keyword mappings to add:');
-  
+
   let code = 'const newKeywords = {\n';
   for (const [keyword, mappedClass] of Object.entries(suggestedKeywords)) {
     code += `  "${keyword}": "${mappedClass}",  // Corresponding class: ${getOriginalClass(keyword)}\n`;
   }
   code += '};\n';
-  
+
   console.log(code);
   console.log('You can add this code to tools/image_classification/add_keywords.js to use it.');
 } else {
@@ -111,7 +111,7 @@ console.log('\n2. Custom Class Suggestions:');
 console.log('------------------');
 
 const customClasses = [];
-sortedClasses.forEach(className => {
+sortedClasses.forEach((className) => {
   // Check if it's a custom class (not in original model)
   if (!isInOriginalModel(className, pythonContent)) {
     customClasses.push(className);
@@ -119,17 +119,20 @@ sortedClasses.forEach(className => {
 });
 
 if (customClasses.length > 0) {
-  console.log('The following classes are not in the original model, consider adding to custom_food_types:');
-  
-  let code = '// In the Python script, find the custom_food_types dictionary and add the following:\n';
+  console.log(
+    'The following classes are not in the original model, consider adding to custom_food_types:'
+  );
+
+  let code =
+    '// In the Python script, find the custom_food_types dictionary and add the following:\n';
   code += 'custom_food_types = {\n';
-  customClasses.forEach(className => {
+  customClasses.forEach((className) => {
     const mappedClass = mapToExistingClass(className);
     code += `    '${className}': '${mappedClass}',  // Map ${className} to ${mappedClass}\n`;
   });
   code += '    // Keep existing entries\n';
   code += '}\n';
-  
+
   console.log(code);
 }
 
@@ -138,22 +141,25 @@ console.log('\n3. Color and Texture Analysis Suggestions:');
 console.log('------------------------');
 
 // Check if there are special food types that need specific color and texture rules
-const specialClasses = customClasses.filter(cls => classCounts[cls] >= 3);
+const specialClasses = customClasses.filter((cls) => classCounts[cls] >= 3);
 
 if (specialClasses.length > 0) {
-  console.log('The following classes appear frequently, recommend adding specific color and texture rules:');
-  
-  specialClasses.forEach(className => {
+  console.log(
+    'The following classes appear frequently, recommend adding specific color and texture rules:'
+  );
+
+  specialClasses.forEach((className) => {
     const { color, texture } = suggestColorAndTexture(className);
     console.log(`\nAdd specific rules for "${className}":`);
-    
-    let code = '# In the predict_class function, find the "Combine color and texture" section, add the following condition:\n';
+
+    let code =
+      '# In the predict_class function, find the "Combine color and texture" section, add the following condition:\n';
     code += `elif dominant_color == '${color}' and texture_type == '${texture}':\n`;
     code += `    # Possible ${className}\n`;
     const mappedClass = mapToExistingClass(className);
     code += `    prediction = '${mappedClass}'\n`;
     code += `    debug_log(f"${color} + ${texture} texture detected: possible ${className}, classified as {prediction}")\n`;
-    
+
     console.log(code);
   });
 }
@@ -164,32 +170,37 @@ console.log('------------------');
 
 if (customClasses.length > 0) {
   console.log('Add filename detection for these custom classes:');
-  
-  let code = '# In the predict_class function, find the special handling section, add the following code:\n';
-  customClasses.forEach(className => {
+
+  let code =
+    '# In the predict_class function, find the special handling section, add the following code:\n';
+  customClasses.forEach((className) => {
     code += `\n# Special handling for ${className} category\n`;
     code += `if "${className}" in file_name.lower():\n`;
     code += `    debug_log(f"Detected ${className} in filename: {file_name}")\n`;
     const mappedClass = mapToExistingClass(className);
     code += `    return "${mappedClass}"  # Return best match for ${className}\n`;
   });
-  
+
   console.log(code);
 }
 
 // 5. Summary suggestions
 console.log('\n5. Summary Suggestions:');
 console.log('--------------');
-console.log('Based on feedback data, we recommend the following actions to improve recognition accuracy:');
+console.log(
+  'Based on feedback data, we recommend the following actions to improve recognition accuracy:'
+);
 console.log('1. Add more keyword mappings, especially for common custom classes');
 console.log('2. For high-frequency classes, add specialized color and texture analysis rules');
 console.log('3. Enhance filename detection, especially for commonly confused classes');
-console.log('4. Continue collecting more feedback data, especially for classes with high error rates');
+console.log(
+  '4. Continue collecting more feedback data, especially for classes with high error rates'
+);
 
 if (sortedClasses.length > 0) {
   console.log('\nClasses to focus on:');
   const topClasses = sortedClasses.slice(0, Math.min(3, sortedClasses.length));
-  topClasses.forEach(className => {
+  topClasses.forEach((className) => {
     console.log(`- ${className} (${classCounts[className]} feedback entries)`);
   });
 }
@@ -199,13 +210,13 @@ if (sortedClasses.length > 0) {
 // Generate possible keywords for a class
 function generateKeywordsForClass(className) {
   const keywords = [className];
-  
+
   // Add variants
   if (className.length > 3) {
     // Add truncated variant
     keywords.push(className.substring(0, Math.ceil(className.length * 0.7)));
   }
-  
+
   // Add common variants for specific classes
   if (className === 'sushi') {
     keywords.push('sushi_variant1', 'sushi_variant2', 'sushi_variant3', 'sushi_variant4');
@@ -218,7 +229,7 @@ function generateKeywordsForClass(className) {
   } else if (className === 'rice') {
     keywords.push('grain', 'rice_bowl');
   }
-  
+
   return keywords;
 }
 
@@ -226,26 +237,26 @@ function generateKeywordsForClass(className) {
 function mapToExistingClass(className) {
   // Map common classes
   const mappings = {
-    'sushi': 'mussels',
-    'pizza': 'pizza',
-    'curry': 'chicken_curry',
-    'noodle': 'ramen',
-    'noodles': 'ramen',
-    'rice': 'fried_rice',
-    'hamburger': 'hamburger',
-    'pasta': 'spaghetti_bolognese',
-    'steak': 'steak',
-    'salad': 'greek_salad',
-    'soup': 'miso_soup',
-    'cake': 'chocolate_cake',
-    'ice_cream': 'ice_cream',
-    'bread': 'garlic_bread'
+    sushi: 'mussels',
+    pizza: 'pizza',
+    curry: 'chicken_curry',
+    noodle: 'ramen',
+    noodles: 'ramen',
+    rice: 'fried_rice',
+    hamburger: 'hamburger',
+    pasta: 'spaghetti_bolognese',
+    steak: 'steak',
+    salad: 'greek_salad',
+    soup: 'miso_soup',
+    cake: 'chocolate_cake',
+    ice_cream: 'ice_cream',
+    bread: 'garlic_bread',
   };
-  
+
   if (mappings[className]) {
     return mappings[className];
   }
-  
+
   // No direct mapping, choose appropriate class
   if (className.includes('roll') || className.includes('sushi')) {
     return 'mussels';
@@ -266,7 +277,7 @@ function mapToExistingClass(className) {
   } else if (className.includes('fish') || className.includes('seafood')) {
     return 'mussels';
   }
-  
+
   // Default to common class
   return 'edamame';
 }
@@ -274,7 +285,11 @@ function mapToExistingClass(className) {
 // Get original class for keyword
 function getOriginalClass(keyword) {
   // Special cases
-  if (keyword.includes('sushi_variant1') || keyword.includes('sushi_variant2') || keyword.includes('sushi_variant3')) {
+  if (
+    keyword.includes('sushi_variant1') ||
+    keyword.includes('sushi_variant2') ||
+    keyword.includes('sushi_variant3')
+  ) {
     return 'sushi';
   } else if (keyword.includes('pizza_alt') || keyword.includes('flatbread')) {
     return 'pizza';
@@ -285,7 +300,7 @@ function getOriginalClass(keyword) {
   } else if (keyword.includes('grain') || keyword.includes('rice_bowl')) {
     return 'rice';
   }
-  
+
   // Default return keyword itself
   return keyword;
 }
@@ -301,25 +316,25 @@ function isInOriginalModel(className, pythonContent) {
 function suggestColorAndTexture(className) {
   // Specific class suggestions
   const suggestions = {
-    'sushi': { color: 'white', texture: 'complex' },
-    'pizza': { color: 'red', texture: 'complex' },
-    'curry': { color: 'orange', texture: 'medium' },
-    'noodle': { color: 'beige', texture: 'medium' },
-    'noodles': { color: 'beige', texture: 'medium' },
-    'rice': { color: 'white', texture: 'medium' },
-    'hamburger': { color: 'brown', texture: 'complex' },
-    'pasta': { color: 'beige', texture: 'medium' },
-    'steak': { color: 'red', texture: 'medium' },
-    'salad': { color: 'green', texture: 'complex' },
-    'soup': { color: 'dark', texture: 'smooth' },
-    'cake': { color: 'brown', texture: 'regular' },
-    'ice_cream': { color: 'white', texture: 'smooth' }
+    sushi: { color: 'white', texture: 'complex' },
+    pizza: { color: 'red', texture: 'complex' },
+    curry: { color: 'orange', texture: 'medium' },
+    noodle: { color: 'beige', texture: 'medium' },
+    noodles: { color: 'beige', texture: 'medium' },
+    rice: { color: 'white', texture: 'medium' },
+    hamburger: { color: 'brown', texture: 'complex' },
+    pasta: { color: 'beige', texture: 'medium' },
+    steak: { color: 'red', texture: 'medium' },
+    salad: { color: 'green', texture: 'complex' },
+    soup: { color: 'dark', texture: 'smooth' },
+    cake: { color: 'brown', texture: 'regular' },
+    ice_cream: { color: 'white', texture: 'smooth' },
   };
-  
+
   if (suggestions[className]) {
     return suggestions[className];
   }
-  
+
   // Default suggestion
   return { color: 'beige', texture: 'medium' };
-} 
+}

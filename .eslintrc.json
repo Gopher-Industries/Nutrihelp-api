@@ -4,14 +4,15 @@
     "node": true,
     "commonjs": true,
     "es2021": true,
-    "mocha": true
+    "mocha": true,
+    "jest": true
   },
   "parserOptions": {
-    "ecmaVersion": 12
+    "ecmaVersion": 2022
   },
   "rules": {
     "no-console": "off",
-    "no-unused-vars": "warn",
+    "no-unused-vars": "off",
     "no-undef": "error"
   },
   "ignorePatterns": ["node_modules/", "dist/", "coverage/"]

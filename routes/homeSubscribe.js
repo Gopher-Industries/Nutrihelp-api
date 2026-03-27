@@ -1,10 +1,7 @@
-const express = require("express");
+const express = require('express');
 const router = express.Router();
-const {
-  addSubscribe,
-} = require("../controller/homeServiceController");
+const { addSubscribe } = require('../controller/homeServiceController');
 
-router.post("/", addSubscribe);
-
+router.post('/', addSubscribe);
 
 module.exports = router;
