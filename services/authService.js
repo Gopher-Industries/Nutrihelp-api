@@ -6,12 +6,25 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 
-const supabaseAnon = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
+let supabaseAnon = null;
+let supabaseService = null;
 
-const supabaseService = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+function getSupabaseAnon() {
+  if (!supabaseAnon) {
+    supabaseAnon = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
+  }
+  return supabaseAnon;
+}
+
+function getSupabaseService() {
+  if (!supabaseService) {
+    supabaseService = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY
+    );
+  }
+  return supabaseService;
+}
 
 class AuthService {
   constructor() {
@@ -31,6 +44,7 @@ class AuthService {
      ========================= */
   async register(userData) {
     const { name, email, password, first_name, last_name } = userData;
+    const supabaseAnon = getSupabaseAnon();
 
     try {
       const { data: existingUser } = await supabaseAnon
@@ -79,6 +93,7 @@ class AuthService {
      ========================= */
   async login(loginData, deviceInfo = {}) {
     const { email, password } = loginData;
+    const supabaseAnon = getSupabaseAnon();
 
     try {
       const { data: user, error } = await supabaseAnon
@@ -129,6 +144,7 @@ class AuthService {
      ========================= */
   async generateTokenPair(user, deviceInfo = {}) {
     try {
+      const supabaseService = getSupabaseService();
       const accessPayload = {
         userId: user.user_id,
         email: user.email,
@@ -181,6 +197,8 @@ class AuthService {
      ========================= */
   async refreshAccessToken(refreshToken, deviceInfo = {}) {
     try {
+      const supabaseService = getSupabaseService();
+      const supabaseAnon = getSupabaseAnon();
       const lookupHash = this.createLookupHash(refreshToken);
 
       const { data: sessions, error } = await supabaseService
@@ -258,6 +276,7 @@ class AuthService {
      ========================= */
   async logout(refreshToken) {
     try {
+      const supabaseService = getSupabaseService();
       const lookupHash = this.createLookupHash(refreshToken);
 
       await supabaseService
@@ -276,6 +295,7 @@ class AuthService {
      ========================= */
   async logoutAll(userId) {
     try {
+      const supabaseService = getSupabaseService();
       await supabaseService
         .from('user_sessiontoken')
         .update({ is_active: false })
@@ -299,6 +319,7 @@ class AuthService {
      ========================= */
   async logAuthAttempt(userId, email, success, deviceInfo) {
     try {
+      const supabaseAnon = getSupabaseAnon();
       await supabaseAnon.from('auth_logs').insert({
         user_id: userId,
         email,
@@ -316,6 +337,7 @@ class AuthService {
      ========================= */
   async cleanupExpiredSessions() {
     try {
+      const supabaseService = getSupabaseService();
       await supabaseService
         .from('user_sessiontoken')
         .update({ is_active: false })
