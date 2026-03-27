@@ -1,10 +1,10 @@
-const supabase = require("../dbConnection.js");
 const {
   createServiceModel,
   updateServiceModel,
   deleteServiceModel,
   addSubscribeModel,
 } = require("../model/nutrihelpService.js");
+const serviceContentRepository = require("../repositories/serviceContentRepository");
 /**
  * Get Nutrihelp Services
  * @param {Request} req - Express request object
@@ -12,14 +12,7 @@ const {
  */
 const getServiceContents = async (req, res) => {
   try {
-    const { data, error } = await supabase
-      .from("nutrihelp_services")
-      .select("title, description, image");
-
-    if (error) {
-      console.error("Error get service contents:", error.message);
-      return res.status(500).json({ error: "Failed to get service contents" });
-    }
+    const data = await serviceContentRepository.getServiceContents();
 
     return res
       .status(200)
@@ -35,36 +28,14 @@ const getServiceContentsPage = async (req, res) => {
     // Query params for pagination and search
     const page = parseInt(req.query.page, 10) || 1;
     const pageSize = parseInt(req.query.pageSize, 10) || 10;
-    const from = (page - 1) * pageSize;
-    const to = from + pageSize - 1;
     const search = req.query.search || "";
     const onlineOnly = req.query.online === "true";
-
-    // Build Supabase query
-    let query = supabase
-      .from("nutrihelp_services")
-      .select("id, title, description, image, online, created_at, updated_at", {
-        count: "exact",
-      })
-      .order("created_at", { ascending: false })
-      .range(from, to);
-
-    // Filter by online if requested
-    if (onlineOnly) {
-      query = query.eq("online", true);
-    }
-
-    // Search by title or description
-    if (search) {
-      query = query.or(`title.ilike.%${search}%,description.ilike.%${search}%`);
-    }
-
-    const { data, error, count } = await query;
-
-    if (error) {
-      console.error("Error getting service contents:", error.message);
-      return res.status(500).json({ error: "Failed to get service contents" });
-    }
+    const { data, count } = await serviceContentRepository.getServiceContentsPage({
+      page,
+      pageSize,
+      search,
+      onlineOnly
+    });
 
     return res.status(200).json({
       message: "Service contents fetched successfully",

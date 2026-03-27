@@ -1,19 +1,15 @@
-const supabase = require('../dbConnection.js');
+const userRepository = require('../repositories/userRepository');
 
 async function addUser(name, email, password, mfa_enabled, contact_number, address) {
     try {
-        let { data, error } = await supabase
-            .from('users')
-            .insert({ 
-              name: name,
-              email: email,
-              password: password,
-              mfa_enabled: mfa_enabled,
-              contact_number: contact_number,
-              address: address
-            })
-            .select();
-        return data ? data[0] : error;
+        return await userRepository.createUser({
+          name,
+          email,
+          password,
+          mfaEnabled: mfa_enabled,
+          contactNumber: contact_number,
+          address
+        });
     } catch (error) {
         throw error;
     }

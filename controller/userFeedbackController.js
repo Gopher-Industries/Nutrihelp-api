@@ -20,7 +20,7 @@ const userfeedback = async (req, res) => {
 
 		res.status(201).json({ message: "Data received successfully!" });
 	} catch (error) {
-		console.error({ error });
+		console.error('[userFeedbackController] Failed to store feedback:', error);
 		res.status(500).json({ error: "Internal server error" });
 	}
 };

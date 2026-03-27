@@ -1,8 +1,7 @@
 const { SecurityEventType } = require('./securityEventTypes');
 const { SecurityEvent } = require('./securityEventModel');
 const { aggregateIncidents } = require('./securityIncidentAggregator');
-
-const supabase = require('../../dbConnection'); // Supabase client
+const securityEventRepository = require('../../repositories/securityEventRepository');
 
 function correlateSecurityEvents(events) {
   const incidents = aggregateIncidents(events) || [];
@@ -15,19 +14,22 @@ async function getSecurityEvents(fromDate, toDate) {
 
   const events = [];
 
-  const [
-    { data: authLogs, error: authError },
-    { data: bruteLogs, error: bruteError },
-    { data: sessions, error: sessionError },
-  ] = await Promise.all([
-    supabase.from('auth_logs').select('*').gte('created_at', fromIso).lte('created_at', toIso),
-    supabase.from('brute_force_logs').select('*').gte('created_at', fromIso).lte('created_at', toIso),
-    supabase.from('user_session').select('*').gte('created_at', fromIso).lte('created_at', toIso),
+  const [authResult, bruteResult, sessionResult] = await Promise.allSettled([
+    securityEventRepository.fetchAuthLogsBetween(fromIso, toIso),
+    securityEventRepository.fetchBruteForceLogsBetween(fromIso, toIso),
+    securityEventRepository.fetchUserSessionsBetween(fromIso, toIso)
   ]);
+
+  const authLogs = authResult.status === 'fulfilled' ? authResult.value : [];
+  const bruteLogs = bruteResult.status === 'fulfilled' ? bruteResult.value : [];
+  const sessions = sessionResult.status === 'fulfilled' ? sessionResult.value : [];
+  const authError = authResult.status === 'rejected' ? authResult.reason : null;
+  const bruteError = bruteResult.status === 'rejected' ? bruteResult.reason : null;
+  const sessionError = sessionResult.status === 'rejected' ? sessionResult.reason : null;
 
   // ===== 1) Login events from public.auth_logs =====
   if (authError) {
-    console.error('Error loading auth_logs:', authError);
+    console.error('[securityEventsService] Failed to load auth_logs:', authError);
   } else if (authLogs && authLogs.length > 0) {
     for (const row of authLogs) {
       const isSuccess =
@@ -76,7 +78,7 @@ async function getSecurityEvents(fromDate, toDate) {
 
   // ===== 2) Brute-force detection from public.brute_force_logs =====
   if (bruteError) {
-    console.error('Error loading brute_force_logs:', bruteError);
+    console.error('[securityEventsService] Failed to load brute_force_logs:', bruteError);
   } else if (bruteLogs && bruteLogs.length > 0) {
     for (const row of bruteLogs) {
       events.push({
@@ -118,7 +120,7 @@ async function getSecurityEvents(fromDate, toDate) {
 
   // ===== 3) Session / token events from public.user_session =====
   if (sessionError) {
-    console.error('Error loading user_session:', sessionError);
+    console.error('[securityEventsService] Failed to load user_session:', sessionError);
   } else if (sessions && sessions.length > 0) {
     for (const row of sessions) {
       const base = {

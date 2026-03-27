@@ -1,10 +1,6 @@
 const authService = require('../services/authService');
-const { createClient } = require('@supabase/supabase-js');
-
-const supabase = createClient(
-    process.env.SUPABASE_URL,
-    process.env.SUPABASE_ANON_KEY
-);
+const userRepository = require('../repositories/userRepository');
+const authLogRepository = require('../repositories/authLogRepository');
 
 /**
  * User Registration
@@ -28,7 +24,7 @@ exports.register = async (req, res) => {
         res.status(201).json(result);
 
     } catch (error) {
-        console.error('Registration error:', error);
+        console.error('[authController] Registration failed:', error);
         res.status(400).json({
             success: false,
             error: error.message
@@ -61,7 +57,7 @@ exports.login = async (req, res) => {
         res.json(result);
 
     } catch (error) {
-        console.error('Login error:', error);
+        console.error('[authController] Login failed:', error);
         res.status(401).json({
             success: false,
             error: error.message
@@ -93,7 +89,7 @@ exports.refreshToken = async (req, res) => {
         res.json(result);
 
     } catch (error) {
-        console.error('Token refresh error:', error);
+        console.error('[authController] Token refresh failed:', error);
         res.status(401).json({
             success: false,
             error: error.message
@@ -113,7 +109,7 @@ exports.logout = async (req, res) => {
         res.json(result);
 
     } catch (error) {
-        console.error('Logout error:', error);
+        console.error('[authController] Logout failed:', error);
         res.status(500).json({
             success: false,
             error: error.message
@@ -133,7 +129,7 @@ exports.logoutAll = async (req, res) => {
         res.json(result);
 
     } catch (error) {
-        console.error('Logout all error:', error);
+        console.error('[authController] Logout all failed:', error);
         res.status(500).json({
             success: false,
             error: error.message
@@ -148,17 +144,8 @@ exports.getProfile = async (req, res) => {
     try {
         const userId = req.user.userId;
 
-        const { data: user, error } = await supabase
-            .from('users')
-            .select(`
-                user_id, email, name, first_name, last_name,
-                registration_date, last_login, account_status,
-                user_roles!inner(role_name)
-            `)
-            .eq('user_id', userId)
-            .single();
-
-        if (error || !user) {
+        const user = await userRepository.findProfileById(userId);
+        if (!user) {
             return res.status(404).json({
                 success: false,
                 error: 'User not found'
@@ -181,7 +168,7 @@ exports.getProfile = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Get profile error:', error);
+        console.error('[authController] Profile lookup failed:', error);
         res.status(500).json({
             success: false,
             error: 'Internal server error'
@@ -199,18 +186,16 @@ exports.logLoginAttempt = async (req, res) => {
         });
     }
 
-    const { error } = await supabase.from('auth_logs').insert([
-        {
+    try {
+        await authLogRepository.insertAuthAttempt({
             email,
-            user_id: user_id || null,
+            userId: user_id || null,
             success,
-            ip_address,
-            created_at,
-        },
-    ]);
-
-    if (error) {
-        console.error('❌ Failed to insert login log:', error);
+            ipAddress: ip_address,
+            createdAt: created_at
+        });
+    } catch (error) {
+        console.error('[authController] Login log insert failed:', error);
         return res.status(500).json({ error: 'Failed to log login attempt' });
     }
 
@@ -227,19 +212,15 @@ exports.sendSMSByEmail = async (req, res) => {
   }
 
   try {
-    const { data, error } = await supabase
-      .from('users')
-      .select('contact_number')
-      .eq('email', email)
-      .single();
-
-    if (error || !data?.contact_number) {
+    const phone = await userRepository.findContactNumberByEmail(email);
+    if (!phone) {
       return res.status(404).json({ error: 'Phone number not found for the given email' });
     }
-    const phone = data.contact_number;
     const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
 
-    console.log(`📨 [DEV] Verification code for ${phone}: ${verificationCode}`);
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`[authController] Generated verification code for ${phone}`);
+    }
 
 
     return res.status(200).json({
@@ -247,8 +228,7 @@ exports.sendSMSByEmail = async (req, res) => {
       phone,
     });
   } catch (err) {
-    console.error('❌ Error sending SMS:', err);
+    console.error('[authController] SMS send failed:', err);
     return res.status(500).json({ error: 'Internal server error' });
   }
 };
-

@@ -1,20 +1,9 @@
-console.log("🟢 Loaded AuthService from:", __filename);
-console.log("URL:", process.env.SUPABASE_URL);
-console.log("KEY:", process.env.SUPABASE_ANON_KEY);
-const { createClient } = require('@supabase/supabase-js');
 const jwt = require('jsonwebtoken');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
-
-const supabaseAnon = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_ANON_KEY
-);
-
-const supabaseService = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+const userRepository = require('../repositories/userRepository');
+const authSessionRepository = require('../repositories/authSessionRepository');
+const authLogRepository = require('../repositories/authLogRepository');
 
 class AuthService {
   constructor() {
@@ -40,40 +29,32 @@ class AuthService {
     const { name, email, password, first_name, last_name } = userData;
 
     try {
-      const { data: existingUser } = await supabaseAnon
-        .from('users')
-        .select('user_id')
-        .eq('email', email)
-        .single();
-
+      const existingUser = await userRepository.findByEmail(email);
       if (existingUser) {
         throw new Error('User already exists');
       }
 
       const hashedPassword = await bcrypt.hash(password, 12);
-
-      const { data: newUser, error } = await supabaseAnon
-        .from('users')
-        .insert({
-          name,
-          email,
-          password: hashedPassword,
-          first_name,
-          last_name,
-          role_id: 7,
-          account_status: 'active',
-          email_verified: false,
-          mfa_enabled: false,
-          registration_date: new Date().toISOString()
-        })
-        .select('user_id, email, name')
-        .single();
-
-      if (error) throw error;
+      const newUser = await userRepository.createUser({
+        name,
+        email,
+        password: hashedPassword,
+        firstName: first_name || null,
+        lastName: last_name || null,
+        roleId: 7,
+        accountStatus: 'active',
+        emailVerified: false,
+        mfaEnabled: false,
+        registrationDate: new Date().toISOString()
+      });
 
       return {
         success: true,
-        user: newUser,
+        user: {
+          user_id: newUser.user_id,
+          email: newUser.email,
+          name: newUser.name
+        },
         message: 'User registered successfully'
       };
     } catch (error) {
@@ -88,17 +69,8 @@ class AuthService {
     const { email, password } = loginData;
 
     try {
-      const { data: user, error } = await supabaseAnon
-        .from('users')
-        .select(`
-          user_id, email, password, name, role_id,
-          account_status, email_verified,
-          user_roles!inner(id, role_name)
-        `)
-        .eq('email', email)
-        .single();
-
-      if (error || !user) throw new Error('Invalid credentials');
+      const user = await userRepository.findCredentialsByEmail(email);
+      if (!user) throw new Error('Invalid credentials');
       if (user.account_status !== 'active') throw new Error('Account is not active');
 
       const validPassword = await bcrypt.compare(password, user.password);
@@ -106,10 +78,7 @@ class AuthService {
 
       const tokens = await this.generateTokenPair(user, deviceInfo);
 
-      await supabaseAnon
-        .from('users')
-        .update({ last_login: new Date().toISOString() })
-        .eq('user_id', user.user_id);
+      await userRepository.updateLastLogin(user.user_id, new Date().toISOString());
 
       await this.logAuthAttempt(user.user_id, email, true, deviceInfo);
 
@@ -147,31 +116,24 @@ class AuthService {
         { expiresIn: this.accessTokenExpiry, algorithm: 'HS256' }
       );
 
-      await supabaseService
-         .from('user_sessiontoken')
-         .update({ is_active: false })
-         .eq('user_id', user.user_id);
+      await authSessionRepository.deactivateSessionsByUserId(user.user_id);
 
       const rawRefreshToken = crypto.randomBytes(32).toString('hex');
       const hashedRefreshToken = await bcrypt.hash(rawRefreshToken, 12);
       const lookupHash = this.createLookupHash(rawRefreshToken);
       const expiresAt = new Date(Date.now() + this.refreshTokenExpiry);
 
-      const { error } = await supabaseService
-        .from('user_sessiontoken')
-        .insert({
-          user_id: user.user_id,
-          refresh_token: hashedRefreshToken,
-          refresh_token_lookup: lookupHash,
-          token_type: 'refresh',
-          device_info: deviceInfo,
-          ip_address: deviceInfo.ip || null,
-          user_agent: deviceInfo.userAgent || null,
-          expires_at: expiresAt.toISOString(),
-          is_active: true
-        });
-
-      if (error) throw error;
+      await authSessionRepository.createRefreshSession({
+        user_id: user.user_id,
+        refresh_token: hashedRefreshToken,
+        refresh_token_lookup: lookupHash,
+        token_type: 'refresh',
+        device_info: deviceInfo,
+        ip_address: deviceInfo.ip || null,
+        user_agent: deviceInfo.userAgent || null,
+        expires_at: expiresAt.toISOString(),
+        is_active: true
+      });
 
       return {
         accessToken,
@@ -192,28 +154,10 @@ class AuthService {
       
 
       const lookupHash = this.createLookupHash(refreshToken);
-
-      const { data: sessions, error } = await supabaseService
-        .from('user_sessiontoken')
-        .select(`
-          id,
-          user_id,
-          refresh_token,
-          refresh_token_lookup,
-          expires_at,
-          is_active
-        `)
-        .eq('refresh_token_lookup', lookupHash)
-        .eq('is_active', true)
-        .limit(1);
-      
-      console.log('supabase query result:', { sessions, error});
-
-      if (error || !sessions || sessions.length === 0) {
+      const session = await authSessionRepository.findActiveRefreshSessionByLookup(lookupHash);
+      if (!session) {
         throw new Error('Invalid refresh token');
       }
-
-      const session = sessions[0];
 
       const match = await bcrypt.compare(refreshToken, session.refresh_token);
       if (!match) throw new Error('Invalid refresh token');
@@ -222,19 +166,8 @@ class AuthService {
         throw new Error('Refresh token expired');
       }
 
-      const { data: user, error: userError } = await supabaseAnon
-         .from('users')
-         .select(`
-           user_id,
-           email,
-           name,
-           role_id,
-           account_status
-          `)
-          .eq('user_id', session.user_id)
-          .single();
-
-      if (userError || !user) {
+      const user = await userRepository.findBasicById(session.user_id);
+      if (!user) {
         throw new Error('User not found');
       }
 
@@ -245,17 +178,13 @@ class AuthService {
 
       const newTokens = await this.generateTokenPair(user, deviceInfo);
 
-      await supabaseService
-        .from('user_sessiontoken')
-        .update({ is_active: false })
-        .eq('id', session.id);
+      await authSessionRepository.deactivateSessionById(session.id);
 
       return {
         success: true,
         ...newTokens
       };
     } catch (error) {
-      console.error('REFRESH FAILED:', error.message);
       throw new Error(`Token refresh failed: ${error.message}`);
     }
   }
@@ -266,11 +195,7 @@ class AuthService {
   async logout(refreshToken) {
     try {
       const lookupHash = this.createLookupHash(refreshToken);
-
-      await supabaseService
-        .from('user_sessiontoken')
-        .update({ is_active: false })
-        .eq('refresh_token_lookup', lookupHash);
+      await authSessionRepository.deactivateSessionByLookup(lookupHash);
 
       return { success: true, message: 'Logout successful' };
     } catch (error) {
@@ -283,10 +208,7 @@ class AuthService {
      ========================= */
   async logoutAll(userId) {
     try {
-      await supabaseService
-        .from('user_sessiontoken')
-        .update({ is_active: false })
-        .eq('user_id', userId);
+      await authSessionRepository.deactivateSessionsByUserId(userId);
 
       return { success: true, message: 'Logged out from all devices' };
     } catch (error) {
@@ -306,15 +228,13 @@ class AuthService {
      ========================= */
   async logAuthAttempt(userId, email, success, deviceInfo) {
     try {
-      await supabaseAnon
-        .from('auth_logs')
-        .insert({
-          user_id: userId,
-          email,
-          success,
-          ip_address: deviceInfo.ip || null,
-          created_at: new Date().toISOString()
-        });
+      await authLogRepository.insertAuthAttempt({
+        userId,
+        email,
+        success,
+        ipAddress: deviceInfo.ip || null,
+        createdAt: new Date().toISOString()
+      });
     } catch {
       // silent by design
     }
@@ -325,10 +245,7 @@ class AuthService {
      ========================= */
   async cleanupExpiredSessions() {
     try {
-      await supabaseService
-        .from('user_sessiontoken')
-        .update({ is_active: false })
-        .lt('expires_at', new Date().toISOString());
+      await authSessionRepository.cleanupExpiredSessions(new Date().toISOString());
     } catch {
       // silent by design
     }

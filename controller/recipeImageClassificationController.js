@@ -29,7 +29,7 @@ const predictRecipeImage = async (req, res) => {
             try {
                 await unlinkAsync(req.file.path);
             } catch (err) {
-                console.error("Error deleting invalid file:", err);
+                console.error("[recipeImageClassificationController] Failed to delete invalid file:", err);
             }
             return res.status(400).json({
                 success: false,
@@ -42,7 +42,7 @@ const predictRecipeImage = async (req, res) => {
         const scriptPath = path.join(__dirname, '..', 'model', 'recipeImageClassification.py');
 
         if (!fs.existsSync(scriptPath)) {
-            console.error(`Python script not found at ${scriptPath}`);
+            console.error(`[recipeImageClassificationController] Python script not found at ${scriptPath}`);
             await cleanupFiles(imagePath);
             return res.status(500).json({
                 success: false,
@@ -84,7 +84,7 @@ const predictRecipeImage = async (req, res) => {
             warnings: result.warnings || []
         });
     } catch (error) {
-        console.error("Unexpected error in predictRecipeImage:", error);
+        console.error("[recipeImageClassificationController] Prediction failed:", error);
         if (!res.headersSent) {
             res.status(500).json({
                 success: false,
@@ -105,10 +105,9 @@ async function cleanupFiles(tempFilePath) {
         // Check if file exists before trying to delete
         if (fs.existsSync(tempFilePath)) {
             await unlinkAsync(tempFilePath);
-            console.log(`Cleaned up temporary file: ${tempFilePath}`);
         }
     } catch (err) {
-        console.error(`Error cleaning up temporary file ${tempFilePath}:`, err);
+        console.error(`[recipeImageClassificationController] Temporary file cleanup failed for ${tempFilePath}:`, err);
     }
 }
 

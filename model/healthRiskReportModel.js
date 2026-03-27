@@ -1,15 +1,7 @@
-// models/healthRiskReportModel.js
-const supabase = require("../dbConnection.js");
+const mealPlanRepository = require('../repositories/mealPlanRepository');
 
 async function insertRiskReport(report) {
-  const { data, error } = await supabase
-    .from("health_risk_reports")
-    .insert(report)
-    .select("id")
-    .single();
-
-  if (error) throw error;
-  return data; // { id: ... }
+  return mealPlanRepository.createRiskReport(report);
 }
 
 module.exports = { insertRiskReport };

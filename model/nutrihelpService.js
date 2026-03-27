@@ -1,19 +1,12 @@
-const supabase = require("../dbConnection.js");
+const serviceContentRepository = require('../repositories/serviceContentRepository');
 
 async function createServiceModel({ title, description, image, online }) {
-  const { data, error } = await supabase
-    .from("nutrihelp_services")
-    .insert({
-      title,
-      description,
-      image,
-      online,
-    })
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data;
+  return serviceContentRepository.createServiceContent({
+    title,
+    description,
+    image,
+    online,
+  });
 }
 
 async function updateServiceModel(id, fields) {
@@ -22,37 +15,15 @@ async function updateServiceModel(id, fields) {
     updated_at: new Date().toISOString(),
   };
 
-  const { data, error } = await supabase
-    .from("nutrihelp_services")
-    .update(updateData)
-    .eq("id", id)
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data;
+  return serviceContentRepository.updateServiceContent(id, updateData);
 }
 
 async function deleteServiceModel(id) {
-  const { error } = await supabase
-    .from("nutrihelp_services")
-    .delete()
-    .eq("id", id);
-
-  if (error) throw error;
+  return serviceContentRepository.deleteServiceContent(id);
 }
 
 async function addSubscribeModel({ email }) {
-  const { data, error } = await supabase
-    .from("newsletter")
-    .insert({
-      email
-    })
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data;
+  return serviceContentRepository.createSubscription({ email });
 }
 
 module.exports = { createServiceModel, updateServiceModel,deleteServiceModel, addSubscribeModel };

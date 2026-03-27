@@ -1,14 +1,7 @@
-const supabase = require('../dbConnection.js');
+const contactRepository = require('../repositories/contactRepository');
 
 async function addContactUsMsg(name, email, subject, message) {
-    try {
-        let { data, error } = await supabase
-            .from('contactus')
-            .insert({ name: name, email: email, subject:subject, message: message })
-        return data
-    } catch (error) {
-        throw error;
-    }
+    return contactRepository.createContactUsMessage({ name, email, subject, message });
 }
 
 module.exports = addContactUsMsg;

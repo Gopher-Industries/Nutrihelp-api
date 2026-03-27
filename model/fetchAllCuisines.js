@@ -1,16 +1,8 @@
-const supabase = require('../dbConnection.js');
+const lookupRepository = require('../repositories/lookupRepository');
 
 async function fetchAllCuisines() {
     try {
-        let { data, error } = await supabase
-            .from('cuisines')
-            .select('*');
-
-        if (error) {
-            throw error;
-        }
-
-        return data;
+        return await lookupRepository.getAllFromTable('cuisines');
     } catch (error) {
         throw error;
     }

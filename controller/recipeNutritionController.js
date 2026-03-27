@@ -1,4 +1,4 @@
-const supabase = require('../dbConnection.js');
+const recipeRepository = require('../repositories/recipeRepository');
 
 exports.getRecipeNutritionByName = async (req, res) => {
     const recipeName = req.query.name;
@@ -8,27 +8,7 @@ exports.getRecipeNutritionByName = async (req, res) => {
     }
 
     try {
-        const { data, error } = await supabase
-            .from('recipes')
-            .select(`
-        recipe_name,
-        calories,
-        fat,
-        carbohydrates,
-        protein,
-        fiber,
-        vitamin_a,
-        vitamin_b,
-        vitamin_c,
-        vitamin_d,
-        sodium,
-        sugar
-      `)
-            .ilike('recipe_name', recipeName); // case-insensitive match
-
-        if (error) {
-            return res.status(500).json({ error: error.message });
-        }
+        const data = await recipeRepository.findNutritionByRecipeName(recipeName);
 
         if (!data || data.length === 0) {
             return res.status(404).json({ error: 'Recipe not found' });

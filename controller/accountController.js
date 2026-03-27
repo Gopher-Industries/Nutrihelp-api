@@ -12,7 +12,7 @@ const getAllAccount = async (req, res) => {
 
         res.status(200).json(mealPlans);
     } catch (error) {
-        console.log('Error retrieving appointments:', error);
+        console.error('Error retrieving meal plans:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 }

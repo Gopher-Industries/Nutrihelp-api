@@ -1,4 +1,5 @@
-const supabase = require("../dbConnection.js");
+const recipeRepository = require('../repositories/recipeRepository');
+const preferenceRepository = require('../repositories/preferenceRepository');
 const axios = require('axios');
 const fields_openfoodfacts = [
   "product_name",
@@ -9,12 +10,8 @@ const fields_openfoodfacts = [
 
 async function getUserAllergenFromRecipe(user_id) {
   try {
-    let { data, error } = await supabase
-      .from("recipe_ingredient")
-      .select("ingredient_id")
-      .eq("user_id", user_id)
-      .eq("allergy", true);
-    return data ? data : error;
+    const data = await recipeRepository.getUserRecipeRelations(user_id);
+    return (data || []).filter((item) => item.allergy === true).map((item) => ({ ingredient_id: item.ingredient_id }));
   } catch (error) {
     throw error;
   }
@@ -22,11 +19,7 @@ async function getUserAllergenFromRecipe(user_id) {
 
 async function getIngredients(ingredient_list) {
 	try {
-		let { data, error } = await supabase
-			.from("ingredients")
-			.select("id, name, allergies_type")
-			.in("id", ingredient_list);
-		return data ? data : error;
+		return await recipeRepository.getIngredientsByIds(ingredient_list, "id, name, allergies_type");
 	} catch (error) {
 		throw error;
 	}
@@ -34,31 +27,7 @@ async function getIngredients(ingredient_list) {
 
 async function getSavedUserAllergies(user_id) {
   try {
-    let { data, error } = await supabase
-      .from("user_allergies")
-      .select(`
-        allergy_id,
-        ingredients (
-          id,
-          name
-        )
-        `)
-      .eq("user_id", user_id)
-      .eq("allergy", true);
-    return data ? data : error;
-  } catch (error) {
-    throw error;
-  }
-}
-
-async function getUserAllergenFromRecipe(user_id) {
-  try {
-    let { data, error } = await supabase
-      .from("recipe_ingredient")
-      .select("ingredient_id")
-      .eq("user_id", user_id)
-      .eq("allergy", true);
-    return data ? data : error;
+    return await preferenceRepository.getSavedUserAllergies(user_id);
   } catch (error) {
     throw error;
   }

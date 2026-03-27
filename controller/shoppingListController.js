@@ -1,5 +1,5 @@
 const { validationResult } = require('express-validator');
-const supabase = require('../dbConnection.js');
+const shoppingListRepository = require('../repositories/shoppingListRepository');
 
 // 1. Get ingredient options API - GET /api/ingredient-options
 // Search ingredients by name and return price, store, and package information
@@ -21,28 +21,7 @@ const getIngredientOptions = async (req, res) => {
 
         // Query ingredient_price table with partial name matching
         // Fixed JOIN syntax for Supabase
-        let { data, error } = await supabase
-            .from('ingredient_price')
-            .select(`
-                id,
-                ingredient_id,
-                name,
-                unit,
-                measurement,
-                price,
-                store_id,
-                ingredients!inner(name, category)
-            `)
-            .ilike('ingredients.name', `%${name}%`)
-            .order('price', { ascending: true });
-
-        if (error) {
-            console.error('Error querying ingredient prices:', error);
-            return res.status(500).json({ 
-                error: 'Failed to query ingredient prices', 
-                statusCode: 500 
-            });
-        }
+        const data = await shoppingListRepository.findIngredientOptionsByName(name);
 
         // Format response data to match expected structure
         const formattedData = data.map(item => ({
@@ -93,31 +72,7 @@ const generateFromMealPlan = async (req, res) => {
 
         // Get ingredient information from meal plans
         // Fixed JOIN syntax for Supabase
-        let { data: mealPlanData, error: mealPlanError } = await supabase
-            .from('recipe_meal')
-            .select(`
-                mealplan_id,
-                recipe_id,
-                meal_type,
-                recipe_id!inner(
-                    recipe_ingredient!inner(
-                        ingredient_id,
-                        quantity,
-                        measurement,
-                        ingredients!inner(name, category)
-                    )
-                )
-            `)
-            .in('mealplan_id', meal_plan_ids)
-            .eq('user_id', user_id);
-
-        if (mealPlanError) {
-            console.error('Error querying meal plans:', mealPlanError);
-            return res.status(500).json({ 
-                error: 'Failed to query meal plans', 
-                statusCode: 500 
-            });
-        }
+        const mealPlanData = await shoppingListRepository.findMealPlanIngredients(user_id, meal_plan_ids);
 
         if (!mealPlanData || mealPlanData.length === 0) {
             return res.status(404).json({ 
@@ -164,10 +119,7 @@ const generateFromMealPlan = async (req, res) => {
 
         for (const [key, ingredient] of ingredientMap) {
             // Query price information
-            const { data: priceData, error: priceError } = await supabase
-                .from('ingredient_price')
-                .select('price, package_size, unit, measurement')
-                .eq('ingredient_id', ingredient.ingredient_id);
+            const priceData = await shoppingListRepository.findIngredientPricesByIngredientId(ingredient.ingredient_id);
 
             if (priceData && priceData.length > 0) {
                 // Calculate costs
@@ -178,9 +130,11 @@ const generateFromMealPlan = async (req, res) => {
                 // Estimate purchase quantities
                 const minPackage = priceData.find(item => item.price === minPrice);
                 const maxPackage = priceData.find(item => item.price === maxPrice);
+                const minPackageSize = minPackage.package_size || minPackage.unit || 1;
+                const maxPackageSize = maxPackage.package_size || maxPackage.unit || 1;
                 
-                const minCost = Math.ceil(ingredient.total_quantity / minPackage.package_size) * minPrice;
-                const maxCost = Math.ceil(ingredient.total_quantity / maxPackage.package_size) * maxPrice;
+                const minCost = Math.ceil(ingredient.total_quantity / minPackageSize) * minPrice;
+                const maxCost = Math.ceil(ingredient.total_quantity / maxPackageSize) * maxPrice;
                 
                 ingredient.estimated_cost = { min: minCost, max: maxCost };
                 totalMinCost += minCost;
@@ -237,23 +191,11 @@ const createShoppingList = async (req, res) => {
         }
 
         // Create shopping list
-        const { data: shoppingList, error: listError } = await supabase
-            .from('shopping_lists')
-            .insert([{
-                user_id,
-                name,
-                estimated_total_cost: estimated_total_cost || 0
-            }])
-            .select()
-            .single();
-
-        if (listError) {
-            console.error('Error creating shopping list:', listError);
-            return res.status(500).json({ 
-                error: 'Failed to create shopping list', 
-                statusCode: 500 
-            });
-        }
+        const shoppingList = await shoppingListRepository.createShoppingList({
+            userId: user_id,
+            name,
+            estimatedTotalCost: estimated_total_cost || 0
+        });
 
         // Add shopping list items
         const shoppingListItems = items.map(item => ({
@@ -270,19 +212,12 @@ const createShoppingList = async (req, res) => {
             estimated_cost: item.estimated_cost || 0
         }));
 
-        const { data: itemsData, error: itemsError } = await supabase
-            .from('shopping_list_items')
-            .insert(shoppingListItems)
-            .select();
-
-        if (itemsError) {
+        let itemsData;
+        try {
+            itemsData = await shoppingListRepository.createShoppingListItems(shoppingListItems);
+        } catch (itemsError) {
             console.error('Error adding shopping list items:', itemsError);
-            // Delete the created shopping list
-            await supabase
-                .from('shopping_lists')
-                .delete()
-                .eq('id', shoppingList.id);
-            
+            await shoppingListRepository.deleteShoppingListById(shoppingList.id);
             return res.status(500).json({ 
                 error: 'Failed to add shopping list items', 
                 statusCode: 500 
@@ -326,32 +261,12 @@ const getShoppingList = async (req, res) => {
         }
 
         // Get user's shopping lists
-        const { data: shoppingLists, error: listsError } = await supabase
-            .from('shopping_lists')
-            .select('*')
-            .eq('user_id', user_id)
-            .order('created_at', { ascending: false });
-
-        if (listsError) {
-            console.error('Error querying shopping lists:', listsError);
-            return res.status(500).json({ 
-                error: 'Failed to query shopping lists', 
-                statusCode: 500 
-            });
-        }
+        const shoppingLists = await shoppingListRepository.getShoppingListsByUserId(user_id);
 
         // Get items for each list
         const result = [];
         for (const list of shoppingLists) {
-            const { data: items, error: itemsError } = await supabase
-                .from('shopping_list_items')
-                .select('*')
-                .eq('shopping_list_id', list.id);
-
-            if (itemsError) {
-                console.error('Error querying shopping list items:', itemsError);
-                continue;
-            }
+            const items = await shoppingListRepository.getShoppingListItemsByListId(list.id);
 
             // Calculate progress
             const totalItems = items.length;
@@ -401,20 +316,7 @@ const updateShoppingListItem = async (req, res) => {
         if (quantity !== undefined) updateData.quantity = quantity;
         if (notes !== undefined) updateData.notes = notes;
 
-        const { data, error } = await supabase
-            .from('shopping_list_items')
-            .update(updateData)
-            .eq('id', id)
-            .select()
-            .single();
-
-        if (error) {
-            console.error('Error updating shopping list item:', error);
-            return res.status(500).json({ 
-                error: 'Failed to update shopping list item', 
-                statusCode: 500 
-            });
-        }
+        const data = await shoppingListRepository.updateShoppingListItemById(id, updateData);
 
         return res.status(200).json({
             statusCode: 200,
@@ -462,19 +364,7 @@ const addShoppingListItem = async (req, res) => {
             estimated_cost: estimated_cost || 0
         };
 
-        const { data, error } = await supabase
-            .from('shopping_list_items')
-            .insert([itemData])
-            .select()
-            .single();
-
-        if (error) {
-            console.error('Error adding shopping list item:', error);
-            return res.status(500).json({ 
-                error: 'Failed to add shopping list item', 
-                statusCode: 500 
-            });
-        }
+        const data = await shoppingListRepository.addShoppingListItem(itemData);
 
         return res.status(201).json({
             statusCode: 201,
@@ -502,18 +392,7 @@ const deleteShoppingListItem = async (req, res) => {
 
         const { id } = req.params;
 
-        const { error } = await supabase
-            .from('shopping_list_items')
-            .delete()
-            .eq('id', id);
-
-        if (error) {
-            console.error('Error deleting shopping list item:', error);
-            return res.status(500).json({ 
-                error: 'Failed to delete shopping list item', 
-                statusCode: 500 
-            });
-        }
+        await shoppingListRepository.deleteShoppingListItemById(id);
 
         return res.status(204).json({
             statusCode: 204,

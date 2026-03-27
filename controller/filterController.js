@@ -1,4 +1,4 @@
-const supabase = require('../dbConnection');
+const filterRepository = require('../repositories/filterRepository');
 
 /**
  * Filter recipes based on dietary preferences and allergens
@@ -10,11 +10,7 @@ const filterRecipes = async (req, res) => {
 
     try {
         // Fetch the mapping of dietary names to IDs
-        const { data: dietaryMapping, error: dietaryError } = await supabase
-            .from('dietary_requirements')
-            .select('id, name');
-
-        if (dietaryError) throw dietaryError;
+        const dietaryMapping = await filterRepository.getDietaryRequirements();
 
         // Validate dietary input
         if (dietary && !dietaryMapping.some(d => d.name.toLowerCase().includes(dietary.toLowerCase()))) {
@@ -29,27 +25,7 @@ const filterRecipes = async (req, res) => {
             : [];
 
         // Fetch recipes with their dietary requirements and ingredients
-        const { data: recipes, error: recipeError } = await supabase
-            .from('recipes')
-            .select(`
-                id,
-                recipe_name,
-                dietary,
-                dietary_requirements (
-                    id,
-                    name
-                ),
-                ingredients (
-                    id,
-                    name,
-                    allergies_type (
-                        id,
-                        name
-                    )
-                )
-            `);
-
-        if (recipeError) throw recipeError;
+        const recipes = await filterRepository.getRecipesWithIngredients();
 
         // Validate allergies input
         const allergyList = allergies
@@ -58,11 +34,7 @@ const filterRecipes = async (req, res) => {
             )
             : [];
 
-        const { data: allergensMapping, error: allergensError } = await supabase
-            .from('allergies')
-            .select('id, name');
-
-        if (allergensError) throw allergensError;
+        const allergensMapping = await filterRepository.getAllergies();
 
         if (
             allergyList.length &&

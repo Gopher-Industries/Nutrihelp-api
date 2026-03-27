@@ -1,13 +1,11 @@
-const supabase = require("../dbConnection.js");
+const lookupRepository = require('../repositories/lookupRepository');
 
 //For getting the ingredients price from the DB
 async function getIngredientsPrice(ingredient_id) {
   try {
-    let { data, error } = await supabase
-      .from("ingredient_price")
-      .select("*")
-      .in("ingredient_id", ingredient_id);
-    return data;
+    return await lookupRepository.getAllFromTable('ingredient_price', '*').then((rows) =>
+      rows.filter((row) => ingredient_id.includes(row.ingredient_id))
+    );
   } catch (error) {
     throw error;
   }

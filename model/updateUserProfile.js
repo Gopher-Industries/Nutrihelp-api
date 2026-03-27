@@ -1,5 +1,5 @@
-const supabase = require("../dbConnection.js");
-const { decode } = require("base64-arraybuffer");
+const userRepository = require('../repositories/userRepository');
+const mediaRepository = require('../repositories/mediaRepository');
 
 async function updateUser(
 	name,
@@ -18,14 +18,11 @@ async function updateUser(
 	attributes["address"] = address || undefined;
 
 	try {
-		let { data, error } = await supabase
-			.from("users")
-			.update(attributes) // e.g { email: "sample@email.com" }
-			.eq("email", email)
-			.select(
-				"user_id,name,first_name,last_name,email,contact_number,mfa_enabled,address"
-			);
-		return data;
+		return await userRepository.updateByEmail(
+			email,
+			attributes,
+			"user_id,name,first_name,last_name,email,contact_number,mfa_enabled,address"
+		);
 	} catch (error) {
 		throw error;
 	}
@@ -35,24 +32,14 @@ async function saveImage(image, user_id) {
 	if (image === undefined || image === null) return null;
 
 	try {
-		await supabase.storage.from("images").upload(file_name, decode(image), {
-			cacheControl: "3600",
-			upsert: false,
+		await mediaRepository.uploadImageToBucket(file_name, image, false);
+		let image_data = await mediaRepository.createImageRecord({
+			fileName: file_name,
+			displayName: file_name,
+			fileSize: base64FileSize(image),
 		});
-		const test = {
-			file_name: file_name,
-			display_name: file_name,
-			file_size: base64FileSize(image),
-		};
-		let { data: image_data } = await supabase
-			.from("images")
-			.insert(test)
-			.select("*");
 
-		await supabase
-			.from("users")
-			.update({ image_id: image_data[0].id }) // e.g { email: "sample@email.com" }
-			.eq("user_id", user_id);
+		await userRepository.setUserImageId(user_id, image_data[0].id);
 
 		return `${process.env.SUPABASE_STORAGE_URL}${file_name}`;
 	} catch (error) {

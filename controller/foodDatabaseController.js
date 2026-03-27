@@ -1,4 +1,4 @@
-const supabase = require('../dbConnection');
+const foodRepository = require('../repositories/foodRepository');
 
 /**
  * Get Food Data Grouped by mealType
@@ -7,25 +7,7 @@ const supabase = require('../dbConnection');
  */
 const getFoodData = async (req, res) => {
     try {
-        const { data, error } = await supabase
-            .from('food_database')
-            .select(`
-                id,
-                name,
-                image_url,
-                meal_type,
-                calories_per_100g,
-                fats,
-                protein,
-                vitamins,
-                sodium
-            `)
-            .order('meal_type', { ascending: true });
-
-        if (error) {
-            console.error('Error getting food data:', error.message);
-            return res.status(500).json({ error: 'Failed to get food data' });
-        }
+        const data = await foodRepository.getAllFoodData();
 
         // Initialize grouped object
         const grouped = {

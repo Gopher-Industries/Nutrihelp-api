@@ -51,14 +51,11 @@ async function logViolation(req, role, status) {
   try {
     const { error } = await supabase.from("rbac_violation_logs").insert([payload]);
     if (error) {
-      console.error("❌ Supabase insert error:", error.message);
-    } else {
-      console.log("✅ RBAC violation logged:", payload);
+      console.error("[authorizeRoles] RBAC violation log insert failed:", error.message);
     }
   } catch (err) {
-    console.error("❌ RBAC log exception:", err.message);
+    console.error("[authorizeRoles] RBAC violation logging threw:", err.message);
   }
 }
 
 module.exports = authorizeRoles;
-

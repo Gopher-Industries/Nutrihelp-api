@@ -1,28 +1,41 @@
-const client = require("prom-client");
+let client = null;
 
-// collect default system metrics (CPU, memory, etc.)
-client.collectDefaultMetrics();
+try {
+  client = require("prom-client");
+  client.collectDefaultMetrics();
+} catch (error) {
+  console.warn("[metrics] prom-client is unavailable; metrics endpoints are running in no-op mode");
+}
 
-// ===== Metrics =====
-const httpRequestsTotal = new client.Counter({
-  name: "http_requests_total",
-  help: "Total number of requests",
-  labelNames: ["method", "route", "status"],
-});
+let httpRequestsTotal = null;
+let httpErrorsTotal = null;
+let httpRequestDuration = null;
 
-const httpErrorsTotal = new client.Counter({
-  name: "http_errors_total",
-  help: "Total number of error responses",
-});
+if (client) {
+  httpRequestsTotal = new client.Counter({
+    name: "http_requests_total",
+    help: "Total number of requests",
+    labelNames: ["method", "route", "status"],
+  });
 
-const httpRequestDuration = new client.Histogram({
-  name: "http_request_duration_seconds",
-  help: "Request duration in seconds",
-  labelNames: ["method", "route", "status"],
-});
+  httpErrorsTotal = new client.Counter({
+    name: "http_errors_total",
+    help: "Total number of error responses",
+  });
 
-// ===== Middleware =====
+  httpRequestDuration = new client.Histogram({
+    name: "http_request_duration_seconds",
+    help: "Request duration in seconds",
+    labelNames: ["method", "route", "status"],
+  });
+}
+
 const metricsMiddleware = (req, res, next) => {
+  if (!client) {
+    next();
+    return;
+  }
+
   const end = httpRequestDuration.startTimer();
 
   res.on("finish", () => {
@@ -30,7 +43,7 @@ const metricsMiddleware = (req, res, next) => {
 
     httpRequestsTotal.inc({
       method: req.method,
-      route: route,
+      route,
       status: res.statusCode,
     });
 
@@ -40,7 +53,7 @@ const metricsMiddleware = (req, res, next) => {
 
     end({
       method: req.method,
-      route: route,
+      route,
       status: res.statusCode,
     });
   });
@@ -48,8 +61,15 @@ const metricsMiddleware = (req, res, next) => {
   next();
 };
 
-// ===== Metrics endpoint handler =====
 const metricsEndpoint = async (req, res) => {
+  if (!client) {
+    res.status(503).json({
+      success: false,
+      error: "Metrics are unavailable because prom-client is not installed",
+    });
+    return;
+  }
+
   res.set("Content-Type", client.register.contentType);
   res.end(await client.register.metrics());
 };

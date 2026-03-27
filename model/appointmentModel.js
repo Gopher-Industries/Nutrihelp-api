@@ -1,11 +1,8 @@
-const supabase = require("../dbConnection.js");
+const appointmentRepository = require("../repositories/appointmentRepository");
 
 async function addAppointment(userId, date, time, description) {
   try {
-    let { data, error } = await supabase
-      .from("appointments")
-      .insert({ user_id: userId, date, time, description });
-    return data;
+    return await appointmentRepository.createAppointment({ user_id: userId, date, time, description });
   } catch (error) {
     throw error;
   }
@@ -25,9 +22,7 @@ async function addAppointmentModelV2({
   reminder,
 }) {
   try {
-    const { data, error } = await supabase
-      .from("appointments")
-      .insert({
+    return await appointmentRepository.createAppointmentV2({
         user_id: userId,
         title,
         doctor,
@@ -39,12 +34,7 @@ async function addAppointmentModelV2({
         phone,
         notes,
         reminder,
-      })
-      .select()
-      .single();
-
-    if (error) throw error;
-    return data;
+      });
   } catch (err) {
     throw err;
   }
@@ -66,9 +56,7 @@ async function updateAppointmentModel(
   },
 ) {
   try {
-    const { data, error } = await supabase
-      .from("appointments")
-      .update({
+    return await appointmentRepository.updateAppointmentById(id, {
         title,
         doctor,
         type,
@@ -79,13 +67,7 @@ async function updateAppointmentModel(
         phone,
         notes,
         reminder,
-      })
-      .eq("id", id)
-      .select()
-      .single();
-
-    if (error) throw error;
-    return data;
+      });
   } catch (err) {
     throw err;
   }
@@ -93,15 +75,7 @@ async function updateAppointmentModel(
 
 async function deleteAppointmentById(id) {
   try {
-    const { data, error } = await supabase
-      .from("appointments")
-      .delete()
-      .eq("id", id)
-      .select()
-      .single();
-
-    if (error) throw error;
-    return data;
+    return await appointmentRepository.deleteAppointmentById(id);
   } catch (err) {
     throw err;
   }

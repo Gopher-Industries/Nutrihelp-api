@@ -1,5 +1,4 @@
-const supabase = require("../dbConnection.js");
-const { decode } = require("base64-arraybuffer");
+const recipeRepository = require('../repositories/recipeRepository');
 
 async function createRecipe(
 	user_id,
@@ -38,10 +37,7 @@ async function createRecipe(
 	let sugar = 0.0;
 
 	try {
-		let { data, error } = await supabase
-			.from("ingredients")
-			.select("*")
-			.in("id", ingredient_id);
+		let data = await recipeRepository.getIngredientsByIds(ingredient_id);
 
 		for (let i = 0; i < ingredient_id.length; i++) {
 			for (let j = 0; j < data.length; j++) {
@@ -100,11 +96,7 @@ async function createRecipe(
 
 async function saveRecipe(recipe) {
 	try {
-		let { data, error } = await supabase
-			.from("recipes")
-			.insert(recipe)
-			.select();
-		return data;
+		return await recipeRepository.createRecipe(recipe);
 	} catch (error) {
 		throw error;
 	}
@@ -115,25 +107,7 @@ async function saveImage(image, recipe_id) {
 	if (image === undefined || image === null) return null;
 
 	try {
-		await supabase.storage.from("images").upload(file_name, decode(image), {
-			cacheControl: "3600",
-			upsert: false,
-		});
-		const test = {
-			file_name: file_name,
-			display_name: file_name,
-			file_size: base64FileSize(image),
-		};
-
-		let { data: image_data } = await supabase
-			.from("images")
-			.insert(test)
-			.select("*");
-
-		await supabase
-			.from("recipes")
-			.update({ image_id: image_data[0].id }) // e.g { email: "sample@email.com" }
-			.eq("id", recipe_id);
+		await recipeRepository.saveRecipeImage(image, recipe_id, base64FileSize(image));
 	} catch (error) {
 		throw error;
 	}
@@ -165,17 +139,7 @@ async function saveRecipeRelation(recipe, savedDataId) {
 			cooking_method_id: recipe.cooking_method_id,
 		}));
 
-		let { data, error } = await supabase
-			.from("recipe_ingredient")
-			.insert(insert_object)
-			.select();
-
-		if(error){
-			console.error("insert error",error);
-			throw error;
-		}
-		
-		return data;
+		return await recipeRepository.createRecipeRelations(insert_object);
 	} catch (error) {
 		throw error;
 	}
@@ -184,17 +148,7 @@ async function saveRecipeRelation(recipe, savedDataId) {
 async function updateRecipesFlag(ids, field, value = true) {
 	if (!Array.isArray(ids) || ids.length === 0) return [];
 
-	const { data, error } = await supabase
-		.from("recipes")
-		.update({ [field]: value })
-		.in("id", ids);
-
-	if (error) {
-		console.error(`updateRecipesFlag (${field}) error:`, error);
-		throw error;
-	}
-
-	return data;
+	return recipeRepository.updateRecipesFlag(ids, field, value);
 }
 
 const updateRecipeAllergy = (ids) =>

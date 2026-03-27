@@ -1,16 +1,8 @@
-const supabase = require('../dbConnection.js');
+const lookupRepository = require('../repositories/lookupRepository');
 
 async function fetchAllSpiceLevels() {
     try {
-        let { data, error } = await supabase
-            .from('spice_levels')
-            .select('*');
-
-        if (error) {
-            throw error;
-        }
-
-        return data;
+        return await lookupRepository.getAllFromTable('spice_levels');
     } catch (error) {
         throw error;
     }

@@ -25,11 +25,9 @@ const getIngredientSubstitutions = async (req, res) => {
         // Parse allergies if provided
         if (req.query.allergies) {
             try {
-                console.log(`Parsing allergies from query: ${req.query.allergies}`);
                 options.allergies = Array.isArray(req.query.allergies) 
                     ? req.query.allergies.map(id => parseInt(id.trim())).filter(id => !isNaN(id))
                     : req.query.allergies.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
-                console.log(`Parsed allergies: ${JSON.stringify(options.allergies)}`);
             } catch (parseError) {
                 console.error('Error parsing allergies:', parseError);
                 options.allergies = [];
@@ -39,11 +37,9 @@ const getIngredientSubstitutions = async (req, res) => {
         // Parse dietary requirements if provided
         if (req.query.dietaryRequirements) {
             try {
-                console.log(`Parsing dietaryRequirements from query: ${req.query.dietaryRequirements}`);
                 options.dietaryRequirements = Array.isArray(req.query.dietaryRequirements) 
                     ? req.query.dietaryRequirements.map(id => parseInt(id.trim())).filter(id => !isNaN(id))
                     : req.query.dietaryRequirements.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
-                console.log(`Parsed dietaryRequirements: ${JSON.stringify(options.dietaryRequirements)}`);
             } catch (parseError) {
                 console.error('Error parsing dietary requirements:', parseError);
                 options.dietaryRequirements = [];
@@ -53,18 +49,15 @@ const getIngredientSubstitutions = async (req, res) => {
         // Parse health conditions if provided
         if (req.query.healthConditions) {
             try {
-                console.log(`Parsing healthConditions from query: ${req.query.healthConditions}`);
                 options.healthConditions = Array.isArray(req.query.healthConditions) 
                     ? req.query.healthConditions.map(id => parseInt(id.trim())).filter(id => !isNaN(id))
                     : req.query.healthConditions.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
-                console.log(`Parsed healthConditions: ${JSON.stringify(options.healthConditions)}`);
             } catch (parseError) {
                 console.error('Error parsing health conditions:', parseError);
                 options.healthConditions = [];
             }
         }
 
-        console.log(`Processing substitution request for ingredient ID: ${parsedId} with options:`, JSON.stringify(options));
         const substitutions = await fetchIngredientSubstitutions(parsedId, options);
         return res.status(200).json(substitutions);
     } catch (error) {

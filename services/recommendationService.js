@@ -1,4 +1,4 @@
-const supabase = require('../dbConnection');
+const recommendationRepository = require('../repositories/recommendationRepository');
 const fetchUserPreferences = require('../model/fetchUserPreferences');
 const getUserProfile = require('../model/getUserProfile');
 const {
@@ -96,30 +96,12 @@ function normalizeHealthGoals(healthGoals) {
 }
 
 async function fetchRecentRecipeIds(userId) {
-  const { data, error } = await supabase
-    .from('recipe_meal')
-    .select('recipe_id')
-    .eq('user_id', userId)
-    .limit(20);
-
-  if (error) {
-    throw error;
-  }
-
-  return unique((data || []).map((row) => row.recipe_id));
+  const recipeIds = await recommendationRepository.getRecentRecipeIds(userId, 20);
+  return unique(recipeIds);
 }
 
 async function fetchCandidateRecipes(limit = 50) {
-  const { data, error } = await supabase
-    .from('recipes')
-    .select('id, recipe_name, cuisine_id, cooking_method_id, total_servings, preparation_time, calories, fat, carbohydrates, protein, fiber, sodium, sugar, allergy, dislike')
-    .limit(limit);
-
-  if (error) {
-    throw error;
-  }
-
-  return data || [];
+  return recommendationRepository.getCandidateRecipes(limit);
 }
 
 function buildExplanation(reasons, fallbackReason) {

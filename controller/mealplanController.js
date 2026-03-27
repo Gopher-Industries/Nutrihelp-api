@@ -18,7 +18,7 @@ const addMealPlan = async (req, res) => {
     return res.status(201).json({ message: 'success', statusCode: 201, meal_plan: meal_plan });
 
   } catch (error) {
-    console.error({ error: 'error' });
+    console.error('[mealplanController] Failed to add meal plan:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -40,7 +40,7 @@ const getMealPlan = async (req, res) => {
     return res.status(404).send({ error: 'Meal Plans not found for user.' });
 
   } catch (error) {
-    console.error({ error: 'error' });
+    console.error('[mealplanController] Failed to get meal plans:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -59,7 +59,7 @@ const deleteMealPlan = async (req, res) => {
     return res.status(204).json({ message: 'success', statusCode: 204 });
 
   } catch (error) {
-    console.error({ error: 'error' });
+    console.error('[mealplanController] Failed to delete meal plan:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };

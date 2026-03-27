@@ -1,6 +1,6 @@
-const supabase = require("../dbConnection.js");
 const fs = require("fs");
 const path = require("path");
+const feedbackRepository = require("../repositories/feedbackRepository");
 
 /**
  * Stores image classification feedback in Supabase
@@ -40,25 +40,16 @@ async function addImageClassificationFeedback(
     
     const timestamp = new Date().toISOString();
     
-    const { data, error } = await supabase
-      .from("image_classification_feedback")
-      .insert({
-        user_id: user_id || null,
-        filename: filename,
-        image_data: image_data,
-        image_type: image_type,
-        predicted_class: predicted_class,
-        correct_class: correct_class,
-        metadata: metadata,
-        created_at: timestamp
-      });
-    
-    if (error) {
-      console.error("Error storing image classification feedback:", error);
-      throw error;
-    }
-    
-    return data;
+    return await feedbackRepository.createImageClassificationFeedback({
+      user_id: user_id || null,
+      filename,
+      image_data,
+      image_type,
+      predicted_class,
+      correct_class,
+      metadata,
+      created_at: timestamp
+    });
   } catch (error) {
     console.error("Failed to store image classification feedback:", error);
     throw error;

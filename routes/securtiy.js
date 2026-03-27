@@ -1,27 +1,15 @@
 // routes/security.js
 const express = require('express');
 const router = express.Router();
-const { createClient } = require('@supabase/supabase-js');
 const { authenticateToken } = require('../middleware/authenticateToken');
-
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
+const securityRepository = require('../repositories/securityRepository');
 
 /**
  * Get the latest security assessment report
  */
 router.get('/assessment/latest', authenticateToken, async (req, res) => {
   try {
-    const { data, error } = await supabase
-      .from('security_assessments')
-      .select('*')
-      .order('timestamp', { ascending: false })
-      .limit(1)
-      .single();
-
-    if (error) {
-      return res.status(500).json({ error: 'Failed to fetch latest assessment' });
-    }
-
+    const data = await securityRepository.getLatestSecurityAssessment();
     res.json({ success: true, data });
   } catch (error) {
     res.status(500).json({ error: 'Internal server error' });
@@ -34,16 +22,7 @@ router.get('/assessment/latest', authenticateToken, async (req, res) => {
 router.get('/assessment/history', authenticateToken, async (req, res) => {
   try {
     const { limit = 10, offset = 0 } = req.query;
-    
-    const { data, error } = await supabase
-      .from('security_assessments')
-      .select('id, timestamp, overall_score, risk_level, critical_issues, passed_checks, total_checks')
-      .order('timestamp', { ascending: false })
-      .range(offset, offset + limit - 1);
-
-    if (error) {
-      return res.status(500).json({ error: 'Failed to fetch assessment history' });
-    }
+    const data = await securityRepository.getSecurityAssessmentHistory(Number(limit), Number(offset));
 
     res.json({ success: true, data });
   } catch (error) {
@@ -58,16 +37,7 @@ router.get('/trends', authenticateToken, async (req, res) => {
   try {
     const { days = 30 } = req.query;
     const dateFrom = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
-
-    const { data, error } = await supabase
-      .from('security_assessments')
-      .select('timestamp, overall_score, critical_issues, risk_level')
-      .gte('timestamp', dateFrom.toISOString())
-      .order('timestamp', { ascending: true });
-
-    if (error) {
-      return res.status(500).json({ error: 'Failed to fetch trend data' });
-    }
+    const data = await securityRepository.getSecurityTrendData(dateFrom.toISOString());
 
     res.json({ success: true, data });
   } catch (error) {
@@ -82,15 +52,7 @@ router.get('/error-logs/stats', authenticateToken, async (req, res) => {
   try {
     const { hours = 24 } = req.query;
     const dateFrom = new Date(Date.now() - hours * 60 * 60 * 1000);
-
-    const { data, error } = await supabase
-      .from('error_logs')
-      .select('error_category, error_type, timestamp')
-      .gte('timestamp', dateFrom.toISOString());
-
-    if (error) {
-      return res.status(500).json({ error: 'Failed to fetch error log stats' });
-    }
+    const data = await securityRepository.getErrorLogsSince(dateFrom.toISOString());
 
     // Statistics
     const stats = {

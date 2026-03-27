@@ -1,16 +1,13 @@
-const supabase = require('../dbConnection.js');
+const mealPlanRepository = require('../repositories/mealPlanRepository');
+const recipeRepository = require('../repositories/recipeRepository');
 let { getUserRecipes } = require('../model/getUserRecipes.js');
 
 
 async function add(userId, recipe_json, meal_type) {
     try {
-        let { data, error } = await supabase
-            .from('meal_plan')
-            .insert({ user_id: userId, recipes: recipe_json, meal_type: meal_type })
-            .select()
-        return data
+        return await mealPlanRepository.createMealPlan({ userId, recipeJson: recipe_json, mealType: meal_type });
     } catch (error) {
-        console.log(error);
+        console.error('[mealPlanModel] Failed to create meal plan:', error);
         throw error;
     }
 }
@@ -28,11 +25,7 @@ async function saveMealRelation(user_id, plan, savedDataId) {
                 cooking_method_id: recipes[i].cooking_method_id
             });
         }
-        let { data, error } = await supabase
-            .from("recipe_meal")
-            .insert(insert_object)
-            .select();
-        return data;
+        return await mealPlanRepository.createRecipeMealRelations(insert_object);
     } catch (error) {
         throw error;
     }
@@ -44,11 +37,7 @@ async function get(user_id) {
         'preparation_time,calories,fat,carbohydrates,protein,fiber,' +
         'vitamin_a,vitamin_b,vitamin_c,vitamin_d,sodium,sugar,allergy,dislike'
     try {
-        let { data, error } = await supabase
-            .from('recipe_meal')
-            .select('...mealplan_id(id,meal_type),recipe_id,...recipe_id(' + query + ')')
-            .eq('user_id', user_id)
-        if (error) throw error;
+        let data = await mealPlanRepository.getRecipeMealsByUserId(user_id);
 
         if (!data || !data.length) return null;
 
@@ -79,20 +68,15 @@ async function get(user_id) {
         return output;
 
     } catch (error) {
-        console.log(error);
+        console.error('[mealPlanModel] Failed to fetch meal plans:', error);
         throw error;
     }
 }
 async function deletePlan(id, user_id) {
     try {
-        let { data, error } = await supabase
-            .from('meal_plan')
-            .delete()
-            .eq('user_id', user_id)
-            .eq('id', id);
-        return data;
+        return await mealPlanRepository.deleteMealPlanById(id, user_id);
     } catch (error) {
-        console.log(error);
+        console.error('[mealPlanModel] Failed to delete meal plan:', error);
         throw error;
     }
 }

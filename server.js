@@ -6,19 +6,6 @@ const {
   metricsEndpoint,
 } = require("./Monitor_&_Logging/metrics");
 
-// Debug environment variables
-console.log("🔧 Environment Variables Check:");
-console.log(
-  "   SUPABASE_URL:",
-  process.env.SUPABASE_URL ? "✓ Set" : "✗ Missing",
-);
-console.log(
-  "   SUPABASE_ANON_KEY:",
-  process.env.SUPABASE_ANON_KEY ? "✓ Set" : "✗ Missing",
-);
-console.log("   PORT:", process.env.PORT || "80 (default)");
-console.log("");
-
 const express = require("express");
 const { errorLogger, responseTimeLogger } = require("./middleware/errorLogger");
 const FRONTEND_ORIGIN = "http://localhost:3000";
@@ -27,7 +14,6 @@ const helmet = require("helmet");
 const cors = require("cors");
 const swaggerUi = require("swagger-ui-express");
 const yaml = require("yamljs");
-const { exec } = require("child_process");
 const rateLimit = require("express-rate-limit");
 const uploadRoutes = require("./routes/uploadRoutes");
 const fs = require("fs");
@@ -39,14 +25,14 @@ const loginDashboard = require("./routes/loginDashboard.js");
 const uploadsDir = path.join(__dirname, "uploads");
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
-  console.log("Created uploads directory");
+  console.log("[server] Created uploads directory");
 }
 
 // Create temp directory for uploads
 const tempDir = path.join(__dirname, "uploads", "temp");
 if (!fs.existsSync(tempDir)) {
   fs.mkdirSync(tempDir, { recursive: true });
-  console.log("Created temp uploads directory");
+  console.log("[server] Created temp uploads directory");
 }
 
 // Cleanup temp files
@@ -60,7 +46,7 @@ function cleanupOldFiles() {
       if (now - stats.mtimeMs > ONE_DAY) fs.unlinkSync(filePath);
     }
   } catch (err) {
-    console.error("Error during file cleanup:", err);
+    console.error("[server] File cleanup failed:", err);
   }
 }
 cleanupOldFiles();
@@ -183,16 +169,15 @@ process.on("uncaughtException", uncaughtExceptionHandler);
 process.on("unhandledRejection", unhandledRejectionHandler);
 
 // Start
-app.listen(port, async () => {
-  console.log("\n🎉 NutriHelp API launched successfully!");
-  console.log("=".repeat(50));
-  console.log(`Server is running on port ${port}`);
-  console.log(`📚 Swagger UI: http://localhost/api-docs`);
-  console.log("=".repeat(50));
-  console.log("💡 Press Ctrl+C to stop the server \n");
-  exec(`start http://localhost:${port}/api-docs`);
-});
+if (require.main === module) {
+  app.listen(port, async () => {
+    console.log(`[server] NutriHelp API listening on port ${port}`);
+    console.log("[server] Swagger UI available at http://localhost/api-docs");
+  });
+}
 
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 app.use("/api/sms", require("./routes/sms"));
+
+module.exports = app;

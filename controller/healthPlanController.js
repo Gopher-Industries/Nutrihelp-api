@@ -3,9 +3,6 @@
 // Node 18+ has global fetch; if you're on Node 16, uncomment:
 // const fetch = require("node-fetch");
 
-// [TEMP-DB-OFF] keep import for easy revert; safe to leave unused
-const supabase = require("../dbConnection.js");
-
 const AI_BASE =
   process.env.AI_BASE_URL || "http://localhost:8000/ai-model/medical-report";
 

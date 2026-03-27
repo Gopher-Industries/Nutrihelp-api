@@ -1,22 +1,11 @@
-const supabase = require('../dbConnection.js');
+const mealPlanRepository = require('../repositories/mealPlanRepository');
+const recipeRepository = require('../repositories/recipeRepository');
 
 async function getMealPlanByUserIdAndDate(user_id, created_at) {
     try {
-        let query = supabase.from('meal_plan').select('created_at, recipes, meal_type');
+        const mealPlans = await mealPlanRepository.getMealPlanByUserIdAndDate(user_id, created_at);
 
-        if (user_id) {
-            query = query.eq('user_id', user_id);
-        }
-
-        if (created_at) {
-            const startOfDay = `${created_at} 00:00:00`;
-            const endOfDay = `${created_at} 23:59:59`;
-            query = query.gte('created_at', startOfDay).lte('created_at', endOfDay);
-        }
-
-        let { data: mealPlans, error } = await query;
-
-        if (error || !mealPlans || mealPlans.length === 0) {
+        if (!mealPlans || mealPlans.length === 0) {
             throw new Error('Meal plans not found or query error');
         }
 
@@ -28,21 +17,14 @@ async function getMealPlanByUserIdAndDate(user_id, created_at) {
                 continue;
             }
 
-            const { data: recipes, error: recipesError } = await supabase
-                .from('recipes')
-                .select('recipe_name')
-                .in('id', recipeIds);
-
-            if (recipesError) {
-                throw recipesError;
-            }
+            const recipes = await recipeRepository.getRecipesByIds(recipeIds);
 
             mealPlan.recipes = recipes.map(recipe => recipe.recipe_name);
         }
 
         return mealPlans;
     } catch (error) {
-        console.error('Error fetching meal plans:', error.message);
+        console.error('[getMealPlanByUserIdAndDate] Failed to fetch meal plans:', error.message);
         throw error;
     }
 }

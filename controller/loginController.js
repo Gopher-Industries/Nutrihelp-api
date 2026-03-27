@@ -1,12 +1,12 @@
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const logLoginEvent = require("../Monitor_&_Logging/loginLogger");
-const getUserCredentials = require("../model/getUserCredentials.js");
 const { addMfaToken, verifyMfaToken } = require("../model/addMfaToken.js");
 const nodemailer = require("nodemailer");
 const crypto = require("crypto");
-const supabase = require("../dbConnection");
 const { validationResult } = require("express-validator");
+const userRepository = require("../repositories/userRepository");
+const authLogRepository = require("../repositories/authLogRepository");
 
 // Nodemailer transporter using Gmail no-reply account
 const transporter = nodemailer.createTransport({
@@ -37,14 +37,10 @@ const login = async (req, res) => {
 
   try {
     // Count failed login attempts
-    const { data: failuresByEmail } = await supabase
-      .from("brute_force_logs")
-      .select("id")
-      .eq("email", email)
-      .eq("success", false)
-      .gte("created_at", tenMinutesAgoISO);
-
-    const failureCount = failuresByEmail?.length || 0;
+    const failureCount = await authLogRepository.countRecentBruteForceFailuresByEmail(
+      email,
+      tenMinutesAgoISO
+    );
 
     if (failureCount >= 10) {
       return res.status(429).json({
@@ -53,16 +49,16 @@ const login = async (req, res) => {
     }
 
     // Validate credentials
-    const user = await getUserCredentials(email);
+    const user = await userRepository.findCredentialsByEmail(email);
     const userExists = user !== null && user !== undefined;
 
     if (!userExists) {
-      await supabase.from("brute_force_logs").insert([{
+      await authLogRepository.insertBruteForceAttempt({
         email,
-        ip_address: clientIp,
+        ipAddress: clientIp,
         success: false,
-        created_at: new Date().toISOString()
-      }]);
+        createdAt: new Date().toISOString()
+      });
       await sendFailedLoginAlert(email, clientIp);
       return res.status(404).json({
         error: "Account not found. Please create an account first."
@@ -72,12 +68,12 @@ const login = async (req, res) => {
     const isPasswordValid = await bcrypt.compare(password, user.password);
 
     if (!isPasswordValid) {
-      await supabase.from("brute_force_logs").insert([{
+      await authLogRepository.insertBruteForceAttempt({
         email,
-        ip_address: clientIp,
+        ipAddress: clientIp,
         success: false,
-        created_at: new Date().toISOString()
-      }]);
+        createdAt: new Date().toISOString()
+      });
 
       if (failureCount === 4) {
         return res.status(429).json({
@@ -90,15 +86,13 @@ const login = async (req, res) => {
     }
 
     // Log successful login attempt and clear failures
-    await supabase.from("brute_force_logs").insert([{
+    await authLogRepository.insertBruteForceAttempt({
       email,
       success: true,
-      created_at: new Date().toISOString()
-    }]);
+      createdAt: new Date().toISOString()
+    });
 
-    await supabase.from("brute_force_logs").delete()
-      .eq("email", email)
-      .eq("success", false);
+    await authLogRepository.clearFailedBruteForceAttempts(email);
 
     // MFA handling
     if (user.mfa_enabled) {
@@ -129,7 +123,7 @@ const login = async (req, res) => {
     return res.status(200).json({ user, token });
 
   } catch (err) {
-    console.error("Login error:", err);
+    console.error("[loginController] Login failed:", err);
     return res.status(500).json({ error: "Internal server error" });
   }
 };
@@ -149,7 +143,7 @@ const loginMfa = async (req, res) => {
   }
 
   try {
-    const user = await getUserCredentials(email);
+    const user = await userRepository.findCredentialsByEmail(email);
     if (!user) {
       return res.status(401).json({ error: "Invalid email or password" });
     }
@@ -176,7 +170,7 @@ const loginMfa = async (req, res) => {
     return res.status(200).json({ user, token });
 
   } catch (err) {
-    console.error("MFA login error:", err);
+    console.error("[loginController] MFA login failed:", err);
     return res.status(500).json({ error: "Internal server error" });
   }
 };
@@ -198,9 +192,9 @@ async function sendOtpEmail(email, token) {
         <p>– NutriHelp Security Team</p>
       `
     });
-    console.log("✅ OTP email sent successfully to", email);
+    console.log(`[loginController] OTP email sent to ${email}`);
   } catch (err) {
-    console.error("Error sending OTP email:", err.message);
+    console.error("[loginController] OTP email send failed:", err.message);
   }
 }
 
@@ -220,9 +214,9 @@ async function sendFailedLoginAlert(email, ip) {
         <p>– NutriHelp Security Team</p>
       `
     });
-    console.log(`✅ Failed login alert sent to ${email}`);
+    console.log(`[loginController] Failed login alert sent to ${email}`);
   } catch (err) {
-    console.error("Failed to send alert email:", err.message);
+    console.error("[loginController] Failed login alert email send failed:", err.message);
   }
 }
 

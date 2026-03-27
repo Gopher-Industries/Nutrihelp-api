@@ -1,13 +1,9 @@
-const supabase = require("../dbConnection.js");
+const recipeRepository = require('../repositories/recipeRepository');
 
 // Get data from Supabase: id only
 async function getIngredients(recipe_id) {
   try {
-		let { data, error } = await supabase
-			.from("recipes")
-			.select("ingredients")
-      .eq("id", recipe_id);
-		return data;
+		return await recipeRepository.getRecipeIngredientsByRecipeId(recipe_id);
 	} catch (error) {
 		throw error;
 	}
@@ -16,11 +12,7 @@ async function getIngredients(recipe_id) {
 // Get data from Supabase, id and total servings
 async function getIngredientsWithTotalServing(recipe_id) {
 	try {
-		let { data, error } = await supabase
-			.from("recipes")
-			.select("total_servings, ingredients")
-			.in("id", recipe_id);
-		return data;
+		return await recipeRepository.getRecipesWithServings(recipe_id);
 	} catch (error) {
 		throw error;
 	}

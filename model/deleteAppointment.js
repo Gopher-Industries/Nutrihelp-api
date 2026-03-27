@@ -1,17 +1,13 @@
-const supabase = require('../dbConnection.js');
+const appointmentRepository = require('../repositories/appointmentRepository');
 
 async function deleteAppointment(user_id, date, time, description) {
     try {
-        let { error } = await supabase
-            .from('appointments')
-            .delete()
-            .eq('user_id', user_id)
-            .eq('date', date)
-            .eq('time', time)
-            .eq('description', description);
-        if (error) {
-            throw new Error('Error deleting appointment')
-        }
+        await appointmentRepository.deleteAppointmentByFields({
+            userId: user_id,
+            date,
+            time,
+            description
+        });
     } catch (error) {
         throw error;
     }

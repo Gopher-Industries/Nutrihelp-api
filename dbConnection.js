@@ -1,23 +1,17 @@
 
 require('dotenv').config();
 
-// TEMPORARY DEBUG — remove after fixing
-console.log('🔍 Supabase env check:', {
-  url: process.env.SUPABASE_URL?.slice(0, 30) + '...',
-  keyLoaded: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
-  keyPrefix: process.env.SUPABASE_SERVICE_ROLE_KEY?.slice(0, 10)
-});
 const { createClient } = require('@supabase/supabase-js');
 
 // Check if environment variables are loaded
 if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    console.error('❌ Missing required environment variables:');
-    console.error('   SUPABASE_URL:', process.env.SUPABASE_URL ? '✓ Set' : '✗ Missing');
-    console.error('   SUPABASE_ANON_KEY:', process.env.SUPABASE_ANON_KEY ? '✓ Set' : '✗ Missing');
-    console.error('   SUPABASE_SERVICE_ROLE_KEY:', process.env.SUPABASE_SERVICE_ROLE_KEY ? '✓ Set' : '✗ Missing');
-    console.error('\n💡 Please check your .env file contains:');
-    console.error('   SUPABASE_URL=your_supabase_project_url');
-    console.error('   SUPABASE_ANON_KEY=your_supabase_anon_key');
+    console.error('[dbConnection] Missing required environment variables');
+    console.error('  SUPABASE_URL:', process.env.SUPABASE_URL ? 'set' : 'missing');
+    console.error('  SUPABASE_ANON_KEY:', process.env.SUPABASE_ANON_KEY ? 'set' : 'missing');
+    console.error('  SUPABASE_SERVICE_ROLE_KEY:', process.env.SUPABASE_SERVICE_ROLE_KEY ? 'set' : 'missing');
+    console.error('[dbConnection] Expected .env entries:');
+    console.error('  SUPABASE_URL=your_supabase_project_url');
+    console.error('  SUPABASE_ANON_KEY=your_supabase_anon_key');
     process.exit(1);
 }
 

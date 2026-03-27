@@ -1,14 +1,8 @@
-const supabase = require('../dbConnection.js');
+const userRepository = require('../repositories/userRepository');
 
 async function deleteUser(user_id) {
     try {
-        let { error } = await supabase
-            .from('users')
-            .delete()
-            .eq('user_id', user_id)
-        if (error) {
-            throw new Error('Error deleting user')
-        }
+        await userRepository.deleteByUserId(user_id);
     } catch (error) {
         throw error;
     }

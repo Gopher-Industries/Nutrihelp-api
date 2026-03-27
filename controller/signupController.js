@@ -1,15 +1,11 @@
 const bcrypt = require('bcryptjs');
-let getUser = require('../model/getUser.js');
-let addUser = require('../model/addUser.js');
 const { validationResult } = require('express-validator');
-const { registerValidation } = require('../validators/signupValidator.js');
-// const supabase = require('../dbConnection');
 const logLoginEvent = require("../Monitor_&_Logging/loginLogger");
-const supabase = require("../database/supabaseClient");
-const { createClient } = require("@supabase/supabase-js");
+const userRepository = require('../repositories/userRepository');
+const authIdentityRepository = require('../repositories/authIdentityRepository');
 
 const safeLog = async (payload) => {
-  try { await logLoginEvent(payload); } catch (e) { console.warn("log error:", e.message); }
+  try { await logLoginEvent(payload); } catch (e) { console.warn("[signupController] Security event log failed:", e.message); }
 };
 const isStrongPassword = (pw) =>
   /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/.test(pw || "");
@@ -52,7 +48,7 @@ if (!isStrongPassword(password)) {
       message: 'User created successfully'
     });
   } catch (error) {
-    console.error('Error creating user: ', error);
+    console.error('[signupController] User creation failed:', error);
     await safeLog({
       userId: null,
       eventType: 'SIGNUP_FAILED',
@@ -70,8 +66,8 @@ if (!isStrongPassword(password)) {
 
 // Add data to public.users table
 const signupPublicTable = async (user_uuid, name, emailNormalized, password, contact_number, address, clientIp, userAgent) => {
-  const userExists = await getUser(emailNormalized);
-  if (userExists.length > 0) {
+  const userExists = await userRepository.findByEmail(emailNormalized);
+  if (userExists) {
     // Log signup failure due to duplicate
     await safeLog({
       userId: null,
@@ -93,8 +89,14 @@ const signupPublicTable = async (user_uuid, name, emailNormalized, password, con
   }
 
   const hashedPassword = await bcrypt.hash(password, 10);
-  const result = await addUser(name, emailNormalized, hashedPassword, true, contact_number, address);
-  const user_id = result.user_id; // UserID in int8 type (public table)
+  const result = await userRepository.createUser({
+    name,
+    email: emailNormalized,
+    password: hashedPassword,
+    mfaEnabled: true,
+    contactNumber: contact_number,
+    address
+  });
 
   await safeLog({
     // userId: result.user_id,
@@ -115,22 +117,17 @@ const signupPublicTable = async (user_uuid, name, emailNormalized, password, con
 
 // Add data to auth.users table
 const signupAuthTable = async (name, emailNormalized, password, contact_number, address, clientIp, userAgent) => {
-  const { data, error } = await supabase.auth.signUp({
-    email: emailNormalized,
-    password,
-    options: {
-      data: { name, contact_number: contact_number || null, address: address || null },
-
-      emailRedirectTo: process.env.APP_ORIGIN ? `${process.env.APP_ORIGIN}/login` : undefined,
-    },
-  });
-
-  // FORCE LOGOUT AFTER SIGNUP (VERY IMPORTANT)
-  if (data?.session) {
-    await supabase.auth.signOut();
-  }
-
-  if (error) {
+  let data;
+  try {
+    data = await authIdentityRepository.signUp({
+      email: emailNormalized,
+      password,
+      options: {
+        data: { name, contact_number: contact_number || null, address: address || null },
+        emailRedirectTo: process.env.APP_ORIGIN ? `${process.env.APP_ORIGIN}/login` : undefined,
+      },
+    });
+  } catch (error) {
     const msg = (error.message || "").toLowerCase();
 
     if (msg.includes("already") && msg.includes("registered")) {
@@ -142,35 +139,34 @@ const signupAuthTable = async (name, emailNormalized, password, contact_number, 
         success: false,
         status: 400,
         result: { error: "User already exists" }
-      }
-      // res.status(400).json({ error: "User already exists" });
+      };
     }
     if (msg.includes("password")) {
       return {
         success: false,
         status: 400,
         result: { error: error.message }
-      }
-      // return res.status(400).json({ error: error.message });
+      };
     }
 
     return {
       success: false,
       status: 400,
       result: { error: error.message || "Unable to create user" }
-    }
-    // return res.status(400).json({ error: error.message || "Unable to create user" });
+    };
+  }
+
+  // FORCE LOGOUT AFTER SIGNUP (VERY IMPORTANT)
+  if (data?.session) {
+    await authIdentityRepository.signOut();
   }
 
   const userId = data.user?.id || null;
 
   if (data.session?.access_token) {
     try {
-      const authed = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY, {
-        global: { headers: { Authorization: `Bearer ${data.session.access_token}` } },
-      });
-
-      await authed.from("profiles").upsert(
+      await authIdentityRepository.upsertProfileWithAccessToken(
+        data.session.access_token,
         {
           id: userId,
           email: emailNormalized,
@@ -178,10 +174,9 @@ const signupAuthTable = async (name, emailNormalized, password, contact_number, 
           contact_number: contact_number || null,
           address: address || null,
         },
-        { onConflict: "id" }
       );
     } catch (e) {
-      console.warn("profile upsert (authed) failed:", e.message);
+      console.warn("[signupController] Profile upsert failed:", e.message);
 
     }
   }

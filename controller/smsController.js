@@ -1,11 +1,6 @@
 require("dotenv").config();
-const { createClient } = require("@supabase/supabase-js");
 const twilio = require("twilio");
-
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY
-);
+const userRepository = require("../repositories/userRepository");
 
 
 const twilioClient = twilio(
@@ -38,31 +33,15 @@ exports.sendSMSCode = async (req, res) => {
 
   try {
     // 1) Lookup user's phone number
-    const { data, error } = await supabase
-      .from("users")
-      .select("contact_number")
-      .eq("email", email)
-      .single();
-
-    if (error) {
-      console.error("Supabase error:", error);
-      return res.status(500).json({ error: "Failed to query phone number." });
-    }
-    if (!data || !data.contact_number) {
+    const phone = await userRepository.findContactNumberByEmail(email);
+    if (!phone) {
       return res.status(404).json({ error: "Phone number not found for this email." });
     }
-
-    const phone = data.contact_number;
     const code = generateCode();
 
-    // 2) Always log in backend console for DEV/debug
-    console.log("=======================================");
-    console.log("📱 MFA Verification (DEV MODE)");
-    console.log("Email:", email);
-    console.log("Phone:", phone);
-    console.log("Verification Code:", code);
-    console.log("Timestamp:", new Date().toISOString());
-    console.log("=======================================");
+    if (process.env.NODE_ENV !== "production") {
+      console.log(`[smsController] Generated MFA code for ${email} at ${new Date().toISOString()}`);
+    }
 
     // 3) Save code in memory
     codeStore.set(email, { code, expireAt: expireAt(CODE_TTL_MIN), attempts: 0 });
@@ -88,7 +67,7 @@ exports.sendSMSCode = async (req, res) => {
       ok: true,
       message: USE_TWILIO
         ? "SMS code sent."
-        : "Verification code generated (check backend console in dev).",
+        : "Verification code generated for development mode.",
       phone: maskedPhone,
     });
   } catch (e) {

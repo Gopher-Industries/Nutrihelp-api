@@ -1,11 +1,5 @@
 const multer = require('multer');
-const { createClient } = require('@supabase/supabase-js');
-
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_ANON_KEY
-);
-
+const uploadRepository = require('../repositories/uploadRepository');
 
 const storage = multer.memoryStorage();  
 const upload = multer({
@@ -45,34 +39,22 @@ exports.uploadFile = async (req, res) => {
 
     try {
     
-      const { data, error } = await supabase.storage
-        .from('uploads')
-        .upload(filePath, file.buffer, {
-          contentType: file.mimetype,
-          cacheControl: '3600',
-        });
+      await uploadRepository.uploadFileToStorage({
+        bucket: 'uploads',
+        filePath,
+        buffer: file.buffer,
+        contentType: file.mimetype,
+        cacheControl: '3600'
+      });
 
-      if (error) throw error;
+      const fileUrl = await uploadRepository.getPublicUrl('uploads', filePath);
 
-      const { data: urlData, error: urlError } = await supabase
-        .storage
-        .from('uploads')
-        .getPublicUrl(filePath);
-
-      if (urlError || !urlData) throw urlError;
-
-      const fileUrl = urlData.publicUrl;
-
-      const { error: logError } = await supabase.from('upload_logs').insert([
-        {
-          user_id,
-          file_name: file.originalname,
-          file_url: fileUrl,
-          upload_time: uploadTime,
-        }
-      ]);
-
-      if (logError) throw logError;
+      await uploadRepository.createUploadLog({
+        userId: user_id,
+        fileName: file.originalname,
+        fileUrl,
+        uploadTime
+      });
 
       return res.status(201).json({ message: 'File uploaded successfully', fileUrl: fileUrl });
     } catch (error) {

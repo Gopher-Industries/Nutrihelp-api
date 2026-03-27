@@ -1,12 +1,9 @@
-const supabase = require('../dbConnection.js');
+const userRepository = require('../repositories/userRepository');
 
 async function getUser(email) {
     try {
-        let { data, error } = await supabase
-            .from('users')
-            .select('*')
-            .eq('email', email)
-        return data
+        const user = await userRepository.findByEmail(email);
+        return user ? [user] : [];
     } catch (error) {
         throw error;
     }

@@ -1,31 +1,10 @@
-const supabase = require('../dbConnection.js');
+const userRepository = require('../repositories/userRepository');
 
 async function getUserCredentials(email) {
   try {
-    const { data, error } = await supabase
-      .from('users')
-      .select(`
-        user_id,
-        email,
-        password,
-        mfa_enabled,
-        role_id,
-        user_roles (
-          id,
-          role_name
-        )
-      `)
-      .eq('email', email.trim())
-      .maybeSingle();
-
-    if (error) {
-      console.error("Supabase error in getUserCredentials:", error);
-      return null;
-    }
-
-    return data || null;
+    return await userRepository.findCredentialsByEmail(email);
   } catch (error) {
-    console.error("getUserCredentials failed:", error);
+    console.error("[getUserCredentials] Credential lookup failed:", error);
     return null;
   }
 }

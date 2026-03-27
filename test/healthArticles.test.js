@@ -1,16 +1,15 @@
 require('dotenv').config();
 const request = require('supertest');
 const express = require('express');
-const healthArticleRouter = require('../routes/articles');
+const proxyquire = require('proxyquire');
 
-// Mock Express app
+const getHealthArticles = jest.fn();
+const controller = proxyquire('../controller/healthArticleController', {
+  '../model/getHealthArticles': getHealthArticles,
+});
+
 const app = express();
-app.use('/api/health-articles', healthArticleRouter);
-
-const getHealthArticles = require('../model/getHealthArticles');
-
-// Mocking the model
-jest.mock('../model/getHealthArticles');
+app.get('/api/health-articles', controller.searchHealthArticles);
 
 describe('Health Articles API', () => {
   const sampleArticles = [
