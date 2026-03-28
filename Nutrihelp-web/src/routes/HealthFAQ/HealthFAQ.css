@@ -1,0 +1,283 @@
+/* Health FAQ specific styles - inherits base FAQ styles from JSX import */
+
+.health-faq-container {
+    margin-top: 80px;
+    max-width: 1000px;
+    margin-left: auto;
+    margin-right: auto;
+    padding: 20px;
+    font-family: "Arial", sans-serif;
+    background-color: var(--background-color);
+}
+
+.health-faq-container .health-faq-title {
+    font-size: 2.8rem;
+    text-align: left;
+    margin-bottom: 20px;
+    color: var(--faq-title-color); /* Deep blue for title */
+    font-weight: bold;
+}
+
+.category-selector {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+    justify-content: center;
+    margin: 25px 0px;
+    padding: 10px 10px;
+    background-color: var(--background-secondary);
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.category-selector button {
+    font-size: 1.3rem;
+    color: var(--text-primary);
+    padding: 10px 15px;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: all 0.3s ease;
+    border: 2px solid var(--border-color);
+    background-color: var(--card-background);
+}
+
+.category-selector button:hover {
+    background-color: var(--background-hover);
+}
+
+.category-selector button.active {
+    background-color: var(--success-color);
+    color: var(--text-inverse);
+    border-color: var(--success-color);
+}
+
+.faq-list {
+    margin-bottom: 30px;
+}
+
+.faq-item {
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    margin-bottom: 10px;
+    overflow: hidden;
+}
+
+.faq-question {
+    padding: 15px 20px;
+    background-color: var(--background-secondary);
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: background-color 0.2s ease;
+    position: relative;
+}
+
+.faq-question:hover {
+    background-color: var(--background-hover);
+}
+
+.faq-question h3 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-heading);
+    flex: 1;
+}
+
+.toggle-icon {
+    position: absolute;
+    transition: transform 0.3s ease;
+    font-size: 12px;
+    margin-right: 1rem;
+    right: 0;
+    color: var(--text-secondary);
+}
+
+.toggle-icon.open {
+    transform: rotate(180deg);
+}
+
+.faq-health-answer {
+    padding: 20px;
+    background-color: var(--card-background);
+    border-top: 1px solid var(--border-color);
+    line-height: 1.6;
+    animation: fadeIn 0.3s ease;
+    display: block !important;
+    height: auto !important;
+    overflow: visible !important;
+    color: var(--faq-answer-color);
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+/* Responsive Design */
+
+/* Large Tablets and Small Desktops (max-width: 1024px) */
+@media (max-width: 1024px) {
+    .health-faq-container {
+        max-width: 95%;
+        padding: 18px;
+    }
+
+    .health-faq-container .health-faq-title {
+        font-size: 2.4rem;
+    }
+
+    .category-selector {
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+    }
+
+    .category-selector button {
+        font-size: 1.2rem;
+        padding: 10px 12px;
+    }
+}
+
+/* Tablets (max-width: 768px) */
+@media (max-width: 768px) {
+    .health-faq-container {
+        margin-top: 60px;
+        padding: 15px;
+    }
+
+    .health-faq-container .health-faq-title {
+        font-size: 2rem;
+        margin-bottom: 15px;
+    }
+
+    .category-selector {
+        grid-template-columns: 1fr 1fr;
+        margin: 20px 0;
+        padding: 8px;
+        gap: 8px;
+    }
+
+    .category-selector button {
+        font-size: 1.1rem;
+        padding: 10px 12px;
+    }
+
+    .faq-list {
+        margin-bottom: 25px;
+    }
+
+    .faq-item {
+        margin-bottom: 8px;
+    }
+
+    .faq-question {
+        padding: 12px 15px;
+    }
+
+    .faq-question h3 {
+        font-size: 14px;
+    }
+
+    .toggle-icon {
+        font-size: 11px;
+    }
+
+    .faq-health-answer {
+        padding: 15px;
+        line-height: 1.5;
+    }
+}
+
+/* Mobile Phones (max-width: 480px) */
+@media (max-width: 480px) {
+    .health-faq-container {
+        margin-top: 50px;
+        padding: 12px;
+    }
+
+    .health-faq-container .health-faq-title {
+        font-size: 1.6rem;
+        margin-bottom: 12px;
+    }
+
+    .category-selector {
+        grid-template-columns: 1fr;
+        margin: 15px 0;
+        padding: 8px;
+        gap: 6px;
+    }
+
+    .category-selector button {
+        font-size: 1rem;
+        padding: 10px;
+        width: 100%;
+    }
+
+    .faq-list {
+        margin-bottom: 20px;
+    }
+
+    .faq-item {
+        margin-bottom: 6px;
+        border-radius: 3px;
+    }
+
+    .faq-question {
+        padding: 10px 12px;
+    }
+
+    .faq-question h3 {
+        font-size: 13px;
+    }
+
+    .toggle-icon {
+        font-size: 10px;
+        margin-right: 0.5rem;
+    }
+
+    .faq-health-answer {
+        padding: 12px;
+        font-size: 14px;
+        line-height: 1.5;
+    }
+}
+
+/* Extra Small Phones (max-width: 360px) */
+@media (max-width: 360px) {
+    .health-faq-container {
+        padding: 10px;
+    }
+
+    .health-faq-container .health-faq-title {
+        font-size: 1.4rem;
+    }
+
+    .category-selector {
+        padding: 6px;
+    }
+
+    .category-selector button {
+        font-size: 0.9rem;
+        padding: 8px;
+    }
+
+    .faq-question {
+        padding: 8px 10px;
+    }
+
+    .faq-question h3 {
+        font-size: 12px;
+    }
+
+    .faq-health-answer {
+        padding: 10px;
+        font-size: 13px;
+    }
+}

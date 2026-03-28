@@ -1,0 +1,73 @@
+.SearchButton {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.search {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    font-size: 26px;
+    font-weight: 600;
+    transition: all 0.2s ease-in-out;
+}
+
+.search:hover {
+    color: #bd49e7;
+}
+
+.titleInput:hover>.SearchButton>.search {
+    font-size: 16px;
+    font-weight: 300;
+}
+
+.input {
+    width: 0%;
+    transition: all 0.2s ease-in-out;
+}
+
+.titleInput:hover>.SearchButton>.input {
+    width: 100%;
+}
+
+.input>input[type="text"] {
+    margin: 0;
+    border: 0 !important;
+    padding: 0 !important;
+    /* padding-left: 20px !important; */
+    padding-bottom: 13px !important;
+    border-radius: 0 !important;
+}
+
+.input>.link {
+    width: 0;
+    height: 2px;
+    display: block;
+    background-color: #bd49e7;
+    transition: all 0.2s ease-in-out;
+}
+
+.input>input[type="text"]:hover+.link {
+    width: 100%;
+}
+
+.date {
+    width: 0px;
+    height: 100%;
+    overflow: hidden;
+    transition: all 0.2s ease-in-out;
+}
+
+.date>input[type="date"] {
+    display: block !important;
+    border: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+}
+
+.titleInput:hover>.SearchButton>.date {
+    width: 19px;
+}

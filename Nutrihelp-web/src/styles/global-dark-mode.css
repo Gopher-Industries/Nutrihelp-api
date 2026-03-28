@@ -1,0 +1,556 @@
+/* Global Dark Mode Styles for NutriHelp Application */
+
+/* CSS Variables for Light Mode */
+:root {
+  /* Primary Colors */
+  --primary-color: #005BBB;
+  --primary-hover: #004A99;
+  --primary-light: #E8F1FF;
+  --primary-dark: #003D7A;
+  
+  /* Secondary/Accent Colors */
+  --accent-color: #667eea;
+  --accent-hover: #5a6fd6;
+  --accent-light: #e8ebff;
+  
+  /* Background Colors */
+  --background-color: #FFFFFF;
+  --background-secondary: #FAFAFA;
+  --background-tertiary: #F5F5F5;
+  --background-page: #f8fbff;
+  --background-hero: #d8edfd;
+  --background-hover: #e9ecef;
+  
+  /* Card and Container Colors */
+  --card-background: #FFFFFF;
+  --card-background-secondary: #FAFAFA;
+  --container-background: #FFFFFF;
+  
+  /* Text Colors */
+  --text-primary: #1A1A1A;
+  --text-secondary: #5A5A5A;
+  --text-muted: #7A7A7A;
+  --text-inverse: #FFFFFF;
+  --text-heading: #333333;
+  --text-link: #005BBB;
+  --text-link-hover: #003D7A;
+  
+  /* Border Colors */
+  --border-color: #e0e0e0;
+  --border-color-secondary: #D0D0D0;
+  --border-color-light: #f1f5f9;
+  --border-color-focus: #005BBB;
+  
+  /* Input Colors */
+  --input-background: #FFFFFF;
+  --input-border: #D0D0D0;
+  --input-border-focus: #005BBB;
+  --input-text: #1A1A1A;
+  --input-placeholder: #9A9A9A;
+  
+  /* Button Colors */
+  --button-background: #005BBB;
+  --button-background-secondary: #F5F5F5;
+  --button-text: #FFFFFF;
+  --button-text-secondary: #1A1A1A;
+  --button-border: #005BBB;
+  --button-hover: #004A99;
+  
+  /* Navigation Colors */
+  --nav-background: #FAFAFA;
+  --nav-text: #1A1A1A;
+  --nav-hover: rgba(0, 0, 0, 0.05);
+  --nav-active: rgba(0, 91, 187, 0.1);
+  
+  /* Shadow Colors */
+  --card-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  --card-shadow-hover: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --dropdown-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --box-shadow-light: 0 0 10px rgba(0, 0, 0, 0.1);
+  --box-shadow-medium: 0 4px 10px rgba(0, 0, 0, 0.08);
+  
+  /* Status Colors */
+  --success-color: #1B873E;
+  --success-light: #d4edda;
+  --success-dark: #156430;
+  --warning-color: #CC8A00;
+  --warning-light: #fff3cd;
+  --warning-dark: #b37a00;
+  --error-color: #CC0000;
+  --error-light: #f8d7da;
+  --error-dark: #990000;
+  --info-color: #005BBB;
+  --info-light: #cce5ff;
+  
+  /* Hover Colors */
+  --hover-background: #f5f5f5;
+  
+  /* Overlay Colors */
+  --overlay-background: rgba(0, 0, 0, 0.5);
+  --modal-background: #FFFFFF;
+  
+  /* Gradient Colors */
+  --gradient-primary: linear-gradient(135deg, #005BBB 0%, #003D7A 100%);
+  --gradient-secondary: linear-gradient(135deg, #0070DD 0%, #005BBB 100%);
+  --gradient-nav: linear-gradient(44deg, #005BBB 0%, #0070DD 100%);
+  --gradient-accent: linear-gradient(135deg, #667eea 0%, #005BBB 50%, #005BBB 100%);
+  --gradient-success: linear-gradient(90deg, #4CAF50, #45a049);
+  
+  /* Glass and Special Effects */
+  --glass-background: rgba(255, 255, 255, 0.2);
+  --glass-background-dark: rgba(67, 65, 65, 0.2);
+  --text-light: #FFFFFF;
+  
+  /* Component-Specific Variables */
+  --faq-title-color: #327da8;
+  --faq-answer-color: #5a9bb3;
+  --faq-hover-bg: rgba(230, 247, 255, 0.8);
+  --feedback-bg: #E8F1FF;
+  --feedback-border: #0056b3;
+  
+  /* Chat Colors */
+  --chat-bg: linear-gradient(135deg, #ece4f7, #f8f3fc);
+  --chat-header-bg: #6c49b8;
+  --chat-user-bg: #e1d9f5;
+  --chat-user-text: #5b3d9a;
+  --chat-bot-bg: #f4ebff;
+  --chat-bot-text: #6c49b8;
+  
+  /* Recipe/Search Colors */
+  --search-recipe-button-background-color: #d63384;
+  
+  /* Food Preferences Colors */
+  --food-preferences-div-background-color: #f8f9fa;
+  --food-preferences-box-background-color: #f0f4f8;
+  --food-preferences-card-background-color: #ffffff;
+  
+  /* Leaderboard */
+  --leaderboard-bg: #171817;
+  
+  /* Table Colors */
+  --table-row-even: #f2f2f2;
+  --table-header-bg: #005BBB;
+  --table-hover: rgba(0, 0, 0, 0.1);
+}
+
+/* CSS Variables for Dark Mode */
+.dark-mode {
+  /* Primary Colors - Fresh Teal/Cyan */
+  --primary-color: #22D3EE;
+  --primary-hover: #67E8F9;
+  --primary-light: #164E63;
+  --primary-dark: #06B6D4;
+  
+  /* Secondary/Accent Colors - Soft Purple */
+  --accent-color: #A78BFA;
+  --accent-hover: #C4B5FD;
+  --accent-light: #3B2E5A;
+  
+  /* Background Colors - Rich Dark with Blue Undertone */
+  --background-color: #0F172A;
+  --background-secondary: #1E293B;
+  --background-tertiary: #334155;
+  --background-page: #0F172A;
+  --background-hero: #1E3A5F;
+  --background-hover: #475569;
+  
+  /* Card and Container Colors */
+  --card-background: #1E293B;
+  --card-background-secondary: #334155;
+  --container-background: #1E293B;
+  
+  /* Text Colors - High Contrast */
+  --text-primary: #F8FAFC;
+  --text-secondary: #CBD5E1;
+  --text-muted: #94A3B8;
+  --text-inverse: #0F172A;
+  --text-heading: #F1F5F9;
+  --text-link: #22D3EE;
+  --text-link-hover: #67E8F9;
+  
+  /* Border Colors */
+  --border-color: #475569;
+  --border-color-secondary: #334155;
+  --border-color-light: #334155;
+  --border-color-focus: #22D3EE;
+  
+  /* Input Colors */
+  --input-background: #1E293B;
+  --input-border: #475569;
+  --input-border-focus: #22D3EE;
+  --input-text: #F8FAFC;
+  --input-placeholder: #64748B;
+  
+  /* Button Colors - Vibrant Teal */
+  --button-background: #0891B2;
+  --button-background-secondary: #334155;
+  --button-text: #FFFFFF;
+  --button-text-secondary: #F8FAFC;
+  --button-border: #22D3EE;
+  --button-hover: #22D3EE;
+  
+  /* Navigation Colors */
+  --nav-background: #1E293B;
+  --nav-text: #F8FAFC;
+  --nav-hover: rgba(34, 211, 238, 0.15);
+  --nav-active: rgba(34, 211, 238, 0.25);
+  
+  /* Shadow Colors */
+  --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.3);
+  --card-shadow-hover: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -4px rgba(0, 0, 0, 0.3);
+  --dropdown-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  --box-shadow-light: 0 0 15px rgba(0, 0, 0, 0.3);
+  --box-shadow-medium: 0 4px 15px rgba(0, 0, 0, 0.35);
+  
+  /* Status Colors - Vibrant & Clear */
+  --success-color: #34D399;
+  --success-light: #064E3B;
+  --success-dark: #10B981;
+  --warning-color: #FBBF24;
+  --warning-light: #78350F;
+  --warning-dark: #F59E0B;
+  --error-color: #F87171;
+  --error-light: #7F1D1D;
+  --error-dark: #EF4444;
+  --info-color: #38BDF8;
+  --info-light: #0C4A6E;
+  
+  /* Hover Colors */
+  --hover-background: #475569;
+  
+  /* Overlay Colors */
+  --overlay-background: rgba(0, 0, 0, 0.7);
+  --modal-background: #1E293B;
+  
+  /* Gradient Colors - Modern & Vibrant */
+  --gradient-primary: linear-gradient(135deg, #22D3EE 0%, #0891B2 100%);
+  --gradient-secondary: linear-gradient(135deg, #38BDF8 0%, #22D3EE 100%);
+  --gradient-nav: linear-gradient(44deg, #1E293B 0%, #334155 100%);
+  --gradient-accent: linear-gradient(135deg, #A78BFA 0%, #22D3EE 50%, #0891B2 100%);
+  --gradient-success: linear-gradient(90deg, #34D399, #10B981);
+  
+  /* Glass and Special Effects - Dark Mode */
+  --glass-background: rgba(34, 211, 238, 0.1);
+  --glass-background-dark: rgba(71, 85, 105, 0.5);
+  --text-light: #F8FAFC;
+  
+  /* Component-Specific Variables */
+  --faq-title-color: #67E8F9;
+  --faq-answer-color: #CBD5E1;
+  --faq-hover-bg: rgba(34, 211, 238, 0.1);
+  --feedback-bg: #1E3A5F;
+  --feedback-border: #22D3EE;
+  
+  /* Chat Colors */
+  --chat-bg: linear-gradient(135deg, #1E293B, #334155);
+  --chat-header-bg: #0891B2;
+  --chat-user-bg: #334155;
+  --chat-user-text: #F1F5F9;
+  --chat-bot-bg: #164E63;
+  --chat-bot-text: #67E8F9;
+  
+  /* Recipe/Search Colors */
+  --search-recipe-button-background-color: #EC4899;
+  
+  /* Food Preferences Colors */
+  --food-preferences-div-background-color: #0F172A;
+  --food-preferences-box-background-color: #1E293B;
+  --food-preferences-card-background-color: #334155;
+
+  
+  /* Leaderboard - Brighter */
+  --leaderboard-bg: #1A2030;
+  
+  /* Table Colors - Brighter */
+  --table-row-even: #2E3848;
+  --table-header-bg: #3399FF;
+  --table-hover: rgba(77, 166, 255, 0.15);
+  
+  /* Base Element Styles */
+  color: var(--text-primary);
+  background-color: var(--background-color);
+}
+
+/* Typography */
+.dark-mode h1,
+.dark-mode h2,
+.dark-mode h3,
+.dark-mode h4,
+.dark-mode h5,
+.dark-mode h6 {
+  color: var(--text-primary);
+}
+
+.dark-mode p {
+  color: var(--text-secondary);
+}
+
+.dark-mode a {
+  color: var(--primary-color);
+}
+
+.dark-mode a:hover {
+  color: var(--primary-hover);
+}
+
+/* Form Elements */
+.dark-mode input,
+.dark-mode textarea,
+.dark-mode select {
+  background-color: var(--input-background);
+  color: var(--input-text);
+  border-color: var(--input-border);
+}
+
+.dark-mode input:focus,
+.dark-mode textarea:focus,
+.dark-mode select:focus {
+  border-color: var(--input-border-focus);
+  box-shadow: 0 0 0 3px rgba(168, 47, 234, 0.1);
+}
+
+.dark-mode input::placeholder,
+.dark-mode textarea::placeholder {
+  color: var(--input-placeholder);
+}
+
+/* Buttons */
+.dark-mode .btn,
+.dark-mode button {
+  background-color: var(--button-background);
+  color: var(--button-text);
+  border-color: var(--button-border);
+}
+
+.dark-mode .btn:hover,
+.dark-mode button:hover {
+  background-color: var(--button-hover);
+}
+
+.dark-mode .btn-secondary {
+  background-color: var(--button-background-secondary);
+  color: var(--button-text-secondary);
+  border-color: var(--border-color);
+}
+
+/* Cards and Containers */
+.dark-mode .card,
+.dark-mode .container,
+.dark-mode .box,
+.dark-mode .panel {
+  background-color: var(--card-background);
+  color: var(--text-primary);
+  border-color: var(--border-color);
+  box-shadow: var(--card-shadow);
+}
+
+.dark-mode .card:hover,
+.dark-mode .container:hover,
+.dark-mode .box:hover {
+  box-shadow: var(--card-shadow-hover);
+}
+
+/* Navigation */
+.dark-mode .nav,
+.dark-mode .navbar,
+.dark-mode .navigation {
+  background-color: var(--nav-background);
+  color: var(--nav-text);
+}
+
+.dark-mode .nav-link,
+.dark-mode .nav-item {
+  color: var(--nav-text);
+}
+
+.dark-mode .nav-link:hover,
+.dark-mode .nav-item:hover {
+  background-color: var(--nav-hover);
+  color: var(--primary-color);
+}
+
+.dark-mode .nav-link.active,
+.dark-mode .nav-item.active {
+  background-color: var(--nav-active);
+  color: var(--primary-color);
+}
+
+/* Dropdowns */
+.dark-mode .dropdown-menu,
+.dark-mode .dropdown-content {
+  background-color: var(--card-background);
+  border-color: var(--border-color);
+  box-shadow: var(--dropdown-shadow);
+}
+
+.dark-mode .dropdown-item {
+  color: var(--text-primary);
+}
+
+.dark-mode .dropdown-item:hover {
+  background-color: var(--background-secondary);
+  color: var(--primary-color);
+}
+
+/* Tables */
+.dark-mode table {
+  background-color: var(--card-background);
+  color: var(--text-primary);
+}
+
+.dark-mode th,
+.dark-mode td {
+  border-color: var(--border-color);
+  color: var(--text-primary);
+}
+
+.dark-mode tr:hover {
+  background-color: var(--background-secondary);
+}
+
+/* Modals and Overlays */
+.dark-mode .modal,
+.dark-mode .overlay {
+  background-color: var(--overlay-background);
+}
+
+.dark-mode .modal-content,
+.dark-mode .modal-body {
+  background-color: var(--modal-background);
+  color: var(--text-primary);
+  border-color: var(--border-color);
+}
+
+/* Lists */
+.dark-mode ul,
+.dark-mode ol {
+  color: var(--text-primary);
+}
+
+.dark-mode li {
+  color: var(--text-secondary);
+}
+
+/* Code and Pre */
+.dark-mode code,
+.dark-mode pre {
+  background-color: var(--background-secondary);
+  color: var(--text-primary);
+  border-color: var(--border-color);
+}
+
+/* Blockquotes */
+.dark-mode blockquote {
+  border-left-color: var(--primary-color);
+  background-color: var(--background-secondary);
+  color: var(--text-secondary);
+}
+
+/* Horizontal Rules */
+.dark-mode hr {
+  border-color: var(--border-color);
+}
+
+/* Focus Indicators for Accessibility */
+.dark-mode *:focus {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+}
+
+/* High Contrast Mode Support */
+@media (prefers-contrast: high) {
+  .dark-mode {
+    --border-color: #ffffff;
+    --text-muted: #ffffff;
+  }
+}
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+  .dark-mode * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Print Styles */
+@media print {
+  .dark-mode {
+    --background-color: #ffffff;
+    --text-primary: #000000;
+    --card-background: #ffffff;
+    --border-color: #000000;
+  }
+}
+
+/* ========================================
+   UTILITY CLASSES
+   Use these for quick styling without inline styles
+   ======================================== */
+
+/* Text Color Utilities */
+.text-primary { color: var(--text-primary) !important; }
+.text-secondary { color: var(--text-secondary) !important; }
+.text-muted { color: var(--text-muted) !important; }
+.text-inverse { color: var(--text-inverse) !important; }
+.text-primary-color { color: var(--primary-color) !important; }
+.text-success { color: var(--success-color) !important; }
+.text-warning { color: var(--warning-color) !important; }
+.text-error { color: var(--error-color) !important; }
+.text-info { color: var(--info-color) !important; }
+
+/* Background Color Utilities */
+.bg-primary { background-color: var(--background-color) !important; }
+.bg-secondary { background-color: var(--background-secondary) !important; }
+.bg-tertiary { background-color: var(--background-tertiary) !important; }
+.bg-card { background-color: var(--card-background) !important; }
+.bg-primary-color { background-color: var(--primary-color) !important; }
+.bg-success { background-color: var(--success-color) !important; }
+.bg-warning { background-color: var(--warning-color) !important; }
+.bg-error { background-color: var(--error-color) !important; }
+.bg-info { background-color: var(--info-color) !important; }
+
+/* Border Color Utilities */
+.border-color { border-color: var(--border-color) !important; }
+.border-primary { border-color: var(--primary-color) !important; }
+.border-success { border-color: var(--success-color) !important; }
+.border-error { border-color: var(--error-color) !important; }
+.border-info { border-color: var(--info-color) !important; }
+
+/* Button Style Utilities */
+.btn-primary {
+  background-color: var(--button-background) !important;
+  color: var(--button-text) !important;
+  border-color: var(--button-border) !important;
+}
+
+.btn-primary:hover {
+  background-color: var(--button-hover) !important;
+}
+
+.btn-secondary {
+  background-color: var(--button-background-secondary) !important;
+  color: var(--button-text-secondary) !important;
+  border-color: var(--border-color) !important;
+}
+
+.btn-success {
+  background-color: var(--success-color) !important;
+  color: var(--text-inverse) !important;
+}
+
+.btn-error {
+  background-color: var(--error-color) !important;
+  color: var(--text-inverse) !important;
+}
+
+.btn-info {
+  background-color: var(--info-color) !important;
+  color: var(--text-inverse) !important;
+}
+
+/* Shadow Utilities */
+.shadow-card { box-shadow: var(--card-shadow) !important; }
+.shadow-card-hover { box-shadow: var(--card-shadow-hover) !important; }
+.shadow-dropdown { box-shadow: var(--dropdown-shadow) !important; }

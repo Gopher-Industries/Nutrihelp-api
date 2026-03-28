@@ -1,0 +1,235 @@
+Nutrihelp API Backend Version Control
+### All changelog additions were completed via the Backend API team as a whole ###
+
+#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-V2024.2.3-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#
+  ChangeLog:
+  - Added 5 new vulnerability pattens to Vulnerability scanner - Changed version to V1.1
+  - Added Vulnerability Report
+  - Upgraded POST Meal Planning API
+  -	Upgraded GET meal planning API
+  - Updated / Refactored login API's to use email instead of username
+  - Began development of recipe image classification api
+
+#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-V2024.2.2-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#
+  ChangeLog:
+  - Implmented V1.0 Vulnerability scanner
+  - Added user ID and set up relationship in feedback API endpoint
+  - Added cooking method ID to the relation table/recipe API endpoint
+  - Added User Change Password API
+  - Added Image to User profile API
+
+#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-V2024.2.1-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#
+  ChangeLog:
+  - Added Version Control
+  - Added additional input Fields to the New user Sign Up Form
+  - Added images to Recipe API
+
+#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-V2024.2.0-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#-#
+Current pages and applicaitons present before trimester commenced
+
+Current Controllers:
+-	Appointment Controller
+-	Contact Us Controller
+-	Food Data Controller
+-	Image Classification Controller
+-	Login Controller
+-	Meal Plan Controller
+-	Recipe Controller
+-	Sign Up Controller
+-	User Feedback Controller
+-	User Preferences Controller
+-	User Profile Controller
+
+Middleware:
+-	Authenticate Token
+
+Current models:
+-	Add Appointment
+-	Add Contact Us Msg
+-	Add MFA Token
+-	Add User
+-	Add User Feedback
+-	Create Recipe
+- Create Recipe Test Sample
+-	Delete User Recipes
+-	Fetch All Allergies
+-	Fetch Cooking Methods
+-	Fetch All Cuisines
+-	Fetch All Dietary Requirements
+-	Fetch All Health Conditions
+-	Fetch All Ingredients
+-	Fetch All Spice Levels
+-	Fetch User Preferences
+-	Get Appointments
+-	Get User
+-	Get User Credentials
+-	Get User Profile
+-	Get User Recipes
+-	Image classification python script
+-	Meal Plan
+-	Update User Preference
+-	Update User Profile
+
+Node Models
+- .bin
+- @sendgrid
+- @supabase
+- @types
+- accepts
+- append-field
+- argparse
+- array-flatten
+- asynckit
+- axios
+- balanced-match
+- bcryptjs
+- body-parser
+- brace-expansion
+- buffer-equal-constant-time
+- buffer-from
+- busboy
+- bytes
+- call-bind
+- combined-stream
+- concat-map
+- concat-stream
+- content-disposition
+- content-type
+- cookie
+- cookie-signature
+- core-util-is
+- cors
+- debug
+- deepmerge
+- define-data-property
+- delayed-stream
+- denque
+- depd
+- destroy
+- dotenv
+- ecdsa-sig-formatter
+- ee-first
+- encodeurl
+- es-define-property
+- es-errors
+- escape-html
+- etag
+- express
+- finalhandler
+- follow-redirects
+- form-data
+- forwarded
+- fresh
+- fs.realpath
+- function-bind
+- generate-function
+- get-intrinsic
+- glob
+- gopd
+- has-property-descriptors
+- has-proto
+- has-symbols
+- hasown
+- http-errors
+- iconv-lite
+- inflight
+- inherits
+- ipaddr.js
+- is-property
+- isarray
+- jsonwebtoken
+- jwa
+- jws
+- lodash.includes
+- lodash.isboolean
+- lodash.isinteger
+- lodash.isnumber
+- lodash.isplainobject
+- lodash.isstring
+- lodash.once
+- long
+- lru-cache
+- media-typer
+- merge-descriptors
+- methods
+- mime
+- mime-db
+- mime-types
+- minimatch
+- minimist
+- mkdirp
+- ms
+- multer
+- mysql2
+- named-placeholders
+- negotiator
+- object-assign
+- object-inspect
+- on-finished
+- once
+- parseurl
+- path-is-absolute
+- path-to-regexp
+- process-nextick-args
+- proxy-addr
+- proxy-from-env
+- qs
+- range-parser
+- raw-body
+- readable-stream
+- safe-buffer
+- safer-buffer
+- semver
+- send
+- seq-queue
+- serve-static
+- set-function-length
+- setprototypeof
+- side-channel
+- sprintf-js
+- sqlstring
+- statuses
+- streamsearch
+- string_decoder
+- swagger-ui-dist
+- swagger-ui-express
+- toidentifier
+- tr46
+- type-is
+- typedarray
+- undici-types
+- unpipe
+- util-deprecate
+- utils-merge
+- vary
+- webidl-conversions
+- whatwg-url
+- wrappy
+- ws
+- xtend
+- yallist
+- yamljs
+
+Routes:
+-	Appointment
+-	Contact Us
+-	Food Data
+-	Image Classification
+-	Index
+-	Login
+-	Meal Plan
+-	Recipe
+-	Sign Up
+-	User Feedback
+-	User Preference
+-	User Profile
+
+Other:
+-	.env
+-	.gitignore.git
+-	dbConnection.js
+-	index.yaml
+-	package.json
+-	package-lock.json
+-	README.md
+-	server.js

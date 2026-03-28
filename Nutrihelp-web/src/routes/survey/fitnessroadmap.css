@@ -1,0 +1,131 @@
+.roadmap-container {
+  display: flex;
+  gap: 5rem;
+  /* padding: 1rem; */
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.roadmap-wrap {
+  display: flex;
+  justify-content: center;
+  align-items: self-start;
+  gap: 3rem;
+  background: var(--gradient-primary, linear-gradient(44deg, #7B44FF 0%, #F26CBA 100%)) !important ;
+  width: 100%;
+  min-height: 100vh;  
+  padding-left: 250px;
+  padding-top: 50px;
+}
+
+.side-image {
+  width: 500px;           /* or whatever size you like */
+  height: auto;
+  object-fit: contain;
+  padding: 3rem;
+  margin-top: 50px;
+}
+
+.roadmap-heading{
+  display: inline-block;
+  background: var(--glass-background, rgba(255,255,255,0.2)) !important;
+  padding: 0.5rem 1rem;
+  border-radius: 1rem;
+  font-weight: bolder;
+  font-size: x-large;
+  color: var(--text-light, white);
+}
+
+.weeks-sidebar {
+  width: 180px;
+  /* background: #f3f3f3 !important; */
+  border-radius: 8px;
+  padding-top: 10rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+}
+
+.week-item {
+  padding: 0.5rem;
+  margin-bottom: 0.3rem;
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--text-primary);
+  background: var(--card-background) !important;
+}
+
+.week-item.locked {
+    color: var(--text-muted);
+    cursor: not-allowed;
+    border: 2px solid;
+    padding: 42px;
+
+}
+.week-item.unlocked{
+    color: var(--text-muted);
+    border: 2px solid;
+    padding: 42px;
+}
+
+.week-details {
+    background: var(--card-background) !important;
+    border-radius: 8px;
+    padding: 1rem;
+    box-shadow: var(--card-shadow);
+    width: 800px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    color: var(--text-primary);
+}
+
+.done-btn {
+  margin-top: 1rem;
+  padding: 0.6rem 1rem;
+  background: var(--success-color);
+  color: var(--button-text);
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.complete-msg {
+  font-weight: bold;
+  color: var(--success-color);
+}
+
+.stats-panel {
+  position: relative;       /* stick to the right side */
+  top: 100px;
+  right: 40px;
+  width: 220px;
+  background: var(--card-background);
+  backdrop-filter: blur(6px);
+  padding: 1rem;
+  border-radius: 12px;
+  box-shadow: var(--card-shadow);
+}
+
+.stats-panel h2 {
+  font-size: 1.2rem;
+  margin-bottom: 0.8rem;
+  color: var(--text-primary);
+}
+
+.progress-bar {
+  width: 100%;
+  height: 10px;
+  background: var(--background-secondary);
+  border-radius: 6px;
+  margin: 0.5rem 0;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--gradient-primary, linear-gradient(90deg, #7B44FF, #F26CBA));
+  transition: width 0.4s ease;
+}

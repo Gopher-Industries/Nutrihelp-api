@@ -1,0 +1,55 @@
+/* CategoryResults.css */
+
+.category-results-page {
+  padding: 40px 20px;
+  text-align: center;
+  min-height: 100vh;
+  background-color: var(--background-color);
+  box-sizing: border-box;
+}
+
+.back-link {
+  text-align: left;
+  margin-bottom: 20px;
+}
+
+.back-link a {
+  color: #005BBB;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.back-link a:hover {
+  text-decoration: underline;
+}
+
+/* Make the cards line up horizontally and wrap */
+.recipes-container {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 30px;
+}
+
+.category-results-page > *:first-child {
+  margin-top: 0 !important;
+}
+ 
+
+.section-title {
+  margin-top: 8px !important;
+}
+ 
+
+.category-results-page {
+  padding-top: 16px;          
+  max-width: 1200px;
+  margin: 0 auto;
+}
+ 
+
+.category-results-page {
+  display: block;             
+}
+ 
+ 

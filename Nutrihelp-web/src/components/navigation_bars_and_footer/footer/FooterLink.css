@@ -1,0 +1,20 @@
+.footer-link-div {
+    display: flex;
+    justify-content: left;
+    color: rgb(0, 0, 0);
+
+    font-family: "Montserrat", sans-serif;
+    font-size: 18px;
+    font-weight: 600;
+    color: #000000;
+    white-space: nowrap;
+    transition: 0.3s;
+
+
+    text-shadow: none;
+}
+
+.footer-link-div a {
+    color: black;
+
+}

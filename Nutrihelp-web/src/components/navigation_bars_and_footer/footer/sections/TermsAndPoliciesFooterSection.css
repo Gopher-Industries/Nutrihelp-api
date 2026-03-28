@@ -1,0 +1,5 @@
+.links-container {
+    display: flex;
+    justify-content: space-evenly;
+    padding: 10px;
+}

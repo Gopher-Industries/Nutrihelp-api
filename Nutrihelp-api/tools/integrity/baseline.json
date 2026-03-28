@@ -1,0 +1,27 @@
+{
+  "server.js": {
+    "hash": "2af357f88f43ab6b5b9cb4de98a16fe2954d4a5ff6252010907bcf3d777bba51",
+    "size": 4304,
+    "modified": 1754808605140.1528
+  },
+  "package.json": {
+    "hash": "a5f2a27e95d8c2769285a7806018177c7d62d6b474767b02585d55eb764a9f36",
+    "size": 1323,
+    "modified": 1754808916336.6804
+  },
+  "routes/routes.js": {
+    "hash": "834d55ebbe59ac64d3d952a63b9d4d4951ffd90935e146e6eb6ab354c73b20f2",
+    "size": 1385,
+    "modified": 1754463117700.9844
+  },
+  "controller/loginController.js": {
+    "hash": "1c7dec38678f2a890e0db04aafd8888ac7c1c70f58109effb3ade65bbb7db5dd",
+    "size": 6055,
+    "modified": 1754463117566.8943
+  },
+  "controller/newFake.js": {
+    "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "size": 0,
+    "modified": 1754809610699.0774
+  }
+}

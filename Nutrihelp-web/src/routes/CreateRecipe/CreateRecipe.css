@@ -1,0 +1,131 @@
+.row {
+  margin-bottom: 20px;
+}
+
+.create-recipe-container {
+  background-color: var(--background-secondary);
+  padding-top: 50px;
+  padding-bottom: 50px;
+}
+
+#recipe_input {
+  margin-bottom: 0px;
+}
+
+.create-recipe-form {
+  position: relative;
+  width: 60%;
+  background-color: var(--card-background);
+  border-radius: 15px;
+  padding: 5% 10%;
+  text-align: center;
+  margin: auto;
+  margin-top: 50px;
+  z-index: 2;
+  box-shadow: var(--card-shadow);
+
+  .vector-bg-left {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    z-index: -1;
+  }
+
+  .vector-bg-right {
+    position: absolute;
+    top: 0;
+    right: 0;
+    z-index: -1;
+  }
+}
+
+.create-recipe-form-wrap {
+  position: relative;
+}
+
+.form-section .ui.header {
+  text-align: left;
+  color: var(--text-heading);
+}
+
+.form-div {
+  margin-left: 0;
+  align-items: center;
+}
+
+.create-recipe-form .single-line-text-input,
+.create-recipe-form .dropdown-select-input,
+.create-recipe-form .multiple-line-text-input,
+.single-line-number-input,
+.single-image-input {
+  width: 100%;
+  border: 1px solid var(--border-color);
+  padding: 10px 15px;
+  background-color: var(--input-background);
+  color: var(--input-text);
+}
+
+.vertical-center {
+  margin: 0;
+  position: absolute;
+  top: 50%;
+  -ms-transform: translateY(-50%);
+  transform: translateY(-50%);
+}
+
+.button-primary {
+  background-color: var(--button-background) !important;
+  color: var(--button-text) !important;
+  border-radius: 50px; /* Curvy corners */
+}
+
+.button-primary:hover {
+  opacity: 0.7;
+}
+
+.create-recipe-form-wrap .form-div {
+  margin-left: 0;
+  text-align: left;
+}
+
+.button-div {
+  display: flex;
+  width: 50%;
+  justify-content: flex-end;
+  margin-top: 50px;
+  margin-bottom: 20px;
+}
+
+.button-div button {
+  width: 250px;
+}
+
+.recipe-table {
+  font-family: Arial, Helvetica, sans-serif;
+  border-collapse: collapse;
+  width: 100%;
+  margin-left: 0;
+}
+
+.recipe-table td,
+.recipe-table th {
+  border: 1px solid var(--border-color);
+  padding: 8px;
+  color: var(--text-primary);
+}
+
+.recipe-table tr:nth-child(even) {
+  background-color: var(--table-row-even);
+}
+
+.recipe-table tr:hover {
+  background-color: var(--table-hover);
+}
+
+.recipe-table th {
+  padding-top: 12px;
+  padding-bottom: 12px;
+  text-align: center;
+  background-color: var(--table-header-bg);
+  color: var(--text-inverse);
+}

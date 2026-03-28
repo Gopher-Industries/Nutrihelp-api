@@ -1,0 +1,23 @@
+.leaderboard-background {
+  background-color: var(--leaderboard-bg);
+  /* background-image: radial-gradient(circle, #e9ddff 2px, transparent 1px); */
+  background-size: 20px 20px;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+}
+
+.leaderboard-page {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  width: 100%;
+  max-width: 1200px;
+  color: var(--text-primary);
+  min-height: 100vh;
+  background-color: var(--background-color);
+  box-sizing: border-box;
+}

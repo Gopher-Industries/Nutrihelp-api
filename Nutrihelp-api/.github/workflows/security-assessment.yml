@@ -1,0 +1,238 @@
+name: Monthly Security Assessment
+
+on:
+  schedule:
+    # Run at 2:00 AM on the 1st of every month
+    - cron: '0 2 1 * *'
+  workflow_dispatch: # Allow manual triggering
+  push:
+    branches: [ main ]
+    paths:
+      - 'security/**'
+      - '.github/workflows/security-assessment.yml'
+
+jobs:
+  security-assessment:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      contents: read
+      actions: read
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        # fetch full history to avoid git errors in CI that rely on tags/refs
+        fetch-depth: 0
+        # ensure actions has permission to access the repository (needed for forks and some git ops)
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Start server in background
+      run: |
+        npm start &
+        sleep 15
+        echo "Server started, waiting for it to be ready..." 
+        
+        # Check whether the server is started successfully
+        for i in {1..10}; do
+          if curl -f http://localhost:80/api-docs > /dev/null 2>&1; then
+            echo "Server is ready!"
+            break
+          elif curl -f http://localhost:3000/ > /dev/null 2>&1; then
+            echo "Server is ready on port 3000!"
+            break
+          else
+            echo "Waiting for server... (attempt $i)"
+            sleep 3
+          fi
+        done
+
+    - name: Create reports directory
+      run: mkdir -p security/reports
+
+    - name: Debug git state (CI helper)
+      if: ${{ github.event_name != 'schedule' }}
+      run: |
+        echo "Git version: $(git --version)"
+        echo "Current dir: $(pwd)"
+        echo "Git status:" || true
+        git status --porcelain || true
+        echo "Show remote info:" || true
+        git remote -v || true
+        echo "List refs (limited):" || true
+        git show-ref --heads --tags | head -n 50 || true
+
+    - name: Run security assessment
+      id: security-assessment
+      env:
+        NODE_ENV: production
+        SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+        SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        JWT_SECRET: ${{ secrets.JWT_SECRET }}
+        GITHUB_ACTIONS: true
+      continue-on-error: true
+      run: |
+        echo "Starting security assessment..."
+        
+        # Run the assessment
+        node security/runAssessment.js
+        
+        # Find the latest generated JSON report
+        LATEST_REPORT=$(ls -t security/reports/security-report-*.json 2>/dev/null | head -1)
+        
+        if [ -f "$LATEST_REPORT" ]; then
+          echo "Found report: $LATEST_REPORT"
+          
+          # Extract key metrics from the report
+          CRITICAL_ISSUES=$(node -e "
+            try {
+              const fs = require('fs');
+              const report = JSON.parse(fs.readFileSync('$LATEST_REPORT', 'utf8'));
+              console.log(report.critical_issues || 0);
+            } catch(e) {
+              console.log('0');
+            }
+          ")
+          
+          OVERALL_SCORE=$(node -e "
+            try {
+              const fs = require('fs');
+              const report = JSON.parse(fs.readFileSync('$LATEST_REPORT', 'utf8'));
+              console.log(report.overall_score || 0);
+            } catch(e) {
+              console.log('0');
+            }
+          ")
+          
+          FAILED_CHECKS=$(node -e "
+            try {
+              const fs = require('fs');
+              const report = JSON.parse(fs.readFileSync('$LATEST_REPORT', 'utf8'));
+              console.log(report.failed_checks || 0);
+            } catch(e) {
+              console.log('0');
+            }
+          ")
+          
+          # Set outputs
+          echo "has_critical=$([ $CRITICAL_ISSUES -gt 0 ] && echo 'true' || echo 'false')" >> $GITHUB_OUTPUT
+          echo "report_path=$LATEST_REPORT" >> $GITHUB_OUTPUT
+          echo "critical_issues=$CRITICAL_ISSUES" >> $GITHUB_OUTPUT
+          echo "overall_score=$OVERALL_SCORE" >> $GITHUB_OUTPUT
+          echo "failed_checks=$FAILED_CHECKS" >> $GITHUB_OUTPUT
+          
+          # Create a summary for GitHub
+          echo "## Security Assessment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- **Overall Score:** ${OVERALL_SCORE}%" >> $GITHUB_STEP_SUMMARY
+          echo "- **Critical Issues:** $CRITICAL_ISSUES" >> $GITHUB_STEP_SUMMARY
+          echo "- **Failed Checks:** $FAILED_CHECKS" >> $GITHUB_STEP_SUMMARY
+          # Prefer linking directly to the artifacts tab for this run so users can download reports
+          echo "- **Report (artifacts):** [Download Reports](https://github.com/${{ github.repository }}/runs/${{ github.run_id }}/artifacts)" >> $GITHUB_STEP_SUMMARY
+          echo "- **Or open Actions run:** [Run details](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> $GITHUB_STEP_SUMMARY
+          
+        else
+          echo "No report file found"
+          echo "has_critical=false" >> $GITHUB_OUTPUT
+          echo "report_path=" >> $GITHUB_OUTPUT
+          echo "critical_issues=0" >> $GITHUB_OUTPUT
+          echo "overall_score=0" >> $GITHUB_OUTPUT
+          echo "failed_checks=0" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Upload security reports
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: security-reports-${{ github.run_number }}
+        path: security/reports/
+        retention-days: 90
+
+    - name: Comment on commit with results
+      if: github.event_name == 'push'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const critical = '${{ steps.security-assessment.outputs.critical_issues }}';
+          const score = '${{ steps.security-assessment.outputs.overall_score }}';
+          const failed = '${{ steps.security-assessment.outputs.failed_checks }}';
+          const runId = '${{ github.run_id }}';
+          
+          const criticalNum = parseInt(critical) || 0;
+          const scoreNum = parseInt(score) || 0;
+          
+          const status = criticalNum > 0 ? '🚨 CRITICAL' : 
+                        scoreNum < 70 ? '⚠️ WARNING' : '✅ GOOD';
+          
+          let actionMessage = '';
+          if (criticalNum > 0) {
+            actionMessage = '⚠️ **Action Required:** Critical security issues detected!';
+          } else if (scoreNum < 70) {
+            actionMessage = '⚠️ **Review Recommended:** Security score below threshold.';
+          } else {
+            actionMessage = '✅ **All Good:** Security assessment passed.';
+          }
+          
+          const comment = '## Security Assessment Results ' + status + '\n\n' +
+            '**Overall Score:** ' + score + '%\n' +
+            '**Critical Issues:** ' + critical + '\n' +
+            '**Failed Checks:** ' + failed + '\n\n' +
+            actionMessage + '\n\n' +
+            '[View Full Reports](https://github.com/' + context.repo.owner + '/' + context.repo.repo + '/actions/runs/' + runId + ')';
+          
+          github.rest.repos.createCommitComment({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            commit_sha: context.sha,
+            body: comment
+          });
+
+    - name: Create issue for critical findings
+      if: steps.security-assessment.outputs.has_critical == 'true'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const critical = '${{ steps.security-assessment.outputs.critical_issues }}';
+          const score = '${{ steps.security-assessment.outputs.overall_score }}';
+          const failed = '${{ steps.security-assessment.outputs.failed_checks }}';
+          const runId = '${{ github.run_id }}';
+          
+          const body = '## 🚨 Critical Security Issues Detected\n\n' +
+            '**Assessment Results:**\n' +
+            '- **Critical Issues:** ' + critical + '\n' +
+            '- **Overall Score:** ' + score + '%\n' +
+            '- **Failed Checks:** ' + failed + '\n' +
+            '- **Run ID:** ' + runId + '\n\n' +
+            '**Immediate Actions Required:**\n' +
+            '1. Review the detailed security report in the workflow artifacts\n' +
+            '2. Address all critical security issues immediately\n' +
+            '3. Re-run the security assessment after fixes\n' +
+            '4. Close this issue once all critical issues are resolved\n\n' +
+            '**Report Files:**\n' +
+            '- JSON Report: security-report-*.json\n' +
+            '- HTML Report: security-report-*.html\n' +
+            '- Markdown Report: security-report-*.md\n\n' +
+            'This issue was automatically created by the Monthly Security Assessment workflow.';
+
+          github.rest.issues.create({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            title: '🚨 Critical Security Issues Detected (Score: ' + score + '%)',
+            body: body,
+            labels: ['security', 'critical', 'automated']
+          });
+
+    - name: Set exit code based on results
+      if: steps.security-assessment.outputs.has_critical == 'true'
+      run: |
+        echo "Critical security issues detected. Failing the workflow."
+        exit 1

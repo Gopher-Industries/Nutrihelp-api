@@ -1,0 +1,257 @@
+:root {
+  --bg: #0f1115;
+  --card: #ffffff;
+  --text: #1a2233;
+  --muted: #8a94a6;
+  --line: #e7ecf5;
+
+  --purple: #4b0fa8;
+  --primary: #0a63ff;
+
+  --bubble-left: #eef2f7;
+  --bubble-right: #0a63ff;
+
+  --radius-lg: 22px;
+  --radius-md: 16px;
+  --radius-sm: 12px;
+
+  --shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+.nh-root {
+  min-height: 100vh;
+  background: linear-gradient(#3b0a88, #0f1115);
+  font-family: system-ui, sans-serif;
+}
+
+/* ---------- Topbar ---------- */
+
+.nh-topbar {
+  height: 64px;
+  background: var(--purple);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 0 16px;
+  color: #fff;
+}
+
+.nh-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+}
+
+.nh-logo {
+  width: 36px;
+  height: 36px;
+  background: rgba(255,255,255,0.15);
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+}
+
+.nh-rightlinks {
+  margin-left: auto;
+  display: flex;
+  gap: 16px;
+  font-size: 14px;
+}
+
+/* ---------- Hamburger ---------- */
+
+.nh-hamburger {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  border: none;
+  background: rgba(255,255,255,0.15);
+  display: grid;
+  gap: 6px;
+  padding: 10px;
+  cursor: pointer;
+}
+
+.nh-hamburger span {
+  height: 2px;
+  background: #fff;
+  border-radius: 999px;
+}
+
+/* ---------- Drawer ---------- */
+
+.nh-drawerOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  opacity: 0;
+  pointer-events: none;
+  transition: 0.2s;
+  z-index: 20;
+}
+
+.nh-drawerOverlay.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.nh-drawer {
+  position: fixed;
+  top: 72px;
+  left: 16px;
+  width: 300px;
+  background: #16181d;
+  color: #fff;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  transform: translateX(-110%);
+  transition: transform 0.25s ease;
+  z-index: 30;
+}
+
+.nh-drawer.open {
+  transform: translateX(0);
+}
+
+.nh-drawerClose {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 22px;
+  cursor: pointer;
+}
+
+.nh-drawerNav {
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.nh-drawerLink {
+  padding: 10px 12px;
+  border-radius: 12px;
+  text-decoration: none;
+  color: #fff;
+  font-weight: 600;
+}
+
+.nh-drawerLink:hover {
+  background: rgba(255,255,255,0.12);
+}
+
+/* ---------- Chat ---------- */
+
+.nh-app {
+  padding: 18px;
+}
+
+.nh-chatCard {
+  background: var(--card);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 100px);
+}
+
+.nh-chatHeader {
+  height: 72px;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+}
+
+.nh-messages {
+  flex: 1;
+  padding: 18px;
+  overflow-y: auto;
+}
+
+.nh-msgRow {
+  display: flex;
+  margin-bottom: 12px;
+}
+
+.nh-msgRow.left {
+  justify-content: flex-start;
+}
+
+.nh-msgRow.right {
+  justify-content: flex-end;
+}
+
+.nh-msgWrap {
+  max-width: 70%;
+}
+
+.nh-bubble {
+  padding: 12px 16px;
+  border-radius: 18px;
+  font-size: 14px;
+}
+
+.nh-bubble.left {
+  background: var(--bubble-left);
+}
+
+.nh-bubble.right {
+  background: var(--bubble-right);
+  color: #fff;
+}
+
+.nh-meta {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+.nh-meta.right {
+  text-align: right;
+}
+
+/* ---------- Composer ---------- */
+
+.nh-composer {
+  border-top: 1px solid var(--line);
+  padding: 14px;
+  display: flex;
+  gap: 12px;
+}
+
+.nh-inputWrap {
+  flex: 1;
+  background: #f3f6ff;
+  border-radius: 16px;
+  padding: 10px 12px;
+}
+
+.nh-inputWrap textarea {
+  width: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  resize: none;
+  font-size: 14px;
+}
+
+.nh-sendBtn {
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  border: none;
+  background: var(--primary);
+  color: #fff;
+  font-size: 18px;
+  cursor: pointer;
+}

@@ -1,0 +1,219 @@
+.news-detail-page {
+  display: flex;
+  justify-content: center;
+  padding: 48px 16px;
+  background-color: var(--background-color);
+  color: var(--text-primary);
+  min-height: 100vh;
+}
+
+.dark-mode .news-detail-page {
+  background-color: var(--background-color);
+  color: var(--text-primary);
+}
+
+.news-detail-container {
+  width: 100%;
+  max-width: 1120px;
+  display: flex;
+  justify-content: center;
+}
+
+.news-detail-content {
+  width: 66.6667%;
+  max-width: 66.6667%;
+  background-color: var(--card-background);
+  color: var(--text-primary);
+  border-radius: 16px;
+  box-shadow: var(--card-shadow);
+  border: 1px solid var(--border-color);
+  padding: 40px 44px;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+.dark-mode .news-detail-content {
+  background-color: var(--card-background);
+  color: var(--text-primary);
+  box-shadow: var(--card-shadow);
+  border-color: var(--border-color);
+}
+
+.news-detail-header {
+  position: absolute;
+  left: 24px;
+  top: 24px;
+}
+
+.back-button {
+  border: none;
+  background: var(--button-background-secondary);
+  color: var(--button-text-secondary);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 10px 20px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  transition: all 0.3s ease;
+  font-weight: 600;
+}
+
+.dark-mode .back-button {
+  background: var(--button-background-secondary);
+  color: var(--button-text-secondary);
+  border-color: var(--border-color);
+}
+
+.back-button:hover {
+  background-color: var(--primary-color);
+  color: var(--button-text);
+  transform: translateY(-2px);
+  box-shadow: var(--card-shadow-hover);
+}
+
+.news-detail-title-block {
+  margin-bottom: 28px;
+}
+
+.news-detail-title {
+  font-size: 34px;
+  line-height: 1.25;
+  margin: 0 0 14px 0;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  color: var(--text-primary);
+}
+
+.dark-mode .news-detail-title {
+  color: var(--text-primary);
+}
+
+.news-detail-meta {
+  display: flex;
+  gap: 14px;
+  font-size: 14px;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+
+.dark-mode .news-detail-meta {
+  color: var(--text-muted);
+}
+
+.news-detail-summary {
+  font-size: 19px;
+  line-height: 1.75;
+  color: var(--text-secondary);
+  font-style: italic;
+  font-family: Georgia, Cambria, "Times New Roman", Times, serif;
+}
+
+.dark-mode .news-detail-summary {
+  color: var(--text-secondary);
+}
+
+.news-detail-figure {
+  margin: 24px 0 10px 0;
+  position: relative;
+}
+
+.news-detail-figure img {
+  width: 100%;
+  height: auto;
+  border-radius: 12px;
+}
+
+.image-controls {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 10;
+}
+
+.refresh-image-btn {
+  background: rgba(0, 0, 0, 0.7);
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(4px);
+}
+
+.refresh-image-btn:hover {
+  background: rgba(0, 0, 0, 0.9);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.news-detail-body {
+  margin-top: 22px;
+}
+
+.news-detail-text {
+  white-space: pre-wrap;
+  font-size: 19px;
+  line-height: 1.85;
+  color: var(--text-primary);
+  margin: 0;
+  letter-spacing: 0.1px;
+  hyphens: auto;
+}
+
+.dark-mode .news-detail-text {
+  color: var(--text-primary);
+}
+
+.news-detail-text p {
+  margin: 0 0 18px 0;
+}
+
+.news-detail-text h2,
+.news-detail-text h3,
+.news-detail-text h4 {
+  margin: 26px 0 12px 0;
+  line-height: 1.3;
+}
+
+.news-detail-text ul,
+.news-detail-text ol {
+  margin: 0 0 18px 24px;
+}
+
+.detail-loading,
+.detail-error {
+  width: 66.6667%;
+  max-width: 66.6667%;
+  background-color: var(--card-background);
+  border-radius: 12px;
+  box-shadow: var(--card-shadow);
+  border: 1px solid var(--border-color);
+  padding: 28px 32px;
+  font-size: 18px;
+  color: var(--text-primary);
+  text-align: center;
+}
+
+.dark-mode .detail-loading,
+.dark-mode .detail-error {
+  background-color: var(--card-background);
+  color: var(--text-primary);
+  box-shadow: var(--card-shadow);
+  border-color: var(--border-color);
+}
+
+@media (max-width: 1024px) {
+  .news-detail-content,
+  .detail-loading,
+  .detail-error {
+    width: 90%;
+    max-width: 90%;
+  }
+}
+
+

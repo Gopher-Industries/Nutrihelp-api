@@ -1,0 +1,70 @@
+.water-tracker {
+  background-color: var(--card-background);
+  padding: 1.5em;
+  border-radius: 10px;
+  text-align: center;
+  margin: 1.5em auto;
+  box-shadow: var(--card-shadow);
+  border: 1px solid var(--border-color);
+}
+
+.water-tracker h3 {
+  color: var(--primary-color);
+  font-weight: bold;
+  margin-bottom: 0.5em;
+}
+
+.water-tracker p {
+  font-size: 1em;
+  margin-bottom: 1.8em !important;
+  color: var(--text-primary);
+}
+
+.tracker-controls {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1em;
+  margin-bottom: 1.8em !important;
+}
+
+.tracker-controls button {
+  background-color: var(--primary-color);
+  color: var(--text-inverse);
+  border: none;
+  padding: 0.5em 1em;
+  font-size: 1.2em;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.tracker-controls span {
+  font-size: 1.2em;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.glass-display {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 18px !important;
+}
+
+.glass {
+  width: 30px;
+  height: 50px;
+  border: 2px solid var(--primary-color);
+  border-radius: 6px 6px 2px 2px;
+  background: linear-gradient(to top, var(--primary-light) 30%, transparent 30%);
+  position: relative;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+  box-shadow: inset 0 1px 3px rgba(0, 119, 204, 0.2);
+}
+
+.glass.filled {
+  background: linear-gradient(to top, var(--primary-color) 80%, transparent 80%);
+  transform: scale(1.05);
+  box-shadow: inset 0 0 5px rgba(0, 119, 204, 0.4);
+}

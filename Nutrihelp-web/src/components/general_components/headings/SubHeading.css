@@ -1,0 +1,9 @@
+.sub-heading-div {
+    display: flex;
+    justify-content: center;
+    font-size: 40px;
+    text-shadow: 3px 1px #ddbdbd;
+    color: rgb(59, 58, 58);
+    margin: 20px;
+
+}

@@ -1,0 +1,13 @@
+.footer-div {
+    background-color: #F8E7FF;
+    justify-content: center;
+    /* background-image: linear-gradient(180deg, rgb(192, 244, 244), teal); */
+}
+
+.common-links-container {
+    display: flex;
+    justify-content: space-between;
+    padding: 0 40px;
+    margin-left: 200px;
+    margin-right: 200px;
+}

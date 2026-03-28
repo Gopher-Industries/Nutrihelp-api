@@ -1,0 +1,50 @@
+# --- General (Applies to root and all subdirectories) ---
+# Dependencies
+node_modules/
+
+# OS & IDE files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment Variables (Security Critical)
+.env
+.env.test
+.env.production
+.env.local
+.env.*.local
+
+# --- Nutrihelp-api (Backend) ---
+# Python artifacts
+__pycache__/
+*.py[cod]
+venv/
+env/
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Test Coverage
+coverage/
+
+# Local TLS Certificates (generated during Week 3)
+certs/
+*.pem
+*.key
+
+# --- Nutrihelp-web (Frontend) ---
+# Production build output
+build/
+dist/
+.eslintcache

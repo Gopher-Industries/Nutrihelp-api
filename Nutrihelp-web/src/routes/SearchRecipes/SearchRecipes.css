@@ -1,0 +1,329 @@
+/* Container & Typography */
+.search-recipes-page {
+  min-height: 100vh;
+  font-family: Arial, sans-serif;
+  background-color: var(--background-color);
+  padding: 40px 20px;
+  text-align: center;
+}
+
+.search-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  width: min(900px, 92vw);
+  margin: 0 auto 32px;
+}
+
+.main-title {
+  position: relative;
+  display: inline-flex;               
+  align-items: center;
+  justify-content: center;
+
+  padding: 13px 56px;                 
+  margin: 0 auto 40px auto;   
+
+  background: var(--gradient-accent);
+  border-radius: 25px;               
+
+  font-size: 2.2rem;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+
+  color: var(--text-inverse);
+  text-align: center;
+
+  box-shadow: var(--box-shadow-medium);
+}
+
+.main-title::after {
+  content: '';
+  position: absolute;
+  bottom: 10px;                
+  left: 50%;
+  transform: translateX(-50%);
+  width: 35%;                 
+  height: 2px;
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 2px;
+}
+
+
+/* Search Bar */
+.search-bar {
+  position: relative;
+  margin: 0 auto 30px;
+  width: min(800px, 90%); /* responsive width */
+}
+
+.search-input {
+  width: 100%;
+  padding: 12px 45px 12px 15px; /* make right padding enough for icon */
+  border: none;
+  border-radius: 30px;
+  box-shadow: var(--card-shadow);
+  font-size: 1rem;
+  outline: none;
+  display: block;
+  box-sizing: border-box;
+  background-color: var(--card-background);
+  color: var(--input-text);
+}
+
+/* Section Titles */
+.section-title {
+  font-size: 1.5rem;
+  margin: 40px 0 20px;
+  color: var(--text-heading);
+}
+
+/* Popular Recipe “Chips” */
+.popular-chips {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+}
+.popular-chips button {
+  background-color: var(--search-recipe-button-background-color);
+  color: var(--text-inverse);
+  border: none;
+  border-radius: 20px;
+  padding: 8px 16px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background-color 0.3s, transform 0.2s;
+}
+.popular-chips button:hover {
+  background-color: var(--button-background);
+  transform: scale(1.05);
+}
+
+/* Categories Grid */
+.categories-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 30px;
+  margin: 20px auto;
+  max-width: 1000px;
+}
+.category-card {
+  background: var(--card-background);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: var(--card-shadow);
+  transition: transform 0.3s, box-shadow 0.3s;
+  cursor: pointer;
+  border: 1px solid var(--border-color);
+}
+.category-card:hover {
+  transform: translateY(-5px);
+  box-shadow: var(--card-shadow-hover);
+}
+.category-card img {
+  width: 100%;
+  height: 140px;
+  object-fit: cover;
+}
+.category-card h3 {
+  margin: 12px 0;
+  font-size: 1rem;
+  color: var(--text-heading);
+}
+
+/* No-results text */
+.no-results {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* Big Search Button */
+.search-button {
+  margin-top: 30px;
+  padding: 12px 48px;
+  background-color: var(--search-recipe-button-background-color);
+  color: var(--text-inverse);
+  font-size: 1.1rem;
+  border: none;
+  border-radius: 50px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+.search-button:hover {
+  background-color: var(--button-hover);
+}
+
+/* Recipe List (unchanged) */
+.recipes-list {
+  margin-top: 50px;
+}
+
+/* Add at bottom */
+.recipes-container {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 30px;
+}
+
+.search-recipes-page {
+  margin-top: 0 !important;
+  padding-top: 12px !important;  
+  position: relative;
+}
+ 
+
+:where(body, main, #root) .search-recipes-page {
+  margin-top: 0 !important;
+  padding-top: 12px !important;
+}
+ 
+
+.search-recipes-page::before {
+  content: none !important;
+  display: none !important;
+}
+ 
+
+.search-recipes-page > *:first-child {
+  margin-top: 0 !important;
+}
+.main-title {
+  margin: 0 !important;
+  line-height: 1.2;
+  font-size: 3rem !important;
+}
+ 
+ 
+
+.search-bar {
+  width: 100%;
+  margin: 0;
+
+}
+ 
+.search-input {
+  display: block;          
+  margin: 0;          
+  width: 100%;
+  box-sizing: border-box;
+ 
+  padding: 12px 20px;
+  border: none;
+  border-radius: 30px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  font-size: 1rem;
+  outline: none;
+}
+ 
+ 
+ 
+.section {
+  max-width: 1100px;     
+  margin: 24px auto 0;
+  padding: 0 24px;      
+}
+ 
+
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 1.375rem;    
+  font-weight: 700;
+  color: #2d2d2d;
+  margin: 24px 0 12px;
+  letter-spacing: 0.2px;
+}
+ 
+
+.section-title::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: 0 0 0 3px #005BBB;
+}
+ 
+.section-title::after {
+  content: none;
+}
+ 
+
+.popular-chips {
+  justify-content: flex-start;  
+  flex-wrap: wrap;
+  gap: 10px 12px;
+  margin-bottom: 12px;
+}
+
+@media (max-width: 1024px) {
+  .search-recipes-page {
+    padding: 24px 16px;
+  }
+
+  .search-header {
+    width: min(760px, 92vw);
+  }
+
+  .main-title {
+    font-size: 2.2rem !important;
+    padding: 10px 40px;
+  }
+
+  .categories-grid {
+    gap: 20px;
+  }
+}
+
+@media (max-width: 768px) {
+  .search-recipes-page {
+    padding: 20px 12px;
+  }
+
+  .search-header {
+    width: 100%;
+    margin-bottom: 24px;
+  }
+
+  .main-title {
+    font-size: 1.8rem !important;
+    padding: 8px 28px;
+  }
+
+  .search-bar {
+    width: 100%;
+  }
+
+  .section {
+    padding: 0 12px;
+  }
+
+  .categories-grid {
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .search-recipes-page {
+    padding: 16px 10px;
+  }
+
+  .main-title {
+    font-size: 1.5rem !important;
+    padding: 8px 20px;
+  }
+
+  .section-title {
+    font-size: 1.15rem;
+  }
+
+  .category-card img {
+    height: 120px;
+  }
+}
+ 
+ 
