@@ -1,4 +1,4 @@
-name: 🔒 BLOCKING CI/CD PIPELINE - NutriHelp API
+name: BLOCKING CI/CD PIPELINE - NutriHelp API
 
 on:
   push:
@@ -25,7 +25,7 @@ concurrency:
 jobs:
   # ==================== JOB 1: DEPENDENCY INSTALLATION ====================
   install-deps:
-    name: 📦 Install Dependencies
+    name: Install Dependencies
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -48,7 +48,7 @@ jobs:
 
   # ==================== JOB 2: ESLINT - BLOCKING ====================
   lint:
-    name: ✨ ESLint Code Quality
+    name: ESLint Code Quality
     runs-on: ubuntu-latest
     needs: install-deps
     steps:
@@ -96,7 +96,7 @@ jobs:
 
   # ==================== JOB 3: PRETTIER - BLOCKING ====================
   format-check:
-    name: 🎨 Prettier Format Check
+    name: Prettier Format Check
     runs-on: ubuntu-latest
     needs: install-deps
     steps:
@@ -133,7 +133,7 @@ jobs:
 
   # ==================== JOB 4: UNIT TESTS - BLOCKING ====================
   unit-tests:
-    name: 🧪 Unit Tests
+    name: Unit Tests
     runs-on: ubuntu-latest
     needs: install-deps
     steps:
@@ -185,7 +185,7 @@ jobs:
 
   # ==================== JOB 5: OPENAPI VALIDATION - BLOCKING ====================
   openapi-validate:
-    name: 📝 OpenAPI Validation
+    name: OpenAPI Validation
     runs-on: ubuntu-latest
     needs: install-deps
     steps:
@@ -211,7 +211,7 @@ jobs:
 
   # ==================== JOB 6: SECURITY SCAN - BLOCKING ====================
   security-scan:
-    name: 🔒 Security Vulnerability Scan
+    name: Security Vulnerability Scan
     runs-on: ubuntu-latest
     needs: install-deps
     steps:
@@ -233,7 +233,7 @@ jobs:
 
   # ==================== JOB 7: BUILD CHECK - BLOCKING ====================
   build-check:
-    name: 🏗️ Build & Syntax Check
+    name: Build & Syntax Check
     runs-on: ubuntu-latest
     needs: install-deps
     steps:
@@ -263,16 +263,16 @@ jobs:
             process.env.SUPABASE_URL = 'https://test.supabase.co';
             process.env.SUPABASE_ANON_KEY = 'test-key';
             require('./server.js');
-            console.log('✅ Server loaded successfully');
+            console.log('Server loaded successfully');
           } catch(e) {
-            console.log('⚠️ Server load warning:', e.message);
+            console.log('Server load warning:', e.message);
             // Don't fail on missing dependencies for CI
           }
           " || true
 
   # ==================== JOB 8: CODE COVERAGE - BLOCKING ====================
   code-coverage:
-    name: 📊 Code Coverage Check
+    name: Code Coverage Check
     runs-on: ubuntu-latest
     needs: [unit-tests]
     steps:
@@ -308,7 +308,7 @@ jobs:
 
   # ==================== JOB 9: FINAL BLOCKING GATE ====================
   final-gate:
-    name: 🔒 FINAL BLOCKING GATE
+    name: FINAL BLOCKING GATE
     runs-on: ubuntu-latest
     needs: [lint, format-check, unit-tests, openapi-validate, security-scan, build-check]
     if: always()
@@ -316,34 +316,34 @@ jobs:
       - name: Verify all critical checks passed
         run: |
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          echo "🔒 FINAL BLOCKING GATE"
+          echo "FINAL BLOCKING GATE"
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
           
           FAILED=0
           
-          [ "${{ needs.lint.result }}" != "success" ] && echo "❌ ESLint: FAILED" && FAILED=1 || echo "✅ ESLint: PASSED"
-          [ "${{ needs.format-check.result }}" != "success" ] && echo "❌ Prettier: FAILED" && FAILED=1 || echo "✅ Prettier: PASSED"
-          [ "${{ needs.unit-tests.result }}" != "success" ] && echo "❌ Unit Tests: FAILED" && FAILED=1 || echo "✅ Unit Tests: PASSED"
-          [ "${{ needs.openapi-validate.result }}" != "success" ] && echo "❌ OpenAPI: FAILED" && FAILED=1 || echo "✅ OpenAPI: PASSED"
-          [ "${{ needs.security-scan.result }}" != "success" ] && echo "❌ Security: FAILED" && FAILED=1 || echo "✅ Security: PASSED"
-          [ "${{ needs.build-check.result }}" != "success" ] && echo "❌ Build: FAILED" && FAILED=1 || echo "✅ Build: PASSED"
+          [ "${{ needs.lint.result }}" != "success" ] && echo "ESLint: FAILED" && FAILED=1 || echo "ESLint: PASSED"
+          [ "${{ needs.format-check.result }}" != "success" ] && echo "Prettier: FAILED" && FAILED=1 || echo "Prettier: PASSED"
+          [ "${{ needs.unit-tests.result }}" != "success" ] && echo "Unit Tests: FAILED" && FAILED=1 || echo "Unit Tests: PASSED"
+          [ "${{ needs.openapi-validate.result }}" != "success" ] && echo "OpenAPI: FAILED" && FAILED=1 || echo "OpenAPI: PASSED"
+          [ "${{ needs.security-scan.result }}" != "success" ] && echo "Security: FAILED" && FAILED=1 || echo "Security: PASSED"
+          [ "${{ needs.build-check.result }}" != "success" ] && echo "Build: FAILED" && FAILED=1 || echo "Build: PASSED"
           
           echo ""
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
           
           if [ $FAILED -eq 1 ]; then
-            echo "❌ BLOCKING GATE: Some checks failed!"
-            echo "❌ This PR cannot be merged until all issues are fixed."
+            echo "BLOCKING GATE: Some checks failed!"
+            echo "This PR cannot be merged until all issues are fixed."
             exit 1
           else
-            echo "🎉 ALL CHECKS PASSED! 🎉"
-            echo "✅ This PR is ready to merge!"
+            echo "ALL CHECKS PASSED!"
+            echo "This PR is ready to merge!"
             echo ""
-            echo "╔══════════════════════════════════════════════════════════════╗"
-            echo "║  🏆  CI/CD PIPELINE - READY FOR DEPLOYMENT!  🏆              ║"
-            echo "║                                                              ║"
-            echo "║  ✅ All 7 Quality Gates Passed                               ║"
-            echo "║  ✅ Code is production-ready                                 ║"
-            echo "║  🚀 Ready to merge and deploy!                               ║"
-            echo "╚══════════════════════════════════════════════════════════════╝"
+            echo "══════════════════════════════════════════════════════════════"
+            echo "  CI/CD PIPELINE - READY FOR DEPLOYMENT!                      "
+            echo "                                                              "
+            echo "  All 7 Quality Gates Passed                                  "
+            echo "  Code is production-ready                                    "
+            echo "  Ready to merge and deploy!                                  "
+            echo "══════════════════════════════════════════════════════════════"
           fi
