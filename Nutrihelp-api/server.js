@@ -1,5 +1,10 @@
 require('dotenv').config();
 
+// Winston logging
+const logger = require('./monitoring-logging/appLogger');
+const responseTime = require('response-time');
+const { v4: uuidv4 } = require('uuid');
+
 // Debug environment variables
 console.log('🔧 Environment Variables Check:');
 console.log('   SUPABASE_URL:', process.env.SUPABASE_URL ? '✓ Set' : '✗ Missing');
@@ -8,10 +13,8 @@ console.log('   PORT:', process.env.PORT || '80 (default)');
 console.log('');
 
 const express = require("express");
-const http = require("http");
-const https = require("https");
 const { errorLogger, responseTimeLogger } = require('./middleware/errorLogger');
-const FRONTEND_ORIGIN =  "http://localhost:3000";
+const FRONTEND_ORIGIN = "http://localhost:3000";
 
 const helmet = require('helmet');
 const cors = require("cors");
@@ -56,10 +59,23 @@ function cleanupOldFiles() {
 cleanupOldFiles();
 setInterval(cleanupOldFiles, 3 * 60 * 60 * 1000);
 
-// ✅ Create the app BEFORE using it
+// Create the app
 const app = express();
-const HTTPS_PORT = Number(process.env.HTTPS_PORT) || 443;
-const HTTP_PORT = Number(process.env.HTTP_PORT || process.env.PORT) || 80;
+const port = process.env.PORT || 80;
+
+// --- WINSTON LOGGING MIDDLEWARE ---
+
+// Assign unique ID to every request
+app.use((req, res, next) => {
+  req.id = uuidv4();
+  logger.info(`[ID: ${req.id}] Incoming Request → ${req.method} ${req.originalUrl}`);
+  next();
+});
+
+// Performance logging
+app.use(responseTime((req, res, time) => {
+  logger.info(`[ID: ${req.id}] Response Time → ${time.toFixed(2)}ms`);
+}));
 
 // DB
 let db = require("./dbConnection");
@@ -75,11 +91,8 @@ app.use(cors({
     if (
       origin.startsWith("http://localhost") ||
       origin.startsWith("http://127.0.0.1") ||
-      origin.startsWith("https://localhost") ||
-      origin.startsWith("https://127.0.0.1") ||
       origin.startsWith("chrome-extension://eggdlmopfankeonchoflhfoglaakobma") ||
       origin.startsWith("https://apifox.cn-hangzhou.log.aliyuncs.com")
-
     ) {
       callback(null, true);
     } else {
@@ -89,7 +102,7 @@ app.use(cors({
   credentials: true
 }));
 app.options("*", cors({ origin: FRONTEND_ORIGIN, credentials: true }));
-app.use((req, res, next) => { res.header("Access-Control-Allow-Credentials","true"); next(); });
+app.use((req, res, next) => { res.header("Access-Control-Allow-Credentials", "true"); next(); });
 app.set("trust proxy", 1);
 
 // Security
@@ -97,8 +110,8 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc: ["'self'","'unsafe-inline'","https://cdn.jsdelivr.net"],
-      styleSrc: ["'self'","'unsafe-inline'","https://cdn.jsdelivr.net"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net"],
       objectSrc: ["'none'"],
     },
   },
@@ -119,8 +132,10 @@ app.use(limiter);
 // Swagger
 const swaggerDocument = yaml.load("./index.yaml");
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
-// Response time monitoring
+
+// Response time monitoring (your existing middleware)
 app.use(responseTimeLogger);
+
 // JSON & URL parser
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
@@ -141,16 +156,16 @@ app.use(errorLogger);
 
 // Final error handler
 app.use((err, req, res, next) => {
-    const status = err.status || 500;
-    const message = process.env.NODE_ENV === 'production' 
-        ? 'Internal Server Error' 
-        : err.message;
-        
-    res.status(status).json({
-        success: false,
-        error: message,
-        timestamp: new Date().toISOString()
-    });
+  const status = err.status || 500;
+  const message = process.env.NODE_ENV === 'production'
+    ? 'Internal Server Error'
+    : err.message;
+
+  res.status(status).json({
+    success: false,
+    error: message,
+    timestamp: new Date().toISOString()
+  });
 });
 
 // Global error handler
@@ -159,59 +174,12 @@ process.on('uncaughtException', uncaughtExceptionHandler);
 process.on('unhandledRejection', unhandledRejectionHandler);
 
 // Start
-const tlsKeyPath = process.env.TLS_KEY_PATH || path.join(__dirname, 'certs', 'local-key.pem');
-const tlsCertPath = process.env.TLS_CERT_PATH || path.join(__dirname, 'certs', 'local-cert.pem');
-
-let httpsServer;
-try {
-  const tlsOptions = {
-    key: fs.readFileSync(tlsKeyPath),
-    cert: fs.readFileSync(tlsCertPath),
-    minVersion: 'TLSv1.3',
-  };
-  httpsServer = https.createServer(tlsOptions, app);
-} catch (tlsError) {
-  console.error('Failed to load TLS certificates.');
-  console.error(`Expected key at: ${tlsKeyPath}`);
-  console.error(`Expected cert at: ${tlsCertPath}`);
-  console.error(tlsError.message);
-  process.exit(1);
-}
-
-const redirectServer = http.createServer((req, res) => {
-  const host = (req.headers.host || 'localhost').replace(/:\d+$/, `:${HTTPS_PORT}`);
-  const redirectUrl = `https://${host}${req.url || '/'}`;
-  res.writeHead(301, { Location: redirectUrl });
-  res.end();
+app.listen(port, async () => {
+  logger.info('NutriHelp API launched successfully!');
+  logger.info(`Server running on port ${port}`);
+  logger.info(`Swagger UI available at http://localhost:${port}/api-docs`);
+  exec(`start http://localhost:${port}/api-docs`);
 });
 
-httpsServer.listen(HTTPS_PORT, async () => {
-
-
-  console.log('\n🎉 NutriHelp API launched successfully!');
-  console.log('='.repeat(50));
-  console.log(`🔒 HTTPS server running on port ${HTTPS_PORT} (TLS 1.3 enforced)`);
-  console.log(`🔁 HTTP redirect server running on port ${HTTP_PORT}`);
-  console.log(`📚 Swagger UI: https://localhost:${HTTPS_PORT}/api-docs`);
-  console.log('='.repeat(50));
-  console.log('💡 Press Ctrl+C to stop the server \n');
-  exec(`start https://localhost:${HTTPS_PORT}/api-docs`);
-});
-
-redirectServer.on('error', (err) => {
-  if (err.code === 'EACCES' || err.code === 'EADDRINUSE') {
-    console.warn(`⚠️ HTTP redirect server could not start on port ${HTTP_PORT} (${err.code}).`);
-    console.warn('⚠️ HTTPS API is still running. For local testing, use https://localhost:443 directly.');
-    console.warn('⚠️ Optionally set HTTP_PORT=8080 in .env to test redirect without admin permissions.');
-    return;
-  }
-  throw err;
-});
-
-redirectServer.listen(HTTP_PORT);
-
-app.use(express.json({ limit: "50mb" }));
-app.use(express.urlencoded({ limit: "50mb", extended: true }));
+// Additional routes
 app.use('/api/sms', require('./routes/sms'));
-
-
