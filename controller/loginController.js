@@ -3,10 +3,68 @@ const jwt = require("jsonwebtoken");
 const logLoginEvent = require("../Monitor_&_Logging/loginLogger");
 const getUserCredentials = require("../model/getUserCredentials.js");
 const { addMfaToken, verifyMfaToken } = require("../model/addMfaToken.js");
+const authService = require("../services/authService");
 const nodemailer = require("nodemailer");
 const crypto = require("crypto");
 const supabase = require("../dbConnection");
 const { validationResult } = require("express-validator");
+
+const TRUSTED_DEVICE_COOKIE = authService.trustedDeviceCookieName || "trusted_device";
+
+function readCookie(req, name) {
+  const cookieHeader = req.headers.cookie || "";
+  const cookies = cookieHeader.split(";").map((part) => part.trim()).filter(Boolean);
+
+  for (const cookie of cookies) {
+    const separatorIndex = cookie.indexOf("=");
+    if (separatorIndex === -1) continue;
+    const cookieName = cookie.slice(0, separatorIndex);
+    const cookieValue = cookie.slice(separatorIndex + 1);
+    if (cookieName === name) {
+      return decodeURIComponent(cookieValue);
+    }
+  }
+
+  return null;
+}
+
+function trustedDeviceCookieOptions() {
+  const maxAge = authService.trustedDeviceExpiry || 30 * 24 * 60 * 60 * 1000;
+  return {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge,
+  };
+}
+
+function setTrustedDeviceCookie(res, token) {
+  if (!res?.cookie) return;
+  res.cookie(TRUSTED_DEVICE_COOKIE, token, trustedDeviceCookieOptions());
+}
+
+function clearTrustedDeviceCookie(res) {
+  if (!res?.clearCookie) return;
+  res.clearCookie(TRUSTED_DEVICE_COOKIE, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+  });
+}
+
+function createAccessToken(user) {
+  return jwt.sign(
+    {
+      userId: user.user_id,
+      role: user.user_roles?.role_name || "unknown",
+      type: "access",
+    },
+    process.env.JWT_TOKEN,
+    { expiresIn: "1h" }
+  );
+}
 
 // Nodemailer transporter using Gmail no-reply account
 const transporter = nodemailer.createTransport({
@@ -102,11 +160,39 @@ const login = async (req, res) => {
 
     // MFA handling
     if (user.mfa_enabled) {
+      const deviceInfo = {
+        ip: clientIp,
+        userAgent: req.headers["user-agent"] || "",
+      };
+      const trustedDeviceToken = readCookie(req, TRUSTED_DEVICE_COOKIE);
+      const trustedDevice = await authService.validateTrustedDeviceToken(
+        user.user_id,
+        trustedDeviceToken,
+        deviceInfo
+      );
+
+      if (trustedDevice.valid) {
+        const token = createAccessToken(user);
+        setTrustedDeviceCookie(res, trustedDeviceToken);
+        return res.status(200).json({
+          user,
+          token,
+          trusted_device: true,
+          mfa_skipped: true,
+        });
+      }
+
+      if (trustedDeviceToken && trustedDevice.reason !== "missing") {
+        clearTrustedDeviceCookie(res);
+      }
+
       const token = crypto.randomInt(100000, 999999);
       await addMfaToken(user.user_id, token);
       await sendOtpEmail(user.email, token);
       return res.status(202).json({
-        message: "An MFA Token has been sent to your email address"
+        message: "An MFA Token has been sent to your email address",
+        mfa_required: true,
+        trusted_device: false,
       });
     }
 
@@ -117,14 +203,7 @@ const login = async (req, res) => {
       userAgent: req.headers["user-agent"]
     });
 
-    const token = jwt.sign(
-      {
-        userId: user.user_id,
-        role: user.user_roles?.role_name || "unknown"
-      },
-      process.env.JWT_TOKEN,
-      { expiresIn: "1h" }
-    );
+    const token = createAccessToken(user);
 
     return res.status(200).json({ user, token });
 
@@ -143,6 +222,7 @@ const loginMfa = async (req, res) => {
   const email = req.body.email?.trim().toLowerCase();
   const password = req.body.password;
   const mfa_token = req.body.mfa_token;
+  const rememberDevice = req.body.remember_device !== false;
 
   if (!email || !password || !mfa_token) {
     return res.status(400).json({ error: "Email, password, and token are required" });
@@ -164,16 +244,21 @@ const loginMfa = async (req, res) => {
       return res.status(401).json({ error: "Token is invalid or has expired" });
     }
 
-    const token = jwt.sign(
-      {
-        userId: user.user_id,
-        role: user.user_roles?.role_name || "unknown"
-      },
-      process.env.JWT_TOKEN,
-      { expiresIn: "1h" }
-    );
+    const token = createAccessToken(user);
 
-    return res.status(200).json({ user, token });
+    if (rememberDevice) {
+      const trustedDevice = await authService.issueTrustedDeviceToken(user.user_id, {
+        ip: req.ip,
+        userAgent: req.get("User-Agent") || "Unknown",
+      });
+      setTrustedDeviceCookie(res, trustedDevice.token);
+    }
+
+    return res.status(200).json({
+      user,
+      token,
+      trusted_device: rememberDevice,
+    });
 
   } catch (err) {
     console.error("MFA login error:", err);

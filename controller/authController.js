@@ -1,6 +1,8 @@
 const authService = require('../services/authService');
 const { createClient } = require('@supabase/supabase-js');
 
+const TRUSTED_DEVICE_COOKIE = authService.trustedDeviceCookieName || 'trusted_device';
+
 const supabase = createClient(
     process.env.SUPABASE_URL,
     process.env.SUPABASE_ANON_KEY
@@ -128,7 +130,21 @@ exports.logoutAll = async (req, res) => {
     try {
         const userId = req.user.userId;
 
-        const result = await authService.logoutAll(userId);
+        const result = await authService.logoutAll(userId, {
+            reason: 'logout_all',
+            deviceInfo: {
+                ip: req.ip,
+                userAgent: req.get('User-Agent') || 'Unknown',
+            },
+        });
+        if (res.clearCookie) {
+            res.clearCookie(TRUSTED_DEVICE_COOKIE, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'lax',
+                path: '/',
+            });
+        }
 
         res.json(result);
 
@@ -137,6 +153,37 @@ exports.logoutAll = async (req, res) => {
         res.status(500).json({
             success: false,
             error: error.message
+        });
+    }
+};
+
+exports.revokeTrustedDevices = async (req, res) => {
+    try {
+        const userId = req.user.userId;
+        const result = await authService.revokeTrustedDevices(userId, 'manual', {
+            ip: req.ip,
+            userAgent: req.get('User-Agent') || 'Unknown',
+        });
+
+        if (res.clearCookie) {
+            res.clearCookie(TRUSTED_DEVICE_COOKIE, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'lax',
+                path: '/',
+            });
+        }
+
+        return res.json({
+            success: true,
+            message: 'Trusted devices revoked successfully',
+            revokedCount: result.revokedCount,
+        });
+    } catch (error) {
+        console.error('Revoke trusted devices error:', error);
+        return res.status(500).json({
+            success: false,
+            error: error.message,
         });
     }
 };
@@ -251,4 +298,3 @@ exports.sendSMSByEmail = async (req, res) => {
     return res.status(500).json({ error: 'Internal server error' });
   }
 };
-

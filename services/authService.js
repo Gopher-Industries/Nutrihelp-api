@@ -5,6 +5,7 @@ const { createClient } = require('@supabase/supabase-js');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
+const logLoginEvent = require("../Monitor_&_Logging/loginLogger");
 
 const supabaseAnon = createClient(
   process.env.SUPABASE_URL,
@@ -20,6 +21,8 @@ class AuthService {
   constructor() {
     this.accessTokenExpiry = '15m';
     this.refreshTokenExpiry = 7 * 24 * 60 * 60 * 1000; // 7 days
+    this.trustedDeviceExpiry = 30 * 24 * 60 * 60 * 1000; // 30 days
+    this.trustedDeviceCookieName = 'trusted_device';
   }
 
   /* =========================
@@ -31,6 +34,27 @@ class AuthService {
       .update(token)
       .digest('hex')
       .slice(0, 16);
+  }
+
+  hashDeviceFingerprint(deviceInfo = {}) {
+    return crypto
+      .createHash('sha256')
+      .update(String(deviceInfo.userAgent || 'unknown-device'))
+      .digest('hex');
+  }
+
+  async logSecurityEvent(userId, eventType, deviceInfo = {}, details = {}) {
+    try {
+      await logLoginEvent({
+        userId,
+        eventType,
+        ip: deviceInfo.ip || null,
+        userAgent: deviceInfo.userAgent || null,
+        details,
+      });
+    } catch {
+      // silent by design
+    }
   }
 
   /* =========================
@@ -281,16 +305,161 @@ class AuthService {
   /* =========================
      Logout All
      ========================= */
-  async logoutAll(userId) {
+  async logoutAll(userId, options = {}) {
     try {
+      const reason = options.reason || 'logout_all';
+      const deviceInfo = options.deviceInfo || {};
+      const { data: trustedDevices } = await supabaseService
+        .from('user_sessiontoken')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('token_type', 'trusted_device')
+        .eq('is_active', true);
+
       await supabaseService
         .from('user_sessiontoken')
         .update({ is_active: false })
         .eq('user_id', userId);
 
+      if ((trustedDevices || []).length > 0) {
+        await this.logSecurityEvent(userId, 'TRUSTED_DEVICE_REVOKED', deviceInfo, {
+          reason,
+          revoked_count: trustedDevices.length,
+        });
+      }
+
       return { success: true, message: 'Logged out from all devices' };
     } catch (error) {
       throw new Error(`Logout all failed: ${error.message}`);
+    }
+  }
+
+  async issueTrustedDeviceToken(userId, deviceInfo = {}) {
+    try {
+      const rawTrustedToken = crypto.randomBytes(32).toString('hex');
+      const hashedTrustedToken = await bcrypt.hash(rawTrustedToken, 12);
+      const lookupHash = this.createLookupHash(rawTrustedToken);
+      const expiresAt = new Date(Date.now() + this.trustedDeviceExpiry);
+      const deviceFingerprint = this.hashDeviceFingerprint(deviceInfo);
+
+      await supabaseService
+        .from('user_sessiontoken')
+        .update({ is_active: false })
+        .eq('user_id', userId)
+        .eq('token_type', 'trusted_device')
+        .eq('is_active', true)
+        .contains('device_info', { userAgentHash: deviceFingerprint });
+
+      const { error } = await supabaseService
+        .from('user_sessiontoken')
+        .insert({
+          user_id: userId,
+          refresh_token: hashedTrustedToken,
+          refresh_token_lookup: lookupHash,
+          token_type: 'trusted_device',
+          device_info: {
+            trusted: true,
+            userAgentHash: deviceFingerprint,
+          },
+          ip_address: deviceInfo.ip || null,
+          user_agent: deviceInfo.userAgent || null,
+          expires_at: expiresAt.toISOString(),
+          is_active: true,
+        });
+
+      if (error) throw error;
+
+      await this.logSecurityEvent(userId, 'TRUSTED_DEVICE_CREATED', deviceInfo, {
+        expires_at: expiresAt.toISOString(),
+      });
+
+      return {
+        token: rawTrustedToken,
+        expiresAt,
+      };
+    } catch (error) {
+      throw new Error(`Trusted device issue failed: ${error.message}`);
+    }
+  }
+
+  async validateTrustedDeviceToken(userId, rawToken, deviceInfo = {}) {
+    try {
+      if (!userId || !rawToken) {
+        return { valid: false, reason: 'missing' };
+      }
+
+      const lookupHash = this.createLookupHash(rawToken);
+      const { data: sessions, error } = await supabaseService
+        .from('user_sessiontoken')
+        .select('id, refresh_token, expires_at, is_active, device_info')
+        .eq('user_id', userId)
+        .eq('token_type', 'trusted_device')
+        .eq('refresh_token_lookup', lookupHash)
+        .eq('is_active', true)
+        .limit(1);
+
+      if (error || !sessions || sessions.length === 0) {
+        return { valid: false, reason: 'missing' };
+      }
+
+      const trustedDevice = sessions[0];
+      const tokenMatches = await bcrypt.compare(rawToken, trustedDevice.refresh_token);
+      if (!tokenMatches) {
+        return { valid: false, reason: 'invalid' };
+      }
+
+      if (new Date(trustedDevice.expires_at) < new Date()) {
+        await supabaseService
+          .from('user_sessiontoken')
+          .update({ is_active: false })
+          .eq('id', trustedDevice.id);
+        return { valid: false, reason: 'expired' };
+      }
+
+      const expectedFingerprint = trustedDevice.device_info?.userAgentHash;
+      const currentFingerprint = this.hashDeviceFingerprint(deviceInfo);
+      if (expectedFingerprint && expectedFingerprint !== currentFingerprint) {
+        return { valid: false, reason: 'device_mismatch' };
+      }
+
+      await this.logSecurityEvent(userId, 'TRUSTED_DEVICE_USED', deviceInfo, {
+        trusted_device_id: trustedDevice.id,
+      });
+
+      return { valid: true, trustedDeviceId: trustedDevice.id };
+    } catch (error) {
+      return { valid: false, reason: 'error', error };
+    }
+  }
+
+  async revokeTrustedDevices(userId, reason = 'manual', deviceInfo = {}) {
+    try {
+      const { data: trustedDevices } = await supabaseService
+        .from('user_sessiontoken')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('token_type', 'trusted_device')
+        .eq('is_active', true);
+
+      await supabaseService
+        .from('user_sessiontoken')
+        .update({ is_active: false })
+        .eq('user_id', userId)
+        .eq('token_type', 'trusted_device');
+
+      if ((trustedDevices || []).length > 0) {
+        await this.logSecurityEvent(userId, 'TRUSTED_DEVICE_REVOKED', deviceInfo, {
+          reason,
+          revoked_count: trustedDevices.length,
+        });
+      }
+
+      return {
+        success: true,
+        revokedCount: (trustedDevices || []).length,
+      };
+    } catch (error) {
+      throw new Error(`Trusted device revoke failed: ${error.message}`);
     }
   }
 

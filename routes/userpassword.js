@@ -22,13 +22,4 @@ router.put(
   }
 );
 
-router.put(
-  '/',
-  authenticateToken,
-  passwordChangeLimiter,
-  function(req, res) {
-    controller.updateUserPassword(req, res);
-  }
-);
-
 module.exports = router;

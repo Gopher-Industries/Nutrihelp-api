@@ -3,6 +3,8 @@ let updateUser = require("../model/updateUserPassword.js");
 let getUser = require("../model/getUserPassword.js");
 const authService = require("../services/authService");
 
+const TRUSTED_DEVICE_COOKIE = authService.trustedDeviceCookieName || "trusted_device";
+
 const PASSWORD_RULES = [
     {
         test: (password) => String(password || "").length >= 8,
@@ -142,6 +144,24 @@ const updateUserPassword = async (req, res) => {
             );
         }
 
+        if (!req.body.confirm_password) {
+            return jsonError(
+                res,
+                400,
+                "Confirm password is required",
+                "CONFIRM_PASSWORD_REQUIRED"
+            );
+        }
+
+        if (req.body.new_password !== req.body.confirm_password) {
+            return jsonError(
+                res,
+                400,
+                "Confirm password must match the new password",
+                "PASSWORD_MISMATCH"
+            );
+        }
+
         if (req.body.password === req.body.new_password) {
             return jsonError(
                 res,
@@ -179,12 +199,29 @@ const updateUserPassword = async (req, res) => {
         const hashedPassword = await bcrypt.hash(req.body.new_password, 10);
 
         await updateUser(userId, hashedPassword);
-        await authService.logoutAll(userId);
+        await authService.logoutAll(userId, {
+            reason: "password_change",
+            deviceInfo: {
+                ip: req.ip,
+                userAgent: req.get?.("User-Agent") || req.headers?.["user-agent"] || "Unknown",
+            },
+        });
+        if (res.clearCookie) {
+            res.clearCookie(TRUSTED_DEVICE_COOKIE, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === "production",
+                sameSite: "lax",
+                path: "/",
+            });
+        }
+        const requiresMfaLogin = Boolean(user.mfa_enabled);
 
         return res.status(200).json({
             message: "Password updated successfully",
             code: "PASSWORD_UPDATED",
             require_reauthentication: true,
+            require_mfa: requiresMfaLogin,
+            reauthentication_flow: requiresMfaLogin ? "LOGIN_MFA" : "LOGIN",
         });
     } catch (error) {
         console.error(error);
