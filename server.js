@@ -34,6 +34,7 @@ const fs = require("fs");
 const path = require("path");
 const systemRoutes = require("./routes/systemRoutes");
 const loginDashboard = require("./routes/loginDashboard.js");
+const securityEventsRoutes = require("./routes/securityEvents");
 
 // Ensure uploads directory exists
 const uploadsDir = path.join(__dirname, "uploads");
@@ -152,6 +153,10 @@ routes(app);
 // File uploads & static
 app.use("/api", uploadRoutes);
 app.use("/uploads", express.static("uploads"));
+
+// Signup
+app.use("/api/signup", require("./routes/signup"));
+app.use("/security", securityEventsRoutes);
 
 // Error handler
 app.use(errorLogger);
