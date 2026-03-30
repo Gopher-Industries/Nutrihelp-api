@@ -1,6 +1,3 @@
-console.log("🟢 Loaded AuthService from:", __filename);
-console.log("URL:", process.env.SUPABASE_URL);
-console.log("KEY:", process.env.SUPABASE_ANON_KEY);
 const { createClient } = require('@supabase/supabase-js');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
@@ -147,11 +144,6 @@ class AuthService {
         { expiresIn: this.accessTokenExpiry, algorithm: 'HS256' }
       );
 
-      await supabaseService
-         .from('user_sessiontoken')
-         .update({ is_active: false })
-         .eq('user_id', user.user_id);
-
       const rawRefreshToken = crypto.randomBytes(32).toString('hex');
       const hashedRefreshToken = await bcrypt.hash(rawRefreshToken, 12);
       const lookupHash = this.createLookupHash(rawRefreshToken);
@@ -206,9 +198,6 @@ class AuthService {
         .eq('refresh_token_lookup', lookupHash)
         .eq('is_active', true)
         .limit(1);
-      
-      console.log('supabase query result:', { sessions, error});
-
       if (error || !sessions || sessions.length === 0) {
         throw new Error('Invalid refresh token');
       }
@@ -229,7 +218,8 @@ class AuthService {
            email,
            name,
            role_id,
-           account_status
+           account_status,
+           user_roles!inner(role_name)
           `)
           .eq('user_id', session.user_id)
           .single();
@@ -255,7 +245,6 @@ class AuthService {
         ...newTokens
       };
     } catch (error) {
-      console.error('REFRESH FAILED:', error.message);
       throw new Error(`Token refresh failed: ${error.message}`);
     }
   }

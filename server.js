@@ -153,9 +153,6 @@ routes(app);
 app.use("/api", uploadRoutes);
 app.use("/uploads", express.static("uploads"));
 
-// Signup
-app.use("/api/signup", require("./routes/signup"));
-
 // Error handler
 app.use(errorLogger);
 

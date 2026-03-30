@@ -15,6 +15,8 @@ tags:
     description: Appointments relevant API
   - name: Home Service
     description: Home Service API
+  - name: Mobile
+    description: Mobile-optimized endpoints with compact payloads and token-based session flows
 paths:
   /allergy/common:
     get:
@@ -3099,6 +3101,289 @@ paths:
                     type: string
                     format: date-time
                     example: "2025-08-03T12:14:00.706Z"
+  /mobile/auth/register:
+    post:
+      tags:
+        - Mobile
+      summary: Mobile user registration
+      description: Register a user with the mobile-friendly authentication surface.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - email
+                - password
+              properties:
+                name:
+                  type: string
+                  example: "Jane Citizen"
+                email:
+                  type: string
+                  format: email
+                  example: "jane@nutrihelp.com"
+                password:
+                  type: string
+                  example: "StrongPassword123!"
+                first_name:
+                  type: string
+                  example: "Jane"
+                last_name:
+                  type: string
+                  example: "Citizen"
+      responses:
+        '201':
+          description: Registration successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MobileRegisterResponse'
+        '400':
+          description: Registration failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MobileErrorResponse'
+  /mobile/auth/login:
+    post:
+      tags:
+        - Mobile
+      summary: Mobile login
+      description: Authenticate a mobile client and return a compact user/session envelope.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MobileAuthResponse'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MobileErrorResponse'
+        '401':
+          description: Authentication failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MobileErrorResponse'
+  /mobile/auth/refresh:
+    post:
+      tags:
+        - Mobile
+      summary: Refresh mobile access token
+      description: Rotate a refresh token and issue a new access token for mobile clients.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MobileRefreshRequest'
+      responses:
+        '200':
+          description: Refresh successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MobileRefreshResponse'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MobileErrorResponse'
+        '401':
+          description: Refresh failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MobileErrorResponse'
+  /mobile/auth/logout:
+    post:
+      tags:
+        - Mobile
+      summary: Logout mobile session
+      description: Invalidate a refresh token for the current mobile session.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MobileRefreshRequest'
+      responses:
+        '200':
+          description: Logout successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MobileMetaOnlyResponse'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MobileErrorResponse'
+  /mobile/me:
+    get:
+      tags:
+        - Mobile
+      summary: Get current mobile user profile
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Profile retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MobileProfileResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MobileErrorResponse'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MobileErrorResponse'
+  /mobile/notifications:
+    get:
+      tags:
+        - Mobile
+      summary: Get current user's notifications
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [read, unread]
+      responses:
+        '200':
+          description: Notifications retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MobileNotificationsResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MobileErrorResponse'
+  /mobile/meal-plans:
+    get:
+      tags:
+        - Mobile
+      summary: Get current user's meal plans
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Meal plans retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MobileMealPlansResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MobileErrorResponse'
+  /mobile/recommendations:
+    post:
+      tags:
+        - Mobile
+      summary: Get compact mobile recommendations
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MobileRecommendationRequest'
+      responses:
+        '200':
+          description: Recommendations retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MobileRecommendationsResponse'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MobileErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MobileErrorResponse'
+        '500':
+          description: Recommendation generation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MobileErrorResponse'
+  /mobile/home-summary:
+    post:
+      tags:
+        - Mobile
+      summary: Get mobile home summary
+      description: Returns a compact home dashboard payload for the authenticated mobile user.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MobileRecommendationRequest'
+      responses:
+        '200':
+          description: Home summary retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MobileHomeSummaryResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MobileErrorResponse'
+        '500':
+          description: Home summary failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MobileErrorResponse'
 
   /barcode:
     post:
@@ -3574,6 +3859,357 @@ components:
       properties:
         error:
           type: string
+    MobileMeta:
+      type: object
+      properties:
+        message:
+          type: string
+          example: Logout successful
+        count:
+          type: integer
+          example: 3
+        unreadCount:
+          type: integer
+          example: 1
+        generatedAt:
+          type: string
+          format: date-time
+        contractVersion:
+          type: string
+          example: recommendation-response-v1
+        source:
+          type: object
+          additionalProperties: true
+    MobileSession:
+      type: object
+      properties:
+        accessToken:
+          type: string
+          example: eyJhbGciOiJIUzI1NiIs...
+        refreshToken:
+          type: string
+          example: 4aa3aa31cc4f7b...
+        tokenType:
+          type: string
+          example: Bearer
+        expiresIn:
+          type: integer
+          example: 900
+    MobileUserSummary:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 677
+        email:
+          type: string
+          format: email
+          example: jane@nutrihelp.com
+        name:
+          type: string
+          example: Jane Citizen
+        firstName:
+          type: string
+          example: Jane
+        lastName:
+          type: string
+          example: Citizen
+        contactNumber:
+          type: string
+          nullable: true
+        address:
+          type: string
+          nullable: true
+        imageUrl:
+          type: string
+          nullable: true
+        mfaEnabled:
+          type: boolean
+          example: false
+    MobileNotification:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 10
+        type:
+          type: string
+          example: reminder
+        content:
+          type: string
+          example: Drink water
+        status:
+          type: string
+          example: unread
+        createdAt:
+          type: string
+          format: date-time
+    MobileMealPlanRecipe:
+      type: object
+      properties:
+        recipeId:
+          oneOf:
+            - type: integer
+            - type: object
+              additionalProperties: true
+        title:
+          type: string
+          nullable: true
+        cuisine:
+          type: string
+          nullable: true
+        cookingMethod:
+          type: string
+          nullable: true
+        preparationTime:
+          type: integer
+          nullable: true
+        totalServings:
+          type: integer
+          nullable: true
+        nutrition:
+          type: object
+          properties:
+            calories:
+              type: number
+              nullable: true
+            protein:
+              type: number
+              nullable: true
+            fiber:
+              type: number
+              nullable: true
+            carbohydrates:
+              type: number
+              nullable: true
+            fat:
+              type: number
+              nullable: true
+            sodium:
+              type: number
+              nullable: true
+            sugar:
+              type: number
+              nullable: true
+    MobileMealPlan:
+      type: object
+      properties:
+        id:
+          type: integer
+        mealType:
+          type: string
+          nullable: true
+        recipeCount:
+          type: integer
+        recipes:
+          type: array
+          items:
+            $ref: '#/components/schemas/MobileMealPlanRecipe'
+    MobileRecommendation:
+      type: object
+      properties:
+        rank:
+          type: integer
+        recipeId:
+          type: integer
+        title:
+          type: string
+        explanation:
+          type: string
+        nutrition:
+          type: object
+          additionalProperties: true
+        preparationTime:
+          type: integer
+          nullable: true
+        totalServings:
+          type: integer
+          nullable: true
+    MobileErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: object
+          properties:
+            message:
+              type: string
+            code:
+              type: string
+    MobileRegisterResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            user:
+              type: object
+              properties:
+                id:
+                  type: integer
+                  nullable: true
+                email:
+                  type: string
+                name:
+                  type: string
+        meta:
+          $ref: '#/components/schemas/MobileMeta'
+    MobileAuthResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            user:
+              $ref: '#/components/schemas/MobileUserSummary'
+            session:
+              $ref: '#/components/schemas/MobileSession'
+    MobileRefreshRequest:
+      type: object
+      required:
+        - refreshToken
+      properties:
+        refreshToken:
+          type: string
+          example: 4aa3aa31cc4f7b...
+    MobileRefreshResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            session:
+              $ref: '#/components/schemas/MobileSession'
+    MobileMetaOnlyResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          nullable: true
+        meta:
+          $ref: '#/components/schemas/MobileMeta'
+    MobileProfileResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            user:
+              $ref: '#/components/schemas/MobileUserSummary'
+    MobileNotificationsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/MobileNotification'
+        meta:
+          $ref: '#/components/schemas/MobileMeta'
+    MobileMealPlansResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/MobileMealPlan'
+        meta:
+          $ref: '#/components/schemas/MobileMeta'
+    MobileRecommendationRequest:
+      type: object
+      properties:
+        maxResults:
+          type: integer
+          minimum: 1
+          maximum: 20
+          example: 5
+        healthGoals:
+          type: object
+          additionalProperties: true
+        dietaryConstraints:
+          type: object
+          additionalProperties: true
+        aiInsights:
+          type: object
+          additionalProperties: true
+        medicalReport:
+          type: object
+          additionalProperties: true
+        aiAdapterInput:
+          type: object
+          additionalProperties: true
+        refreshCache:
+          type: boolean
+    MobileRecommendationsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/MobileRecommendation'
+        meta:
+          $ref: '#/components/schemas/MobileMeta'
+    MobileHomeSummaryResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            user:
+              $ref: '#/components/schemas/MobileUserSummary'
+            notifications:
+              type: object
+              properties:
+                unreadCount:
+                  type: integer
+                items:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/MobileNotification'
+            recommendations:
+              type: array
+              items:
+                $ref: '#/components/schemas/MobileRecommendation'
+            mealPlan:
+              $ref: '#/components/schemas/MobileMealPlan'
+            mealPlanCount:
+              type: integer
     Recipe:
       type: object
       properties:
