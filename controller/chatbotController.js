@@ -1,4 +1,5 @@
 const { addHistory, getHistory, deleteHistory } = require('../model/chatbotHistory');
+const logger = require('../utils/logger');
 const fetch = (...args) =>
   import('node-fetch').then(({default: fetch}) => fetch(...args));
 
@@ -46,7 +47,7 @@ const getChatResponse = async (req, res) => {
         responseText = result.msg;
       }
     } catch (aiError) {
-      console.error("Error connecting to AI server:", aiError);
+      logger.error('Error connecting to AI server', { error: aiError.message, userId: user_id });
       // Continue with fallback response
     }
 
@@ -54,7 +55,7 @@ const getChatResponse = async (req, res) => {
     try {
       await addHistory(user_id, user_input, responseText);
     } catch (dbError) {
-      console.error("Error storing chat history:", dbError);
+      logger.error('Error storing chat history', { error: dbError.message, userId: user_id });
     }
 
     // Return response to user
@@ -64,7 +65,7 @@ const getChatResponse = async (req, res) => {
     });
     
   } catch (error) {
-    console.error("Error in chatbot response:", error);
+    logger.error('Error in chatbot response', { error: error.message, userId: user_id });
     return res.status(500).json({
       error: "Internal server error"
     });
@@ -109,14 +110,14 @@ const addURL = async (req, res) => {
         result: result
       });
     } catch (aiError) {
-      console.error("Error connecting to AI server:", aiError);
+      logger.error('Error connecting to AI server', { error: aiError.message, urls });
       return res.status(503).json({
         error: "AI server unavailable"
       });
     }
     
   } catch (error) {
-    console.error("Error processing URL:", error);
+    logger.error('Error processing URL', { error: error.message });
     return res.status(500).json({
       error: "Internal server error"
     });
@@ -136,7 +137,7 @@ const addPDF = async (req, res) => {
       result: "This is dummy response"
     });
   } catch (error) {
-    console.error("Error in chatbot response:", error);
+    logger.error('Error processing PDF', { error: error.message });
     return res.status(500).json({
       error: "Internal server error",
       details: process.env.NODE_ENV === 'development' ? error.message : undefined
@@ -170,7 +171,7 @@ const getChatHistory = async (req, res) => {
       chat_history: history
     });
   } catch (error) {
-    console.error("Error retrieving chat history:", error);
+    logger.error('Error retrieving chat history', { error: error.message, userId: user_id });
     return res.status(500).json({
       error: "Internal server error",
       details: process.env.NODE_ENV === 'development' ? error.message : undefined
@@ -196,7 +197,7 @@ const clearChatHistory = async (req, res) => {
       message: "Chat history cleared successfully"
     });
   } catch (error) {
-    console.error("Error clearing chat history:", error);
+    logger.error('Error clearing chat history', { error: error.message, userId: user_id });
     return res.status(500).json({
       error: "Internal server error",
       details: process.env.NODE_ENV === 'development' ? error.message : undefined

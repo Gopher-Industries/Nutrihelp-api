@@ -1,5 +1,10 @@
 require("dotenv").config();
 
+// Structured Logging - NEW
+const logger = require('./utils/logger');
+const { requestLoggingMiddleware } = require('./middleware/requestLogger');
+const { structuredErrorHandler } = require('./middleware/structuredErrorHandler');
+
 //Logging & Metrics
 const {
   metricsMiddleware,
@@ -74,8 +79,8 @@ const port = process.env.PORT || 80;
 // DB
 let db = require("./dbConnection");
 
-// System routes
-app.use("/api/system", systemRoutes);
+// ⚠️ CRITICAL: Add request logging middleware FIRST, before any routes
+app.use(requestLoggingMiddleware);
 
 // CORS
 app.use(
@@ -146,6 +151,9 @@ app.use(express.urlencoded({ limit: "50mb", extended: true }));
 app.use(metricsMiddleware);
 app.get("/metrics", metricsEndpoint);
 
+// System routes (early in chain)
+app.use("/api/system", systemRoutes);
+
 // Main routes registrar
 const routes = require("./routes");
 routes(app);
@@ -161,20 +169,8 @@ app.use("/security", securityEventsRoutes);
 // Error handler
 app.use(errorLogger);
 
-// Final error handler
-app.use((err, req, res, next) => {
-  const status = err.status || 500;
-  const message =
-    process.env.NODE_ENV === "production"
-      ? "Internal Server Error"
-      : err.message;
-
-  res.status(status).json({
-    success: false,
-    error: message,
-    timestamp: new Date().toISOString(),
-  });
-});
+// Structured error handling middleware (MUST be last)
+app.use(structuredErrorHandler);
 
 // Global error handler
 const {

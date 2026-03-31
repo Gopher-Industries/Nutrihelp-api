@@ -1,12 +1,13 @@
 const fs = require('fs');
 const path = require('path');
+const logger = require('../utils/logger');
 const { executePythonScript } = require('../services/aiExecutionService');
 
 // Utility to delete the uploaded file
 const deleteFile = (filePath) => {
   fs.unlink(filePath, (err) => {
     if (err) {
-      console.error('Error deleting file:', err);
+      logger.error('Error deleting image file', { filePath, error: err.message });
     }
   });
 };
@@ -58,7 +59,7 @@ const predictImage = async (req, res) => {
       error: null
     });
   } catch (error) {
-    console.error('Error reading image file:', error);
+    logger.error('Error reading image file', { error: error.message, filePath: imagePath });
     return res.status(500).json({
       success: false,
       prediction: null,

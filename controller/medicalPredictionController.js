@@ -6,6 +6,7 @@
 // [TEMP-DB-OFF] keep imports for easy revert; safe to leave unused
 const { insertSurvey } = require("../model/healthSurveyModel");
 const { insertRiskReport } = require("../model/healthRiskReportModel");
+const logger = require('../utils/logger');
 
 const AI_RETRIEVE_URL =
   process.env.AI_RETRIEVE_URL ||
@@ -193,7 +194,7 @@ const predict = async (req, res) => {
       medical_report,
     });
   } catch (error) {
-    console.error("[predict] Unexpected error:", error);
+    logger.error('Unexpected error in medical prediction', { error: error.message });
     return res.status(500).json({ error: "Internal server error" });
   }
 };

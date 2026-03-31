@@ -1,4 +1,5 @@
 const authService = require('../services/authService');
+const logger = require('../utils/logger');
 const { createClient } = require('@supabase/supabase-js');
 
 const supabase = createClient(
@@ -28,7 +29,7 @@ exports.register = async (req, res) => {
         res.status(201).json(result);
 
     } catch (error) {
-        console.error('Registration error:', error);
+        logger.error('Registration error', { error: error.message, email: req.body.email });
         res.status(400).json({
             success: false,
             error: error.message
@@ -61,7 +62,7 @@ exports.login = async (req, res) => {
         res.json(result);
 
     } catch (error) {
-        console.error('Login error:', error);
+        logger.error('Login error', { error: error.message, email: req.body.email });
         res.status(401).json({
             success: false,
             error: error.message
@@ -93,7 +94,7 @@ exports.refreshToken = async (req, res) => {
         res.json(result);
 
     } catch (error) {
-        console.error('Token refresh error:', error);
+        logger.error('Token refresh error', { error: error.message });
         res.status(401).json({
             success: false,
             error: error.message
@@ -113,7 +114,7 @@ exports.logout = async (req, res) => {
         res.json(result);
 
     } catch (error) {
-        console.error('Logout error:', error);
+        logger.error('Logout error', { error: error.message, userId: req.user?.userId });
         res.status(500).json({
             success: false,
             error: error.message
@@ -133,7 +134,7 @@ exports.logoutAll = async (req, res) => {
         res.json(result);
 
     } catch (error) {
-        console.error('Logout all error:', error);
+        logger.error('Logout all error', { error: error.message, userId: req.user?.userId });
         res.status(500).json({
             success: false,
             error: error.message
@@ -181,7 +182,7 @@ exports.getProfile = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Get profile error:', error);
+        logger.error('Get profile error', { error: error.message, userId: req.user?.userId });
         res.status(500).json({
             success: false,
             error: 'Internal server error'
@@ -210,7 +211,7 @@ exports.logLoginAttempt = async (req, res) => {
     ]);
 
     if (error) {
-        console.error('❌ Failed to insert login log:', error);
+        logger.error('Failed to insert login log', { error: error.message, email });
         return res.status(500).json({ error: 'Failed to log login attempt' });
     }
 
@@ -239,7 +240,7 @@ exports.sendSMSByEmail = async (req, res) => {
     const phone = data.contact_number;
     const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
 
-    console.log(`📨 [DEV] Verification code for ${phone}: ${verificationCode}`);
+    logger.info('[DEV] Verification code generated', { phone, verificationCode });
 
 
     return res.status(200).json({
@@ -247,7 +248,7 @@ exports.sendSMSByEmail = async (req, res) => {
       phone,
     });
   } catch (err) {
-    console.error('❌ Error sending SMS:', err);
+    logger.error('Error sending SMS', { error: err.message, email });
     return res.status(500).json({ error: 'Internal server error' });
   }
 };
