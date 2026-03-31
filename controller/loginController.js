@@ -266,6 +266,40 @@ const loginMfa = async (req, res) => {
   }
 };
 
+const resendMfa = async (req, res) => {
+  const email = req.body.email?.trim().toLowerCase();
+
+  if (!email) {
+    return res.status(400).json({ error: "Email is required" });
+  }
+
+  try {
+    const user = await getUserCredentials(email);
+    if (!user) {
+      return res.status(404).json({
+        error: "Account not found. Please create an account first."
+      });
+    }
+
+    if (!user.mfa_enabled) {
+      return res.status(400).json({
+        error: "MFA is not enabled for this account"
+      });
+    }
+
+    const token = crypto.randomInt(100000, 999999);
+    await addMfaToken(user.user_id, token);
+    await sendOtpEmail(user.email, token);
+
+    return res.status(200).json({
+      message: "A new MFA token has been sent to your email address"
+    });
+  } catch (err) {
+    console.error("Resend MFA error:", err);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+};
+
 // Send OTP email via Nodemailer
 async function sendOtpEmail(email, token) {
   try {
@@ -311,4 +345,4 @@ async function sendFailedLoginAlert(email, ip) {
   }
 }
 
-module.exports = { login, loginMfa };
+module.exports = { login, loginMfa, resendMfa };

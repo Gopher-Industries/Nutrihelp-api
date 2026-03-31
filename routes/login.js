@@ -17,4 +17,9 @@ router.post('/mfa', loginLimiter, mfaloginValidator, validate, (req, res) => {
     controller.loginMfa(req, res);
 });
 
+// POST /login/resend-mfa
+router.post('/resend-mfa', loginLimiter, (req, res) => {
+    controller.resendMfa(req, res);
+});
+
 module.exports = router;

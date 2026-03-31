@@ -144,7 +144,9 @@ const updateUserPassword = async (req, res) => {
             );
         }
 
-        if (!req.body.confirm_password) {
+        const confirmPassword = req.body.confirm_password ?? req.body.new_password;
+
+        if (!confirmPassword) {
             return jsonError(
                 res,
                 400,
@@ -153,7 +155,7 @@ const updateUserPassword = async (req, res) => {
             );
         }
 
-        if (req.body.new_password !== req.body.confirm_password) {
+        if (req.body.new_password !== confirmPassword) {
             return jsonError(
                 res,
                 400,
@@ -229,4 +231,21 @@ const updateUserPassword = async (req, res) => {
     }
 };
 
-module.exports = { verifyCurrentPassword, updateUserPassword };
+const legacyPasswordHandler = async (req, res) => {
+    if (
+        req.body?.password &&
+        req.body?.new_password &&
+        req.body.new_password === req.body.password &&
+        !req.body?.confirm_password
+    ) {
+        return verifyCurrentPassword(req, res);
+    }
+
+    if (req.body?.new_password && !req.body?.confirm_password) {
+        req.body.confirm_password = req.body.new_password;
+    }
+
+    return updateUserPassword(req, res);
+};
+
+module.exports = { verifyCurrentPassword, updateUserPassword, legacyPasswordHandler };

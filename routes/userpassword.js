@@ -22,4 +22,13 @@ router.put(
   }
 );
 
+router.put(
+  '/',
+  authenticateToken,
+  passwordChangeLimiter,
+  function(req, res) {
+    controller.legacyPasswordHandler(req, res);
+  }
+);
+
 module.exports = router;
