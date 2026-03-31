@@ -45,6 +45,7 @@
     "mysql2": "3.9.2",
     "node-fetch": "3.3.2",
     "nodemailer": "8.0.2",
+    "prom-client": "^15.1.3",
     "sinon": "18.0.0",
     "swagger-ui-express": "5.0.0",
     "twilio": "5.9.0",
