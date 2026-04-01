@@ -7,6 +7,7 @@ const sgMail = require("@sendgrid/mail");
 const crypto = require("crypto");
 const supabase = require("../dbConnection");
 const { validationResult } = require("express-validator");
+const { createLog, log } = require("../services/securityLogger");
 
 // ✅ Set SendGrid API key once globally
 sgMail.setApiKey(process.env.SENDGRID_KEY);
@@ -24,6 +25,23 @@ const login = async (req, res) => {
   clientIp = clientIp === "::1" ? "127.0.0.1" : clientIp;
 
   if (!email || !password) {
+    const failedInputLog = createLog({
+      event_type: "AUTH_LOGIN_FAILED",
+      severity_level: "MEDIUM",
+      user_id: null,
+      source_service: "login-controller",
+      ip_address: clientIp,
+      endpoint: req.originalUrl,
+      method: req.method,
+      status: "FAILED",
+      message: "Login failed due to missing email or password",
+      metadata: {
+        email: email || null
+      }
+    });
+
+    log(failedInputLog);
+
     return res.status(400).json({ error: "Email and password are required" });
   }
 
@@ -41,6 +59,23 @@ const login = async (req, res) => {
     const failureCount = failuresByEmail?.length || 0;
 
     if (failureCount >= 10) {
+      const lockedLog = createLog({
+        event_type: "AUTH_LOGIN_BLOCKED",
+        severity_level: "HIGH",
+        user_id: null,
+        source_service: "login-controller",
+        ip_address: clientIp,
+        endpoint: req.originalUrl,
+        method: req.method,
+        status: "BLOCKED",
+        message: "Login blocked due to too many failed attempts",
+        metadata: {
+          email
+        }
+      });
+
+      log(lockedLog);
+
       return res.status(429).json({
         error: "❌ Too many failed login attempts. Please try again after 10 minutes."
       });
@@ -60,17 +95,52 @@ const login = async (req, res) => {
         created_at: new Date().toISOString()
       }]);
 
-      if (failureCount === 4) {
-        return res.status(429).json({
-          warning: "⚠ You have one attempt left before your account is temporarily locked."
+      if (!userExists) {
+        const invalidEmailLog = createLog({
+          event_type: "AUTH_LOGIN_FAILED",
+          severity_level: "MEDIUM",
+          user_id: null,
+          source_service: "login-controller",
+          ip_address: clientIp,
+          endpoint: req.originalUrl,
+          method: req.method,
+          status: "FAILED",
+          message: "Login failed because user was not found",
+          metadata: {
+            email
+          }
         });
+
+        log(invalidEmailLog);
+
+        await sendFailedLoginAlert(email, clientIp);
+        return res.status(401).json({ error: "Invalid email" });
       }
 
-      if (!userExists || !isPasswordValid) {
+      if (!isPasswordValid) {
+        const invalidPasswordLog = createLog({
+          event_type: "AUTH_LOGIN_FAILED",
+          severity_level: "MEDIUM",
+          user_id: user?.user_id || null,
+          source_service: "login-controller",
+          ip_address: clientIp,
+          endpoint: req.originalUrl,
+          method: req.method,
+          status: "FAILED",
+          message: "Login failed due to invalid password",
+          metadata: {
+            email
+          }
+        });
+
+        log(invalidPasswordLog);
+
         await sendFailedLoginAlert(email, clientIp);
 
-        if (!userExists) {
-          return res.status(401).json({ error: "Invalid email" });
+        if (failureCount === 4) {
+          return res.status(429).json({
+            warning: "⚠ You have one attempt left before your account is temporarily locked."
+          });
         }
 
         return res.status(401).json({ error: "Invalid password" });
@@ -90,6 +160,23 @@ const login = async (req, res) => {
 
     // MFA handling
     if (user.mfa_enabled) {
+      const mfaLog = createLog({
+        event_type: "AUTH_MFA_REQUIRED",
+        severity_level: "LOW",
+        user_id: user.user_id,
+        source_service: "login-controller",
+        ip_address: clientIp,
+        endpoint: req.originalUrl,
+        method: req.method,
+        status: "PENDING",
+        message: "MFA token sent to user email",
+        metadata: {
+          email: user.email
+        }
+      });
+
+      log(mfaLog);
+
       const token = crypto.randomInt(100000, 999999);
       await addMfaToken(user.user_id, token);
       await sendOtpEmail(user.email, token);
@@ -97,6 +184,24 @@ const login = async (req, res) => {
         message: "An MFA Token has been sent to your email address"
       });
     }
+
+    const successLog = createLog({
+      event_type: "AUTH_LOGIN_SUCCESS",
+      severity_level: "LOW",
+      user_id: user.user_id,
+      source_service: "login-controller",
+      ip_address: clientIp,
+      endpoint: req.originalUrl,
+      method: req.method,
+      status: "SUCCESS",
+      message: "User logged in successfully",
+      metadata: {
+        email: user.email,
+        role: user.user_roles?.role_name || "unknown"
+      }
+    });
+
+    log(successLog);
 
     await logLoginEvent({
       userId: user.user_id,
@@ -107,7 +212,7 @@ const login = async (req, res) => {
 
     // ✅ RBAC-aware JWT generation
     const token = jwt.sign(
-      { 
+      {
         userId: user.user_id,
         role: user.user_roles?.role_name || "unknown"
       },
@@ -118,6 +223,23 @@ const login = async (req, res) => {
     return res.status(200).json({ user, token });
 
   } catch (err) {
+    const errorLog = createLog({
+      event_type: "SYSTEM_ERROR",
+      severity_level: "HIGH",
+      user_id: null,
+      source_service: "login-controller",
+      ip_address: req.ip,
+      endpoint: req.originalUrl,
+      method: req.method,
+      status: "ERROR",
+      message: err.message,
+      metadata: {
+        email: email || null
+      }
+    });
+
+    log(errorLog);
+
     console.error("Login error:", err);
     return res.status(500).json({ error: "Internal server error" });
   }
@@ -155,7 +277,7 @@ const loginMfa = async (req, res) => {
 
     // ✅ RBAC-aware JWT
     const token = jwt.sign(
-      { 
+      {
         userId: user.user_id,
         role: user.user_roles?.role_name || "unknown"
       },
