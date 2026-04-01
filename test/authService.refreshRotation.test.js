@@ -3,12 +3,10 @@ const sinon = require("sinon");
 const proxyquire = require("proxyquire").noCallThru();
 
 describe("authService refresh rotation", () => {
-  let createClient;
-  let anonClient;
-  let serviceClient;
   let jwt;
   let bcrypt;
   let cryptoMock;
+  let authRepository;
   let authService;
 
   beforeEach(() => {
@@ -16,17 +14,6 @@ describe("authService refresh rotation", () => {
     process.env.SUPABASE_ANON_KEY = "anon-key";
     process.env.SUPABASE_SERVICE_ROLE_KEY = "service-role-key";
     process.env.JWT_TOKEN = "jwt-secret";
-
-    anonClient = {
-      from: sinon.stub(),
-    };
-    serviceClient = {
-      from: sinon.stub(),
-    };
-
-    createClient = sinon.stub();
-    createClient.onCall(0).returns(anonClient);
-    createClient.onCall(1).returns(serviceClient);
 
     jwt = {
       sign: sinon.stub().returns("new-access-token"),
@@ -45,11 +32,18 @@ describe("authService refresh rotation", () => {
       }),
     };
 
+    authRepository = {
+      createRefreshSession: sinon.stub().resolves(),
+      deactivateSessionById: sinon.stub().resolves(),
+      findActiveRefreshSessionByLookupHash: sinon.stub(),
+      findUserByIdForSession: sinon.stub(),
+    };
+
     authService = proxyquire("../services/authService", {
-      "@supabase/supabase-js": { createClient },
       jsonwebtoken: jwt,
       bcrypt,
       crypto: cryptoMock,
+      "../repositories/mobile/authRepository": authRepository,
       "../Monitor_&_Logging/loginLogger": sinon.stub().resolves(),
     });
   });
@@ -59,59 +53,21 @@ describe("authService refresh rotation", () => {
   });
 
   it("rotates only the current refresh session on refresh", async () => {
-    const refreshSelect = {
-      select: sinon.stub().returnsThis(),
-      eq: sinon.stub().returnsThis(),
-      limit: sinon.stub().resolves({
-        data: [
-          {
-            id: 88,
-            user_id: 101,
-            refresh_token: "stored-hash",
-            refresh_token_lookup: "lookup",
-            expires_at: "2099-01-01T00:00:00.000Z",
-            is_active: true,
-          },
-        ],
-        error: null,
-      }),
-    };
-
-    const refreshUpdate = {};
-    refreshUpdate.update = sinon.stub().callsFake(() => refreshUpdate);
-    refreshUpdate.eq = sinon.stub().resolves({ error: null });
-
-    const refreshInsert = sinon.stub().resolves({ error: null });
-
-    serviceClient.from.callsFake((table) => {
-      if (table !== "user_sessiontoken") throw new Error(`Unexpected table ${table}`);
-
-      if (!serviceClient._callCount) serviceClient._callCount = 0;
-      serviceClient._callCount += 1;
-
-      if (serviceClient._callCount === 1) return refreshSelect;
-      if (serviceClient._callCount === 2) return { insert: refreshInsert };
-      if (serviceClient._callCount === 3) return refreshUpdate;
-      throw new Error("Unexpected user_sessiontoken call count");
+    authRepository.findActiveRefreshSessionByLookupHash.resolves({
+      id: 88,
+      user_id: 101,
+      refresh_token: "stored-hash",
+      refresh_token_lookup: "lookup",
+      expires_at: "2099-01-01T00:00:00.000Z",
+      is_active: true,
     });
-
-    anonClient.from.callsFake((table) => {
-      if (table !== "users") throw new Error(`Unexpected table ${table}`);
-      return {
-        select: sinon.stub().returnsThis(),
-        eq: sinon.stub().returnsThis(),
-        single: sinon.stub().resolves({
-          data: {
-            user_id: 101,
-            email: "mobile@example.com",
-            name: "Mobile User",
-            role_id: 7,
-            account_status: "active",
-            user_roles: { role_name: "user" },
-          },
-          error: null,
-        }),
-      };
+    authRepository.findUserByIdForSession.resolves({
+      user_id: 101,
+      email: "mobile@example.com",
+      name: "Mobile User",
+      role_id: 7,
+      account_status: "active",
+      user_roles: { role_name: "user" },
     });
 
     const result = await authService.refreshAccessToken("raw-refresh-token", {
@@ -121,8 +77,7 @@ describe("authService refresh rotation", () => {
 
     expect(result.success).to.equal(true);
     expect(result.accessToken).to.equal("new-access-token");
-    expect(refreshInsert.calledOnce).to.equal(true);
-    expect(refreshUpdate.update.calledWith({ is_active: false })).to.equal(true);
-    expect(refreshUpdate.eq.calledWith("id", 88)).to.equal(true);
+    expect(authRepository.createRefreshSession.calledOnce).to.equal(true);
+    expect(authRepository.deactivateSessionById.calledWith(88)).to.equal(true);
   });
 });

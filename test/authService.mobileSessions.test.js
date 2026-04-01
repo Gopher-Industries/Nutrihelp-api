@@ -3,12 +3,10 @@ const sinon = require("sinon");
 const proxyquire = require("proxyquire").noCallThru();
 
 describe("authService mobile session support", () => {
-  let createClient;
-  let anonClient;
-  let serviceClient;
   let jwt;
   let bcrypt;
   let cryptoMock;
+  let authRepository;
   let authService;
 
   beforeEach(() => {
@@ -16,15 +14,6 @@ describe("authService mobile session support", () => {
     process.env.SUPABASE_ANON_KEY = "anon-key";
     process.env.SUPABASE_SERVICE_ROLE_KEY = "service-role-key";
     process.env.JWT_TOKEN = "jwt-secret";
-
-    anonClient = {};
-    serviceClient = {
-      from: sinon.stub(),
-    };
-
-    createClient = sinon.stub();
-    createClient.onCall(0).returns(anonClient);
-    createClient.onCall(1).returns(serviceClient);
 
     jwt = {
       sign: sinon.stub().returns("signed-access-token"),
@@ -44,11 +33,15 @@ describe("authService mobile session support", () => {
       }),
     };
 
+    authRepository = {
+      createRefreshSession: sinon.stub().resolves(),
+    };
+
     authService = proxyquire("../services/authService", {
-      "@supabase/supabase-js": { createClient },
       jsonwebtoken: jwt,
       bcrypt,
       crypto: cryptoMock,
+      "../repositories/mobile/authRepository": authRepository,
       "../Monitor_&_Logging/loginLogger": sinon.stub().resolves(),
     });
   });
@@ -58,14 +51,6 @@ describe("authService mobile session support", () => {
   });
 
   it("creates a refresh session without invalidating other active sessions", async () => {
-    const insert = sinon.stub().resolves({ error: null });
-    const update = sinon.stub();
-
-    serviceClient.from.withArgs("user_sessiontoken").returns({
-      insert,
-      update,
-    });
-
     const payload = await authService.generateTokenPair({
       user_id: 101,
       email: "mobile@example.com",
@@ -77,7 +62,6 @@ describe("authService mobile session support", () => {
 
     expect(payload.accessToken).to.equal("signed-access-token");
     expect(payload.refreshToken).to.be.a("string");
-    expect(insert.calledOnce).to.equal(true);
-    expect(update.called).to.equal(false);
+    expect(authRepository.createRefreshSession.calledOnce).to.equal(true);
   });
 });

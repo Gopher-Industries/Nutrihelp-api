@@ -1,8 +1,9 @@
-const authService = require("../services/authService");
-const supabase = require("../dbConnection");
-const getUserProfile = require("../model/getUserProfile");
-const mealPlanModel = require("../model/mealPlan");
-const { generateRecommendations } = require("../services/recommendationService");
+const mobileAuthService = require("../services/mobile/mobileAuthService");
+const mobileProfileService = require("../services/mobile/mobileProfileService");
+const mobileNotificationService = require("../services/mobile/mobileNotificationService");
+const mobileMealPlanService = require("../services/mobile/mobileMealPlanService");
+const mobileRecommendationService = require("../services/mobile/mobileRecommendationService");
+const mobileHomeService = require("../services/mobile/mobileHomeService");
 const {
   createEnvelope,
   createErrorEnvelope,
@@ -49,7 +50,7 @@ exports.register = async (req, res) => {
       );
     }
 
-    const result = await authService.register({
+    const result = await mobileAuthService.registerMobileUser({
       name,
       email,
       password,
@@ -92,7 +93,7 @@ exports.login = async (req, res) => {
       );
     }
 
-    const result = await authService.login({ email, password }, getDeviceInfo(req));
+    const result = await mobileAuthService.loginMobileUser({ email, password }, getDeviceInfo(req));
 
     return res.status(200).json(
       createEnvelope({
@@ -124,7 +125,7 @@ exports.refreshToken = async (req, res) => {
       );
     }
 
-    const result = await authService.refreshAccessToken(refreshToken, getDeviceInfo(req));
+    const result = await mobileAuthService.refreshMobileSession(refreshToken, getDeviceInfo(req));
 
     return res.status(200).json(
       createEnvelope({
@@ -155,7 +156,7 @@ exports.logout = async (req, res) => {
       );
     }
 
-    const result = await authService.logout(refreshToken);
+    const result = await mobileAuthService.logoutMobileSession(refreshToken);
     return res.status(200).json(createEnvelope(null, { message: result.message }));
   } catch (error) {
     return sendMobileError(
@@ -169,8 +170,7 @@ exports.logout = async (req, res) => {
 
 exports.getMe = async (req, res) => {
   try {
-    const profiles = await getUserProfile(req.user.email);
-    const profile = Array.isArray(profiles) ? profiles[0] || null : profiles || null;
+    const profile = await mobileProfileService.getProfileByEmail(req.user.email);
 
     if (!profile) {
       return sendMobileError(res, 404, "User not found", "USER_NOT_FOUND");
@@ -196,39 +196,19 @@ exports.getMyNotifications = async (req, res) => {
     const limit = parsePositiveInteger(req.query.limit, 20);
     const status = req.query.status;
 
-    let listQuery = supabase
-      .from("notifications")
-      .select("simple_id, type, content, status, created_at")
-      .eq("user_id", req.user.userId)
-      .order("created_at", { ascending: false })
-      .limit(limit);
-
-    if (status) {
-      listQuery = listQuery.eq("status", status);
-    }
-
-    const unreadQuery = supabase
-      .from("notifications")
-      .select("simple_id", { count: "exact", head: true })
-      .eq("user_id", req.user.userId)
-      .eq("status", "unread");
-
-    const [{ data, error }, { count, error: unreadError }] = await Promise.all([
-      listQuery,
-      unreadQuery,
-    ]);
-
-    if (error) throw error;
-    if (unreadError) throw unreadError;
+    const { notifications, unreadCount } = await mobileNotificationService.getNotificationSummary(
+      req.user.userId,
+      { limit, status },
+    );
 
     return res.status(200).json(
       createEnvelope(
         {
-          items: formatNotifications(data || []),
+          items: formatNotifications(notifications),
         },
         {
-          count: (data || []).length,
-          unreadCount: count || 0,
+          count: notifications.length,
+          unreadCount,
         },
       ),
     );
@@ -244,7 +224,7 @@ exports.getMyNotifications = async (req, res) => {
 
 exports.getMyMealPlans = async (req, res) => {
   try {
-    const mealPlans = await mealPlanModel.get(req.user.userId);
+    const mealPlans = await mobileMealPlanService.getMealPlansByUserId(req.user.userId);
 
     return res.status(200).json(
       createEnvelope(
@@ -270,7 +250,7 @@ exports.getRecommendations = async (req, res) => {
   try {
     const body = req.body || {};
     const maxResults = parsePositiveInteger(body.maxResults, 5, 20);
-    const payload = await generateRecommendations({
+    const payload = await mobileRecommendationService.generateMobileRecommendations({
       userId: req.user.userId,
       email: req.user.email,
       healthGoals: body.healthGoals || {},
@@ -314,34 +294,19 @@ exports.getRecommendations = async (req, res) => {
 exports.getHomeSummary = async (req, res) => {
   try {
     const body = req.body || {};
-    const [profiles, latestNotifications, unreadSummary, mealPlans, recommendations] =
-      await Promise.all([
-        getUserProfile(req.user.email),
-        supabase
-          .from("notifications")
-          .select("simple_id, type, content, status, created_at")
-          .eq("user_id", req.user.userId)
-          .order("created_at", { ascending: false })
-          .limit(5),
-        supabase
-          .from("notifications")
-          .select("simple_id", { count: "exact", head: true })
-          .eq("user_id", req.user.userId)
-          .eq("status", "unread"),
-        mealPlanModel.get(req.user.userId),
-        generateRecommendations({
-          userId: req.user.userId,
-          email: req.user.email,
-          healthGoals: body.healthGoals || {},
-          dietaryConstraints: body.dietaryConstraints || {},
-          maxResults: parsePositiveInteger(body.maxResults, 3, 10),
-        }),
-      ]);
-
-    if (latestNotifications.error) throw latestNotifications.error;
-    if (unreadSummary.error) throw unreadSummary.error;
-
-    const profile = Array.isArray(profiles) ? profiles[0] || null : profiles || null;
+    const {
+      profile,
+      notifications,
+      unreadCount,
+      mealPlans,
+      recommendations,
+    } = await mobileHomeService.getHomeSummary({
+      userId: req.user.userId,
+      email: req.user.email,
+      healthGoals: body.healthGoals || {},
+      dietaryConstraints: body.dietaryConstraints || {},
+      maxResults: parsePositiveInteger(body.maxResults, 3, 10),
+    });
     const formattedMealPlans = formatMealPlans(mealPlans || []);
     const activeMealPlan = formattedMealPlans[0] || null;
 
@@ -349,8 +314,8 @@ exports.getHomeSummary = async (req, res) => {
       createEnvelope({
         user: formatProfile(profile),
         notifications: {
-          unreadCount: unreadSummary.count || 0,
-          items: formatNotifications(latestNotifications.data || []),
+          unreadCount,
+          items: formatNotifications(notifications),
         },
         recommendations: formatRecommendations(recommendations.recommendations || []),
         mealPlan: activeMealPlan,

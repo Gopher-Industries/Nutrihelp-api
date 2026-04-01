@@ -18,37 +18,45 @@ function createResponse() {
 }
 
 describe("mobileController", () => {
-  let authService;
-  let supabase;
-  let getUserProfile;
-  let mealPlanModel;
-  let generateRecommendations;
+  let mobileAuthService;
+  let mobileProfileService;
+  let mobileNotificationService;
+  let mobileMealPlanService;
+  let mobileRecommendationService;
+  let mobileHomeService;
   let controller;
 
   beforeEach(() => {
-    authService = {
-      register: sinon.stub(),
-      login: sinon.stub(),
-      refreshAccessToken: sinon.stub(),
-      logout: sinon.stub(),
+    mobileAuthService = {
+      registerMobileUser: sinon.stub(),
+      loginMobileUser: sinon.stub(),
+      refreshMobileSession: sinon.stub(),
+      logoutMobileSession: sinon.stub(),
     };
 
-    supabase = {
-      from: sinon.stub(),
+    mobileProfileService = {
+      getProfileByEmail: sinon.stub(),
     };
-
-    getUserProfile = sinon.stub();
-    mealPlanModel = {
-      get: sinon.stub(),
+    mobileNotificationService = {
+      getNotificationSummary: sinon.stub(),
     };
-    generateRecommendations = sinon.stub();
+    mobileMealPlanService = {
+      getMealPlansByUserId: sinon.stub(),
+    };
+    mobileRecommendationService = {
+      generateMobileRecommendations: sinon.stub(),
+    };
+    mobileHomeService = {
+      getHomeSummary: sinon.stub(),
+    };
 
     controller = proxyquire("../controller/mobileController", {
-      "../services/authService": authService,
-      "../dbConnection": supabase,
-      "../model/getUserProfile": getUserProfile,
-      "../model/mealPlan": mealPlanModel,
-      "../services/recommendationService": { generateRecommendations },
+      "../services/mobile/mobileAuthService": mobileAuthService,
+      "../services/mobile/mobileProfileService": mobileProfileService,
+      "../services/mobile/mobileNotificationService": mobileNotificationService,
+      "../services/mobile/mobileMealPlanService": mobileMealPlanService,
+      "../services/mobile/mobileRecommendationService": mobileRecommendationService,
+      "../services/mobile/mobileHomeService": mobileHomeService,
     });
   });
 
@@ -74,7 +82,7 @@ describe("mobileController", () => {
     };
     const res = createResponse();
 
-    authService.login.resolves({
+    mobileAuthService.loginMobileUser.resolves({
       user: {
         id: 5,
         email: "mobile@example.com",
@@ -95,32 +103,18 @@ describe("mobileController", () => {
   });
 
   it("returns notification items and unread count for the authenticated user", async () => {
-    const listQuery = {
-      select: sinon.stub().returnsThis(),
-      eq: sinon.stub().returnsThis(),
-      order: sinon.stub().returnsThis(),
-      limit: sinon.stub().resolves({
-        data: [
-          {
-            simple_id: 10,
-            type: "reminder",
-            content: "Drink water",
-            status: "unread",
-            created_at: "2026-03-30T10:00:00.000Z",
-          },
-        ],
-        error: null,
-      }),
-    };
-    const unreadQuery = {
-      select: sinon.stub().returnsThis(),
-      eq: sinon.stub().returnsThis(),
-    };
-    unreadQuery.eq.onFirstCall().returns(unreadQuery);
-    unreadQuery.eq.onSecondCall().resolves({ count: 3, error: null });
-
-    supabase.from.onFirstCall().returns(listQuery);
-    supabase.from.onSecondCall().returns(unreadQuery);
+    mobileNotificationService.getNotificationSummary.resolves({
+      notifications: [
+        {
+          simple_id: 10,
+          type: "reminder",
+          content: "Drink water",
+          status: "unread",
+          created_at: "2026-03-30T10:00:00.000Z",
+        },
+      ],
+      unreadCount: 3,
+    });
 
     const req = {
       query: { limit: "10" },
@@ -149,7 +143,7 @@ describe("mobileController", () => {
     };
     const res = createResponse();
 
-    generateRecommendations.resolves({
+    mobileRecommendationService.generateMobileRecommendations.resolves({
       generatedAt: "2026-03-30T11:00:00.000Z",
       contractVersion: "recommendation-response-v1",
       source: { strategy: "hybrid_rule_based" },
@@ -185,19 +179,17 @@ describe("mobileController", () => {
     };
     const res = createResponse();
 
-    getUserProfile.resolves([
-      {
-        user_id: 42,
-        email: "mobile@example.com",
-        name: "Mobile User",
-        first_name: "Mobile",
-        last_name: "User",
-        contact_number: "0400000000",
-        address: "Melbourne",
-        mfa_enabled: true,
-        image_url: "https://cdn.example.com/avatar.png",
-      },
-    ]);
+    mobileProfileService.getProfileByEmail.resolves({
+      user_id: 42,
+      email: "mobile@example.com",
+      name: "Mobile User",
+      first_name: "Mobile",
+      last_name: "User",
+      contact_number: "0400000000",
+      address: "Melbourne",
+      mfa_enabled: true,
+      image_url: "https://cdn.example.com/avatar.png",
+    });
 
     await controller.getMe(req, res);
 
@@ -207,24 +199,10 @@ describe("mobileController", () => {
   });
 
   it("returns an empty notifications list with 200 status", async () => {
-    const listQuery = {
-      select: sinon.stub().returnsThis(),
-      eq: sinon.stub().returnsThis(),
-      order: sinon.stub().returnsThis(),
-      limit: sinon.stub().resolves({
-        data: [],
-        error: null,
-      }),
-    };
-    const unreadQuery = {
-      select: sinon.stub().returnsThis(),
-      eq: sinon.stub().returnsThis(),
-    };
-    unreadQuery.eq.onFirstCall().returns(unreadQuery);
-    unreadQuery.eq.onSecondCall().resolves({ count: 0, error: null });
-
-    supabase.from.onFirstCall().returns(listQuery);
-    supabase.from.onSecondCall().returns(unreadQuery);
+    mobileNotificationService.getNotificationSummary.resolves({
+      notifications: [],
+      unreadCount: 0,
+    });
 
     const req = {
       query: {},
@@ -245,7 +223,7 @@ describe("mobileController", () => {
     };
     const res = createResponse();
 
-    mealPlanModel.get.resolves(null);
+    mobileMealPlanService.getMealPlansByUserId.resolves(null);
 
     await controller.getMyMealPlans(req, res);
 
@@ -255,8 +233,8 @@ describe("mobileController", () => {
   });
 
   it("returns a compact home summary for the authenticated user", async () => {
-    getUserProfile.resolves([
-      {
+    mobileHomeService.getHomeSummary.resolves({
+      profile: {
         user_id: 42,
         email: "mobile@example.com",
         name: "Mobile User",
@@ -264,56 +242,39 @@ describe("mobileController", () => {
         last_name: "User",
         mfa_enabled: false,
       },
-    ]);
-    mealPlanModel.get.resolves([
-      {
-        id: 3,
-        meal_type: "lunch",
-        recipes: [],
-      },
-    ]);
-    generateRecommendations.resolves({
-      recommendations: [
+      mealPlans: [
         {
-          rank: 1,
-          recipeId: 11,
-          title: "Salad Bowl",
-          explanation: "light and balanced",
-          metadata: {
-            nutrition: { calories: 250 },
-            preparationTime: 10,
-            totalServings: 1,
-          },
+          id: 3,
+          meal_type: "lunch",
+          recipes: [],
         },
       ],
-    });
-
-    const listQuery = {
-      select: sinon.stub().returnsThis(),
-      eq: sinon.stub().returnsThis(),
-      order: sinon.stub().returnsThis(),
-      limit: sinon.stub().resolves({
-        data: [
+      notifications: [
+        {
+          simple_id: 1,
+          type: "reminder",
+          content: "Drink water",
+          status: "unread",
+          created_at: "2026-03-30T10:00:00.000Z",
+        },
+      ],
+      unreadCount: 2,
+      recommendations: {
+        recommendations: [
           {
-            simple_id: 1,
-            type: "reminder",
-            content: "Drink water",
-            status: "unread",
-            created_at: "2026-03-30T10:00:00.000Z",
+            rank: 1,
+            recipeId: 11,
+            title: "Salad Bowl",
+            explanation: "light and balanced",
+            metadata: {
+              nutrition: { calories: 250 },
+              preparationTime: 10,
+              totalServings: 1,
+            },
           },
         ],
-        error: null,
-      }),
-    };
-    const unreadQuery = {
-      select: sinon.stub().returnsThis(),
-      eq: sinon.stub().returnsThis(),
-    };
-    unreadQuery.eq.onFirstCall().returns(unreadQuery);
-    unreadQuery.eq.onSecondCall().resolves({ count: 2, error: null });
-
-    supabase.from.onFirstCall().returns(listQuery);
-    supabase.from.onSecondCall().returns(unreadQuery);
+      },
+    });
 
     const req = {
       body: {},
