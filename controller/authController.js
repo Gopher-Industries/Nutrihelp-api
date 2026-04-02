@@ -1,300 +1,163 @@
 const authService = require('../services/authService');
-const { createClient } = require('@supabase/supabase-js');
+const { isServiceError } = require('../services/serviceError');
 
 const TRUSTED_DEVICE_COOKIE = authService.trustedDeviceCookieName || 'trusted_device';
 
-const supabase = createClient(
-    process.env.SUPABASE_URL,
-    process.env.SUPABASE_ANON_KEY
-);
+function getDeviceInfo(req) {
+  return {
+    ip: req.ip,
+    userAgent: req.get('User-Agent') || 'Unknown'
+  };
+}
 
-/**
- * User Registration
- */
+function clearTrustedDeviceCookie(res) {
+  if (!res?.clearCookie) {
+    return;
+  }
+
+  res.clearCookie(TRUSTED_DEVICE_COOKIE, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: '/'
+  });
+}
+
+function handleServiceError(res, error, fallbackStatus, fallbackLogLabel) {
+  if (isServiceError(error)) {
+    return res.status(error.statusCode).json({
+      success: false,
+      error: error.message
+    });
+  }
+
+  console.error(fallbackLogLabel, error);
+  return res.status(fallbackStatus).json({
+    success: false,
+    error: error.message || 'Internal server error'
+  });
+}
+
 exports.register = async (req, res) => {
-    try {
-        const { name, email, password, first_name, last_name } = req.body;
+  try {
+    const result = await authService.register({
+      name: req.body.name,
+      email: req.body.email,
+      password: req.body.password,
+      first_name: req.body.first_name,
+      last_name: req.body.last_name
+    });
 
-        // Basic validation
-        if (!name || !email || !password) {
-            return res.status(400).json({
-                success: false,
-                error: 'Name, email, and password are required'
-            });
-        }
-
-        const result = await authService.register({
-            name, email, password, first_name, last_name
-        });
-
-        res.status(201).json(result);
-
-    } catch (error) {
-        console.error('Registration error:', error);
-        res.status(400).json({
-            success: false,
-            error: error.message
-        });
-    }
+    return res.status(201).json(result);
+  } catch (error) {
+    return handleServiceError(res, error, 400, 'Registration error:');
+  }
 };
 
-/**
- * User Login
- */
 exports.login = async (req, res) => {
-    try {
-        const { email, password } = req.body;
+  try {
+    const result = await authService.login({
+      email: req.body.email,
+      password: req.body.password
+    }, getDeviceInfo(req));
 
-        if (!email || !password) {
-            return res.status(400).json({
-                success: false,
-                error: 'Email and password are required'
-            });
-        }
-
-        // Collect device information
-        const deviceInfo = {
-            ip: req.ip,
-            userAgent: req.get('User-Agent') || 'Unknown'
-        };
-
-        const result = await authService.login({ email, password }, deviceInfo);
-
-        res.json(result);
-
-    } catch (error) {
-        console.error('Login error:', error);
-        res.status(401).json({
-            success: false,
-            error: error.message
-        });
-    }
+    return res.json(result);
+  } catch (error) {
+    return handleServiceError(res, error, 401, 'Login error:');
+  }
 };
 
-/**
- * Refresh Token
- */
 exports.refreshToken = async (req, res) => {
-    try {
-        const { refreshToken } = req.body;
-
-        if (!refreshToken) {
-            return res.status(400).json({
-                success: false,
-                error: 'Refresh token is required'
-            });
-        }
-
-        const deviceInfo = {
-            ip: req.ip,
-            userAgent: req.get('User-Agent') || 'Unknown'
-        };
-
-        const result = await authService.refreshAccessToken(refreshToken, deviceInfo);
-
-        res.json(result);
-
-    } catch (error) {
-        console.error('Token refresh error:', error);
-        res.status(401).json({
-            success: false,
-            error: error.message
-        });
-    }
+  try {
+    const result = await authService.refreshAccessToken(req.body.refreshToken, getDeviceInfo(req));
+    return res.json(result);
+  } catch (error) {
+    return handleServiceError(res, error, 401, 'Token refresh error:');
+  }
 };
 
-/**
- * User Logout
- */
 exports.logout = async (req, res) => {
-    try {
-        const { refreshToken } = req.body;
-
-        const result = await authService.logout(refreshToken);
-
-        res.json(result);
-
-    } catch (error) {
-        console.error('Logout error:', error);
-        res.status(500).json({
-            success: false,
-            error: error.message
-        });
-    }
+  try {
+    const result = await authService.logout(req.body.refreshToken);
+    return res.json(result);
+  } catch (error) {
+    return handleServiceError(res, error, 500, 'Logout error:');
+  }
 };
 
-/**
- * User Logout All
- */
 exports.logoutAll = async (req, res) => {
-    try {
-        const userId = req.user.userId;
+  try {
+    const result = await authService.logoutAll(req.user.userId, {
+      reason: 'logout_all',
+      deviceInfo: getDeviceInfo(req)
+    });
 
-        const result = await authService.logoutAll(userId, {
-            reason: 'logout_all',
-            deviceInfo: {
-                ip: req.ip,
-                userAgent: req.get('User-Agent') || 'Unknown',
-            },
-        });
-        if (res.clearCookie) {
-            res.clearCookie(TRUSTED_DEVICE_COOKIE, {
-                httpOnly: true,
-                secure: process.env.NODE_ENV === 'production',
-                sameSite: 'lax',
-                path: '/',
-            });
-        }
-
-        res.json(result);
-
-    } catch (error) {
-        console.error('Logout all error:', error);
-        res.status(500).json({
-            success: false,
-            error: error.message
-        });
-    }
+    clearTrustedDeviceCookie(res);
+    return res.json(result);
+  } catch (error) {
+    return handleServiceError(res, error, 500, 'Logout all error:');
+  }
 };
 
 exports.revokeTrustedDevices = async (req, res) => {
-    try {
-        const userId = req.user.userId;
-        const result = await authService.revokeTrustedDevices(userId, 'manual', {
-            ip: req.ip,
-            userAgent: req.get('User-Agent') || 'Unknown',
-        });
+  try {
+    const result = await authService.revokeTrustedDevices(
+      req.user.userId,
+      'manual',
+      getDeviceInfo(req)
+    );
 
-        if (res.clearCookie) {
-            res.clearCookie(TRUSTED_DEVICE_COOKIE, {
-                httpOnly: true,
-                secure: process.env.NODE_ENV === 'production',
-                sameSite: 'lax',
-                path: '/',
-            });
-        }
-
-        return res.json({
-            success: true,
-            message: 'Trusted devices revoked successfully',
-            revokedCount: result.revokedCount,
-        });
-    } catch (error) {
-        console.error('Revoke trusted devices error:', error);
-        return res.status(500).json({
-            success: false,
-            error: error.message,
-        });
-    }
+    clearTrustedDeviceCookie(res);
+    return res.json({
+      success: true,
+      message: 'Trusted devices revoked successfully',
+      revokedCount: result.revokedCount
+    });
+  } catch (error) {
+    return handleServiceError(res, error, 500, 'Revoke trusted devices error:');
+  }
 };
 
-/**
- * Get Current User Profile
- */
 exports.getProfile = async (req, res) => {
-    try {
-        const userId = req.user.userId;
-
-        const { data: user, error } = await supabase
-            .from('users')
-            .select(`
-                user_id, email, name, first_name, last_name,
-                registration_date, last_login, account_status,
-                user_roles!inner(role_name)
-            `)
-            .eq('user_id', userId)
-            .single();
-
-        if (error || !user) {
-            return res.status(404).json({
-                success: false,
-                error: 'User not found'
-            });
-        }
-
-        res.json({
-            success: true,
-            user: {
-                id: user.user_id,
-                email: user.email,
-                name: user.name,
-                firstName: user.first_name,
-                lastName: user.last_name,
-                role: user.user_roles?.role_name,
-                registrationDate: user.registration_date,
-                lastLogin: user.last_login,
-                accountStatus: user.account_status
-            }
-        });
-
-    } catch (error) {
-        console.error('Get profile error:', error);
-        res.status(500).json({
-            success: false,
-            error: 'Internal server error'
-        });
-    }
+  try {
+    const result = await authService.getProfile(req.user.userId);
+    return res.json(result);
+  } catch (error) {
+    return handleServiceError(res, error, 500, 'Get profile error:');
+  }
 };
 
-// Keep existing logging functionality (backward compatibility)
 exports.logLoginAttempt = async (req, res) => {
-    const { email, user_id, success, ip_address, created_at } = req.body;
+  try {
+    const result = await authService.logLoginAttempt({
+      email: req.body.email,
+      userId: req.body.user_id,
+      success: req.body.success,
+      ipAddress: req.body.ip_address,
+      createdAt: req.body.created_at
+    });
 
-    if (!email || success === undefined || !ip_address || !created_at) {
-        return res.status(400).json({
-            error: 'Missing required fields: email, success, ip_address, created_at',
-        });
+    return res.status(201).json(result);
+  } catch (error) {
+    if (isServiceError(error)) {
+      return res.status(error.statusCode).json({ error: error.message });
     }
 
-    const { error } = await supabase.from('auth_logs').insert([
-        {
-            email,
-            user_id: user_id || null,
-            success,
-            ip_address,
-            created_at,
-        },
-    ]);
-
-    if (error) {
-        console.error('❌ Failed to insert login log:', error);
-        return res.status(500).json({ error: 'Failed to log login attempt' });
-    }
-
-    return res.status(201).json({ message: 'Login attempt logged successfully' });
+    console.error('Failed to insert login log:', error);
+    return res.status(500).json({ error: 'Failed to log login attempt' });
+  }
 };
-
-
 
 exports.sendSMSByEmail = async (req, res) => {
-  const { email } = req.body;
-
-  if (!email) {
-    return res.status(400).json({ error: 'Email is required' });
-  }
-
   try {
-    const { data, error } = await supabase
-      .from('users')
-      .select('contact_number')
-      .eq('email', email)
-      .single();
-
-    if (error || !data?.contact_number) {
-      return res.status(404).json({ error: 'Phone number not found for the given email' });
+    const result = await authService.sendSmsCodeByEmail(req.body.email);
+    return res.status(200).json(result);
+  } catch (error) {
+    if (isServiceError(error)) {
+      return res.status(error.statusCode).json({ error: error.message });
     }
-    const phone = data.contact_number;
-    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
 
-    console.log(`📨 [DEV] Verification code for ${phone}: ${verificationCode}`);
-
-
-    return res.status(200).json({
-      message: 'SMS code sent (check server console for code)',
-      phone,
-    });
-  } catch (err) {
-    console.error('❌ Error sending SMS:', err);
+    console.error('Error sending SMS:', error);
     return res.status(500).json({ error: 'Internal server error' });
   }
 };

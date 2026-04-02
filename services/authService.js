@@ -1,11 +1,9 @@
-console.log("🟢 Loaded AuthService from:", __filename);
-console.log("URL:", process.env.SUPABASE_URL);
-console.log("KEY:", process.env.SUPABASE_ANON_KEY);
 const { createClient } = require('@supabase/supabase-js');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
-const logLoginEvent = require("../Monitor_&_Logging/loginLogger");
+const logLoginEvent = require('../Monitor_&_Logging/loginLogger');
+const { ServiceError } = require('./serviceError');
 
 const supabaseAnon = createClient(
   process.env.SUPABASE_URL,
@@ -64,6 +62,10 @@ class AuthService {
     const { name, email, password, first_name, last_name } = userData;
 
     try {
+      if (!name || !email || !password) {
+        throw new ServiceError(400, 'Name, email, and password are required');
+      }
+
       const { data: existingUser } = await supabaseAnon
         .from('users')
         .select('user_id')
@@ -71,7 +73,7 @@ class AuthService {
         .single();
 
       if (existingUser) {
-        throw new Error('User already exists');
+        throw new ServiceError(400, 'User already exists');
       }
 
       const hashedPassword = await bcrypt.hash(password, 12);
@@ -101,7 +103,11 @@ class AuthService {
         message: 'User registered successfully'
       };
     } catch (error) {
-      throw new Error(`Registration failed: ${error.message}`);
+      if (error instanceof ServiceError) {
+        throw error;
+      }
+
+      throw new ServiceError(400, `Registration failed: ${error.message}`);
     }
   }
 
@@ -112,6 +118,10 @@ class AuthService {
     const { email, password } = loginData;
 
     try {
+      if (!email || !password) {
+        throw new ServiceError(400, 'Email and password are required');
+      }
+
       const { data: user, error } = await supabaseAnon
         .from('users')
         .select(`
@@ -122,11 +132,11 @@ class AuthService {
         .eq('email', email)
         .single();
 
-      if (error || !user) throw new Error('Invalid credentials');
-      if (user.account_status !== 'active') throw new Error('Account is not active');
+      if (error || !user) throw new ServiceError(401, 'Invalid credentials');
+      if (user.account_status !== 'active') throw new ServiceError(403, 'Account is not active');
 
       const validPassword = await bcrypt.compare(password, user.password);
-      if (!validPassword) throw new Error('Invalid credentials');
+      if (!validPassword) throw new ServiceError(401, 'Invalid credentials');
 
       const tokens = await this.generateTokenPair(user, deviceInfo);
 
@@ -149,7 +159,11 @@ class AuthService {
       };
     } catch (error) {
       await this.logAuthAttempt(null, email, false, deviceInfo);
-      throw error;
+      if (error instanceof ServiceError) {
+        throw error;
+      }
+
+      throw new ServiceError(401, error.message);
     }
   }
 
@@ -213,7 +227,9 @@ class AuthService {
      ========================= */
   async refreshAccessToken(refreshToken, deviceInfo = {}) {
     try {
-      
+      if (!refreshToken) {
+        throw new ServiceError(400, 'Refresh token is required');
+      }
 
       const lookupHash = this.createLookupHash(refreshToken);
 
@@ -231,19 +247,17 @@ class AuthService {
         .eq('is_active', true)
         .limit(1);
       
-      console.log('supabase query result:', { sessions, error});
-
       if (error || !sessions || sessions.length === 0) {
-        throw new Error('Invalid refresh token');
+        throw new ServiceError(401, 'Invalid refresh token');
       }
 
       const session = sessions[0];
 
       const match = await bcrypt.compare(refreshToken, session.refresh_token);
-      if (!match) throw new Error('Invalid refresh token');
+      if (!match) throw new ServiceError(401, 'Invalid refresh token');
 
       if (new Date(session.expires_at) < new Date()) {
-        throw new Error('Refresh token expired');
+        throw new ServiceError(401, 'Refresh token expired');
       }
 
       const { data: user, error: userError } = await supabaseAnon
@@ -259,11 +273,11 @@ class AuthService {
           .single();
 
       if (userError || !user) {
-        throw new Error('User not found');
+        throw new ServiceError(404, 'User not found');
       }
 
       if (user.account_status !== 'active') {
-        throw new Error('Account is not active');
+        throw new ServiceError(403, 'Account is not active');
       }
 
 
@@ -279,8 +293,11 @@ class AuthService {
         ...newTokens
       };
     } catch (error) {
-      console.error('REFRESH FAILED:', error.message);
-      throw new Error(`Token refresh failed: ${error.message}`);
+      if (error instanceof ServiceError) {
+        throw error;
+      }
+
+      throw new ServiceError(401, `Token refresh failed: ${error.message}`);
     }
   }
 
@@ -289,6 +306,10 @@ class AuthService {
      ========================= */
   async logout(refreshToken) {
     try {
+      if (!refreshToken) {
+        throw new ServiceError(400, 'Refresh token is required');
+      }
+
       const lookupHash = this.createLookupHash(refreshToken);
 
       await supabaseService
@@ -298,7 +319,11 @@ class AuthService {
 
       return { success: true, message: 'Logout successful' };
     } catch (error) {
-      throw new Error(`Logout failed: ${error.message}`);
+      if (error instanceof ServiceError) {
+        throw error;
+      }
+
+      throw new ServiceError(500, `Logout failed: ${error.message}`);
     }
   }
 
@@ -307,6 +332,10 @@ class AuthService {
      ========================= */
   async logoutAll(userId, options = {}) {
     try {
+      if (!userId) {
+        throw new ServiceError(400, 'User ID is required');
+      }
+
       const reason = options.reason || 'logout_all';
       const deviceInfo = options.deviceInfo || {};
       const { data: trustedDevices } = await supabaseService
@@ -330,7 +359,11 @@ class AuthService {
 
       return { success: true, message: 'Logged out from all devices' };
     } catch (error) {
-      throw new Error(`Logout all failed: ${error.message}`);
+      if (error instanceof ServiceError) {
+        throw error;
+      }
+
+      throw new ServiceError(500, `Logout all failed: ${error.message}`);
     }
   }
 
@@ -501,6 +534,87 @@ class AuthService {
     } catch {
       // silent by design
     }
+  }
+
+  async getProfile(userId) {
+    if (!userId) {
+      throw new ServiceError(400, 'User ID is required');
+    }
+
+    const { data: user, error } = await supabaseAnon
+      .from('users')
+      .select(`
+        user_id, email, name, first_name, last_name,
+        registration_date, last_login, account_status,
+        user_roles!inner(role_name)
+      `)
+      .eq('user_id', userId)
+      .single();
+
+    if (error || !user) {
+      throw new ServiceError(404, 'User not found');
+    }
+
+    return {
+      success: true,
+      user: {
+        id: user.user_id,
+        email: user.email,
+        name: user.name,
+        firstName: user.first_name,
+        lastName: user.last_name,
+        role: user.user_roles?.role_name,
+        registrationDate: user.registration_date,
+        lastLogin: user.last_login,
+        accountStatus: user.account_status
+      }
+    };
+  }
+
+  async logLoginAttempt({ email, userId, success, ipAddress, createdAt }) {
+    if (!email || success === undefined || !ipAddress || !createdAt) {
+      throw new ServiceError(400, 'Missing required fields: email, success, ip_address, created_at');
+    }
+
+    const { error } = await supabaseAnon.from('auth_logs').insert([
+      {
+        email,
+        user_id: userId || null,
+        success,
+        ip_address: ipAddress,
+        created_at: createdAt
+      }
+    ]);
+
+    if (error) {
+      throw new ServiceError(500, 'Failed to log login attempt');
+    }
+
+    return { message: 'Login attempt logged successfully' };
+  }
+
+  async sendSmsCodeByEmail(email) {
+    if (!email) {
+      throw new ServiceError(400, 'Email is required');
+    }
+
+    const { data, error } = await supabaseAnon
+      .from('users')
+      .select('contact_number')
+      .eq('email', email)
+      .single();
+
+    if (error || !data?.contact_number) {
+      throw new ServiceError(404, 'Phone number not found for the given email');
+    }
+
+    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+    console.log(`📨 [DEV] Verification code for ${data.contact_number}: ${verificationCode}`);
+
+    return {
+      message: 'SMS code sent (check server console for code)',
+      phone: data.contact_number
+    };
   }
 }
 

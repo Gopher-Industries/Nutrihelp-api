@@ -8,8 +8,6 @@ const validate = require('../middleware/validateRequest');
 const { signupLimiter } = require('../middleware/rateLimiter'); // rate limiter added
 
 // Apply rate limiter and validation before the controller
-router.post('/', signupLimiter, registerValidation, validate, (req, res) => {
-    controller.signup(req, res);
-});
+router.post('/', signupLimiter, registerValidation, validate, controller.signup);
 
 module.exports = router;
