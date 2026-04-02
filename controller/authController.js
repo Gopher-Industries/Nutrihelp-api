@@ -1,5 +1,6 @@
 const authService = require('../services/authService');
 const { isServiceError } = require('../services/serviceError');
+const logger = require('../utils/logger');
 
 const TRUSTED_DEVICE_COOKIE = authService.trustedDeviceCookieName || 'trusted_device';
 
@@ -31,7 +32,7 @@ function handleServiceError(res, error, fallbackStatus, fallbackLogLabel) {
     });
   }
 
-  console.error(fallbackLogLabel, error);
+  logger.error(fallbackLogLabel, { error: error.message });
   return res.status(fallbackStatus).json({
     success: false,
     error: error.message || 'Internal server error'
@@ -50,6 +51,7 @@ exports.register = async (req, res) => {
 
     return res.status(201).json(result);
   } catch (error) {
+    logger.error('Registration error', { error: error.message, email: req.body.email });
     return handleServiceError(res, error, 400, 'Registration error:');
   }
 };
@@ -63,6 +65,7 @@ exports.login = async (req, res) => {
 
     return res.json(result);
   } catch (error) {
+    logger.error('Login error', { error: error.message, email: req.body.email });
     return handleServiceError(res, error, 401, 'Login error:');
   }
 };
@@ -72,6 +75,7 @@ exports.refreshToken = async (req, res) => {
     const result = await authService.refreshAccessToken(req.body.refreshToken, getDeviceInfo(req));
     return res.json(result);
   } catch (error) {
+    logger.error('Token refresh error', { error: error.message });
     return handleServiceError(res, error, 401, 'Token refresh error:');
   }
 };
@@ -81,6 +85,7 @@ exports.logout = async (req, res) => {
     const result = await authService.logout(req.body.refreshToken);
     return res.json(result);
   } catch (error) {
+    logger.error('Logout error', { error: error.message, userId: req.user?.userId });
     return handleServiceError(res, error, 500, 'Logout error:');
   }
 };
@@ -95,6 +100,7 @@ exports.logoutAll = async (req, res) => {
     clearTrustedDeviceCookie(res);
     return res.json(result);
   } catch (error) {
+    logger.error('Logout all error', { error: error.message, userId: req.user?.userId });
     return handleServiceError(res, error, 500, 'Logout all error:');
   }
 };
@@ -114,6 +120,7 @@ exports.revokeTrustedDevices = async (req, res) => {
       revokedCount: result.revokedCount
     });
   } catch (error) {
+    logger.error('Revoke trusted devices error', { error: error.message, userId: req.user?.userId });
     return handleServiceError(res, error, 500, 'Revoke trusted devices error:');
   }
 };
@@ -123,6 +130,7 @@ exports.getProfile = async (req, res) => {
     const result = await authService.getProfile(req.user.userId);
     return res.json(result);
   } catch (error) {
+    logger.error('Get profile error', { error: error.message, userId: req.user?.userId });
     return handleServiceError(res, error, 500, 'Get profile error:');
   }
 };
@@ -143,7 +151,7 @@ exports.logLoginAttempt = async (req, res) => {
       return res.status(error.statusCode).json({ error: error.message });
     }
 
-    console.error('Failed to insert login log:', error);
+    logger.error('Failed to insert login log', { error: error.message, email: req.body.email });
     return res.status(500).json({ error: 'Failed to log login attempt' });
   }
 };
@@ -157,7 +165,7 @@ exports.sendSMSByEmail = async (req, res) => {
       return res.status(error.statusCode).json({ error: error.message });
     }
 
-    console.error('Error sending SMS:', error);
+    logger.error('Error sending SMS', { error: error.message, email: req.body.email });
     return res.status(500).json({ error: 'Internal server error' });
   }
 };

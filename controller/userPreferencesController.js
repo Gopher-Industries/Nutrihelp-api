@@ -1,4 +1,5 @@
 const fetchUserPreferences = require("../model/fetchUserPreferences");
+const logger = require('../utils/logger');
 const updateUserPreferences = require("../model/updateUserPreferences");
 
 const getUserPreferences = async (req, res) => {
@@ -17,7 +18,7 @@ const getUserPreferences = async (req, res) => {
 
 		return res.status(200).json(userPreferences);
 	} catch (error) {
-		console.error(error);
+		logger.error('Error fetching user preferences', { error: error.message, userId: req.user?.userId });
 		return res.status(500).json({ error: "Internal server error" });
 	}
 };
@@ -31,7 +32,7 @@ const postUserPreferences = async (req, res) => {
 			.status(204)
 			.json({ message: "User preferences updated successfully" });
 	} catch (error) {
-		console.error(error);
+		logger.error('Error updating user preferences', { error: error.message, userId: req.body.user?.userId });
 		return res.status(500).json({ error: "Internal server error" });
 	}
 };

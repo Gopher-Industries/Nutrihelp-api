@@ -1,5 +1,6 @@
 const { medicalPredictionService } = require('../services/medicalPredictionService');
 const { isServiceError } = require('../services/serviceError');
+const logger = require('../utils/logger');
 
 async function predict(req, res) {
   try {
@@ -13,7 +14,7 @@ async function predict(req, res) {
       });
     }
 
-    console.error('[predict] Unexpected error:', error);
+    logger.error('Unexpected error in medical prediction', { error: error.message });
     return res.status(500).json({ error: 'Internal server error' });
   }
 }

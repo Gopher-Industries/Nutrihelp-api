@@ -49,6 +49,7 @@
     "sinon": "18.0.0",
     "swagger-ui-express": "5.0.0",
     "twilio": "5.9.0",
+    "winston": "^3.11.0",
     "yamljs": "0.3.0"
   }
 }

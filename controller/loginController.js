@@ -1,5 +1,6 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const logger = require('../utils/logger');
 const logLoginEvent = require('../Monitor_&_Logging/loginLogger');
 const getUserCredentials = require('../model/getUserCredentials.js');
 const { addMfaToken, verifyMfaToken } = require('../model/addMfaToken.js');
@@ -207,7 +208,7 @@ const login = async (req, res) => {
     const token = createAccessToken(user);
     return res.status(200).json({ user, token });
   } catch (err) {
-    console.error('Login error:', err);
+    logger.error('Login error', { error: err.message, email });
     return res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -259,7 +260,7 @@ const loginMfa = async (req, res) => {
       trusted_device: rememberDevice
     });
   } catch (err) {
-    console.error('MFA login error:', err);
+    logger.error('MFA login error', { error: err.message, email });
     return res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -293,7 +294,7 @@ const resendMfa = async (req, res) => {
       message: 'A new MFA token has been sent to your email address'
     });
   } catch (err) {
-    console.error('Resend MFA error:', err);
+    logger.error('Resend MFA error', { error: err.message, email });
     return res.status(500).json({ error: 'Internal server error' });
   }
 };
@@ -314,9 +315,9 @@ async function sendOtpEmail(email, token) {
         <p>- NutriHelp Security Team</p>
       `
     });
-    console.log('OTP email sent successfully to', email);
+    logger.info('OTP email sent successfully', { email });
   } catch (err) {
-    console.error('Error sending OTP email:', err.message);
+    logger.error('Error sending OTP email', { error: err.message, email });
   }
 }
 
@@ -335,8 +336,9 @@ async function sendFailedLoginAlert(email, ip) {
         <p>- NutriHelp Security Team</p>
       `
     });
-  } catch (error) {
-    console.error('Failed to send alert email:', error.message);
+    logger.info('Failed login alert sent', { email, ip });
+  } catch (err) {
+    logger.error('Failed to send alert email', { error: err.message, email });
   }
 }
 
