@@ -1,255 +1,171 @@
 const authService = require('../services/authService');
+const { isServiceError } = require('../services/serviceError');
 const logger = require('../utils/logger');
-const { createClient } = require('@supabase/supabase-js');
 
-const supabase = createClient(
-    process.env.SUPABASE_URL,
-    process.env.SUPABASE_ANON_KEY
-);
+const TRUSTED_DEVICE_COOKIE = authService.trustedDeviceCookieName || 'trusted_device';
 
-/**
- * User Registration
- */
-exports.register = async (req, res) => {
-    try {
-        const { name, email, password, first_name, last_name } = req.body;
+function getDeviceInfo(req) {
+  return {
+    ip: req.ip,
+    userAgent: req.get('User-Agent') || 'Unknown'
+  };
+}
 
-        // Basic validation
-        if (!name || !email || !password) {
-            return res.status(400).json({
-                success: false,
-                error: 'Name, email, and password are required'
-            });
-        }
-
-        const result = await authService.register({
-            name, email, password, first_name, last_name
-        });
-
-        res.status(201).json(result);
-
-    } catch (error) {
-        logger.error('Registration error', { error: error.message, email: req.body.email });
-        res.status(400).json({
-            success: false,
-            error: error.message
-        });
-    }
-};
-
-/**
- * User Login
- */
-exports.login = async (req, res) => {
-    try {
-        const { email, password } = req.body;
-
-        if (!email || !password) {
-            return res.status(400).json({
-                success: false,
-                error: 'Email and password are required'
-            });
-        }
-
-        // Collect device information
-        const deviceInfo = {
-            ip: req.ip,
-            userAgent: req.get('User-Agent') || 'Unknown'
-        };
-
-        const result = await authService.login({ email, password }, deviceInfo);
-
-        res.json(result);
-
-    } catch (error) {
-        logger.error('Login error', { error: error.message, email: req.body.email });
-        res.status(401).json({
-            success: false,
-            error: error.message
-        });
-    }
-};
-
-/**
- * Refresh Token
- */
-exports.refreshToken = async (req, res) => {
-    try {
-        const { refreshToken } = req.body;
-
-        if (!refreshToken) {
-            return res.status(400).json({
-                success: false,
-                error: 'Refresh token is required'
-            });
-        }
-
-        const deviceInfo = {
-            ip: req.ip,
-            userAgent: req.get('User-Agent') || 'Unknown'
-        };
-
-        const result = await authService.refreshAccessToken(refreshToken, deviceInfo);
-
-        res.json(result);
-
-    } catch (error) {
-        logger.error('Token refresh error', { error: error.message });
-        res.status(401).json({
-            success: false,
-            error: error.message
-        });
-    }
-};
-
-/**
- * User Logout
- */
-exports.logout = async (req, res) => {
-    try {
-        const { refreshToken } = req.body;
-
-        const result = await authService.logout(refreshToken);
-
-        res.json(result);
-
-    } catch (error) {
-        logger.error('Logout error', { error: error.message, userId: req.user?.userId });
-        res.status(500).json({
-            success: false,
-            error: error.message
-        });
-    }
-};
-
-/**
- * User Logout All
- */
-exports.logoutAll = async (req, res) => {
-    try {
-        const userId = req.user.userId;
-
-        const result = await authService.logoutAll(userId);
-
-        res.json(result);
-
-    } catch (error) {
-        logger.error('Logout all error', { error: error.message, userId: req.user?.userId });
-        res.status(500).json({
-            success: false,
-            error: error.message
-        });
-    }
-};
-
-/**
- * Get Current User Profile
- */
-exports.getProfile = async (req, res) => {
-    try {
-        const userId = req.user.userId;
-
-        const { data: user, error } = await supabase
-            .from('users')
-            .select(`
-                user_id, email, name, first_name, last_name,
-                registration_date, last_login, account_status,
-                user_roles!inner(role_name)
-            `)
-            .eq('user_id', userId)
-            .single();
-
-        if (error || !user) {
-            return res.status(404).json({
-                success: false,
-                error: 'User not found'
-            });
-        }
-
-        res.json({
-            success: true,
-            user: {
-                id: user.user_id,
-                email: user.email,
-                name: user.name,
-                firstName: user.first_name,
-                lastName: user.last_name,
-                role: user.user_roles?.role_name,
-                registrationDate: user.registration_date,
-                lastLogin: user.last_login,
-                accountStatus: user.account_status
-            }
-        });
-
-    } catch (error) {
-        logger.error('Get profile error', { error: error.message, userId: req.user?.userId });
-        res.status(500).json({
-            success: false,
-            error: 'Internal server error'
-        });
-    }
-};
-
-// Keep existing logging functionality (backward compatibility)
-exports.logLoginAttempt = async (req, res) => {
-    const { email, user_id, success, ip_address, created_at } = req.body;
-
-    if (!email || success === undefined || !ip_address || !created_at) {
-        return res.status(400).json({
-            error: 'Missing required fields: email, success, ip_address, created_at',
-        });
-    }
-
-    const { error } = await supabase.from('auth_logs').insert([
-        {
-            email,
-            user_id: user_id || null,
-            success,
-            ip_address,
-            created_at,
-        },
-    ]);
-
-    if (error) {
-        logger.error('Failed to insert login log', { error: error.message, email });
-        return res.status(500).json({ error: 'Failed to log login attempt' });
-    }
-
-    return res.status(201).json({ message: 'Login attempt logged successfully' });
-};
-
-
-
-exports.sendSMSByEmail = async (req, res) => {
-  const { email } = req.body;
-
-  if (!email) {
-    return res.status(400).json({ error: 'Email is required' });
+function clearTrustedDeviceCookie(res) {
+  if (!res?.clearCookie) {
+    return;
   }
 
-  try {
-    const { data, error } = await supabase
-      .from('users')
-      .select('contact_number')
-      .eq('email', email)
-      .single();
+  res.clearCookie(TRUSTED_DEVICE_COOKIE, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: '/'
+  });
+}
 
-    if (error || !data?.contact_number) {
-      return res.status(404).json({ error: 'Phone number not found for the given email' });
-    }
-    const phone = data.contact_number;
-    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
-
-    logger.info('[DEV] Verification code generated', { phone, verificationCode });
-
-
-    return res.status(200).json({
-      message: 'SMS code sent (check server console for code)',
-      phone,
+function handleServiceError(res, error, fallbackStatus, fallbackLogLabel) {
+  if (isServiceError(error)) {
+    return res.status(error.statusCode).json({
+      success: false,
+      error: error.message
     });
-  } catch (err) {
-    logger.error('Error sending SMS', { error: err.message, email });
+  }
+
+  logger.error(fallbackLogLabel, { error: error.message });
+  return res.status(fallbackStatus).json({
+    success: false,
+    error: error.message || 'Internal server error'
+  });
+}
+
+exports.register = async (req, res) => {
+  try {
+    const result = await authService.register({
+      name: req.body.name,
+      email: req.body.email,
+      password: req.body.password,
+      first_name: req.body.first_name,
+      last_name: req.body.last_name
+    });
+
+    return res.status(201).json(result);
+  } catch (error) {
+    logger.error('Registration error', { error: error.message, email: req.body.email });
+    return handleServiceError(res, error, 400, 'Registration error:');
+  }
+};
+
+exports.login = async (req, res) => {
+  try {
+    const result = await authService.login({
+      email: req.body.email,
+      password: req.body.password
+    }, getDeviceInfo(req));
+
+    return res.json(result);
+  } catch (error) {
+    logger.error('Login error', { error: error.message, email: req.body.email });
+    return handleServiceError(res, error, 401, 'Login error:');
+  }
+};
+
+exports.refreshToken = async (req, res) => {
+  try {
+    const result = await authService.refreshAccessToken(req.body.refreshToken, getDeviceInfo(req));
+    return res.json(result);
+  } catch (error) {
+    logger.error('Token refresh error', { error: error.message });
+    return handleServiceError(res, error, 401, 'Token refresh error:');
+  }
+};
+
+exports.logout = async (req, res) => {
+  try {
+    const result = await authService.logout(req.body.refreshToken);
+    return res.json(result);
+  } catch (error) {
+    logger.error('Logout error', { error: error.message, userId: req.user?.userId });
+    return handleServiceError(res, error, 500, 'Logout error:');
+  }
+};
+
+exports.logoutAll = async (req, res) => {
+  try {
+    const result = await authService.logoutAll(req.user.userId, {
+      reason: 'logout_all',
+      deviceInfo: getDeviceInfo(req)
+    });
+
+    clearTrustedDeviceCookie(res);
+    return res.json(result);
+  } catch (error) {
+    logger.error('Logout all error', { error: error.message, userId: req.user?.userId });
+    return handleServiceError(res, error, 500, 'Logout all error:');
+  }
+};
+
+exports.revokeTrustedDevices = async (req, res) => {
+  try {
+    const result = await authService.revokeTrustedDevices(
+      req.user.userId,
+      'manual',
+      getDeviceInfo(req)
+    );
+
+    clearTrustedDeviceCookie(res);
+    return res.json({
+      success: true,
+      message: 'Trusted devices revoked successfully',
+      revokedCount: result.revokedCount
+    });
+  } catch (error) {
+    logger.error('Revoke trusted devices error', { error: error.message, userId: req.user?.userId });
+    return handleServiceError(res, error, 500, 'Revoke trusted devices error:');
+  }
+};
+
+exports.getProfile = async (req, res) => {
+  try {
+    const result = await authService.getProfile(req.user.userId);
+    return res.json(result);
+  } catch (error) {
+    logger.error('Get profile error', { error: error.message, userId: req.user?.userId });
+    return handleServiceError(res, error, 500, 'Get profile error:');
+  }
+};
+
+exports.logLoginAttempt = async (req, res) => {
+  try {
+    const result = await authService.logLoginAttempt({
+      email: req.body.email,
+      userId: req.body.user_id,
+      success: req.body.success,
+      ipAddress: req.body.ip_address,
+      createdAt: req.body.created_at
+    });
+
+    return res.status(201).json(result);
+  } catch (error) {
+    if (isServiceError(error)) {
+      return res.status(error.statusCode).json({ error: error.message });
+    }
+
+    logger.error('Failed to insert login log', { error: error.message, email: req.body.email });
+    return res.status(500).json({ error: 'Failed to log login attempt' });
+  }
+};
+
+exports.sendSMSByEmail = async (req, res) => {
+  try {
+    const result = await authService.sendSmsCodeByEmail(req.body.email);
+    return res.status(200).json(result);
+  } catch (error) {
+    if (isServiceError(error)) {
+      return res.status(error.statusCode).json({ error: error.message });
+    }
+
+    logger.error('Error sending SMS', { error: error.message, email: req.body.email });
     return res.status(500).json({ error: 'Internal server error' });
   }
 };
-
