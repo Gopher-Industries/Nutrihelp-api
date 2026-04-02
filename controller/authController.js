@@ -1,11 +1,26 @@
 const authService = require('../services/authService');
 const { isServiceError } = require('../services/serviceError');
 
+const TRUSTED_DEVICE_COOKIE = authService.trustedDeviceCookieName || 'trusted_device';
+
 function getDeviceInfo(req) {
   return {
     ip: req.ip,
     userAgent: req.get('User-Agent') || 'Unknown'
   };
+}
+
+function clearTrustedDeviceCookie(res) {
+  if (!res?.clearCookie) {
+    return;
+  }
+
+  res.clearCookie(TRUSTED_DEVICE_COOKIE, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: '/'
+  });
 }
 
 function handleServiceError(res, error, fallbackStatus, fallbackLogLabel) {
@@ -72,10 +87,34 @@ exports.logout = async (req, res) => {
 
 exports.logoutAll = async (req, res) => {
   try {
-    const result = await authService.logoutAll(req.user.userId);
+    const result = await authService.logoutAll(req.user.userId, {
+      reason: 'logout_all',
+      deviceInfo: getDeviceInfo(req)
+    });
+
+    clearTrustedDeviceCookie(res);
     return res.json(result);
   } catch (error) {
     return handleServiceError(res, error, 500, 'Logout all error:');
+  }
+};
+
+exports.revokeTrustedDevices = async (req, res) => {
+  try {
+    const result = await authService.revokeTrustedDevices(
+      req.user.userId,
+      'manual',
+      getDeviceInfo(req)
+    );
+
+    clearTrustedDeviceCookie(res);
+    return res.json({
+      success: true,
+      message: 'Trusted devices revoked successfully',
+      revokedCount: result.revokedCount
+    });
+  } catch (error) {
+    return handleServiceError(res, error, 500, 'Revoke trusted devices error:');
   }
 };
 
@@ -104,7 +143,7 @@ exports.logLoginAttempt = async (req, res) => {
       return res.status(error.statusCode).json({ error: error.message });
     }
 
-    console.error('❌ Failed to insert login log:', error);
+    console.error('Failed to insert login log:', error);
     return res.status(500).json({ error: 'Failed to log login attempt' });
   }
 };
@@ -118,7 +157,7 @@ exports.sendSMSByEmail = async (req, res) => {
       return res.status(error.statusCode).json({ error: error.message });
     }
 
-    console.error('❌ Error sending SMS:', error);
+    console.error('Error sending SMS:', error);
     return res.status(500).json({ error: 'Internal server error' });
   }
 };
