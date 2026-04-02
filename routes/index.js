@@ -33,6 +33,7 @@ module.exports = app => {
     app.use('/api/water-intake', require('./waterIntake'));
     app.use('/api/health-news', require('./healthNews'));
     app.use('/api/health-tools', require('./healthTools'));
+    app.use('/api/wearables', require('./wearables'));
 
     // Add shopping list routes
     app.use('/api/shopping-list', require('./shoppingList'));

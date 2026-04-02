@@ -1,8 +1,7 @@
 const { SecurityEventType } = require('./securityEventTypes');
 const { SecurityEvent } = require('./securityEventModel');
 const { aggregateIncidents } = require('./securityIncidentAggregator');
-
-const supabase = require('../../dbConnection'); // Supabase client
+const securityEventsRepository = require('../../repositories/wearable-device/securityEventsRepository');
 
 function correlateSecurityEvents(events) {
   const incidents = aggregateIncidents(events) || [];
@@ -20,9 +19,9 @@ async function getSecurityEvents(fromDate, toDate) {
     { data: bruteLogs, error: bruteError },
     { data: sessions, error: sessionError },
   ] = await Promise.all([
-    supabase.from('auth_logs').select('*').gte('created_at', fromIso).lte('created_at', toIso),
-    supabase.from('brute_force_logs').select('*').gte('created_at', fromIso).lte('created_at', toIso),
-    supabase.from('user_session').select('*').gte('created_at', fromIso).lte('created_at', toIso),
+    securityEventsRepository.fetchAuthLogs(fromIso, toIso),
+    securityEventsRepository.fetchBruteForceLogs(fromIso, toIso),
+    securityEventsRepository.fetchUserSessions(fromIso, toIso),
   ]);
 
   // ===== 1) Login events from public.auth_logs =====

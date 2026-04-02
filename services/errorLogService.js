@@ -1,17 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-
-// Dynamically import Supabase (if available)
-let supabase = null;
-try {
-  const { createClient } = require('@supabase/supabase-js');
-  if (process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY) {
-    supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
-  }
-} catch (error) {
-  // Supabase not available, using file-based logging
-  console.warn('Supabase not available, using file-based logging');
-}
+const errorLogRepository = require('../repositories/wearable-device/errorLogRepository');
 
 class UnifiedErrorLogService {
   constructor() {
@@ -24,7 +13,7 @@ class UnifiedErrorLogService {
 
     // Configuration options
     this.config = {
-      enableDatabaseLogging: !!supabase,
+      enableDatabaseLogging: errorLogRepository.isAvailable(),
       enableFileLogging: true,
       enableConsoleLogging: true,
       logLevel: process.env.LOG_LEVEL || 'info'
@@ -62,7 +51,7 @@ class UnifiedErrorLogService {
       // Execute all logging methods in parallel
       const logPromises = [];
       
-      if (this.config.enableDatabaseLogging && supabase) {
+      if (this.config.enableDatabaseLogging) {
         logPromises.push(this.logToDatabase(logEntry));
       }
       
@@ -150,10 +139,6 @@ class UnifiedErrorLogService {
    * Database logging (feature of Extended_Middleware_Error_Logging branch)
    */
   async logToDatabase(logEntry) {
-    if (!supabase) {
-      throw new Error('Supabase client not available');
-    }
-
     const dbEntry = {
       error_type: logEntry.error_type || logEntry.type,
       error_message: logEntry.error_message || logEntry.message,
@@ -166,17 +151,7 @@ class UnifiedErrorLogService {
       created_at: logEntry.created_at || logEntry.timestamp
     };
 
-    const { data, error: insertError } = await supabase
-      .from('error_logs')
-      .insert([dbEntry])
-      .select()
-      .single();
-
-    if (insertError) {
-      throw insertError;
-    }
-
-    return data;
+    return errorLogRepository.insertErrorLog(dbEntry);
   }
 
   /**
@@ -382,7 +357,7 @@ class UnifiedErrorLogService {
     this.config = { ...this.config, ...newConfig };
 
     // If database logging is enabled but Supabase is not available, issue a warning
-    if (this.config.enableDatabaseLogging && !supabase) {
+    if (this.config.enableDatabaseLogging && !errorLogRepository.isAvailable()) {
       console.warn('Database logging enabled but Supabase client not available');
     }
   }
@@ -406,13 +381,8 @@ class UnifiedErrorLogService {
     };
 
     // Check database connection
-    if (supabase) {
-      try {
-        const { error } = await supabase.from('error_logs').select('id').limit(1);
-        health.database = !error;
-      } catch (e) {
-        health.database = false;
-      }
+    if (errorLogRepository.isAvailable()) {
+      health.database = await errorLogRepository.checkConnection();
     }
 
     // Check file write permissions
