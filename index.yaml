@@ -3,24 +3,303 @@ info:
   title: NutriHelp API
   version: 1.0.0
 servers:
-  - url: http://localhost/api
+- url: http://localhost/api
 tags:
-  - name: System
-    description: System and security monitoring endpoints
-  - name: LoginDashboard
-    description: KPIs and trends from public.audit_logs
-  - name: Allergy
-    description: Endpoints for allergy checks and warnings
-  - name: Appointments
-    description: Appointments relevant API
-  - name: Home Service
-    description: Home Service API
-  - name: Mobile
-    description: Mobile-optimized endpoints with compact payloads and token-based session flows
+- name: System
+  description: System and security monitoring endpoints
+- name: LoginDashboard
+  description: KPIs and trends from public.audit_logs
+- name: Allergy
+  description: Endpoints for allergy checks and warnings
+- name: Appointments
+  description: Appointments relevant API
+- name: Home Service
+  description: Home Service API
+- name: Auth
+  description: Authentication and user session endpoints
 paths:
+  /account:
+    get:
+      tags:
+      - Auth
+      summary: Get account info
+      responses:
+        '200':
+          description: Account data returned
+  /userpassword:
+    put:
+      tags:
+      - Auth
+      summary: Update user password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                password:
+                  type: string
+                  format: password
+      responses:
+        '200':
+          description: Password updated
+  /userprofile/update-by-identifier:
+    put:
+      tags:
+      - Auth
+      summary: Update user profile by identifier (admin)
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Profile updated
+  /auth/logout-all:
+    post:
+      tags:
+      - Auth
+      summary: Logout from all devices
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          description: Logged out from all sessions
+  /auth/dashboard:
+    get:
+      tags:
+      - Auth
+      summary: Get auth dashboard data
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          description: Dashboard data returned
+  /recipe/createRecipe:
+    post:
+      tags:
+      - Recipe
+      summary: Create a new recipe
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                ingredients:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '201':
+          description: Recipe created
+  /recipe/scale/{recipe_id}/{desired_servings}:
+    get:
+      tags:
+      - Recipe
+      summary: Scale a recipe to desired servings
+      parameters:
+      - name: recipe_id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: desired_servings
+        in: path
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Scaled recipe returned
+  /fooddata/mealplan:
+    get:
+      tags:
+      - FoodData
+      summary: Get meal plan food data
+      responses:
+        '200':
+          description: Meal plan food data returned
+  /chatbot/query:
+    post:
+      tags:
+      - Chatbot
+      summary: Query the chatbot
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                query:
+                  type: string
+      responses:
+        '200':
+          description: Chatbot response returned
+  /chatbot/add_urls:
+    post:
+      tags:
+      - Chatbot
+      summary: Add URLs to chatbot knowledge base
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                urls:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '200':
+          description: URLs added
+  /chatbot/add_pdfs:
+    post:
+      tags:
+      - Chatbot
+      summary: Add PDFs to chatbot knowledge base
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                files:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+      responses:
+        '200':
+          description: PDFs added
+  /articles:
+    get:
+      tags:
+      - Articles
+      summary: Get all articles
+      responses:
+        '200':
+          description: List of articles returned
+  /shopping-list/items:
+    post:
+      tags:
+      - ShoppingList
+      summary: Add item to shopping list
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                quantity:
+                  type: integer
+      responses:
+        '201':
+          description: Item added to shopping list
+  /login:
+    post:
+      summary: User login
+      description: Authenticates user and returns a JWT token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful, JWT token returned
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    $ref: '#/components/schemas/JWTResponse'
+                  user:
+                    $ref: '#/components/schemas/UserResponse'
+        '400':
+          description: Email and password are required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Invalid email or password
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /signup:
+    post:
+      summary: User signup
+      description: Registers a new user with an email and password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignupRequest'
+      responses:
+        '201':
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          description: Bad request - either missing email/password or user already
+            exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /auth/profile:
+    get:
+      tags:
+      - Authentication
+      summary: Get User Profile
+      description: Get current user information
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          description: Profile retrieved successfully
+        '401':
+          description: Unauthorized
+        '404':
+          description: User not found
   /allergy/common:
     get:
-      tags: [Allergy]
+      tags:
+      - Allergy
       summary: Get common allergens list
       description: Returns an array of common allergens to help build UI pickers.
       responses:
@@ -33,17 +312,28 @@ paths:
                 properties:
                   allergens:
                     type: array
-                    items: { type: string }
+                    items:
+                      type: string
               examples:
                 default:
                   value:
-                    allergens: ["peanuts","tree nuts","milk","eggs","soy","wheat","fish","shellfish","sesame"]
-
+                    allergens:
+                    - peanuts
+                    - tree nuts
+                    - milk
+                    - eggs
+                    - soy
+                    - wheat
+                    - fish
+                    - shellfish
+                    - sesame
   /allergy/check:
     post:
-      tags: [Allergy]
+      tags:
+      - Allergy
       summary: Check a meal against user allergies
-      description: Returns which of the user's allergies are present in the meal's ingredients.
+      description: Returns which of the user's allergies are present in the meal's
+        ingredients.
       requestBody:
         required: true
         content:
@@ -53,10 +343,16 @@ paths:
             examples:
               simple:
                 value:
-                  userAllergies: ["peanuts","milk"]
+                  userAllergies:
+                  - peanuts
+                  - milk
                   meal:
-                    name: "PB&J with milk"
-                    ingredients: ["bread","peanut butter","jelly","milk"]
+                    name: PB&J with milk
+                    ingredients:
+                    - bread
+                    - peanut butter
+                    - jelly
+                    - milk
       responses:
         '200':
           description: Allergy check result
@@ -64,12 +360,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AllergyCheckResponse'
-
-
   /system/generate-baseline:
     post:
       tags:
-        - System
+      - System
       summary: Regenerate baseline hash data for file integrity checks
       description: Re-creates the baseline.json file to update file integrity data.
       responses:
@@ -91,7 +385,7 @@ paths:
   /system/integrity-check:
     get:
       tags:
-        - System
+      - System
       summary: Run file integrity and anomaly check
       responses:
         '200':
@@ -112,23 +406,28 @@ paths:
                           type: string
   /login-dashboard/kpi:
     get:
-      tags: [LoginDashboard]
+      tags:
+      - LoginDashboard
       summary: 24h login KPIs
       responses:
         '200':
           description: KPIs
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/Kpi24h' }
- 
+              schema:
+                $ref: '#/components/schemas/Kpi24h'
   /login-dashboard/daily:
     get:
-      tags: [LoginDashboard]
+      tags:
+      - LoginDashboard
       summary: Daily attempts/success/failure
       parameters:
-        - in: query
-          name: days
-          schema: { type: integer, minimum: 1, default: 30 }
+      - in: query
+        name: days
+        schema:
+          type: integer
+          minimum: 1
+          default: 30
       responses:
         '200':
           description: Time series
@@ -136,16 +435,20 @@ paths:
             application/json:
               schema:
                 type: array
-                items: { $ref: '#/components/schemas/DailyRow' }
- 
+                items:
+                  $ref: '#/components/schemas/DailyRow'
   /login-dashboard/dau:
     get:
-      tags: [LoginDashboard]
+      tags:
+      - LoginDashboard
       summary: Daily Active Users (successful unique logins)
       parameters:
-        - in: query
-          name: days
-          schema: { type: integer, minimum: 1, default: 30 }
+      - in: query
+        name: days
+        schema:
+          type: integer
+          minimum: 1
+          default: 30
       responses:
         '200':
           description: DAU time series
@@ -153,11 +456,12 @@ paths:
             application/json:
               schema:
                 type: array
-                items: { $ref: '#/components/schemas/DauRow' }
- 
+                items:
+                  $ref: '#/components/schemas/DauRow'
   /login-dashboard/top-failing-ips:
     get:
-      tags: [LoginDashboard]
+      tags:
+      - LoginDashboard
       summary: Top failing IPs (7 days)
       responses:
         '200':
@@ -166,11 +470,12 @@ paths:
             application/json:
               schema:
                 type: array
-                items: { $ref: '#/components/schemas/FailingIpRow' }
- 
+                items:
+                  $ref: '#/components/schemas/FailingIpRow'
   /login-dashboard/fail-by-domain:
     get:
-      tags: [LoginDashboard]
+      tags:
+      - LoginDashboard
       summary: Failures grouped by email domain (7 days)
       responses:
         '200':
@@ -179,13 +484,14 @@ paths:
             application/json:
               schema:
                 type: array
-                items: { $ref: '#/components/schemas/DomainFailRow' }
+                items:
+                  $ref: '#/components/schemas/DomainFailRow'
   /upload:
     post:
       summary: Upload a file
       description: Upload JPG, PNG, or PDF (max 5MB, limited to 5 uploads per 10 minutes)
       security:
-        - BearerAuth: []
+      - BearerAuth: []
       requestBody:
         required: true
         content:
@@ -203,11 +509,10 @@ paths:
           description: Upload failed due to size/type restriction
         '429':
           description: Too many uploads from this IP (rate limit exceeded)
-
   /home/services:
     get:
-      tags: 
-        - Home Service
+      tags:
+      - Home Service
       summary: Get all service contents
       description: Returns a list of all nutrihelp services.
       responses:
@@ -231,8 +536,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
     post:
-      tags: 
-        - Home Service
+      tags:
+      - Home Service
       summary: Create a new service
       description: Create a new nutrition help service.
       requestBody:
@@ -259,16 +564,16 @@ paths:
           description: Internal server error
   /home/services/{id}:
     put:
-      tags: 
-        - Home Service
+      tags:
+      - Home Service
       summary: Update a service
       description: Update an existing nutrition help service by ID.
       parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: integer
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: integer
       requestBody:
         required: true
         content:
@@ -292,16 +597,16 @@ paths:
         '500':
           description: Internal server error
     delete:
-      tags: 
-        - Home Service
+      tags:
+      - Home Service
       summary: Delete a service
       description: Delete a nutrition help service by ID.
       parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: integer
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: integer
       responses:
         '200':
           description: Service deleted successfully
@@ -316,36 +621,36 @@ paths:
           description: Service not found
         '500':
           description: Internal server error
-
   /home/services/page:
     get:
-      tags: 
-        - Home Service
+      tags:
+      - Home Service
       summary: Get paginated service contents
-      description: Returns paginated nutrihelp services with optional search and online filter.
+      description: Returns paginated nutrihelp services with optional search and online
+        filter.
       parameters:
-        - in: query
-          name: page
-          schema:
-            type: integer
-            default: 1
-          description: Page number
-        - in: query
-          name: pageSize
-          schema:
-            type: integer
-            default: 10
-          description: Number of items per page
-        - in: query
-          name: search
-          schema:
-            type: string
-          description: Search by title or description
-        - in: query
-          name: online
-          schema:
-            type: boolean
-          description: Filter only online services
+      - in: query
+        name: page
+        schema:
+          type: integer
+          default: 1
+        description: Page number
+      - in: query
+        name: pageSize
+        schema:
+          type: integer
+          default: 10
+        description: Number of items per page
+      - in: query
+        name: search
+        schema:
+          type: string
+        description: Search by title or description
+      - in: query
+        name: online
+        schema:
+          type: boolean
+        description: Filter only online services
       responses:
         '200':
           description: Paginated service list
@@ -374,8 +679,8 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
   /home/subscribe:
     post:
-      tags: 
-        - Home Subscribe
+      tags:
+      - Home Subscribe
       summary: Subscribe newsletter
       description: User subscribe newsletter.
       requestBody:
@@ -400,11 +705,10 @@ paths:
           description: Bad request
         '500':
           description: Internal server error
-
   /appointments:
     post:
-      tags: 
-        - Appointments
+      tags:
+      - Appointments
       summary: Save appointment data
       requestBody:
         required: true
@@ -427,8 +731,8 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
   /appointments/v2:
     post:
-      tags: 
-        - Appointments
+      tags:
+      - Appointments
       summary: Save appointment data version 2
       requestBody:
         required: true
@@ -451,28 +755,28 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
     get:
       tags:
-        - Appointments
+      - Appointments
       summary: Get all appointments for the current user
       parameters:
-        - in: query
-          name: page
-          schema:
-            type: integer
-            default: 1
-            minimum: 1
-          description: Page number (default is 1)
-        - in: query
-          name: pageSize
-          schema:
-            type: integer
-            default: 10
-            minimum: 1
-          description: Number of appointments per page (default is 10)
-        - in: query
-          name: search
-          schema:
-            type: string
-          description: Optional search keyword to match title, doctor, or type      
+      - in: query
+        name: page
+        schema:
+          type: integer
+          default: 1
+          minimum: 1
+        description: Page number (default is 1)
+      - in: query
+        name: pageSize
+        schema:
+          type: integer
+          default: 10
+          minimum: 1
+        description: Number of appointments per page (default is 10)
+      - in: query
+        name: search
+        schema:
+          type: string
+        description: Optional search keyword to match title, doctor, or type
       responses:
         '200':
           description: List of appointments with pagination info
@@ -512,15 +816,15 @@ paths:
   /appointments/v2/{id}:
     put:
       tags:
-        - Appointments
+      - Appointments
       summary: Update an appointment (version 2)
       parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: integer
-          description: Appointment ID
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+        description: Appointment ID
       requestBody:
         required: true
         content:
@@ -566,15 +870,15 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
     delete:
       tags:
-        - Appointments
+      - Appointments
       summary: Delete an appointment (version 2)
       parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: integer
-          description: Appointment ID
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+        description: Appointment ID
       responses:
         '200':
           description: Appointment deleted successfully
@@ -604,24 +908,23 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-
-  # Shopping List API Endpoints
   /shopping-list/ingredient-options:
     get:
       tags:
-        - Shopping List
+      - Shopping List
       summary: Search ingredients by name
-      description: Search ingredients by name and return price, store, and package information
+      description: Search ingredients by name and return price, store, and package
+        information
       parameters:
-        - name: name
-          in: query
-          required: true
-          description: Ingredient name for search (supports partial matching)
-          schema:
-            type: string
-            minLength: 1
-            maxLength: 100
-            example: "Tomato"
+      - name: name
+        in: query
+        required: true
+        description: Ingredient name for search (supports partial matching)
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 100
+          example: Tomato
       responses:
         '200':
           description: Ingredient options retrieved successfully
@@ -635,7 +938,7 @@ paths:
                     example: 200
                   message:
                     type: string
-                    example: "success"
+                    example: success
                   data:
                     type: array
                     items:
@@ -652,13 +955,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-
   /shopping-list/from-meal-plan:
     post:
       tags:
-        - Shopping List
+      - Shopping List
       summary: Generate shopping list from meal plan
-      description: Merge ingredient needs from selected meals and return aggregated quantities
+      description: Merge ingredient needs from selected meals and return aggregated
+        quantities
       requestBody:
         required: true
         content:
@@ -666,8 +969,8 @@ paths:
             schema:
               type: object
               required:
-                - user_id
-                - meal_plan_ids
+              - user_id
+              - meal_plan_ids
               properties:
                 user_id:
                   type: integer
@@ -678,13 +981,19 @@ paths:
                   description: Array of meal plan IDs
                   items:
                     type: integer
-                  example: [1, 2, 3]
+                  example:
+                  - 1
+                  - 2
+                  - 3
                 meal_types:
                   type: array
                   description: Array of meal types (optional)
                   items:
                     type: string
-                  example: ["breakfast", "lunch", "dinner"]
+                  example:
+                  - breakfast
+                  - lunch
+                  - dinner
       responses:
         '200':
           description: Shopping list generated successfully
@@ -698,7 +1007,7 @@ paths:
                     example: 200
                   message:
                     type: string
-                    example: "success"
+                    example: success
                   data:
                     $ref: '#/components/schemas/ShoppingListFromMealPlan'
         '400':
@@ -719,11 +1028,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-
   /shopping-list:
     post:
       tags:
-        - Shopping List
+      - Shopping List
       summary: Create shopping list
       description: Store shopping lists for logged-in users in the database
       requestBody:
@@ -733,9 +1041,9 @@ paths:
             schema:
               type: object
               required:
-                - user_id
-                - name
-                - items
+              - user_id
+              - name
+              - items
               properties:
                 user_id:
                   type: integer
@@ -745,7 +1053,7 @@ paths:
                   type: string
                   description: Shopping list name
                   maxLength: 255
-                  example: "Weekly Shopping List"
+                  example: Weekly Shopping List
                 items:
                   type: array
                   description: Array of shopping list items
@@ -769,7 +1077,7 @@ paths:
                     example: 201
                   message:
                     type: string
-                    example: "success"
+                    example: success
                   data:
                     type: object
                     properties:
@@ -791,20 +1099,19 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-
     get:
       tags:
-        - Shopping List
+      - Shopping List
       summary: Get shopping lists
       description: Retrieve shopping lists for logged-in users
       parameters:
-        - name: user_id
-          in: query
-          required: true
-          description: User ID to get shopping lists for
-          schema:
-            type: integer
-            example: 123
+      - name: user_id
+        in: query
+        required: true
+        description: User ID to get shopping lists for
+        schema:
+          type: integer
+          example: 123
       responses:
         '200':
           description: Shopping lists retrieved successfully
@@ -818,7 +1125,7 @@ paths:
                     example: 200
                   message:
                     type: string
-                    example: "success"
+                    example: success
                   data:
                     type: array
                     items:
@@ -835,21 +1142,20 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-
   /shopping-list/items/{id}:
     patch:
       tags:
-        - Shopping List
+      - Shopping List
       summary: Update shopping list item
       description: Update item status (purchased, quantity, notes)
       parameters:
-        - name: id
-          in: path
-          required: true
-          description: Shopping list item ID
-          schema:
-            type: integer
-            example: 1
+      - name: id
+        in: path
+        required: true
+        description: Shopping list item ID
+        schema:
+          type: integer
+          example: 1
       requestBody:
         required: true
         content:
@@ -871,7 +1177,7 @@ paths:
                   type: string
                   description: Updated notes
                   maxLength: 1000
-                  example: "Updated notes"
+                  example: Updated notes
       responses:
         '200':
           description: Item updated successfully
@@ -885,7 +1191,7 @@ paths:
                     example: 200
                   message:
                     type: string
-                    example: "success"
+                    example: success
                   data:
                     $ref: '#/components/schemas/ShoppingListItem'
         '400':
@@ -900,20 +1206,19 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-
     delete:
       tags:
-        - Shopping List
+      - Shopping List
       summary: Delete shopping list item
       description: Remove item from shopping list
       parameters:
-        - name: id
-          in: path
-          required: true
-          description: Shopping list item ID
-          schema:
-            type: integer
-            example: 1
+      - name: id
+        in: path
+        required: true
+        description: Shopping list item ID
+        schema:
+          type: integer
+          example: 1
       responses:
         '204':
           description: Item deleted successfully
@@ -927,15 +1232,9 @@ paths:
                     example: 204
                   message:
                     type: string
-                    example: "success"
+                    example: success
         '400':
           description: Bad request - invalid item ID
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
-          description: Internal server error
           content:
             application/json:
               schema:
@@ -1078,15 +1377,17 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-
   /system/test-error/trigger:
     post:
       tags:
-        - System
+      - System
       summary: Trigger a simulated error for testing error logging
-      description: |-
-        This endpoint intentionally triggers an error so you can test the error logging middleware and verify entries are written to the Supabase `error_logs` table.
-        Use the `simulate` field in the request body to choose the behavior: `throw` (synchronous throw), `next` (pass to next), or omit for a delayed async error.
+      description: 'This endpoint intentionally triggers an error so you can test
+        the error logging middleware and verify entries are written to the Supabase
+        `error_logs` table.
+
+        Use the `simulate` field in the request body to choose the behavior: `throw`
+        (synchronous throw), `next` (pass to next), or omit for a delayed async error.'
       requestBody:
         required: false
         content:
@@ -1173,7 +1474,7 @@ paths:
                 properties:
                   prediction:
                     type: string
-                    example: "Avocado:~160 calories per 100 grams"
+                    example: Avocado:~160 calories per 100 grams
         '400':
           description: Bad request - missing image
           content:
@@ -1210,49 +1511,9 @@ paths:
                 properties:
                   prediction:
                     type: string
-                    example: "Lasagna"
+                    example: Lasagna
         '400':
           description: Bad request - missing image
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-  /login:
-    post:
-      summary: User login
-      description: Authenticates user and returns a JWT token
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/LoginRequest'
-      responses:
-        '200':
-          description: Login successful, JWT token returned
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  token:
-                    $ref: '#/components/schemas/JWTResponse'
-                  user:
-                    $ref: '#/components/schemas/UserResponse'
-        '400':
-          description: Email and password are required
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '401':
-          description: Invalid email or password
           content:
             application/json:
               schema:
@@ -1308,8 +1569,7 @@ paths:
       summary: Get meal plan
       description: Retrieves a meal plan for the user
       security:
-        - BearerAuth: [ ]
-      # TODO should not use requestBody for GET
+      - BearerAuth: []
       requestBody:
         required: true
         content:
@@ -1338,7 +1598,7 @@ paths:
       summary: Save meal plan
       description: Receives a meal plan and saves it
       security:
-       - BearerAuth: [ ]
+      - BearerAuth: []
       requestBody:
         required: true
         content:
@@ -1368,7 +1628,7 @@ paths:
       summary: Delete meal plan
       description: Deletes the user's meal plan
       security:
-        - BearerAuth: [ ]
+      - BearerAuth: []
       requestBody:
         required: true
         content:
@@ -1482,7 +1742,6 @@ paths:
                           type: number
                         cuisine_name:
                           type: string
-
         '400':
           description: User ID is required
           content:
@@ -1491,35 +1750,6 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
         '404':
           description: Recipes, ingredients, or cuisines not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-  /signup:
-    post:
-      summary: User signup
-      description: Registers a new user with an email and password
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/SignupRequest'
-      responses:
-        '201':
-          description: User created successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SuccessResponse'
-        '400':
-          description: Bad request - either missing email/password or user already exists
           content:
             application/json:
               schema:
@@ -1564,7 +1794,7 @@ paths:
       summary: Get user preferences
       description: Retrieves a list of user preferences
       security:
-        - BearerAuth: [ ]
+      - BearerAuth: []
       responses:
         '200':
           description: List of user preferences
@@ -1605,30 +1835,30 @@ paths:
                 userPreferences:
                   value:
                     dietary_requirements:
-                      - id: 1
-                        name: "Vegetarian"
+                    - id: 1
+                      name: Vegetarian
                     allergies:
-                      - id: 1
-                        name: "Peanuts"
+                    - id: 1
+                      name: Peanuts
                     cuisines:
-                      - id: 2
-                        name: "French"
-                      - id: 5
-                        name: "Italian"
+                    - id: 2
+                      name: French
+                    - id: 5
+                      name: Italian
                     dislikes:
-                      - id: 4
-                        name: "Chicken Thigh Fillets"
-                    health_conditions: [ ]
+                    - id: 4
+                      name: Chicken Thigh Fillets
+                    health_conditions: []
                     spice_levels:
-                      - id: 1
-                        name: "Mild"
-                      - id: 2
-                        name: "Medium"
+                    - id: 1
+                      name: Mild
+                    - id: 2
+                      name: Medium
                     cooking_methods:
-                      - id: 1
-                        name: "Bake"
-                      - id: 4
-                        name: "Grill"
+                    - id: 1
+                      name: Bake
+                    - id: 4
+                      name: Grill
         '400':
           description: User ID is required
           content:
@@ -1651,7 +1881,7 @@ paths:
       summary: Update user preferences
       description: Updates the user's preferences
       security:
-        - BearerAuth: [ ]
+      - BearerAuth: []
       requestBody:
         required: true
         content:
@@ -1688,13 +1918,25 @@ paths:
                   items:
                     type: integer
             example:
-              dietary_requirements: [ 1, 2, 4 ]
-              allergies: [ 1 ]
-              cuisines: [ 2, 5 ]
-              dislikes: [ 4 ]
-              health_conditions: [ ]
-              spice_levels: [ 1, 2 ]
-              cooking_methods: [ 1, 4, 5 ]
+              dietary_requirements:
+              - 1
+              - 2
+              - 4
+              allergies:
+              - 1
+              cuisines:
+              - 2
+              - 5
+              dislikes:
+              - 4
+              health_conditions: []
+              spice_levels:
+              - 1
+              - 2
+              cooking_methods:
+              - 1
+              - 4
+              - 5
       responses:
         '204':
           description: User preferences updated successfully
@@ -1716,76 +1958,44 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
   /userprofile:
     get:
-     summary: Get user profile
-     description: |
-       - Normal users can only fetch their own profile.  
-       - Admins can fetch any profile using `?email=xxx`.
-     security:
-       - BearerAuth: []
-     parameters:
-       - in: query
-         name: email
-         schema:
-           type: string
-         required: false
-         description: (Admin only) Email of the user whose profile to fetch
-     responses:
-       '200':
-         description: User profile fetched successfully
-         content:
-           application/json:
-             schema:
-               $ref: '#/components/schemas/UserProfileResponse'
-       '400':
-         description: Email is required
-         content:
-           application/json:
-             schema:
-               $ref: '#/components/schemas/ErrorResponse'
-       '500':
-         description: Internal server error
-         content:
-           application/json:
-             schema:
-               $ref: '#/components/schemas/ErrorResponse'
-  put:
-     summary: Update user profile
-     description: |
-       - Normal users can update only their own profile.  
-       - Admins can update any profile using `email`.
-     security:
-       - BearerAuth: []
-     requestBody:
-       required: true
-       content:
-         application/json:
-           schema:
-             $ref: '#/components/schemas/UserUpdateRequest'
-     responses:
-       '204':
-         description: User profile updated successfully
-         content:
-           application/json:
-             schema:
-               $ref: '#/components/schemas/SuccessResponse'
-       '400':
-         description: Email is required or invalid request body
-         content:
-           application/json:
-             schema:
-               $ref: '#/components/schemas/ErrorResponse'
-       '500':
-         description: Internal server error
-         content:
-           application/json:
-             schema:
-               $ref: '#/components/schemas/ErrorResponse'
+      summary: Get user profile
+      description: |
+        - Normal users can only fetch their own profile.
+        - Admins can fetch any profile using `?email=xxx`.
+      security:
+      - BearerAuth: []
+      parameters:
+      - in: query
+        name: email
+        schema:
+          type: string
+        required: false
+        description: (Admin only) Email of the user whose profile to fetch
+      responses:
+        '200':
+          description: User profile fetched successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfileResponse'
+        '400':
+          description: Email is required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /notifications:
     post:
       summary: Create a new notification
       description: Allows admin to create notifications
       security:
-        - BearerAuth: [ ]
+      - BearerAuth: []
       requestBody:
         required: true
         content:
@@ -1803,13 +2013,13 @@ paths:
                   type: string
                   description: Content of the notification.
               required:
-                - user_id
-                - type
-                - content
+              - user_id
+              - type
+              - content
             example:
               user_id: 123
-              type: "Email"
-              content: "This is a test notification"
+              type: Email
+              content: This is a test notification
       responses:
         201:
           description: Notification created successfully
@@ -1840,20 +2050,19 @@ paths:
           description: Bad Request - Missing required fields
         500:
           description: Internal Server Error
-
   /notifications/{user_id}:
     get:
       summary: Get all notifications for a specific user
       description: Users can only view their own notifications. Admin can view any.
       security:
-        - BearerAuth: [ ]
+      - BearerAuth: []
       parameters:
-        - in: path
-          name: user_id
-          required: true
-          schema:
-            type: integer
-          description: Unique identifier of the user.
+      - in: path
+        name: user_id
+        required: true
+        schema:
+          type: integer
+        description: Unique identifier of the user.
       responses:
         200:
           description: List of notifications for the user
@@ -1881,20 +2090,19 @@ paths:
           description: No notifications found for the user
         500:
           description: Internal Server Error
-
   /notifications/{simple_id}:
     delete:
       summary: Delete a specific notification by simple ID
       description: Only admin can delete a notification
       security:
-        - BearerAuth: [ ]
+      - BearerAuth: []
       parameters:
-        - in: path
-          name: simple_id
-          required: true
-          schema:
-            type: integer
-          description: Simple identifier (integer) of the notification.
+      - in: path
+        name: simple_id
+        required: true
+        schema:
+          type: integer
+        description: Simple identifier (integer) of the notification.
       responses:
         200:
           description: Notification deleted successfully
@@ -1905,24 +2113,23 @@ paths:
                 properties:
                   message:
                     type: string
-                    example: "Notification deleted successfully"
+                    example: Notification deleted successfully
         404:
           description: Notification not found
         500:
           description: Internal Server Error
-
     put:
       summary: Update notification status by simple ID
       description: Admin or nutritionist can update notification status
       security:
-        - BearerAuth: [ ]
+      - BearerAuth: []
       parameters:
-        - in: path
-          name: simple_id
-          required: true
-          schema:
-            type: integer
-          description: Simple identifier (integer) of the notification.
+      - in: path
+        name: simple_id
+        required: true
+        schema:
+          type: integer
+        description: Simple identifier (integer) of the notification.
       requestBody:
         required: true
         content:
@@ -1934,9 +2141,9 @@ paths:
                   type: string
                   description: New status for the notification (e.g., "read" or "unread").
               required:
-                - status
+              - status
             example:
-              status: "read"
+              status: read
       responses:
         200:
           description: Notification updated successfully
@@ -1970,35 +2177,39 @@ paths:
   /substitution/ingredient/{ingredientId}:
     get:
       summary: Get ingredient substitutions
-      description: Retrieves substitution options for a specific ingredient, with optional filtering by allergies, dietary requirements, and health conditions.
+      description: Retrieves substitution options for a specific ingredient, with
+        optional filtering by allergies, dietary requirements, and health conditions.
       parameters:
-        - name: ingredientId
-          in: path
-          required: true
-          description: ID of the ingredient to find substitutions for
-          schema:
-            type: integer
-        - name: allergies
-          in: query
-          required: false
-          description: List of allergy IDs to exclude from substitutions. Pass as a comma-separated string.
-          schema:
-            type: string
-            example: "2,3"
-        - name: dietaryRequirements
-          in: query
-          required: false
-          description: List of dietary requirement IDs to filter substitutions by. Pass as a comma-separated string.
-          schema:
-            type: string
-            example: "1,4"
-        - name: healthConditions
-          in: query
-          required: false
-          description: List of health condition IDs to consider for substitutions. Pass as a comma-separated string.
-          schema:
-            type: string
-            example: "2,5"
+      - name: ingredientId
+        in: path
+        required: true
+        description: ID of the ingredient to find substitutions for
+        schema:
+          type: integer
+      - name: allergies
+        in: query
+        required: false
+        description: List of allergy IDs to exclude from substitutions. Pass as a
+          comma-separated string.
+        schema:
+          type: string
+          example: 2,3
+      - name: dietaryRequirements
+        in: query
+        required: false
+        description: List of dietary requirement IDs to filter substitutions by. Pass
+          as a comma-separated string.
+        schema:
+          type: string
+          example: 1,4
+      - name: healthConditions
+        in: query
+        required: false
+        description: List of health condition IDs to consider for substitutions. Pass
+          as a comma-separated string.
+        schema:
+          type: string
+          example: 2,5
       responses:
         '200':
           description: Substitution options retrieved successfully
@@ -2029,30 +2240,33 @@ paths:
       summary: Filter recipes
       description: Retrieve recipes filtered by dietary preferences and allergens.
       tags:
-        - Recipes
+      - Recipes
       parameters:
-        - name: allergies
-          in: query
-          description: List of allergens to exclude from the recipes. Pass as a comma-separated string or array.
-          required: false
-          schema:
-            type: string
-            example: Peanut,Soy
-        - name: dietary
-          in: query
-          description: Dietary preference to filter by (e.g., vegan, vegetarian).
-          required: false
-          schema:
-            type: string
-            example: vegan
-        - name: include_details
-          in: query
-          required: false
-          description: Whether to include full relationship details
-          schema:
-            type: string
-            enum: [true, false]
-            default: true
+      - name: allergies
+        in: query
+        description: List of allergens to exclude from the recipes. Pass as a comma-separated
+          string or array.
+        required: false
+        schema:
+          type: string
+          example: Peanut,Soy
+      - name: dietary
+        in: query
+        description: Dietary preference to filter by (e.g., vegan, vegetarian).
+        required: false
+        schema:
+          type: string
+          example: vegan
+      - name: include_details
+        in: query
+        required: false
+        description: Whether to include full relationship details
+        schema:
+          type: string
+          enum:
+          - true
+          - false
+          default: true
       responses:
         '200':
           description: Filtered recipes
@@ -2106,12 +2320,12 @@ paths:
                   error:
                     type: string
                     description: Error message
-                    example: "Allergy type not found"    
-
+                    example: Allergy type not found
   /auth/log-login-attempt:
     post:
       summary: Log a login attempt
-      description: Records a login attempt in the auth_logs table with email, user ID (optional), IP, timestamp, and success status.
+      description: Records a login attempt in the auth_logs table with email, user
+        ID (optional), IP, timestamp, and success status.
       requestBody:
         required: true
         content:
@@ -2137,30 +2351,30 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-
   /recipe/cost/{recipe_id}:
     get:
       summary: Calculate estimated cost for a recipe
-      description: Returns JSON object containing estimated cost information and corresponding ingredients price
+      description: Returns JSON object containing estimated cost information and corresponding
+        ingredients price
       parameters:
-        - name: recipe_id
-          in: path
-          required: true
-          schema:
-            type: integer
-          description: Integer ID of the recipe for cost calculation
-        - name: exclude_ids
-          in: query
-          required: false
-          schema:
-            type: string
-          description: List of ingredient ids to be excluded, separated by commas
-        - name: desired_servings
-          in: query
-          required: false
-          schema:
-            type: integer
-          description: Number of serving would like to scale
+      - name: recipe_id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: Integer ID of the recipe for cost calculation
+      - name: exclude_ids
+        in: query
+        required: false
+        schema:
+          type: string
+        description: List of ingredient ids to be excluded, separated by commas
+      - name: desired_servings
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: Number of serving would like to scale
       responses:
         '200':
           description: Calculate cost successfully
@@ -2174,142 +2388,154 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-  
   /health-news:
     get:
       summary: Calculate estimated cost for a recipe
-      description: Returns JSON array containing total cost and corresponding ingredients price
+      description: Returns JSON array containing total cost and corresponding ingredients
+        price
       parameters:
-        - in: path
-          name: recipe_id
-          required: true
-        - name: action
-          in: query
-          required: false
-          description: |
-            Action to perform (optional - API will auto-detect based on provided parameters):
-              - "filter" (default): Filter health news articles using flexible criteria
-              - "getById": Get specific health news by ID (requires id parameter)
-              - "getByCategory": Get news by category (requires categoryId parameter)
-              - "getByAuthor": Get news by author (requires authorId parameter)
-              - "getByTag": Get news by tag (requires tagId parameter)
-              - "getAllCategories": Get all categories
-              - "getAllAuthors": Get all authors
-              - "getAllTags": Get all tags
-          schema:
-            type: string
-            enum: [filter, getAll, getById, getByCategory, getByAuthor, getByTag, getAllCategories, getAllAuthors, getAllTags]
-            default: filter
-        - name: id
-          in: query
-          required: false
-          description: Health news ID
-          schema:
-            type: string
-            format: uuid
-        - name: categoryId
-          in: query
-          required: false
-          description: Category ID
-          schema:
-            type: string
-            format: uuid
-        - name: authorId
-          in: query
-          required: false
-          description: Author ID
-          schema:
-            type: string
-            format: uuid
-        - name: tagId
-          in: query
-          required: false
-          description: Tag ID
-          schema:
-            type: string
-            format: uuid
-        - name: title
-          in: query
-          required: false
-          description: Filter news by title (partial match)
-          schema:
-            type: string
-        - name: content
-          in: query
-          required: false
-          description: Filter news by content (partial match)
-          schema:
-            type: string
-        - name: author_name
-          in: query
-          required: false
-          description: Filter news by author name (partial match)
-          schema:
-            type: string
-        - name: category_name
-          in: query
-          required: false
-          description: Filter news by category name (partial match)
-          schema:
-            type: string
-        - name: tag_name
-          in: query
-          required: false
-          description: Filter news by tag name (partial match)
-          schema:
-            type: string
-        - name: start_date
-          in: query
-          required: false
-          description: Filter news published on or after this date (ISO format)
-          schema:
-            type: string
-            format: date-time
-        - name: end_date
-          in: query
-          required: false
-          description: Filter news published on or before this date (ISO format)
-          schema:
-            type: string
-            format: date-time
-        - name: sort_by
-          in: query
-          required: false
-          description: Field to sort by
-          schema:
-            type: string
-            default: published_at
-        - name: sort_order
-          in: query
-          required: false
-          description: Sort order
-          schema:
-            type: string
-            enum: [asc, desc]
-            default: desc
-        - name: limit
-          in: query
-          required: false
-          description: Number of records to return
-          schema:
-            type: integer
-          description: Integer ID of the recipe for cost calculation
-            default: 20
-        - name: page
-          in: query
-          required: false
-          description: Page number for pagination
-          schema:
-            type: integer
-            default: 1
-        - name: include_details
-          in: query
-          required: false
-          description: Whether to include full relationship details
-          schema:
-            type: string
-            enum: [true, false]
-            default: true
+      - in: path
+        name: recipe_id
+        required: true
+      - name: action
+        in: query
+        required: false
+        description: |
+          Action to perform (optional - API will auto-detect based on provided parameters):
+            - "filter" (default): Filter health news articles using flexible criteria
+            - "getById": Get specific health news by ID (requires id parameter)
+            - "getByCategory": Get news by category (requires categoryId parameter)
+            - "getByAuthor": Get news by author (requires authorId parameter)
+            - "getByTag": Get news by tag (requires tagId parameter)
+            - "getAllCategories": Get all categories
+            - "getAllAuthors": Get all authors
+            - "getAllTags": Get all tags
+        schema:
+          type: string
+          enum:
+          - filter
+          - getAll
+          - getById
+          - getByCategory
+          - getByAuthor
+          - getByTag
+          - getAllCategories
+          - getAllAuthors
+          - getAllTags
+          default: filter
+      - name: id
+        in: query
+        required: false
+        description: Health news ID
+        schema:
+          type: string
+          format: uuid
+      - name: categoryId
+        in: query
+        required: false
+        description: Category ID
+        schema:
+          type: string
+          format: uuid
+      - name: authorId
+        in: query
+        required: false
+        description: Author ID
+        schema:
+          type: string
+          format: uuid
+      - name: tagId
+        in: query
+        required: false
+        description: Tag ID
+        schema:
+          type: string
+          format: uuid
+      - name: title
+        in: query
+        required: false
+        description: Filter news by title (partial match)
+        schema:
+          type: string
+      - name: content
+        in: query
+        required: false
+        description: Filter news by content (partial match)
+        schema:
+          type: string
+      - name: author_name
+        in: query
+        required: false
+        description: Filter news by author name (partial match)
+        schema:
+          type: string
+      - name: category_name
+        in: query
+        required: false
+        description: Filter news by category name (partial match)
+        schema:
+          type: string
+      - name: tag_name
+        in: query
+        required: false
+        description: Filter news by tag name (partial match)
+        schema:
+          type: string
+      - name: start_date
+        in: query
+        required: false
+        description: Filter news published on or after this date (ISO format)
+        schema:
+          type: string
+          format: date-time
+      - name: end_date
+        in: query
+        required: false
+        description: Filter news published on or before this date (ISO format)
+        schema:
+          type: string
+          format: date-time
+      - name: sort_by
+        in: query
+        required: false
+        description: Field to sort by
+        schema:
+          type: string
+          default: published_at
+      - name: sort_order
+        in: query
+        required: false
+        description: Sort order
+        schema:
+          type: string
+          enum:
+          - asc
+          - desc
+          default: desc
+      - name: limit
+        in: query
+        required: false
+        description: Number of records to return
+        schema:
+          type: integer
+          default: 20
+      - name: page
+        in: query
+        required: false
+        description: Page number for pagination
+        schema:
+          type: integer
+          default: 1
+      - name: include_details
+        in: query
+        required: false
+        description: Whether to include full relationship details
+        schema:
+          type: string
+          enum:
+          - true
+          - false
+          default: true
       responses:
         '200':
           description: Calculate cost successfully
@@ -2324,19 +2550,19 @@ paths:
                     example: true
                   data:
                     oneOf:
-                      - type: array
-                        items:
-                          $ref: '#/components/schemas/HealthNews'
-                      - $ref: '#/components/schemas/HealthNews'
-                      - type: array
-                        items:
-                          $ref: '#/components/schemas/Category'
-                      - type: array
-                        items:
-                          $ref: '#/components/schemas/Author'
-                      - type: array
-                        items:
-                          $ref: '#/components/schemas/Tag'
+                    - type: array
+                      items:
+                        $ref: '#/components/schemas/HealthNews'
+                    - $ref: '#/components/schemas/HealthNews'
+                    - type: array
+                      items:
+                        $ref: '#/components/schemas/Category'
+                    - type: array
+                      items:
+                        $ref: '#/components/schemas/Author'
+                    - type: array
+                      items:
+                        $ref: '#/components/schemas/Tag'
                   pagination:
                     type: object
                     properties:
@@ -2356,74 +2582,79 @@ paths:
       summary: Unified Health News Creation API
       description: Create health news articles and related entities
       parameters:
-        - name: action
-          in: query
-          required: false
-          description: |
-            Action to perform:
-              - "createNews" (default): Create a new health news article
-              - "createCategory": Create a new category
-              - "createAuthor": Create a new author
-              - "createTag": Create a new tag
-          schema:
-            type: string
-            enum: [createNews, createCategory, createAuthor, createTag]
-            default: createNews
+      - name: action
+        in: query
+        required: false
+        description: |
+          Action to perform:
+            - "createNews" (default): Create a new health news article
+            - "createCategory": Create a new category
+            - "createAuthor": Create a new author
+            - "createTag": Create a new tag
+        schema:
+          type: string
+          enum:
+          - createNews
+          - createCategory
+          - createAuthor
+          - createTag
+          default: createNews
       requestBody:
         required: true
         content:
           application/json:
             schema:
               oneOf:
-                - type: object
-                  properties:
-                    title:
-                      type: string
-                      example: "Diet and Health: How to Plan Your Daily Meals"
-                    summary:
-                      type: string
-                      example: "This article explains how to maintain health through proper meal planning"
-                    content:
-                      type: string
-                      example: "Proper eating habits are essential for health."
-                    author_id:
-                      type: string
-                      format: uuid
-                      example: "123e4567-e89b-12d3-a456-426614174001"
-                    category_id:
-                      type: string
-                      format: uuid
-                      example: "123e4567-e89b-12d3-a456-426614174003"
-                  required:
-                    - title
-                    - content
-                - type: object
-                  properties:
-                    name:
-                      type: string
-                      example: "Nutrition"
-                    description:
-                      type: string
-                      example: "Articles about food nutrition"
-                  required:
-                    - name
-                - type: object
-                  properties:
-                    name:
-                      type: string
-                      example: "Dr. Smith"
-                    bio:
-                      type: string
-                      example: "Nutrition expert with 20 years of experience"
-                  required:
-                    - name
-                - type: object
-                  properties:
-                    name:
-                      type: string
-                      example: "Weight Loss"
-                  required:
-                    - name
+              - type: object
+                properties:
+                  title:
+                    type: string
+                    example: 'Diet and Health: How to Plan Your Daily Meals'
+                  summary:
+                    type: string
+                    example: This article explains how to maintain health through
+                      proper meal planning
+                  content:
+                    type: string
+                    example: Proper eating habits are essential for health.
+                  author_id:
+                    type: string
+                    format: uuid
+                    example: 123e4567-e89b-12d3-a456-426614174001
+                  category_id:
+                    type: string
+                    format: uuid
+                    example: 123e4567-e89b-12d3-a456-426614174003
+                required:
+                - title
+                - content
+              - type: object
+                properties:
+                  name:
+                    type: string
+                    example: Nutrition
+                  description:
+                    type: string
+                    example: Articles about food nutrition
+                required:
+                - name
+              - type: object
+                properties:
+                  name:
+                    type: string
+                    example: Dr. Smith
+                  bio:
+                    type: string
+                    example: Nutrition expert with 20 years of experience
+                required:
+                - name
+              - type: object
+                properties:
+                  name:
+                    type: string
+                    example: Weight Loss
+                required:
+                - name
       responses:
         '201':
           description: Resource created successfully
@@ -2440,21 +2671,21 @@ paths:
                     properties:
                       id:
                         type: string
-                        example: "123e4567-e89b-12d3-a456-426614174000"
+                        example: 123e4567-e89b-12d3-a456-426614174000
                       title:
                         type: string
-                        example: "Diet and Health: How to Plan Your Daily Meals"
+                        example: 'Diet and Health: How to Plan Your Daily Meals'
     put:
       summary: Update Health News
       description: Update health news articles
       parameters:
-        - name: id
-          in: query
-          required: true
-          description: Health news ID
-          schema:
-            type: string
-            format: uuid
+      - name: id
+        in: query
+        required: true
+        description: Health news ID
+        schema:
+          type: string
+          format: uuid
       requestBody:
         required: true
         content:
@@ -2464,10 +2695,11 @@ paths:
               properties:
                 title:
                   type: string
-                  example: "Diet and Health: How to Plan Your Daily Meals (Updated)"
+                  example: 'Diet and Health: How to Plan Your Daily Meals (Updated)'
                 summary:
                   type: string
-                  example: "This article explains how to maintain health through proper meal planning"
+                  example: This article explains how to maintain health through proper
+                    meal planning
       responses:
         '200':
           description: Health news updated successfully
@@ -2503,13 +2735,13 @@ paths:
       summary: Delete Health News
       description: Delete health news articles
       parameters:
-        - name: id
-          in: query
-          required: true
-          description: Health news ID
-          schema:
-            type: string
-            format: uuid
+      - name: id
+        in: query
+        required: true
+        description: Health news ID
+        schema:
+          type: string
+          format: uuid
       responses:
         '200':
           description: Health news deleted successfully
@@ -2542,34 +2774,34 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-  
   /health-tools/bmi:
     get:
       summary: Calculate BMI and recommended daily water intake
-      description: >
-        Calculates Body Mass Index (BMI) based on height and weight,
-        and returns a recommended daily water intake value.
+      description: 'Calculates Body Mass Index (BMI) based on height and weight, and
+        returns a recommended daily water intake value.
+
+        '
       tags:
-        - Health Tools
+      - Health Tools
       parameters:
-        - name: height
-          in: query
-          required: true
-          description: Height in meters (e.g. 1.75)
-          schema:
-            type: number
-            format: float
-            example: 1.75
-        - name: weight
-          in: query
-          required: true
-          description: Weight in kilograms (e.g. 70)
-          schema:
-            type: number
-            format: float
-            example: 70
+      - name: height
+        in: query
+        required: true
+        description: Height in meters (e.g. 1.75)
+        schema:
+          type: number
+          format: float
+          example: 1.75
+      - name: weight
+        in: query
+        required: true
+        description: Weight in kilograms (e.g. 70)
+        schema:
+          type: number
+          format: float
+          example: 70
       responses:
-        "200":
+        '200':
           description: BMI and water intake calculated successfully
           content:
             application/json:
@@ -2583,7 +2815,7 @@ paths:
                   recommendedWaterIntakeMl:
                     type: number
                     example: 2450
-        "400":
+        '400':
           description: Invalid query parameters
           content:
             application/json:
@@ -2592,8 +2824,9 @@ paths:
                 properties:
                   error:
                     type: string
-                    example: Invalid parameters. Height and weight must be positive numbers.
-        "500":
+                    example: Invalid parameters. Height and weight must be positive
+                      numbers.
+        '500':
           description: Internal server error
           content:
             application/json:
@@ -2603,18 +2836,17 @@ paths:
                   error:
                     type: string
                     example: Internal server error
-
   /recipe/nutritionlog:
     get:
       summary: Get full nutrition info for a recipe by name
       description: Returns nutritional values of a recipe based on recipe_name
       parameters:
-        - in: query
-          name: name
-          schema:
-            type: string
-          required: true
-          description: The name of the recipe to search (case-insensitive)
+      - in: query
+        name: name
+        schema:
+          type: string
+        required: true
+        description: The name of the recipe to search (case-insensitive)
       responses:
         '200':
           description: Nutritional info returned successfully
@@ -2652,61 +2884,68 @@ paths:
         '404':
           description: Recipe not found
         '500':
-          description: Internal server error                  
-  
+          description: Internal server error
   /healthArticles:
     get:
       summary: Search health articles
-      description: |
-        Search for health articles based on query string. The search is performed across article titles, tags, and content.
+      description: 'Search for health articles based on query string. The search is
+        performed across article titles, tags, and content.
+
         Results can be paginated, sorted, and filtered.
+
+        '
       parameters:
-        - name: query
-          in: query
-          required: true
-          description: Search query string
-          schema:
-            type: string
-        - name: page
-          in: query
-          required: false
-          description: 
-          schema:
-            type: integer
-            minimum: 1
-            default: 1
-        - name: limit
-          in: query
-          required: false
-          description: 
-          schema:
-            type: integer
-            minimum: 1
-            default: 10
-        - name: sortBy
-          in: query
-          required: false
-          description: 
-          schema:
-            type: string
-            enum: [created_at, title, views]
-            default: created_at
-        - name: sortOrder
-          in: query
-          required: false
-          description: Sort order (asc or desc)
-          schema:
-            type: string
-            enum: [asc, desc]
-            default: desc
+      - name: query
+        in: query
+        required: true
+        description: Search query string
+        schema:
+          type: string
+      - name: page
+        in: query
+        required: false
+        description: null
+        schema:
+          type: integer
+          minimum: 1
+          default: 1
+      - name: limit
+        in: query
+        required: false
+        description: null
+        schema:
+          type: integer
+          minimum: 1
+          default: 10
+      - name: sortBy
+        in: query
+        required: false
+        description: null
+        schema:
+          type: string
+          enum:
+          - created_at
+          - title
+          - views
+          default: created_at
+      - name: sortOrder
+        in: query
+        required: false
+        description: Sort order (asc or desc)
+        schema:
+          type: string
+          enum:
+          - asc
+          - desc
+          default: desc
       responses:
         '200':
           description: Successful search
-          
   /water-intake:
     post:
       summary: Update the number of glasses of water consumed
-      description: Updates the user's daily water intake by adding the number of glasses consumed.
+      description: Updates the user's daily water intake by adding the number of glasses
+        consumed.
       requestBody:
         required: true
         content:
@@ -2722,10 +2961,10 @@ paths:
                   type: integer
                   description: Number of glasses consumed
               required:
-                - user_id
-                - glasses_consumed
+              - user_id
+              - glasses_consumed
             example:
-              user_id: "15"
+              user_id: '15'
               glasses_consumed: 5
       responses:
         '200':
@@ -2737,24 +2976,24 @@ paths:
                 properties:
                   message:
                     type: string
-                    example: "Water intake updated successfully"
+                    example: Water intake updated successfully
                   data:
                     type: object
                     properties:
                       user_id:
                         type: string
-                        example: "15"
+                        example: '15'
                       date:
                         type: string
                         format: date
-                        example: "2025-05-10"
+                        example: '2025-05-10'
                       glasses_consumed:
                         type: integer
                         example: 5
                       updated_at:
                         type: string
                         format: date-time
-                        example: "2025-05-10T12:00:00Z"
+                        example: '2025-05-10T12:00:00Z'
         '400':
           description: Bad request - missing or invalid fields
           content:
@@ -2785,7 +3024,6 @@ paths:
                 $ref: '#/components/schemas/ChatHistoryResponse'
         '500':
           description: Internal server error
-
     delete:
       summary: Clear chat history
       requestBody:
@@ -2803,7 +3041,6 @@ paths:
                 $ref: '#/components/schemas/GenericSuccessResponse'
         '500':
           description: Internal server error
-
   /medical-report/retrieve:
     post:
       summary: Predict obesity level and diabetes risks
@@ -2838,7 +3075,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-
   /medical-report/plan:
     post:
       summary: Generate a 4-week health plan from a medical report
@@ -2852,25 +3088,25 @@ paths:
               fe_combined_payload:
                 value:
                   medical_report:
-                    - obesity_prediction:
-                        obesity_level: Overweight_Level_II
-                        confidence: 79.8
-                      diabetes_prediction:
-                        diabetes: true
-                        confidence: 79.8
+                  - obesity_prediction:
+                      obesity_level: Overweight_Level_II
+                      confidence: 79.8
+                    diabetes_prediction:
+                      diabetes: true
+                      confidence: 79.8
                   survey_data:
                     Gender: Male
                     Age: 24
                     Height: 1.699998
                     Weight: 81.66995
-                    Any family history of overweight (yes/no): "yes"
-                    Frequent High Calorie Food Consumption (yes/no): "yes"
+                    Any family history of overweight (yes/no): 'yes'
+                    Frequent High Calorie Food Consumption (yes/no): 'yes'
                     Consumption of vegetables in meals: 2.7
                     Consumption of Food Between Meals: Sometimes
                     Number of Main Meals: 3
                     Daily Water Intake: 2.763573
-                    Do you Smoke?: "no"
-                    Do you monitor your daily calories?: "no"
+                    Do you Smoke?: 'no'
+                    Do you monitor your daily calories?: 'no'
                     Physical Activity Frequency: 0
                     Time Using Technology Devices Daily: 0.976473
                     Alcohol Consumption Rate: Sometimes
@@ -2881,12 +3117,12 @@ paths:
               minimal:
                 value:
                   medical_report:
-                    - obesity_prediction:
-                        obesity_level: Overweight_Level_I
-                        confidence: 82.3
-                      diabetes_prediction:
-                        diabetes: false
-                        confidence: 91.2
+                  - obesity_prediction:
+                      obesity_level: Overweight_Level_I
+                      confidence: 82.3
+                    diabetes_prediction:
+                      diabetes: false
+                      confidence: 91.2
                   survey_data:
                     Gender: Male
                     Age: 29
@@ -2925,51 +3161,49 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-
-    
   /auth/register:
-      post:
-        tags:
-          - Authentication
-        summary: User Registration
-        description: Create a new user account
-        requestBody:
-          required: true
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                  - name
-                  - email
-                  - password
-                properties:
-                  name:
-                    type: string
-                    example: "John Doe"
-                  email:
-                    type: string
-                    format: email
-                    example: "john@nutrihelp.com"
-                  password:
-                    type: string
-                    minLength: 6
-                    example: "SecurePassword123!"
-                  first_name:
-                    type: string
-                    example: "John"
-                  last_name:
-                    type: string
-                    example: "Doe"
-        responses:
-          '201':
-            description: Registration successful
-          '400':
-            description: Registration failed
+    post:
+      tags:
+      - Authentication
+      summary: User Registration
+      description: Create a new user account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - name
+              - email
+              - password
+              properties:
+                name:
+                  type: string
+                  example: John Doe
+                email:
+                  type: string
+                  format: email
+                  example: john@nutrihelp.com
+                password:
+                  type: string
+                  minLength: 6
+                  example: SecurePassword123!
+                first_name:
+                  type: string
+                  example: John
+                last_name:
+                  type: string
+                  example: Doe
+      responses:
+        '201':
+          description: Registration successful
+        '400':
+          description: Registration failed
   /auth/login:
     post:
       tags:
-        - Authentication
+      - Authentication
       summary: User Login
       description: Login user and get access/refresh tokens
       requestBody:
@@ -2997,34 +3231,34 @@ paths:
                         example: 677
                       email:
                         type: string
-                        example: "john@nutrihelp.com"
+                        example: john@nutrihelp.com
                       name:
                         type: string
-                        example: "John Doe"
+                        example: John Doe
                       role:
                         type: string
-                        example: "user"
+                        example: user
                   accessToken:
                     type: string
-                    description: "Access token (15 minutes validity)"
-                    example: "eyJhbGciOiJIUzI1NiIs..."
+                    description: Access token (15 minutes validity)
+                    example: eyJhbGciOiJIUzI1NiIs...
                   refreshToken:
                     type: string
-                    description: "Refresh token (7 days validity)"
-                    example: "b9b1f1235fb056bc4389..."
+                    description: Refresh token (7 days validity)
+                    example: b9b1f1235fb056bc4389...
                   expiresIn:
                     type: integer
-                    description: "Token expiry time in seconds"
+                    description: Token expiry time in seconds
                     example: 900
                   tokenType:
                     type: string
-                    example: "Bearer"
+                    example: Bearer
         '401':
           description: Login failed
   /auth/refresh:
     post:
       tags:
-        - Authentication
+      - Authentication
       summary: Refresh Access Token
       description: Get new access token using refresh token
       requestBody:
@@ -3034,11 +3268,11 @@ paths:
             schema:
               type: object
               required:
-                - refreshToken
+              - refreshToken
               properties:
                 refreshToken:
                   type: string
-                  example: "b9b1f1235fb056bc4389..."
+                  example: b9b1f1235fb056bc4389...
       responses:
         '200':
           description: Token refresh successful
@@ -3047,7 +3281,7 @@ paths:
   /auth/logout:
     post:
       tags:
-        - Authentication
+      - Authentication
       summary: User Logout
       description: Invalidate refresh token and logout user
       requestBody:
@@ -3058,29 +3292,14 @@ paths:
               properties:
                 refreshToken:
                   type: string
-                  example: "b9b1f1235fb056bc4389..."
+                  example: b9b1f1235fb056bc4389...
       responses:
         '200':
           description: Logout successful
-  /auth/profile:
-    get:
-      tags:
-        - Authentication
-      summary: Get User Profile
-      description: Get current user information
-      security:
-        - BearerAuth: []
-      responses:
-        '200':
-          description: Profile retrieved successfully
-        '401':
-          description: Unauthorized
-        '404':
-          description: User not found
   /auth/health:
     get:
       tags:
-        - Authentication
+      - Authentication
       summary: Auth Service Health Check
       description: Check if authentication service is running
       responses:
@@ -3096,306 +3315,23 @@ paths:
                     example: true
                   message:
                     type: string
-                    example: "Auth service is running"
+                    example: Auth service is running
                   timestamp:
                     type: string
                     format: date-time
-                    example: "2025-08-03T12:14:00.706Z"
-  /mobile/auth/register:
-    post:
-      tags:
-        - Mobile
-      summary: Mobile user registration
-      description: Register a user with the mobile-friendly authentication surface.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - name
-                - email
-                - password
-              properties:
-                name:
-                  type: string
-                  example: "Jane Citizen"
-                email:
-                  type: string
-                  format: email
-                  example: "jane@nutrihelp.com"
-                password:
-                  type: string
-                  example: "StrongPassword123!"
-                first_name:
-                  type: string
-                  example: "Jane"
-                last_name:
-                  type: string
-                  example: "Citizen"
-      responses:
-        '201':
-          description: Registration successful
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/MobileRegisterResponse'
-        '400':
-          description: Registration failed
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/MobileErrorResponse'
-  /mobile/auth/login:
-    post:
-      tags:
-        - Mobile
-      summary: Mobile login
-      description: Authenticate a mobile client and return a compact user/session envelope.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/LoginRequest'
-      responses:
-        '200':
-          description: Login successful
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/MobileAuthResponse'
-        '400':
-          description: Validation error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/MobileErrorResponse'
-        '401':
-          description: Authentication failed
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/MobileErrorResponse'
-  /mobile/auth/refresh:
-    post:
-      tags:
-        - Mobile
-      summary: Refresh mobile access token
-      description: Rotate a refresh token and issue a new access token for mobile clients.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/MobileRefreshRequest'
-      responses:
-        '200':
-          description: Refresh successful
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/MobileRefreshResponse'
-        '400':
-          description: Validation error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/MobileErrorResponse'
-        '401':
-          description: Refresh failed
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/MobileErrorResponse'
-  /mobile/auth/logout:
-    post:
-      tags:
-        - Mobile
-      summary: Logout mobile session
-      description: Invalidate a refresh token for the current mobile session.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/MobileRefreshRequest'
-      responses:
-        '200':
-          description: Logout successful
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/MobileMetaOnlyResponse'
-        '400':
-          description: Validation error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/MobileErrorResponse'
-  /mobile/me:
-    get:
-      tags:
-        - Mobile
-      summary: Get current mobile user profile
-      security:
-        - BearerAuth: []
-      responses:
-        '200':
-          description: Profile retrieved successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/MobileProfileResponse'
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/MobileErrorResponse'
-        '404':
-          description: User not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/MobileErrorResponse'
-  /mobile/notifications:
-    get:
-      tags:
-        - Mobile
-      summary: Get current user's notifications
-      security:
-        - BearerAuth: []
-      parameters:
-        - in: query
-          name: limit
-          schema:
-            type: integer
-            minimum: 1
-            maximum: 50
-            default: 20
-        - in: query
-          name: status
-          schema:
-            type: string
-            enum: [read, unread]
-      responses:
-        '200':
-          description: Notifications retrieved successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/MobileNotificationsResponse'
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/MobileErrorResponse'
-  /mobile/meal-plans:
-    get:
-      tags:
-        - Mobile
-      summary: Get current user's meal plans
-      security:
-        - BearerAuth: []
-      responses:
-        '200':
-          description: Meal plans retrieved successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/MobileMealPlansResponse'
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/MobileErrorResponse'
-  /mobile/recommendations:
-    post:
-      tags:
-        - Mobile
-      summary: Get compact mobile recommendations
-      security:
-        - BearerAuth: []
-      requestBody:
-        required: false
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/MobileRecommendationRequest'
-      responses:
-        '200':
-          description: Recommendations retrieved successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/MobileRecommendationsResponse'
-        '400':
-          description: Validation error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/MobileErrorResponse'
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/MobileErrorResponse'
-        '500':
-          description: Recommendation generation failed
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/MobileErrorResponse'
-  /mobile/home-summary:
-    post:
-      tags:
-        - Mobile
-      summary: Get mobile home summary
-      description: Returns a compact home dashboard payload for the authenticated mobile user.
-      security:
-        - BearerAuth: []
-      requestBody:
-        required: false
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/MobileRecommendationRequest'
-      responses:
-        '200':
-          description: Home summary retrieved successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/MobileHomeSummaryResponse'
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/MobileErrorResponse'
-        '500':
-          description: Home summary failed
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/MobileErrorResponse'
-
+                    example: '2025-08-03T12:14:00.706Z'
   /barcode:
     post:
       summary: Detect user allergen from a given barcode
-      description: Retrieve ingredients information from a given barcode and detect user's allergen ingredients
+      description: Retrieve ingredients information from a given barcode and detect
+        user's allergen ingredients
       parameters:
-        - name: code
-          in: query
-          required: true
-          schema:
-            type: integer
-          description: Barcode number for allergen detection
+      - name: code
+        in: query
+        required: true
+        schema:
+          type: integer
+        description: Barcode number for allergen detection
       requestBody:
         required: false
         content:
@@ -3407,7 +3343,7 @@ paths:
                   type: integer
                   description: The user ID
               required:
-                - user_id
+              - user_id
       responses:
         '200':
           description: Barcode scanning successful
@@ -3421,37 +3357,39 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-                
   /security/events/export:
     get:
       tags:
-        - Security
+      - Security
       summary: Export security events as JSON or CSV
-      description: >
-        Aggregates login, brute-force and session/token lifecycle events
+      description: 'Aggregates login, brute-force and session/token lifecycle events
         from auth_logs, brute_force_logs and user_session into a unified export.
+
+        '
       parameters:
-        - name: from
-          in: query
-          description: Start date (YYYY-MM-DD). Defaults to 7 days before `to`.
-          required: false
-          schema:
-            type: string
-            format: date
-        - name: to
-          in: query
-          description: End date (YYYY-MM-DD). Defaults to now.
-          required: false
-          schema:
-            type: string
-            format: date
-        - name: format
-          in: query
-          description: Response format. Use `csv` to download CSV, otherwise JSON.
-          required: false
-          schema:
-            type: string
-            enum: [json, csv]
+      - name: from
+        in: query
+        description: Start date (YYYY-MM-DD). Defaults to 7 days before `to`.
+        required: false
+        schema:
+          type: string
+          format: date
+      - name: to
+        in: query
+        description: End date (YYYY-MM-DD). Defaults to now.
+        required: false
+        schema:
+          type: string
+          format: date
+      - name: format
+        in: query
+        description: Response format. Use `csv` to download CSV, otherwise JSON.
+        required: false
+        schema:
+          type: string
+          enum:
+          - json
+          - csv
       responses:
         '200':
           description: Security events exported
@@ -3477,25 +3415,25 @@ paths:
                       type: object
               example:
                 range:
-                  from: "2025-12-04T00:00:00Z"
-                  to: "2025-12-11T00:00:00Z"
+                  from: '2025-12-04T00:00:00Z'
+                  to: '2025-12-11T00:00:00Z'
                 count: 3
                 events:
-                  - id: "brute_4092..."
-                    type: "BRUTE_FORCE_DETECTED"
-                    source: "public.brute_force_logs"
-                  - id: "session_67879"
-                    type: "SESSION_CREATED"
-                    source: "public.user_session"
+                - id: brute_4092...
+                  type: BRUTE_FORCE_DETECTED
+                  source: public.brute_force_logs
+                - id: session_67879
+                  type: SESSION_CREATED
+                  source: public.user_session
             text/csv:
               schema:
                 type: string
-              example: |
-                id,occurredAt,type,userId,sessionId,ipAddress,userAgent,source,metadataJson
+              example: 'id,occurredAt,type,userId,sessionId,ipAddress,userAgent,source,metadataJson
+
                 brute_4092...,2025-12-04T07:24:13.965+00:00,BRUTE_FORCE_DETECTED,,,,,public.brute_force_logs,"{""email"":""john@nutrihelp.com""}"
 
+                '
 components:
-
   securitySchemes:
     BearerAuth:
       type: http
@@ -3504,25 +3442,37 @@ components:
   schemas:
     AllergyCheckRequest:
       type: object
-      required: [userAllergies, meal]
+      required:
+      - userAllergies
+      - meal
       properties:
         userAllergies:
           type: array
           description: List of allergens the user is sensitive to (lowercase recommended)
-          items: { type: string }
-          example: ["peanuts","milk","sesame"]
+          items:
+            type: string
+          example:
+          - peanuts
+          - milk
+          - sesame
         meal:
           type: object
-          required: [name, ingredients]
+          required:
+          - name
+          - ingredients
           properties:
             name:
               type: string
-              example: "Chicken Satay"
+              example: Chicken Satay
             ingredients:
               type: array
-              items: { type: string }
-              example: ["chicken","peanut sauce","soy sauce","garlic"]
-
+              items:
+                type: string
+              example:
+              - chicken
+              - peanut sauce
+              - soy sauce
+              - garlic
     AllergyCheckResponse:
       type: object
       properties:
@@ -3532,40 +3482,82 @@ components:
         triggers:
           type: array
           description: Which of the userAllergies were detected in the meal ingredients
-          items: { type: string }
-          example: ["peanuts","soy"]
+          items:
+            type: string
+          example:
+          - peanuts
+          - soy
     Kpi24h:
       type: object
       properties:
-        login_events_24h: { type: integer, example: 512 }
-        successes_24h:    { type: integer, example: 420 }
-        failures_24h:     { type: integer, example: 92 }
-        success_rate_24h: { type: number, format: float, example: 82.03 }
+        login_events_24h:
+          type: integer
+          example: 512
+        successes_24h:
+          type: integer
+          example: 420
+        failures_24h:
+          type: integer
+          example: 92
+        success_rate_24h:
+          type: number
+          format: float
+          example: 82.03
     DailyRow:
       type: object
       properties:
-        day_local:        { type: string, format: date, example: '2025-08-26' }
-        attempts:         { type: integer, example: 150 }
-        successes:        { type: integer, example: 120 }
-        failures:         { type: integer, example: 30 }
-        success_rate_pct: { type: number, format: float, example: 80.0 }
+        day_local:
+          type: string
+          format: date
+          example: '2025-08-26'
+        attempts:
+          type: integer
+          example: 150
+        successes:
+          type: integer
+          example: 120
+        failures:
+          type: integer
+          example: 30
+        success_rate_pct:
+          type: number
+          format: float
+          example: 80.0
     DauRow:
       type: object
       properties:
-        day_local: { type: string, format: date, example: '2025-08-26' }
-        dau:       { type: integer, example: 97 }
+        day_local:
+          type: string
+          format: date
+          example: '2025-08-26'
+        dau:
+          type: integer
+          example: 97
     FailingIpRow:
       type: object
       properties:
-        ip_address:         { type: string, example: '127.0.0.1' }
-        failed_count:       { type: integer, example: 120 }
-        total_login_events: { type: integer, example: 150 }
-        fail_pct:           { type: number, format: float, example: 80.0 }
+        ip_address:
+          type: string
+          example: 127.0.0.1
+        failed_count:
+          type: integer
+          example: 120
+        total_login_events:
+          type: integer
+          example: 150
+        fail_pct:
+          type: number
+          format: float
+          example: 80.0
     DomainFailRow:
       type: object
       properties:
-        domain:           { type: string, example: 'deakin.edu.au' }
-        failures_last_7d: { type: integer, example: 35 }
+        domain:
+          type: string
+          example: deakin.edu.au
+        failures_last_7d:
+          type: integer
+          example: 35
     LoginRequest:
       type: object
       properties:
@@ -3576,8 +3568,8 @@ components:
           type: string
           example: test123
       required:
-        - email
-        - password
+      - email
+      - password
     SignupRequest:
       type: object
       properties:
@@ -3592,11 +3584,11 @@ components:
         address:
           type: string
       required:
-        - name
-        - email
-        - password
-        - contact_number
-        - address
+      - name
+      - email
+      - password
+      - contact_number
+      - address
     LoginWithMFARequest:
       type: object
       properties:
@@ -3608,9 +3600,9 @@ components:
         mfa_token:
           type: string
       required:
-        - email
-        - password
-        - mfa_token
+      - email
+      - password
+      - mfa_token
     UserResponse:
       type: object
       properties:
@@ -3667,9 +3659,9 @@ components:
         message:
           type: string
       required:
-        - name
-        - email
-        - message
+      - name
+      - email
+      - message
     FeedbackRequest:
       type: object
       properties:
@@ -3685,11 +3677,11 @@ components:
         message:
           type: string
       required:
-        - name
-        - contact_number
-        - email
-        - experience
-        - message
+      - name
+      - contact_number
+      - email
+      - experience
+      - message
     IDNamePair:
       type: object
       properties:
@@ -3728,17 +3720,19 @@ components:
         updated_at:
           type: string
           format: date-time
-
     SubscribeNewsletter:
       type: object
-      required: [email]
+      required:
+      - email
       properties:
         email:
           type: string
-
     ServiceCreate:
       type: object
-      required: [title, description, image]
+      required:
+      - title
+      - description
+      - image
       properties:
         title:
           type: string
@@ -3748,7 +3742,6 @@ components:
           type: string
         online:
           type: boolean
-
     ServiceUpdate:
       type: object
       properties:
@@ -3759,15 +3752,15 @@ components:
         image:
           type: string
         online:
-          type: boolean          
+          type: boolean
     AppointmentV2:
       type: object
       required:
-        - userId
-        - title
-        - doctor
-        - type
-        - date
+      - userId
+      - title
+      - doctor
+      - type
+      - date
       properties:
         id:
           type: integer
@@ -3787,10 +3780,10 @@ components:
         date:
           type: string
           format: date
-          example: "2024-12-05"
+          example: '2024-12-05'
         time:
           type: string
-          example: "10:00"
+          example: '10:00'
         location:
           type: string
           example: Main Street Medical Center
@@ -3799,7 +3792,7 @@ components:
           example: 123 Main St, Suite 200
         phone:
           type: string
-          example: "(555) 123-4567"
+          example: (555) 123-4567
         notes:
           type: string
           example: Bring insurance card and list of current medications
@@ -3809,11 +3802,11 @@ components:
     AppointmentUpdate:
       type: object
       required:
-        - userId
-        - title
-        - doctor
-        - type
-        - date
+      - userId
+      - title
+      - doctor
+      - type
+      - date
       properties:
         userId:
           type: integer
@@ -3830,10 +3823,10 @@ components:
         date:
           type: string
           format: date
-          example: "2024-12-05"
+          example: '2024-12-05'
         time:
           type: string
-          example: "10:00"
+          example: '10:00'
         location:
           type: string
           example: Main Street Medical Center
@@ -3842,7 +3835,7 @@ components:
           example: 123 Main St, Suite 200
         phone:
           type: string
-          example: "(555) 123-4567"
+          example: (555) 123-4567
         notes:
           type: string
           example: Bring insurance card and list of current medications
@@ -3859,357 +3852,6 @@ components:
       properties:
         error:
           type: string
-    MobileMeta:
-      type: object
-      properties:
-        message:
-          type: string
-          example: Logout successful
-        count:
-          type: integer
-          example: 3
-        unreadCount:
-          type: integer
-          example: 1
-        generatedAt:
-          type: string
-          format: date-time
-        contractVersion:
-          type: string
-          example: recommendation-response-v1
-        source:
-          type: object
-          additionalProperties: true
-    MobileSession:
-      type: object
-      properties:
-        accessToken:
-          type: string
-          example: eyJhbGciOiJIUzI1NiIs...
-        refreshToken:
-          type: string
-          example: 4aa3aa31cc4f7b...
-        tokenType:
-          type: string
-          example: Bearer
-        expiresIn:
-          type: integer
-          example: 900
-    MobileUserSummary:
-      type: object
-      properties:
-        id:
-          type: integer
-          example: 677
-        email:
-          type: string
-          format: email
-          example: jane@nutrihelp.com
-        name:
-          type: string
-          example: Jane Citizen
-        firstName:
-          type: string
-          example: Jane
-        lastName:
-          type: string
-          example: Citizen
-        contactNumber:
-          type: string
-          nullable: true
-        address:
-          type: string
-          nullable: true
-        imageUrl:
-          type: string
-          nullable: true
-        mfaEnabled:
-          type: boolean
-          example: false
-    MobileNotification:
-      type: object
-      properties:
-        id:
-          type: integer
-          example: 10
-        type:
-          type: string
-          example: reminder
-        content:
-          type: string
-          example: Drink water
-        status:
-          type: string
-          example: unread
-        createdAt:
-          type: string
-          format: date-time
-    MobileMealPlanRecipe:
-      type: object
-      properties:
-        recipeId:
-          oneOf:
-            - type: integer
-            - type: object
-              additionalProperties: true
-        title:
-          type: string
-          nullable: true
-        cuisine:
-          type: string
-          nullable: true
-        cookingMethod:
-          type: string
-          nullable: true
-        preparationTime:
-          type: integer
-          nullable: true
-        totalServings:
-          type: integer
-          nullable: true
-        nutrition:
-          type: object
-          properties:
-            calories:
-              type: number
-              nullable: true
-            protein:
-              type: number
-              nullable: true
-            fiber:
-              type: number
-              nullable: true
-            carbohydrates:
-              type: number
-              nullable: true
-            fat:
-              type: number
-              nullable: true
-            sodium:
-              type: number
-              nullable: true
-            sugar:
-              type: number
-              nullable: true
-    MobileMealPlan:
-      type: object
-      properties:
-        id:
-          type: integer
-        mealType:
-          type: string
-          nullable: true
-        recipeCount:
-          type: integer
-        recipes:
-          type: array
-          items:
-            $ref: '#/components/schemas/MobileMealPlanRecipe'
-    MobileRecommendation:
-      type: object
-      properties:
-        rank:
-          type: integer
-        recipeId:
-          type: integer
-        title:
-          type: string
-        explanation:
-          type: string
-        nutrition:
-          type: object
-          additionalProperties: true
-        preparationTime:
-          type: integer
-          nullable: true
-        totalServings:
-          type: integer
-          nullable: true
-    MobileErrorResponse:
-      type: object
-      properties:
-        success:
-          type: boolean
-          example: false
-        error:
-          type: object
-          properties:
-            message:
-              type: string
-            code:
-              type: string
-    MobileRegisterResponse:
-      type: object
-      properties:
-        success:
-          type: boolean
-          example: true
-        data:
-          type: object
-          properties:
-            user:
-              type: object
-              properties:
-                id:
-                  type: integer
-                  nullable: true
-                email:
-                  type: string
-                name:
-                  type: string
-        meta:
-          $ref: '#/components/schemas/MobileMeta'
-    MobileAuthResponse:
-      type: object
-      properties:
-        success:
-          type: boolean
-          example: true
-        data:
-          type: object
-          properties:
-            user:
-              $ref: '#/components/schemas/MobileUserSummary'
-            session:
-              $ref: '#/components/schemas/MobileSession'
-    MobileRefreshRequest:
-      type: object
-      required:
-        - refreshToken
-      properties:
-        refreshToken:
-          type: string
-          example: 4aa3aa31cc4f7b...
-    MobileRefreshResponse:
-      type: object
-      properties:
-        success:
-          type: boolean
-          example: true
-        data:
-          type: object
-          properties:
-            session:
-              $ref: '#/components/schemas/MobileSession'
-    MobileMetaOnlyResponse:
-      type: object
-      properties:
-        success:
-          type: boolean
-          example: true
-        data:
-          nullable: true
-        meta:
-          $ref: '#/components/schemas/MobileMeta'
-    MobileProfileResponse:
-      type: object
-      properties:
-        success:
-          type: boolean
-          example: true
-        data:
-          type: object
-          properties:
-            user:
-              $ref: '#/components/schemas/MobileUserSummary'
-    MobileNotificationsResponse:
-      type: object
-      properties:
-        success:
-          type: boolean
-          example: true
-        data:
-          type: object
-          properties:
-            items:
-              type: array
-              items:
-                $ref: '#/components/schemas/MobileNotification'
-        meta:
-          $ref: '#/components/schemas/MobileMeta'
-    MobileMealPlansResponse:
-      type: object
-      properties:
-        success:
-          type: boolean
-          example: true
-        data:
-          type: object
-          properties:
-            items:
-              type: array
-              items:
-                $ref: '#/components/schemas/MobileMealPlan'
-        meta:
-          $ref: '#/components/schemas/MobileMeta'
-    MobileRecommendationRequest:
-      type: object
-      properties:
-        maxResults:
-          type: integer
-          minimum: 1
-          maximum: 20
-          example: 5
-        healthGoals:
-          type: object
-          additionalProperties: true
-        dietaryConstraints:
-          type: object
-          additionalProperties: true
-        aiInsights:
-          type: object
-          additionalProperties: true
-        medicalReport:
-          type: object
-          additionalProperties: true
-        aiAdapterInput:
-          type: object
-          additionalProperties: true
-        refreshCache:
-          type: boolean
-    MobileRecommendationsResponse:
-      type: object
-      properties:
-        success:
-          type: boolean
-          example: true
-        data:
-          type: object
-          properties:
-            items:
-              type: array
-              items:
-                $ref: '#/components/schemas/MobileRecommendation'
-        meta:
-          $ref: '#/components/schemas/MobileMeta'
-    MobileHomeSummaryResponse:
-      type: object
-      properties:
-        success:
-          type: boolean
-          example: true
-        data:
-          type: object
-          properties:
-            user:
-              $ref: '#/components/schemas/MobileUserSummary'
-            notifications:
-              type: object
-              properties:
-                unreadCount:
-                  type: integer
-                items:
-                  type: array
-                  items:
-                    $ref: '#/components/schemas/MobileNotification'
-            recommendations:
-              type: array
-              items:
-                $ref: '#/components/schemas/MobileRecommendation'
-            mealPlan:
-              $ref: '#/components/schemas/MobileMealPlan'
-            mealPlanCount:
-              type: integer
     Recipe:
       type: object
       properties:
@@ -4278,7 +3920,6 @@ components:
           type: array
           items:
             type: integer
-                
     LoginLog:
       type: object
       properties:
@@ -4294,225 +3935,217 @@ components:
           example: true
         ip_address:
           type: string
-          example: "192.168.1.1"
+          example: 192.168.1.1
         created_at:
           type: string
           format: date-time
-          example: "2025-03-23T13:45:00Z"
+          example: '2025-03-23T13:45:00Z'
       required:
-        - email
-        - success
-        - ip_address
-        - created_at
-
+      - email
+      - success
+      - ip_address
+      - created_at
     EstimatedCost:
-        type: object
-        properties:
-          info: 
+      type: object
+      properties:
+        info:
+          type: object
+          properties:
+            estimation_type:
+              type: string
+            include_all_wanted_ingredients:
+              type: boolean
+            minimum_cost:
+              type: number
+            maximum_cost:
+              type: number
+        low_cost:
+          type: object
+          properties:
+            price:
+              type: number
+            count:
+              type: number
+            ingredients:
+              type: array
+              items:
+                type: object
+                properties:
+                  ingredient_id:
+                    type: integer
+                  product_name:
+                    type: string
+                  quantity:
+                    type: string
+                  purchase_quantity:
+                    type: integer
+                  total_cost:
+                    type: number
+        high_cost:
+          type: object
+          properties:
+            price:
+              type: number
+            count:
+              type: number
+            ingredients:
+              type: array
+              items:
+                type: object
+                properties:
+                  ingredient_id:
+                    type: integer
+                  product_name:
+                    type: string
+                  quantity:
+                    type: string
+                  purchase_quantity:
+                    type: integer
+                  total_cost:
+                    type: number
+        minimum_cost:
+          type: number
+        maximum_cost:
+          type: number
+        include_all_ingredients:
+          type: boolean
+        low_cost_ingredients:
+          type: array
+          items:
             type: object
             properties:
-              estimation_type:
+              ingredient_id:
+                type: integer
+              product_name:
                 type: string
-              include_all_wanted_ingredients:
-                type: boolean
-              minimum_cost:
+              quantity:
+                type: string
+              purchase_quantity:
+                type: integer
+              total_cost:
                 type: number
-              maximum_cost:
-                type: number
-          low_cost:
+        high_cost_ingredients:
+          type: array
+          items:
             type: object
             properties:
-              price:
+              ingredient_id:
+                type: integer
+              product_name:
+                type: string
+              quantity:
+                type: string
+              purchase_quantity:
+                type: integer
+              total_cost:
                 type: number
-              count:
-                type: number
-              ingredients:
-                type: array
-                items:
-                  type: object
-                  properties:
-                    ingredient_id: 
-                      type: integer
-                    product_name: 
-                      type: string
-                    quantity: 
-                      type: string
-                    purchase_quantity: 
-                      type: integer
-                    total_cost: 
-                      type: number
-          high_cost:
-            type: object
-            properties:
-              price:
-                type: number
-              count:
-                type: number
-              ingredients:
-                type: array
-                items:
-                  type: object
-                  properties:
-                    ingredient_id: 
-                      type: integer
-                    product_name: 
-                      type: string
-                    quantity: 
-                      type: string
-                    purchase_quantity: 
-                      type: integer
-                    total_cost: 
-                      type: number
-
-          minimum_cost:
-            type: number
-          maximum_cost:
-            type: number
-          include_all_ingredients:
-            type: boolean
-          low_cost_ingredients:
-            type: array
-            items:
-              type: object
-              properties:
-                ingredient_id: 
-                  type: integer
-                product_name: 
-                  type: string
-                quantity: 
-                  type: string
-                purchase_quantity: 
-                  type: integer
-                total_cost: 
-                  type: number
-          high_cost_ingredients:
-            type: array
-            items:
-              type: object
-              properties:
-                ingredient_id: 
-                  type: integer
-                product_name: 
-                  type: string
-                quantity: 
-                  type: string
-                purchase_quantity: 
-                  type: integer
-                total_cost: 
-                  type: number
-
     HealthNews:
       type: object
       properties:
         id:
           type: string
           format: uuid
-          example: "123e4567-e89b-12d3-a456-426614174000"
+          example: 123e4567-e89b-12d3-a456-426614174000
         title:
           type: string
-          example: "Diet and Health: How to Plan Your Daily Meals"
+          example: 'Diet and Health: How to Plan Your Daily Meals'
         summary:
           type: string
-          example: "This article explains how to maintain health through proper meal planning"
+          example: This article explains how to maintain health through proper meal
+            planning
         author:
           type: object
           properties:
             name:
               type: string
-              example: "Dr. Smith"
+              example: Dr. Smith
         category:
           type: object
           properties:
             name:
               type: string
-              example: "Nutrition"
+              example: Nutrition
         image_url:
           type: string
           format: url
-          example: "https://example.com/images/healthy-eating.jpg"
+          example: https://example.com/images/healthy-eating.jpg
         published_at:
           type: string
           format: date-time
-          example: "2023-09-15T10:30:00Z"
-
+          example: '2023-09-15T10:30:00Z'
     HealthNewsCreateRequest:
       type: object
       properties:
         title:
           type: string
-          example: "Diet and Health: How to Plan Your Daily Meals"
+          example: 'Diet and Health: How to Plan Your Daily Meals'
         summary:
           type: string
-          example: "This article explains how to maintain health through proper meal planning"
+          example: This article explains how to maintain health through proper meal
+            planning
         content:
           type: string
-          example: "Proper eating habits are essential for health."
+          example: Proper eating habits are essential for health.
         author_id:
           type: string
           format: uuid
-          example: "123e4567-e89b-12d3-a456-426614174001"
+          example: 123e4567-e89b-12d3-a456-426614174001
         category_id:
           type: string
           format: uuid
-          example: "123e4567-e89b-12d3-a456-426614174003"
+          example: 123e4567-e89b-12d3-a456-426614174003
         image_url:
           type: string
           format: url
-          example: "https://example.com/images/healthy-eating.jpg"
-
+          example: https://example.com/images/healthy-eating.jpg
     HealthNewsUpdateRequest:
       type: object
       properties:
         title:
           type: string
-          example: "Diet and Health: How to Plan Your Daily Meals (Updated)"
+          example: 'Diet and Health: How to Plan Your Daily Meals (Updated)'
         summary:
           type: string
-          example: "This article explains how to maintain health through proper meal planning"
+          example: This article explains how to maintain health through proper meal
+            planning
         category_id:
           type: string
           format: uuid
-          example: "123e4567-e89b-12d3-a456-426614174003"
-
+          example: 123e4567-e89b-12d3-a456-426614174003
     Author:
       type: object
       properties:
         name:
           type: string
-          example: "Dr. Smith"
+          example: Dr. Smith
         bio:
           type: string
-          example: "Nutrition expert with 20 years of experience"
-
+          example: Nutrition expert with 20 years of experience
     Source:
       type: object
       properties:
         name:
           type: string
-          example: "Health Times"
+          example: Health Times
         base_url:
           type: string
           format: url
-          example: "https://health-news.com"
-
+          example: https://health-news.com
     Category:
       type: object
       properties:
         name:
           type: string
-          example: "Nutrition"
+          example: Nutrition
         description:
           type: string
-          example: "Articles about food nutrition"
-
+          example: Articles about food nutrition
     Tag:
       type: object
       properties:
         name:
           type: string
-          example: "Weight Loss"
-
-    # Chatbot-related Schemas
+          example: Weight Loss
     ChatbotQueryRequest:
       type: object
       properties:
@@ -4520,16 +4153,13 @@ components:
           type: integer
         user_input:
           type: string
-
     ChatbotQueryResponse:
       type: object
       properties:
         response_text:
           type: string
-        # optional message field
         message:
           type: string
-
     ChatHistoryResponse:
       type: object
       properties:
@@ -4547,43 +4177,41 @@ components:
               timestamp:
                 type: string
                 format: date-time
-
     GenericSuccessResponse:
       type: object
       properties:
         message:
           type: string
-
     UserIdRequest:
       type: object
       properties:
         user_id:
           type: integer
     MedicalReportRequest:
-      MedicalReportRequest:
+      MedicalReportRequest: null
       type: object
       required:
-        - Gender
-        - Age
-        - Height
-        - Weight
-        - Any family history of overweight (yes/no)
-        - Frequent High Calorie Food Consumption (yes/no)
-        - Consumption of vegetables in meals
-        - Consumption of Food Between Meals
-        - Number of Main Meals
-        - Daily Water Intake
-        - Do you Smoke?
-        - Do you monitor your daily calories?
-        - Physical Activity Frequency
-        - Time Using Technology Devices Daily
-        - Alcohol Consumption Rate
-        - Mode of Transportation you use
+      - Gender
+      - Age
+      - Height
+      - Weight
+      - Any family history of overweight (yes/no)
+      - Frequent High Calorie Food Consumption (yes/no)
+      - Consumption of vegetables in meals
+      - Consumption of Food Between Meals
+      - Number of Main Meals
+      - Daily Water Intake
+      - Do you Smoke?
+      - Do you monitor your daily calories?
+      - Physical Activity Frequency
+      - Time Using Technology Devices Daily
+      - Alcohol Consumption Rate
+      - Mode of Transportation you use
       properties:
         Gender:
           type: string
           description: Gender of the individual.
-          example: "Male"
+          example: Male
         Age:
           type: number
           format: int
@@ -4601,14 +4229,18 @@ components:
           example: 81.66995
         Any family history of overweight (yes/no):
           type: string
-          enum: ["yes", "no"]
+          enum:
+          - 'yes'
+          - 'no'
           description: Indicates if there is a family history of being overweight.
-          example: "yes"
+          example: 'yes'
         Frequent High Calorie Food Consumption (yes/no):
           type: string
-          enum: ["yes", "no"]
+          enum:
+          - 'yes'
+          - 'no'
           description: Indicates frequent consumption of high-calorie food.
-          example: "yes"
+          example: 'yes'
         Consumption of vegetables in meals:
           type: number
           format: float
@@ -4616,9 +4248,13 @@ components:
           example: 3
         Consumption of Food Between Meals:
           type: string
-          enum: ["no", "Sometimes", "Frequently", "Always"]
+          enum:
+          - 'no'
+          - Sometimes
+          - Frequently
+          - Always
           description: Frequency of consuming food between meals.
-          example: "Sometimes"
+          example: Sometimes
         Number of Main Meals:
           type: number
           format: float
@@ -4631,14 +4267,18 @@ components:
           example: 2.763573
         Do you Smoke?:
           type: string
-          enum: ["yes", "no"]
+          enum:
+          - 'yes'
+          - 'no'
           description: Indicates if the individual smokes.
-          example: "no"
+          example: 'no'
         Do you monitor your daily calories?:
           type: string
-          enum: ["yes", "no"]
+          enum:
+          - 'yes'
+          - 'no'
           description: Indicates if the person monitors their daily calorie intake.
-          example: "no"
+          example: 'no'
         Physical Activity Frequency:
           type: number
           format: float
@@ -4651,15 +4291,24 @@ components:
           example: 0.976473
         Alcohol Consumption Rate:
           type: string
-          enum: ["no", "never", "Sometimes", "Frequently", "Always"]
+          enum:
+          - 'no'
+          - never
+          - Sometimes
+          - Frequently
+          - Always
           description: Frequency of alcohol consumption.
-          example: "Sometimes"
+          example: Sometimes
         Mode of Transportation you use:
           type: string
-          enum: ["Car", "Motorbike", "Bike", "Public_Transportation", "Walking"]
+          enum:
+          - Car
+          - Motorbike
+          - Bike
+          - Public_Transportation
+          - Walking
           description: Common mode of transportation used.
-          example: "Public_Transportation"
-
+          example: Public_Transportation
     MedicalReportResponse:
       type: object
       properties:
@@ -4673,7 +4322,7 @@ components:
                 obesity_level:
                   type: string
                   description: Predicted obesity level.
-                  example: "Obese"
+                  example: Obese
             diabetes_prediction:
               type: object
               properties:
@@ -4686,7 +4335,6 @@ components:
                   format: float
                   description: Model confidence score for diabetes prediction.
                   example: 0.798
-
     BarcodeAllergenDetection:
       type: object
       properties:
@@ -4709,8 +4357,6 @@ components:
           type: array
           items:
             type: string
-            
-    # Shopping List Schemas
     IngredientOption:
       type: object
       properties:
@@ -4725,11 +4371,11 @@ components:
         ingredient_name:
           type: string
           description: Name of the ingredient
-          example: "Tomato"
+          example: Tomato
         product_name:
           type: string
           description: Specific product name
-          example: "Fresh Tomatoes"
+          example: Fresh Tomatoes
         package_size:
           type: number
           format: float
@@ -4743,7 +4389,7 @@ components:
         measurement:
           type: string
           description: Unit of measurement
-          example: "g"
+          example: g
         price:
           type: number
           format: float
@@ -4752,19 +4398,18 @@ components:
         store:
           type: string
           description: Store name
-          example: "Coles"
+          example: Coles
         store_location:
           type: string
           description: Store location
-          example: "Melbourne CBD"
-
+          example: Melbourne CBD
     ShoppingListItemInput:
       type: object
       required:
-        - ingredient_name
-        - quantity
-        - unit
-        - measurement
+      - ingredient_name
+      - quantity
+      - unit
+      - measurement
       properties:
         ingredient_id:
           type: integer
@@ -4773,11 +4418,11 @@ components:
         ingredient_name:
           type: string
           description: Name of the ingredient
-          example: "Tomato"
+          example: Tomato
         category:
           type: string
           description: Category of the ingredient
-          example: "Vegetable"
+          example: Vegetable
         quantity:
           type: number
           format: float
@@ -4792,23 +4437,24 @@ components:
         measurement:
           type: string
           description: Unit of measurement
-          example: "g"
+          example: g
         notes:
           type: string
           description: Additional notes
-          example: "For salads"
+          example: For salads
         meal_tags:
           type: array
           description: Associated meal types
           items:
             type: string
-          example: ["breakfast", "lunch"]
+          example:
+          - breakfast
+          - lunch
         estimated_cost:
           type: number
           format: float
           description: Estimated cost for this item
           example: 3.99
-
     ShoppingListItem:
       type: object
       properties:
@@ -4827,11 +4473,11 @@ components:
         ingredient_name:
           type: string
           description: Name of the ingredient
-          example: "Tomato"
+          example: Tomato
         category:
           type: string
           description: Category of the ingredient
-          example: "Vegetable"
+          example: Vegetable
         quantity:
           type: number
           format: float
@@ -4845,11 +4491,11 @@ components:
         measurement:
           type: string
           description: Unit of measurement
-          example: "g"
+          example: g
         notes:
           type: string
           description: Additional notes
-          example: "For salads"
+          example: For salads
         purchased:
           type: boolean
           description: Whether the item has been purchased
@@ -4859,7 +4505,9 @@ components:
           description: Associated meal types
           items:
             type: string
-          example: ["breakfast", "lunch"]
+          example:
+          - breakfast
+          - lunch
         estimated_cost:
           type: number
           format: float
@@ -4869,13 +4517,12 @@ components:
           type: string
           format: date-time
           description: Creation timestamp
-          example: "2024-01-15T10:00:00Z"
+          example: '2024-01-15T10:00:00Z'
         updated_at:
           type: string
           format: date-time
           description: Last update timestamp
-          example: "2024-01-15T10:00:00Z"
-
+          example: '2024-01-15T10:00:00Z'
     ShoppingList:
       type: object
       properties:
@@ -4890,11 +4537,11 @@ components:
         name:
           type: string
           description: Name of the shopping list
-          example: "Weekly Shopping List"
+          example: Weekly Shopping List
         description:
           type: string
           description: Description of the shopping list
-          example: "Weekly groceries for meal plans"
+          example: Weekly groceries for meal plans
         estimated_total_cost:
           type: number
           format: float
@@ -4903,45 +4550,43 @@ components:
         status:
           type: string
           description: Status of the shopping list
-          example: "active"
+          example: active
         created_at:
           type: string
           format: date-time
           description: Creation timestamp
-          example: "2024-01-15T10:00:00Z"
+          example: '2024-01-15T10:00:00Z'
         updated_at:
           type: string
           format: date-time
           description: Last update timestamp
-          example: "2024-01-15T10:00:00Z"
-
+          example: '2024-01-15T10:00:00Z'
     ShoppingListWithProgress:
       type: object
       allOf:
-        - $ref: '#/components/schemas/ShoppingList'
-        - type: object
-          properties:
+      - $ref: '#/components/schemas/ShoppingList'
+      - type: object
+        properties:
+          items:
+            type: array
+            description: Array of shopping list items
             items:
-              type: array
-              description: Array of shopping list items
-              items:
-                $ref: '#/components/schemas/ShoppingListItem'
-            progress:
-              type: object
-              properties:
-                total_items:
-                  type: integer
-                  description: Total number of items
-                  example: 8
-                purchased_items:
-                  type: integer
-                  description: Number of purchased items
-                  example: 2
-                completion_percentage:
-                  type: integer
-                  description: Completion percentage
-                  example: 25
-
+              $ref: '#/components/schemas/ShoppingListItem'
+          progress:
+            type: object
+            properties:
+              total_items:
+                type: integer
+                description: Total number of items
+                example: 8
+              purchased_items:
+                type: integer
+                description: Number of purchased items
+                example: 2
+              completion_percentage:
+                type: integer
+                description: Completion percentage
+                example: 25
     ShoppingListFromMealPlan:
       type: object
       properties:
@@ -4958,11 +4603,11 @@ components:
               ingredient_name:
                 type: string
                 description: Name of the ingredient
-                example: "Tomato"
+                example: Tomato
               category:
                 type: string
                 description: Category of the ingredient
-                example: "Vegetable"
+                example: Vegetable
               total_quantity:
                 type: number
                 format: float
@@ -4976,13 +4621,15 @@ components:
               measurement:
                 type: string
                 description: Unit of measurement
-                example: "g"
+                example: g
               meals:
                 type: array
                 description: Associated meal types
                 items:
                   type: string
-                example: ["breakfast", "lunch"]
+                example:
+                - breakfast
+                - lunch
               estimated_cost:
                 type: object
                 properties:
@@ -5021,4 +4668,8 @@ components:
               description: Array of ingredient categories
               items:
                 type: string
-              example: ["Vegetable", "Meat", "Dairy", "Pantry"]
+              example:
+              - Vegetable
+              - Meat
+              - Dairy
+              - Pantry
