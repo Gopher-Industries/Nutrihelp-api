@@ -1959,8 +1959,9 @@ paths:
   /userprofile:
     get:
       summary: Get user profile
-      description: "- Normal users can only fetch their own profile.  \n- Admins can\
-        \ fetch any profile using `?email=xxx`.\n"
+      description: |
+        - Normal users can only fetch their own profile.
+        - Admins can fetch any profile using `?email=xxx`.
       security:
       - BearerAuth: []
       parameters:
@@ -2399,14 +2400,16 @@ paths:
       - name: action
         in: query
         required: false
-        description: "Action to perform (optional - API will auto-detect based on\
-          \ provided parameters):\n  - \"filter\" (default): Filter health news articles\
-          \ using flexible criteria\n  - \"getById\": Get specific health news by\
-          \ ID (requires id parameter)\n  - \"getByCategory\": Get news by category\
-          \ (requires categoryId parameter)\n  - \"getByAuthor\": Get news by author\
-          \ (requires authorId parameter)\n  - \"getByTag\": Get news by tag (requires\
-          \ tagId parameter)\n  - \"getAllCategories\": Get all categories\n  - \"\
-          getAllAuthors\": Get all authors\n  - \"getAllTags\": Get all tags\n"
+        description: |
+          Action to perform (optional - API will auto-detect based on provided parameters):
+            - "filter" (default): Filter health news articles using flexible criteria
+            - "getById": Get specific health news by ID (requires id parameter)
+            - "getByCategory": Get news by category (requires categoryId parameter)
+            - "getByAuthor": Get news by author (requires authorId parameter)
+            - "getByTag": Get news by tag (requires tagId parameter)
+            - "getAllCategories": Get all categories
+            - "getAllAuthors": Get all authors
+            - "getAllTags": Get all tags
         schema:
           type: string
           enum:
@@ -2582,10 +2585,12 @@ paths:
       - name: action
         in: query
         required: false
-        description: "Action to perform:\n  - \"createNews\" (default): Create a new\
-          \ health news article\n  - \"createCategory\": Create a new category\n \
-          \ - \"createAuthor\": Create a new author\n  - \"createTag\": Create a new\
-          \ tag\n"
+        description: |
+          Action to perform:
+            - "createNews" (default): Create a new health news article
+            - "createCategory": Create a new category
+            - "createAuthor": Create a new author
+            - "createTag": Create a new tag
         schema:
           type: string
           enum:
