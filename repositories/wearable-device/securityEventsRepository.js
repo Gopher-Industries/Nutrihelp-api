@@ -39,8 +39,50 @@ async function fetchUserSessions(fromIso, toIso) {
   };
 }
 
+async function fetchAuditLogs(fromIso, toIso) {
+  const { data, error } = await supabase
+    .from('audit_logs')
+    .select('*')
+    .gte('created_at', fromIso)
+    .lte('created_at', toIso);
+
+  return {
+    data: data || [],
+    error: error || null
+  };
+}
+
+async function fetchErrorLogs(fromIso, toIso) {
+  const { data, error } = await supabase
+    .from('error_logs')
+    .select('*')
+    .gte('created_at', fromIso)
+    .lte('created_at', toIso);
+
+  return {
+    data: data || [],
+    error: error || null
+  };
+}
+
+async function fetchRbacViolationLogs(fromIso, toIso) {
+  const { data, error } = await supabase
+    .from('rbac_violation_logs')
+    .select('*')
+    .gte('created_at', fromIso)
+    .lte('created_at', toIso);
+
+  return {
+    data: data || [],
+    error: error || null
+  };
+}
+
 module.exports = {
+  fetchAuditLogs,
   fetchAuthLogs,
   fetchBruteForceLogs,
+  fetchErrorLogs,
+  fetchRbacViolationLogs,
   fetchUserSessions
 };

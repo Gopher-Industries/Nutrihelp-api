@@ -8,6 +8,21 @@ function correlateSecurityEvents(events) {
   return { events, incidents };
 }
 
+function inferAuditEventType(row) {
+  const eventType = String(row.event_type || row.action || '').toLowerCase();
+  const outcome = String(row.outcome || row.status || '').toLowerCase();
+
+  if (eventType.includes('login') && (outcome === 'success' || eventType.includes('success'))) {
+    return SecurityEventType.LOGIN_SUCCESS;
+  }
+
+  if (eventType.includes('login') && (outcome === 'failure' || outcome === 'failed' || eventType.includes('fail'))) {
+    return SecurityEventType.LOGIN_FAILURE;
+  }
+
+  return SecurityEventType.ANOMALY_DETECTED;
+}
+
 async function getSecurityEvents(fromDate, toDate) {
   const fromIso = fromDate.toISOString();
   const toIso = toDate.toISOString();
@@ -18,10 +33,16 @@ async function getSecurityEvents(fromDate, toDate) {
     { data: authLogs, error: authError },
     { data: bruteLogs, error: bruteError },
     { data: sessions, error: sessionError },
+    { data: auditLogs, error: auditError },
+    { data: errorLogs, error: errorLogError },
+    { data: rbacViolationLogs, error: rbacError },
   ] = await Promise.all([
     securityEventsRepository.fetchAuthLogs(fromIso, toIso),
     securityEventsRepository.fetchBruteForceLogs(fromIso, toIso),
     securityEventsRepository.fetchUserSessions(fromIso, toIso),
+    securityEventsRepository.fetchAuditLogs(fromIso, toIso),
+    securityEventsRepository.fetchErrorLogs(fromIso, toIso),
+    securityEventsRepository.fetchRbacViolationLogs(fromIso, toIso),
   ]);
 
   // ===== 1) Login events from public.auth_logs =====
@@ -176,6 +197,136 @@ async function getSecurityEvents(fromDate, toDate) {
           severity: 'MEDIUM',
         });
       }
+    }
+  }
+
+  // ===== 4) Audit events from public.audit_logs =====
+  if (auditError) {
+    console.error('Error loading audit_logs:', auditError);
+  } else if (auditLogs && auditLogs.length > 0) {
+    for (const row of auditLogs) {
+      events.push({
+        ...SecurityEvent,
+        id: `audit_${row.id || row.created_at}`,
+        occurredAt: row.created_at,
+        type: inferAuditEventType(row),
+        severity: 'LOW',
+
+        actor: {
+          userId: row.user_id || null,
+          email: row.email || null,
+          role: row.role || null,
+        },
+
+        network: {
+          ip: row.ip_address || row.ip || null,
+          userAgent: row.user_agent || null,
+        },
+
+        session: {
+          sessionId: row.session_id || null,
+          refreshTokenHash: null,
+        },
+
+        source: {
+          system: 'supabase',
+          table: 'public.audit_logs',
+          recordId: row.id || null,
+        },
+
+        metadata: {
+          eventType: row.event_type || row.action || null,
+          outcome: row.outcome || row.status || null,
+          details: row.details || null,
+        },
+      });
+    }
+  }
+
+  // ===== 5) Application/system errors from public.error_logs =====
+  if (errorLogError) {
+    console.error('Error loading error_logs:', errorLogError);
+  } else if (errorLogs && errorLogs.length > 0) {
+    for (const row of errorLogs) {
+      events.push({
+        ...SecurityEvent,
+        id: `error_${row.id || row.created_at}`,
+        occurredAt: row.created_at,
+        type: SecurityEventType.ANOMALY_DETECTED,
+        severity: 'HIGH',
+
+        actor: {
+          userId: row.user_id || null,
+          email: row.email || null,
+          role: null,
+        },
+
+        network: {
+          ip: row.ip_address || row.ip || null,
+          userAgent: row.user_agent || null,
+        },
+
+        session: {
+          sessionId: row.session_id || null,
+          refreshTokenHash: null,
+        },
+
+        source: {
+          system: 'supabase',
+          table: 'public.error_logs',
+          recordId: row.id || null,
+        },
+
+        metadata: {
+          errorType: row.error_type || null,
+          errorMessage: row.error_message || row.message || null,
+          endpoint: row.endpoint || null,
+          method: row.method || null,
+        },
+      });
+    }
+  }
+
+  // ===== 6) RBAC violations from public.rbac_violation_logs =====
+  if (rbacError) {
+    console.error('Error loading rbac_violation_logs:', rbacError);
+  } else if (rbacViolationLogs && rbacViolationLogs.length > 0) {
+    for (const row of rbacViolationLogs) {
+      events.push({
+        ...SecurityEvent,
+        id: `rbac_${row.id || row.created_at}`,
+        occurredAt: row.created_at,
+        type: SecurityEventType.ANOMALY_DETECTED,
+        severity: 'HIGH',
+
+        actor: {
+          userId: row.user_id || null,
+          email: row.email || null,
+          role: row.role || null,
+        },
+
+        network: {
+          ip: row.ip_address || row.ip || null,
+          userAgent: row.user_agent || null,
+        },
+
+        session: {
+          sessionId: row.session_id || null,
+          refreshTokenHash: null,
+        },
+
+        source: {
+          system: 'supabase',
+          table: 'public.rbac_violation_logs',
+          recordId: row.id || null,
+        },
+
+        metadata: {
+          endpoint: row.endpoint || null,
+          method: row.method || null,
+          status: row.status || null,
+        },
+      });
     }
   }
 
