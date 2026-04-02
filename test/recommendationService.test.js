@@ -1,46 +1,17 @@
 const { expect } = require('chai');
 const proxyquire = require('proxyquire');
 
-process.env.SUPABASE_URL = process.env.SUPABASE_URL || 'https://example.supabase.co';
-process.env.SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || 'anon-key';
-process.env.SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || 'service-role-key';
-
-function createSupabaseStub({ recentRecipeIds = [], recipes = [] } = {}) {
+function createRecommendationRepositoryStub({ recentRecipeIds = [], recipes = [] } = {}) {
   return {
-    from(table) {
-      return {
-        select() {
-          return this;
-        },
-        eq() {
-          return this;
-        },
-        limit() {
-          if (table === 'recipe_meal') {
-            return Promise.resolve({
-              data: recentRecipeIds.map((recipeId) => ({ recipe_id: recipeId })),
-              error: null
-            });
-          }
-
-          if (table === 'recipes') {
-            return Promise.resolve({
-              data: recipes,
-              error: null
-            });
-          }
-
-          return Promise.resolve({ data: [], error: null });
-        }
-      };
-    }
+    getRecentRecipeIdsByUserId: async () => recentRecipeIds.map((recipeId) => ({ recipe_id: recipeId })),
+    getCandidateRecipes: async () => recipes,
   };
 }
 
 describe('Recommendation Service', () => {
   it('ranks recommendations using preferences and AI insight metadata', async () => {
     const service = proxyquire('../services/recommendationService', {
-      '../dbConnection': createSupabaseStub({
+      '../repositories/mobile/recommendationRepository': createRecommendationRepositoryStub({
         recentRecipeIds: [2],
         recipes: [
           {
@@ -129,41 +100,25 @@ describe('Recommendation Service', () => {
   it('returns cached results for repeated requests', async () => {
     let recipeQueryCount = 0;
     const service = proxyquire('../services/recommendationService', {
-      '../dbConnection': {
-        from(table) {
-          return {
-            select() {
-              return this;
-            },
-            eq() {
-              return this;
-            },
-            limit() {
-              if (table === 'recipe_meal') {
-                return Promise.resolve({ data: [], error: null });
-              }
-
-              recipeQueryCount += 1;
-              return Promise.resolve({
-                data: [{
-                  id: 1,
-                  recipe_name: 'Cached Meal',
-                  cuisine_id: 1,
-                  cooking_method_id: 1,
-                  calories: 450,
-                  protein: 20,
-                  fiber: 5,
-                  sugar: 5,
-                  sodium: 300,
-                  fat: 10,
-                  carbohydrates: 35,
-                  allergy: false,
-                  dislike: false
-                }],
-                error: null
-              });
-            }
-          };
+      '../repositories/mobile/recommendationRepository': {
+        getRecentRecipeIdsByUserId: async () => [],
+        getCandidateRecipes: async () => {
+          recipeQueryCount += 1;
+          return [{
+            id: 1,
+            recipe_name: 'Cached Meal',
+            cuisine_id: 1,
+            cooking_method_id: 1,
+            calories: 450,
+            protein: 20,
+            fiber: 5,
+            sugar: 5,
+            sodium: 300,
+            fat: 10,
+            carbohydrates: 35,
+            allergy: false,
+            dislike: false
+          }];
         }
       },
       '../model/fetchUserPreferences': async () => ({
@@ -201,7 +156,7 @@ describe('Recommendation Service', () => {
 
   it('falls back cleanly when the AI adapter reports failure', async () => {
     const service = proxyquire('../services/recommendationService', {
-      '../dbConnection': createSupabaseStub({
+      '../repositories/mobile/recommendationRepository': createRecommendationRepositoryStub({
         recipes: [{
           id: 4,
           recipe_name: 'Fallback Soup',
@@ -259,7 +214,7 @@ describe('Recommendation Service', () => {
     delete process.env.AI_RECOMMENDATION_URL;
 
     const service = proxyquire('../services/recommendationService', {
-      '../dbConnection': createSupabaseStub({
+      '../repositories/mobile/recommendationRepository': createRecommendationRepositoryStub({
         recipes: [{
           id: 4,
           recipe_name: 'Fallback Soup',
@@ -296,24 +251,11 @@ describe('Recommendation Service', () => {
 
   it('propagates recent recipe fetch failures instead of silently treating them as empty history', async () => {
     const service = proxyquire('../services/recommendationService', {
-      '../dbConnection': {
-        from(table) {
-          return {
-            select() {
-              return this;
-            },
-            eq() {
-              return this;
-            },
-            limit() {
-              if (table === 'recipe_meal') {
-                return Promise.resolve({ data: null, error: new Error('recent recipe query failed') });
-              }
-
-              return Promise.resolve({ data: [], error: null });
-            }
-          };
-        }
+      '../repositories/mobile/recommendationRepository': {
+        getRecentRecipeIdsByUserId: async () => {
+          throw new Error('recent recipe query failed');
+        },
+        getCandidateRecipes: async () => [],
       },
       '../model/fetchUserPreferences': async () => ({}),
       '../model/getUserProfile': async () => ([{ user_id: 8, email: 'cache@example.com' }]),
@@ -343,7 +285,7 @@ describe('Recommendation Service', () => {
 
   it('handles multiple medical reports and combines hint derivation signals', async () => {
     const service = proxyquire('../services/recommendationService', {
-      '../dbConnection': createSupabaseStub({
+      '../repositories/mobile/recommendationRepository': createRecommendationRepositoryStub({
         recipes: [{
           id: 1,
           recipe_name: 'Protein Bowl',

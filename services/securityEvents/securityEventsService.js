@@ -1,12 +1,26 @@
 const { SecurityEventType } = require('./securityEventTypes');
 const { SecurityEvent } = require('./securityEventModel');
 const { aggregateIncidents } = require('./securityIncidentAggregator');
-
-const supabase = require('../../dbConnection'); // Supabase client
+const securityEventsRepository = require('../../repositories/wearable-device/securityEventsRepository');
 
 function correlateSecurityEvents(events) {
   const incidents = aggregateIncidents(events) || [];
   return { events, incidents };
+}
+
+function inferAuditEventType(row) {
+  const eventType = String(row.event_type || row.action || '').toLowerCase();
+  const outcome = String(row.outcome || row.status || '').toLowerCase();
+
+  if (eventType.includes('login') && (outcome === 'success' || eventType.includes('success'))) {
+    return SecurityEventType.LOGIN_SUCCESS;
+  }
+
+  if (eventType.includes('login') && (outcome === 'failure' || outcome === 'failed' || eventType.includes('fail'))) {
+    return SecurityEventType.LOGIN_FAILURE;
+  }
+
+  return SecurityEventType.ANOMALY_DETECTED;
 }
 
 async function getSecurityEvents(fromDate, toDate) {
@@ -20,6 +34,15 @@ async function getSecurityEvents(fromDate, toDate) {
     { data: bruteLogs, error: bruteError },
     { data: sessions, error: sessionError },
     { data: auditLogs, error: auditError },
+    { data: errorLogs, error: errorLogError },
+    { data: rbacViolationLogs, error: rbacError },
+  ] = await Promise.all([
+    securityEventsRepository.fetchAuthLogs(fromIso, toIso),
+    securityEventsRepository.fetchBruteForceLogs(fromIso, toIso),
+    securityEventsRepository.fetchUserSessions(fromIso, toIso),
+    securityEventsRepository.fetchAuditLogs(fromIso, toIso),
+    securityEventsRepository.fetchErrorLogs(fromIso, toIso),
+    securityEventsRepository.fetchRbacViolationLogs(fromIso, toIso),
     { data: errorLogs, error: appError },
     { data: rbacLogs, error: rbacError },
   ] = await Promise.all([
@@ -186,91 +209,136 @@ async function getSecurityEvents(fromDate, toDate) {
     }
   }
 
-  // =========================
-  // AUDIT LOGS → Security Events
-  // =========================
-  if (auditLogs) {
-    auditLogs.forEach(log => {
+  // ===== 4) Audit events from public.audit_logs =====
+  if (auditError) {
+    console.error('Error loading audit_logs:', auditError);
+  } else if (auditLogs && auditLogs.length > 0) {
+    for (const row of auditLogs) {
       events.push({
-        occurredAt: log.created_at,
-        type: log.event_type || 'AUDIT_EVENT',
+        ...SecurityEvent,
+        id: `audit_${row.id || row.created_at}`,
+        occurredAt: row.created_at,
+        type: inferAuditEventType(row),
         severity: 'LOW',
+
         actor: {
-          userId: log.user_id,
-          email: null,
+          userId: row.user_id || null,
+          email: row.email || null,
+          role: row.role || null,
+        },
+
+        network: {
+          ip: row.ip_address || row.ip || null,
+          userAgent: row.user_agent || null,
+        },
+
+        session: {
+          sessionId: row.session_id || null,
+          refreshTokenHash: null,
+        },
+
+        source: {
+          system: 'supabase',
+          table: 'public.audit_logs',
+          recordId: row.id || null,
+        },
+
+        metadata: {
+          eventType: row.event_type || row.action || null,
+          outcome: row.outcome || row.status || null,
+          details: row.details || null,
+        },
+      });
+    }
+  }
+
+  // ===== 5) Application/system errors from public.error_logs =====
+  if (errorLogError) {
+    console.error('Error loading error_logs:', errorLogError);
+  } else if (errorLogs && errorLogs.length > 0) {
+    for (const row of errorLogs) {
+      events.push({
+        ...SecurityEvent,
+        id: `error_${row.id || row.created_at}`,
+        occurredAt: row.created_at,
+        type: SecurityEventType.ANOMALY_DETECTED,
+        severity: 'HIGH',
+
+        actor: {
+          userId: row.user_id || null,
+          email: row.email || null,
           role: null,
         },
-        network: {
-          ip: log.ip_address,
-          userAgent: log.user_agent,
-        },
-        source: {
-          system: 'supabase',
-          table: 'audit_logs',
-          recordId: log.id,
-        },
-        metadata: log.details || {},
-      });
-    });
-  }
 
-  // =========================
-  // ERROR LOGS → Security Events
-  // =========================
-  if (errorLogs) {
-    errorLogs.forEach(log => {
-      events.push({
-        occurredAt: log.created_at,
-        type: log.error_type || 'SYSTEM_ERROR',
-        severity: log.error_type === 'system' ? 'HIGH' : 'MEDIUM',
-        actor: {
-          userId: log.user_id,
-        },
         network: {
-          ip: log.ip_address,
+          ip: row.ip_address || row.ip || null,
+          userAgent: row.user_agent || null,
         },
+
+        session: {
+          sessionId: row.session_id || null,
+          refreshTokenHash: null,
+        },
+
         source: {
           system: 'supabase',
-          table: 'error_logs',
-          recordId: log.id,
+          table: 'public.error_logs',
+          recordId: row.id || null,
         },
+
         metadata: {
-          message: log.error_message,
+          errorType: row.error_type || null,
+          errorMessage: row.error_message || row.message || null,
+          endpoint: row.endpoint || null,
+          method: row.method || null,
         },
       });
-    });
+    }
   }
 
-  // =========================
-  // RBAC VIOLATIONS → Security Events
-  // =========================
-  if (rbacLogs) {
-    rbacLogs.forEach(log => {
+  // ===== 6) RBAC violations from public.rbac_violation_logs =====
+  if (rbacError) {
+    console.error('Error loading rbac_violation_logs:', rbacError);
+  } else if (rbacViolationLogs && rbacViolationLogs.length > 0) {
+    for (const row of rbacViolationLogs) {
       events.push({
-        occurredAt: log.created_at,
-        type: 'RBAC_VIOLATION',
+        ...SecurityEvent,
+        id: `rbac_${row.id || row.created_at}`,
+        occurredAt: row.created_at,
+        type: SecurityEventType.ANOMALY_DETECTED,
         severity: 'HIGH',
+
         actor: {
-          userId: log.user_id,
-          email: log.email,
-          role: log.role,
+          userId: row.user_id || null,
+          email: row.email || null,
+          role: row.role || null,
         },
+
         network: {
-          ip: null,
+          ip: row.ip_address || row.ip || null,
+          userAgent: row.user_agent || null,
         },
+
+        session: {
+          sessionId: row.session_id || null,
+          refreshTokenHash: null,
+        },
+
         source: {
           system: 'supabase',
-          table: 'rbac_violation_logs',
-          recordId: log.id,
+          table: 'public.rbac_violation_logs',
+          recordId: row.id || null,
         },
+
         metadata: {
-          endpoint: log.endpoint,
-          method: log.method,
-          status: log.status,
+          endpoint: row.endpoint || null,
+          method: row.method || null,
+          status: row.status || null,
         },
       });
-    });
+    }
   }
+
   // ===== sort by occurredAt (do this ONCE) =====
   events.sort((a, b) => String(a.occurredAt).localeCompare(String(b.occurredAt)));
 
