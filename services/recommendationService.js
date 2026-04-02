@@ -1,6 +1,6 @@
 const fetchUserPreferences = require('../model/fetchUserPreferences');
 const getUserProfile = require('../model/getUserProfile');
-const recommendationRepository = require('../repositories/wearable-device/recommendationRepository');
+const recommendationRepository = require('../repositories/mobile/recommendationRepository');
 const {
   AI_ADAPTER_VERSION,
   resolveAiRecommendationSignals
@@ -96,12 +96,12 @@ function normalizeHealthGoals(healthGoals) {
 }
 
 async function fetchRecentRecipeIds(userId) {
-  const recipeIds = await recommendationRepository.fetchRecentRecipeIds(userId);
-  return unique(recipeIds);
+  const rows = await recommendationRepository.getRecentRecipeIdsByUserId(userId, 20);
+  return unique((rows || []).map((row) => row.recipe_id));
 }
 
 async function fetchCandidateRecipes(limit = 50) {
-  return recommendationRepository.fetchCandidateRecipes(limit);
+  return recommendationRepository.getCandidateRecipes(limit);
 }
 
 function buildExplanation(reasons, fallbackReason) {

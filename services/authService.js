@@ -1,7 +1,18 @@
+const { createClient } = require('@supabase/supabase-js');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
-const authRepository = require('../repositories/wearable-device/authRepository');
+const { ServiceError } = require('./serviceError');
+
+const supabaseAnon = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_ANON_KEY
+);
+
+const supabaseService = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
 
 class AuthService {
   constructor() {
@@ -27,31 +38,40 @@ class AuthService {
     const { name, email, password, first_name, last_name } = userData;
 
     try {
-      const existingUser = await authRepository.findUserIdByEmail(email).catch((error) => {
-        if (error.code === 'PGRST116') {
-          return null;
-        }
-        throw error;
-      });
+      if (!name || !email || !password) {
+        throw new ServiceError(400, 'Name, email, and password are required');
+      }
+
+      const { data: existingUser } = await supabaseAnon
+        .from('users')
+        .select('user_id')
+        .eq('email', email)
+        .single();
 
       if (existingUser) {
-        throw new Error('User already exists');
+        throw new ServiceError(400, 'User already exists');
       }
 
       const hashedPassword = await bcrypt.hash(password, 12);
 
-      const newUser = await authRepository.createUser({
-        name,
-        email,
-        password: hashedPassword,
-        first_name,
-        last_name,
-        role_id: 7,
-        account_status: 'active',
-        email_verified: false,
-        mfa_enabled: false,
-        registration_date: new Date().toISOString()
-      });
+      const { data: newUser, error } = await supabaseAnon
+        .from('users')
+        .insert({
+          name,
+          email,
+          password: hashedPassword,
+          first_name,
+          last_name,
+          role_id: 7,
+          account_status: 'active',
+          email_verified: false,
+          mfa_enabled: false,
+          registration_date: new Date().toISOString()
+        })
+        .select('user_id, email, name')
+        .single();
+
+      if (error) throw error;
 
       return {
         success: true,
@@ -59,7 +79,11 @@ class AuthService {
         message: 'User registered successfully'
       };
     } catch (error) {
-      throw new Error(`Registration failed: ${error.message}`);
+      if (error instanceof ServiceError) {
+        throw error;
+      }
+
+      throw new ServiceError(400, `Registration failed: ${error.message}`);
     }
   }
 
@@ -70,22 +94,32 @@ class AuthService {
     const { email, password } = loginData;
 
     try {
-      const user = await authRepository.findUserWithRoleByEmail(email).catch((error) => {
-        if (error.code === 'PGRST116') {
-          return null;
-        }
-        throw error;
-      });
+      if (!email || !password) {
+        throw new ServiceError(400, 'Email and password are required');
+      }
 
-      if (!user) throw new Error('Invalid credentials');
-      if (user.account_status !== 'active') throw new Error('Account is not active');
+      const { data: user, error } = await supabaseAnon
+        .from('users')
+        .select(`
+          user_id, email, password, name, role_id,
+          account_status, email_verified,
+          user_roles!inner(id, role_name)
+        `)
+        .eq('email', email)
+        .single();
+
+      if (error || !user) throw new ServiceError(401, 'Invalid credentials');
+      if (user.account_status !== 'active') throw new ServiceError(403, 'Account is not active');
 
       const validPassword = await bcrypt.compare(password, user.password);
-      if (!validPassword) throw new Error('Invalid credentials');
+      if (!validPassword) throw new ServiceError(401, 'Invalid credentials');
 
       const tokens = await this.generateTokenPair(user, deviceInfo);
 
-      await authRepository.updateLastLogin(user.user_id, new Date().toISOString());
+      await supabaseAnon
+        .from('users')
+        .update({ last_login: new Date().toISOString() })
+        .eq('user_id', user.user_id);
 
       await this.logAuthAttempt(user.user_id, email, true, deviceInfo);
 
@@ -101,7 +135,11 @@ class AuthService {
       };
     } catch (error) {
       await this.logAuthAttempt(null, email, false, deviceInfo);
-      throw error;
+      if (error instanceof ServiceError) {
+        throw error;
+      }
+
+      throw new ServiceError(401, error.message);
     }
   }
 
@@ -123,24 +161,31 @@ class AuthService {
         { expiresIn: this.accessTokenExpiry, algorithm: 'HS256' }
       );
 
-      await authRepository.deactivateSessionsByUserId(user.user_id);
+      await supabaseService
+         .from('user_sessiontoken')
+         .update({ is_active: false })
+         .eq('user_id', user.user_id);
 
       const rawRefreshToken = crypto.randomBytes(32).toString('hex');
       const hashedRefreshToken = await bcrypt.hash(rawRefreshToken, 12);
       const lookupHash = this.createLookupHash(rawRefreshToken);
       const expiresAt = new Date(Date.now() + this.refreshTokenExpiry);
 
-      await authRepository.createRefreshSession({
-        user_id: user.user_id,
-        refresh_token: hashedRefreshToken,
-        refresh_token_lookup: lookupHash,
-        token_type: 'refresh',
-        device_info: deviceInfo,
-        ip_address: deviceInfo.ip || null,
-        user_agent: deviceInfo.userAgent || null,
-        expires_at: expiresAt.toISOString(),
-        is_active: true
-      });
+      const { error } = await supabaseService
+        .from('user_sessiontoken')
+        .insert({
+          user_id: user.user_id,
+          refresh_token: hashedRefreshToken,
+          refresh_token_lookup: lookupHash,
+          token_type: 'refresh',
+          device_info: deviceInfo,
+          ip_address: deviceInfo.ip || null,
+          user_agent: deviceInfo.userAgent || null,
+          expires_at: expiresAt.toISOString(),
+          is_active: true
+        });
+
+      if (error) throw error;
 
       return {
         accessToken,
@@ -158,51 +203,77 @@ class AuthService {
      ========================= */
   async refreshAccessToken(refreshToken, deviceInfo = {}) {
     try {
-      
+      if (!refreshToken) {
+        throw new ServiceError(400, 'Refresh token is required');
+      }
 
       const lookupHash = this.createLookupHash(refreshToken);
 
-      const sessions = await authRepository.findActiveSessionsByLookupHash(lookupHash);
-
-      if (!sessions || sessions.length === 0) {
-        throw new Error('Invalid refresh token');
+      const { data: sessions, error } = await supabaseService
+        .from('user_sessiontoken')
+        .select(`
+          id,
+          user_id,
+          refresh_token,
+          refresh_token_lookup,
+          expires_at,
+          is_active
+        `)
+        .eq('refresh_token_lookup', lookupHash)
+        .eq('is_active', true)
+        .limit(1);
+      
+      if (error || !sessions || sessions.length === 0) {
+        throw new ServiceError(401, 'Invalid refresh token');
       }
 
       const session = sessions[0];
 
       const match = await bcrypt.compare(refreshToken, session.refresh_token);
-      if (!match) throw new Error('Invalid refresh token');
+      if (!match) throw new ServiceError(401, 'Invalid refresh token');
 
       if (new Date(session.expires_at) < new Date()) {
-        throw new Error('Refresh token expired');
+        throw new ServiceError(401, 'Refresh token expired');
       }
 
-      const user = await authRepository.findUserById(session.user_id).catch((error) => {
-        if (error.code === 'PGRST116') {
-          return null;
-        }
-        throw error;
-      });
+      const { data: user, error: userError } = await supabaseAnon
+         .from('users')
+         .select(`
+           user_id,
+           email,
+           name,
+           role_id,
+           account_status
+          `)
+          .eq('user_id', session.user_id)
+          .single();
 
-      if (!user) {
-        throw new Error('User not found');
+      if (userError || !user) {
+        throw new ServiceError(404, 'User not found');
       }
 
       if (user.account_status !== 'active') {
-        throw new Error('Account is not active');
+        throw new ServiceError(403, 'Account is not active');
       }
 
 
       const newTokens = await this.generateTokenPair(user, deviceInfo);
 
-      await authRepository.deactivateSessionById(session.id);
+      await supabaseService
+        .from('user_sessiontoken')
+        .update({ is_active: false })
+        .eq('id', session.id);
 
       return {
         success: true,
         ...newTokens
       };
     } catch (error) {
-      throw new Error(`Token refresh failed: ${error.message}`);
+      if (error instanceof ServiceError) {
+        throw error;
+      }
+
+      throw new ServiceError(401, `Token refresh failed: ${error.message}`);
     }
   }
 
@@ -211,13 +282,24 @@ class AuthService {
      ========================= */
   async logout(refreshToken) {
     try {
+      if (!refreshToken) {
+        throw new ServiceError(400, 'Refresh token is required');
+      }
+
       const lookupHash = this.createLookupHash(refreshToken);
 
-      await authRepository.deactivateSessionsByLookupHash(lookupHash);
+      await supabaseService
+        .from('user_sessiontoken')
+        .update({ is_active: false })
+        .eq('refresh_token_lookup', lookupHash);
 
       return { success: true, message: 'Logout successful' };
     } catch (error) {
-      throw new Error(`Logout failed: ${error.message}`);
+      if (error instanceof ServiceError) {
+        throw error;
+      }
+
+      throw new ServiceError(500, `Logout failed: ${error.message}`);
     }
   }
 
@@ -226,11 +308,22 @@ class AuthService {
      ========================= */
   async logoutAll(userId) {
     try {
-      await authRepository.deactivateSessionsByUserId(userId);
+      if (!userId) {
+        throw new ServiceError(400, 'User ID is required');
+      }
+
+      await supabaseService
+        .from('user_sessiontoken')
+        .update({ is_active: false })
+        .eq('user_id', userId);
 
       return { success: true, message: 'Logged out from all devices' };
     } catch (error) {
-      throw new Error(`Logout all failed: ${error.message}`);
+      if (error instanceof ServiceError) {
+        throw error;
+      }
+
+      throw new ServiceError(500, `Logout all failed: ${error.message}`);
     }
   }
 
@@ -246,13 +339,15 @@ class AuthService {
      ========================= */
   async logAuthAttempt(userId, email, success, deviceInfo) {
     try {
-      await authRepository.insertAuthLog({
-        user_id: userId,
-        email,
-        success,
-        ip_address: deviceInfo.ip || null,
-        created_at: new Date().toISOString()
-      });
+      await supabaseAnon
+        .from('auth_logs')
+        .insert({
+          user_id: userId,
+          email,
+          success,
+          ip_address: deviceInfo.ip || null,
+          created_at: new Date().toISOString()
+        });
     } catch {
       // silent by design
     }
@@ -263,10 +358,94 @@ class AuthService {
      ========================= */
   async cleanupExpiredSessions() {
     try {
-      await authRepository.deactivateExpiredSessions(new Date().toISOString());
+      await supabaseService
+        .from('user_sessiontoken')
+        .update({ is_active: false })
+        .lt('expires_at', new Date().toISOString());
     } catch {
       // silent by design
     }
+  }
+
+  async getProfile(userId) {
+    if (!userId) {
+      throw new ServiceError(400, 'User ID is required');
+    }
+
+    const { data: user, error } = await supabaseAnon
+      .from('users')
+      .select(`
+        user_id, email, name, first_name, last_name,
+        registration_date, last_login, account_status,
+        user_roles!inner(role_name)
+      `)
+      .eq('user_id', userId)
+      .single();
+
+    if (error || !user) {
+      throw new ServiceError(404, 'User not found');
+    }
+
+    return {
+      success: true,
+      user: {
+        id: user.user_id,
+        email: user.email,
+        name: user.name,
+        firstName: user.first_name,
+        lastName: user.last_name,
+        role: user.user_roles?.role_name,
+        registrationDate: user.registration_date,
+        lastLogin: user.last_login,
+        accountStatus: user.account_status
+      }
+    };
+  }
+
+  async logLoginAttempt({ email, userId, success, ipAddress, createdAt }) {
+    if (!email || success === undefined || !ipAddress || !createdAt) {
+      throw new ServiceError(400, 'Missing required fields: email, success, ip_address, created_at');
+    }
+
+    const { error } = await supabaseAnon.from('auth_logs').insert([
+      {
+        email,
+        user_id: userId || null,
+        success,
+        ip_address: ipAddress,
+        created_at: createdAt
+      }
+    ]);
+
+    if (error) {
+      throw new ServiceError(500, 'Failed to log login attempt');
+    }
+
+    return { message: 'Login attempt logged successfully' };
+  }
+
+  async sendSmsCodeByEmail(email) {
+    if (!email) {
+      throw new ServiceError(400, 'Email is required');
+    }
+
+    const { data, error } = await supabaseAnon
+      .from('users')
+      .select('contact_number')
+      .eq('email', email)
+      .single();
+
+    if (error || !data?.contact_number) {
+      throw new ServiceError(404, 'Phone number not found for the given email');
+    }
+
+    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+    console.log(`📨 [DEV] Verification code for ${data.contact_number}: ${verificationCode}`);
+
+    return {
+      message: 'SMS code sent (check server console for code)',
+      phone: data.contact_number
+    };
   }
 }
 
