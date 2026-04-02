@@ -43,6 +43,15 @@ async function getSecurityEvents(fromDate, toDate) {
     securityEventsRepository.fetchAuditLogs(fromIso, toIso),
     securityEventsRepository.fetchErrorLogs(fromIso, toIso),
     securityEventsRepository.fetchRbacViolationLogs(fromIso, toIso),
+    { data: errorLogs, error: appError },
+    { data: rbacLogs, error: rbacError },
+  ] = await Promise.all([
+    supabase.from('auth_logs').select('*').gte('created_at', fromIso).lte('created_at', toIso),
+    supabase.from('brute_force_logs').select('*').gte('created_at', fromIso).lte('created_at', toIso),
+    supabase.from('user_session').select('*').gte('created_at', fromIso).lte('created_at', toIso),
+    supabase.from('audit_logs').select('*').gte('created_at', fromIso).lte('created_at', toIso),
+    supabase.from('error_logs').select('*').gte('created_at', fromIso).lte('created_at', toIso),
+    supabase.from('rbac_violation_logs').select('*').gte('created_at', fromIso).lte('created_at', toIso),
   ]);
 
   // ===== 1) Login events from public.auth_logs =====
