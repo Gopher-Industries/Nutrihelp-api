@@ -1,10 +1,12 @@
 console.log("🟢 Loaded AuthService from:", __filename);
 console.log("URL:", process.env.SUPABASE_URL);
 console.log("KEY:", process.env.SUPABASE_ANON_KEY);
+console.log("LOGIN FUNCTION HIT");
 const { createClient } = require('@supabase/supabase-js');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
+const { logSecurityEvent } = require('./securityEventService');
 
 const supabaseAnon = createClient(
   process.env.SUPABASE_URL,
@@ -85,6 +87,7 @@ class AuthService {
      Login
      ========================= */
   async login(loginData, deviceInfo = {}) {
+    console.log("LOGIN FUNCTION HIT");
     const { email, password } = loginData;
 
     try {
@@ -98,11 +101,59 @@ class AuthService {
         .eq('email', email)
         .single();
 
-      if (error || !user) throw new Error('Invalid credentials');
-      if (user.account_status !== 'active') throw new Error('Account is not active');
+      if (error || !user) {
+        await logSecurityEvent({
+          event_type: "LOGIN_FAILED",
+          severity: "medium",
+          user_id: null,
+          ip_address: deviceInfo.ip || null,
+          user_agent: deviceInfo.userAgent || null,
+          resource: "/api/auth/login",
+          metadata: {
+            email,
+            reason: "user_not_found"
+          }
+        });
+
+        throw new Error('Invalid credentials');
+      }
+
+      if (user.account_status !== 'active') {
+        await logSecurityEvent({
+          event_type: "LOGIN_FAILED",
+          severity: "medium",
+          user_id: user.user_id,
+          ip_address: deviceInfo.ip || null,
+          user_agent: deviceInfo.userAgent || null,
+          resource: "/api/auth/login",
+          metadata: {
+            email,
+            reason: "account_inactive"
+          }
+        });
+
+        throw new Error('Account is not active');
+      }
 
       const validPassword = await bcrypt.compare(password, user.password);
-      if (!validPassword) throw new Error('Invalid credentials');
+
+      if (!validPassword) {
+        console.log("LOGIN FAILED TRIGGERED");
+        await logSecurityEvent({
+          event_type: "LOGIN_FAILED",
+          severity: "medium",
+          user_id: user.user_id,
+          ip_address: deviceInfo.ip || null,
+          user_agent: deviceInfo.userAgent || null,
+          resource: "/api/auth/login",
+          metadata: {
+            email,
+            reason: "invalid_password"
+          }
+        });
+
+        throw new Error('Invalid credentials');
+      }
 
       const tokens = await this.generateTokenPair(user, deviceInfo);
 
@@ -112,6 +163,18 @@ class AuthService {
         .eq('user_id', user.user_id);
 
       await this.logAuthAttempt(user.user_id, email, true, deviceInfo);
+
+      await logSecurityEvent({
+        event_type: "LOGIN_SUCCESS",
+        severity: "low",
+        user_id: user.user_id,
+        ip_address: deviceInfo.ip || null,
+        user_agent: deviceInfo.userAgent || null,
+        resource: "/api/auth/login",
+        metadata: {
+          email
+        }
+      });
 
       return {
         success: true,
@@ -148,9 +211,9 @@ class AuthService {
       );
 
       await supabaseService
-         .from('user_sessiontoken')
-         .update({ is_active: false })
-         .eq('user_id', user.user_id);
+        .from('user_sessiontoken')
+        .update({ is_active: false })
+        .eq('user_id', user.user_id);
 
       const rawRefreshToken = crypto.randomBytes(32).toString('hex');
       const hashedRefreshToken = await bcrypt.hash(rawRefreshToken, 12);
@@ -189,8 +252,6 @@ class AuthService {
      ========================= */
   async refreshAccessToken(refreshToken, deviceInfo = {}) {
     try {
-      
-
       const lookupHash = this.createLookupHash(refreshToken);
 
       const { data: sessions, error } = await supabaseService
@@ -206,8 +267,6 @@ class AuthService {
         .eq('refresh_token_lookup', lookupHash)
         .eq('is_active', true)
         .limit(1);
-      
-      console.log('supabase query result:', { sessions, error});
 
       if (error || !sessions || sessions.length === 0) {
         throw new Error('Invalid refresh token');
@@ -223,16 +282,16 @@ class AuthService {
       }
 
       const { data: user, error: userError } = await supabaseAnon
-         .from('users')
-         .select(`
-           user_id,
-           email,
-           name,
-           role_id,
-           account_status
-          `)
-          .eq('user_id', session.user_id)
-          .single();
+        .from('users')
+        .select(`
+          user_id,
+          email,
+          name,
+          role_id,
+          account_status
+        `)
+        .eq('user_id', session.user_id)
+        .single();
 
       if (userError || !user) {
         throw new Error('User not found');
@@ -241,7 +300,6 @@ class AuthService {
       if (user.account_status !== 'active') {
         throw new Error('Account is not active');
       }
-
 
       const newTokens = await this.generateTokenPair(user, deviceInfo);
 

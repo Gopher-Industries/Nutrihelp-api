@@ -7,6 +7,7 @@ const nodemailer = require("nodemailer");
 const crypto = require("crypto");
 const supabase = require("../dbConnection");
 const { validationResult } = require("express-validator");
+const { logSecurityEvent } = require("../services/securityEventService");
 
 // Nodemailer transporter using Gmail no-reply account
 const transporter = nodemailer.createTransport({
@@ -18,6 +19,7 @@ const transporter = nodemailer.createTransport({
 });
 
 const login = async (req, res) => {
+  console.log("LOGIN CONTROLLER HIT");
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({ errors: errors.array() });
@@ -56,38 +58,67 @@ const login = async (req, res) => {
     const user = await getUserCredentials(email);
     const userExists = user !== null && user !== undefined;
 
-    if (!userExists) {
-      await supabase.from("brute_force_logs").insert([{
-        email,
-        ip_address: clientIp,
-        success: false,
-        created_at: new Date().toISOString()
-      }]);
-      await sendFailedLoginAlert(email, clientIp);
-      return res.status(404).json({
-        error: "Account not found. Please create an account first."
-      });
+if (!userExists) {
+  await supabase.from("brute_force_logs").insert([{
+    email,
+    ip_address: clientIp,
+    success: false,
+    created_at: new Date().toISOString()
+  }]);
+
+  await logSecurityEvent({
+    event_type: "LOGIN_FAILED",
+    severity: "medium",
+    user_id: null,
+    ip_address: clientIp,
+    user_agent: req.headers["user-agent"],
+    resource: "/api/auth/login",
+    metadata: {
+      email,
+      reason: "account_not_found"
     }
+  });
+
+  await sendFailedLoginAlert(email, clientIp);
+  return res.status(404).json({
+    error: "Account not found. Please create an account first."
+  });
+}
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
 
-    if (!isPasswordValid) {
-      await supabase.from("brute_force_logs").insert([{
-        email,
-        ip_address: clientIp,
-        success: false,
-        created_at: new Date().toISOString()
-      }]);
+   if (!isPasswordValid) {
+  await supabase.from("brute_force_logs").insert([{
+    email,
+    ip_address: clientIp,
+    success: false,
+    created_at: new Date().toISOString()
+  }]);
 
-      if (failureCount === 4) {
-        return res.status(429).json({
-          warning: "⚠ You have one attempt left before your account is temporarily locked."
-        });
-      }
+  console.log("About to log LOGIN_FAILED event");
 
-      await sendFailedLoginAlert(email, clientIp);
-      return res.status(401).json({ error: "Invalid password" });
+  await logSecurityEvent({
+    event_type: "LOGIN_FAILED",
+    severity: "medium",
+    user_id: user.user_id,
+    ip_address: clientIp,
+    user_agent: req.headers["user-agent"],
+    resource: "/api/auth/login",
+    metadata: {
+      email,
+      reason: "invalid_password"
     }
+  });
+
+  if (failureCount === 4) {
+    return res.status(429).json({
+      warning: "⚠ You have one attempt left before your account is temporarily locked."
+    });
+  }
+
+  await sendFailedLoginAlert(email, clientIp);
+  return res.status(401).json({ error: "Invalid password" });
+}
 
     // Log successful login attempt and clear failures
     await supabase.from("brute_force_logs").insert([{
@@ -111,11 +142,24 @@ const login = async (req, res) => {
     }
 
     await logLoginEvent({
-      userId: user.user_id,
-      eventType: "LOGIN_SUCCESS",
-      ip: clientIp,
-      userAgent: req.headers["user-agent"]
-    });
+  userId: user.user_id,
+  eventType: "LOGIN_SUCCESS",
+  ip: clientIp,
+  userAgent: req.headers["user-agent"]
+});
+
+await logSecurityEvent({
+  event_type: "LOGIN_SUCCESS",
+  severity: "low",
+  user_id: user.user_id,
+  session_id: null,
+  ip_address: clientIp,
+  user_agent: req.headers["user-agent"],
+  resource: "/api/auth/login",
+  metadata: {
+    email
+  }
+});
 
     const token = jwt.sign(
       {
