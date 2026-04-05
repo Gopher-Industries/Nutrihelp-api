@@ -17,8 +17,6 @@ tags:
   description: Home Service API
 - name: Auth
   description: Authentication and user session endpoints
-- name: Authentication
-  description: Login, MFA, and password management endpoints
 paths:
   /account:
     get:
@@ -3434,124 +3432,7 @@ paths:
 
                 brute_4092...,2025-12-04T07:24:13.965+00:00,BRUTE_FORCE_DETECTED,,,,,public.brute_force_logs,"{""email"":""john@nutrihelp.com""}"
 
-  /userpassword/verify:
-    post:
-      tags:
-        - Authentication
-      summary: Verify the authenticated user's current password
-      description: Checks whether the supplied current password matches the authenticated account before continuing the password change flow.
-      security:
-        - BearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [password]
-              properties:
-                password:
-                  type: string
-                  example: CurrentPass123!
-                user_id:
-                  type: string
-                  description: Optional. If supplied, it must match the authenticated token userId.
-                  example: user-123
-      responses:
-        '200':
-          description: Current password verified successfully
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                    example: Current password verified
-                  verified:
-                    type: boolean
-                    example: true
-        '400':
-          description: Missing current password
-        '401':
-          description: Invalid access token or incorrect current password
-        '403':
-          description: Body user_id does not match the authenticated account
-        '404':
-          description: User not found
-        '429':
-          description: Too many password verification attempts
-        '500':
-          description: Internal server error
-
-  /userpassword/update:
-    put:
-      tags:
-        - Authentication
-      summary: Update the authenticated user's password
-      description: Updates the password for the authenticated user, invalidates active sessions, and returns the reauthentication flow the client should follow next.
-      security:
-        - BearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [password, new_password, confirm_password]
-              properties:
-                password:
-                  type: string
-                  description: Current password
-                  example: CurrentPass123!
-                new_password:
-                  type: string
-                  description: New password that satisfies the backend password policy
-                  example: NewPass123!
-                confirm_password:
-                  type: string
-                  description: Must exactly match new_password
-                  example: NewPass123!
-                user_id:
-                  type: string
-                  description: Optional. If supplied, it must match the authenticated token userId.
-                  example: user-123
-      responses:
-        '200':
-          description: Password updated successfully
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                    example: Password updated successfully
-                  code:
-                    type: string
-                    example: PASSWORD_UPDATED
-                  require_reauthentication:
-                    type: boolean
-                    example: true
-                  require_mfa:
-                    type: boolean
-                    example: true
-                  reauthentication_flow:
-                    type: string
-                    enum: [LOGIN, LOGIN_MFA]
-                    example: LOGIN_MFA
-        '400':
-          description: Missing current/new/confirm password, weak password, password mismatch, or password reuse
-        '401':
-          description: Invalid access token or incorrect current password
-        '403':
-          description: Body user_id does not match the authenticated account
-        '404':
-          description: User not found
-        '429':
-          description: Too many password verification or update attempts
-        '500':
-          description: Internal server error
+                '
 components:
   securitySchemes:
     BearerAuth:
