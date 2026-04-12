@@ -1,5 +1,5 @@
 const supabase = require("../dbConnection.js");
-const { saveUserPreferenceState } = require('../services/userPreferenceStore');
+const { EMPTY_HEALTH_CONTEXT, saveUserPreferenceState } = require("./userPreferenceState");
 
 function listFromHealthContext(items = []) {
   return (Array.isArray(items) ? items : [])
@@ -97,11 +97,11 @@ async function updateUserPreferences(userId, body = {}) {
       body.notification_preferences !== undefined ||
       body.ui_settings !== undefined
     ) {
-      saveUserPreferenceState(userId, (current) => ({
+      await saveUserPreferenceState(userId, (current) => ({
         ...current,
         health_context: body.health_context !== undefined
           ? normalizeHealthContext(body.health_context)
-          : current.health_context || { allergies: [], chronic_conditions: [], medications: [] },
+          : current.health_context || EMPTY_HEALTH_CONTEXT,
         notification_preferences: body.notification_preferences !== undefined
           ? normalizeNotificationPreferences(body.notification_preferences)
           : current.notification_preferences || {},

@@ -1,5 +1,5 @@
 const supabase = require("../dbConnection.js");
-const { getUserPreferenceState } = require('../services/userPreferenceStore');
+const { getUserPreferenceState, EMPTY_HEALTH_CONTEXT } = require("./userPreferenceState");
 
 async function fetchUserPreferences(userId) {
     try {
@@ -45,7 +45,7 @@ async function fetchUserPreferences(userId) {
             .eq('user_id', userId);
         if (cmError) throw cmError;
 
-        const storedState = getUserPreferenceState(userId);
+        const storedState = await getUserPreferenceState(userId);
 
         return {
             dietary_requirements: dietaryRequirements,
@@ -55,11 +55,7 @@ async function fetchUserPreferences(userId) {
             health_conditions: healthConditions,
             spice_levels: spiceLevels,
             cooking_methods: cookingMethods,
-            health_context: storedState.health_context || {
-                allergies: [],
-                chronic_conditions: [],
-                medications: []
-            },
+            health_context: storedState.health_context || EMPTY_HEALTH_CONTEXT,
             notification_preferences: storedState.notification_preferences || {},
             ui_settings: storedState.ui_settings || {}
         };
