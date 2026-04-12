@@ -1,71 +1,75 @@
-require("dotenv").config();
-const chai = require("chai");
-const chaiHttp = require("chai-http");
-const { addTestUser, deleteTestUser, getToken } = require("./test-helpers");
-const { expect } = chai;
-chai.use(chaiHttp);
+const { expect } = require('chai');
+const sinon = require('sinon');
+const proxyquire = require('proxyquire').noCallThru();
 
-describe("userPreferences Tests", () => {
-	let testUser;
-	let token;
-	let req;
+describe('User Preferences Controller', () => {
+  afterEach(() => {
+    sinon.restore();
+  });
 
-	before(async function () {
-		testUser = await addTestUser();
-		req = {
-			dietary_requirements: [1, 2, 4],
-			allergies: [1],
-			cuisines: [2, 5],
-			dislikes: [4],
-			health_conditions: [],
-			spice_levels: [1, 2],
-			cooking_methods: [1, 4, 5],
-			user: {
-				userId: testUser.user_id,
-			},
-		};
-	});
+  it('returns the authenticated user preferences without requiring body.user', async () => {
+    const fetchUserPreferences = sinon.stub().resolves({
+      dietary_requirements: [{ id: 1, name: 'Vegetarian' }],
+      allergies: [{ id: 2, name: 'Peanuts' }],
+      cuisines: [],
+      dislikes: [],
+      health_conditions: [],
+      spice_levels: [],
+      cooking_methods: [],
+      health_context: { allergies: [], chronic_conditions: [], medications: [] },
+      notification_preferences: {},
+      ui_settings: {}
+    });
 
-	beforeEach(async function () {
-		let loginRequest = {
-			email: testUser.email,
-			password: "testuser123",
-		};
-		const res = await chai
-			.request("http://localhost:80")
-			.post("/api/login")
-			.send(loginRequest);
+    const controller = proxyquire('../controller/userPreferencesController', {
+      '../model/fetchUserPreferences': fetchUserPreferences,
+      '../model/updateUserPreferences': sinon.stub(),
+      '../services/userPreferencesService': {},
+      '../utils/logger': { error: sinon.stub() }
+    });
 
-		token = res.body.token;
-	});
+    const req = { user: { userId: 55 } };
+    const res = {
+      status: sinon.stub().returnsThis(),
+      json: sinon.stub()
+    };
 
-	after(async function () {
-		await deleteTestUser(testUser.user_id);
-	});
+    await controller.getUserPreferences(req, res);
 
-	it("should return 400, Missing UserId", (done) => {
-		chai.request("http://localhost:80")
-			.post("/api/user/preferences")
-			.send({})
-			.set("Authorization", `Bearer ${token}`)
-			.end((err, res) => {
-				expect(res).to.have.status(400);
-				expect(res.body)
-					.to.have.property("error")
-					.that.equals("User ID is required");
-				done();
-			});
-	});
+    expect(fetchUserPreferences.calledOnceWith(55)).to.equal(true);
+    expect(res.status.calledWith(200)).to.equal(true);
+  });
 
-	it("should return 204, Add User Feedback Successful", (done) => {
-		chai.request("http://localhost:80")
-			.post("/api/user/preferences")
-			.send(req)
-			.set("Authorization", `Bearer ${token}`)
-			.end((err, res) => {
-				if (err) return done(err);
-				expect(res).to.have.status(204);
-				done();
-			});
-	});
+  it('updates preferences using the authenticated user id', async () => {
+    const updateUserPreferences = sinon.stub().resolves();
+
+    const controller = proxyquire('../controller/userPreferencesController', {
+      '../model/fetchUserPreferences': sinon.stub(),
+      '../model/updateUserPreferences': updateUserPreferences,
+      '../services/userPreferencesService': {},
+      '../utils/logger': { error: sinon.stub() }
+    });
+
+    const req = {
+      user: { userId: 55 },
+      body: {
+        health_context: {
+          medications: [{
+            name: 'Metformin',
+            dosage: { amount: '500', unit: 'mg' },
+            frequency: { timesPerDay: 2 }
+          }]
+        }
+      }
+    };
+    const res = {
+      status: sinon.stub().returnsThis(),
+      send: sinon.stub()
+    };
+
+    await controller.postUserPreferences(req, res);
+
+    expect(updateUserPreferences.calledOnceWith(55, req.body)).to.equal(true);
+    expect(res.status.calledWith(204)).to.equal(true);
+  });
 });

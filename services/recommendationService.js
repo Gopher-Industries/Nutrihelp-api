@@ -5,6 +5,7 @@ const {
   AI_ADAPTER_VERSION,
   resolveAiRecommendationSignals
 } = require('./recommendationAiAdapter');
+const { buildStructuredHealthContext } = require('./userPreferencesService');
 
 const DEFAULT_MAX_RESULTS = 5;
 const DEFAULT_CACHE_TTL_MS = 5 * 60 * 1000;
@@ -353,18 +354,19 @@ async function generateRecommendations({
     spiceLevels: normalizeNameList(preferenceData.spice_levels),
     cookingMethods: normalizeNameList(preferenceData.cooking_methods)
   };
+  const structuredHealthContext = buildStructuredHealthContext(preferenceData);
 
   const mergedGoalState = {
     ...goalState,
     prioritizeFiber: goalState.prioritizeFiber
       || aiContext.hints.prioritizeFiber === true
-      || preferenceSummary.healthConditions.some((condition) => condition.includes('diabetes')),
+      || structuredHealthContext.normalized_summary.chronicConditionNames.some((condition) => condition.includes('diabetes')),
     prioritizeProtein: goalState.prioritizeProtein || aiContext.hints.prioritizeProtein === true,
     limitSugar: goalState.limitSugar
       || aiContext.hints.limitSugar === true
-      || preferenceSummary.healthConditions.some((condition) => condition.includes('diabetes')),
+      || structuredHealthContext.normalized_summary.chronicConditionNames.some((condition) => condition.includes('diabetes')),
     limitSodium: goalState.limitSodium
-      || preferenceSummary.healthConditions.some((condition) => condition.includes('hypertension') || condition.includes('blood pressure')),
+      || structuredHealthContext.normalized_summary.chronicConditionNames.some((condition) => condition.includes('hypertension') || condition.includes('blood pressure')),
     labels: unique([
       ...goalState.labels,
       ...(normalizeNameList(aiContext.hints.goalLabels))
@@ -425,6 +427,7 @@ async function generateRecommendations({
     userContext: {
       profile,
       preferences: preferenceSummary,
+      healthContext: structuredHealthContext,
       recentRecipeIds
     },
     recommendations

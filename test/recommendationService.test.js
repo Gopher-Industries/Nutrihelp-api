@@ -82,7 +82,16 @@ describe('Recommendation Service', () => {
         dislikes: [],
         health_conditions: [{ id: 7, name: 'Diabetes' }],
         spice_levels: [],
-        cooking_methods: [{ id: 3, name: 'Grilled' }]
+        cooking_methods: [{ id: 3, name: 'Grilled' }],
+        health_context: {
+          allergies: [],
+          chronic_conditions: [{ referenceId: 7, status: 'managed', notes: 'monitor glucose' }],
+          medications: [{
+            name: 'Metformin',
+            dosage: { amount: '500', unit: 'mg' },
+            frequency: { timesPerDay: 2 }
+          }]
+        }
       }),
       '../model/getUserProfile': async () => ([{ user_id: 5, email: 'user@example.com', first_name: 'Alex' }]),
       './recommendationAiAdapter': {
@@ -124,6 +133,23 @@ describe('Recommendation Service', () => {
     expect(result.recommendations[0].explanation).to.include('preferred cuisine');
     expect(result.recommendations[0].metadata.sourceTags).to.include('request');
     expect(result.source.ai.applied).to.equal(true);
+    expect(result.userContext.profile).to.deep.include({
+      id: 5,
+      email: 'user@example.com',
+      firstName: 'Alex'
+    });
+    expect(result.userContext.preferences).to.deep.include({
+      cuisines: ['mediterranean'],
+      hasPreferences: true
+    });
+    expect(result.userContext.healthContext.chronic_conditions[0]).to.deep.include({
+      referenceId: 7,
+      name: 'Diabetes',
+      status: 'managed'
+    });
+    expect(result.userContext.healthContext.medications[0]).to.deep.include({
+      name: 'Metformin'
+    });
   });
 
   it('returns cached results for repeated requests', async () => {

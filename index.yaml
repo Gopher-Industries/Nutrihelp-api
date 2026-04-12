@@ -3430,8 +3430,8 @@ paths:
             text/csv:
               schema:
                 type: string
-              example: 'id,occurredAt,type,userId,sessionId,ipAddress,userAgent,source,metadataJson
-
+              example: |-
+                id,occurredAt,type,userId,sessionId,ipAddress,userAgent,source,metadataJson
                 brute_4092...,2025-12-04T07:24:13.965+00:00,BRUTE_FORCE_DETECTED,,,,,public.brute_force_logs,"{""email"":""john@nutrihelp.com""}"
 
   /userpassword/verify:
