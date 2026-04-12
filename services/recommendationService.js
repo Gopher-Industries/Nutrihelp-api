@@ -6,6 +6,7 @@ const {
   buildPreferenceSummary,
   normalizeNameList
 } = require('./userProfileService');
+const { buildStructuredHealthContext } = require('./userPreferencesService');
 const {
   AI_ADAPTER_VERSION,
   resolveAiRecommendationSignals
@@ -341,18 +342,19 @@ async function generateRecommendations({
   const profile = buildCanonicalProfile(profileRows);
   const preferenceData = preferences && typeof preferences === 'object' ? preferences : {};
   const preferenceSummary = buildPreferenceSummary(preferenceData);
+  const structuredHealthContext = buildStructuredHealthContext(preferenceData);
 
   const mergedGoalState = {
     ...goalState,
     prioritizeFiber: goalState.prioritizeFiber
       || aiContext.hints.prioritizeFiber === true
-      || preferenceSummary.healthConditions.some((condition) => condition.includes('diabetes')),
+      || structuredHealthContext.normalized_summary.chronicConditionNames.some((condition) => condition.includes('diabetes')),
     prioritizeProtein: goalState.prioritizeProtein || aiContext.hints.prioritizeProtein === true,
     limitSugar: goalState.limitSugar
       || aiContext.hints.limitSugar === true
-      || preferenceSummary.healthConditions.some((condition) => condition.includes('diabetes')),
+      || structuredHealthContext.normalized_summary.chronicConditionNames.some((condition) => condition.includes('diabetes')),
     limitSodium: goalState.limitSodium
-      || preferenceSummary.healthConditions.some((condition) => condition.includes('hypertension') || condition.includes('blood pressure')),
+      || structuredHealthContext.normalized_summary.chronicConditionNames.some((condition) => condition.includes('hypertension') || condition.includes('blood pressure')),
     labels: unique([
       ...goalState.labels,
       ...(normalizeNameList(aiContext.hints.goalLabels))
@@ -413,6 +415,7 @@ async function generateRecommendations({
     userContext: {
       profile,
       preferences: preferenceSummary,
+      healthContext: structuredHealthContext,
       recentRecipeIds
     },
     recommendations

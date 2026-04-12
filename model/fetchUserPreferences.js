@@ -1,4 +1,5 @@
 const supabase = require("../dbConnection.js");
+const { getUserPreferenceState } = require('../services/userPreferenceStore');
 
 async function fetchUserPreferences(userId) {
     try {
@@ -44,6 +45,8 @@ async function fetchUserPreferences(userId) {
             .eq('user_id', userId);
         if (cmError) throw cmError;
 
+        const storedState = getUserPreferenceState(userId);
+
         return {
             dietary_requirements: dietaryRequirements,
             allergies: allergies,
@@ -51,7 +54,14 @@ async function fetchUserPreferences(userId) {
             dislikes: dislikes,
             health_conditions: healthConditions,
             spice_levels: spiceLevels,
-            cooking_methods: cookingMethods
+            cooking_methods: cookingMethods,
+            health_context: storedState.health_context || {
+                allergies: [],
+                chronic_conditions: [],
+                medications: []
+            },
+            notification_preferences: storedState.notification_preferences || {},
+            ui_settings: storedState.ui_settings || {}
         };
     } catch (error) {
         throw error;
