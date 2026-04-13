@@ -3,6 +3,7 @@ require("dotenv").config();
 // Structured Logging - NEW
 const logger = require('./utils/logger');
 const { requestLoggingMiddleware } = require('./middleware/requestLogger');
+const { sessionMonitorMiddleware } = require('./middleware/sessionMonitor');
 const { structuredErrorHandler } = require('./middleware/structuredErrorHandler');
 
 //Logging & Metrics
@@ -81,6 +82,7 @@ let db = require("./dbConnection");
 
 // ⚠️ CRITICAL: Add request logging middleware FIRST, before any routes
 app.use(requestLoggingMiddleware);
+app.use(sessionMonitorMiddleware);
 
 // CORS
 app.use(
@@ -149,7 +151,19 @@ app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
 //Logging & Metrics routes
 app.use(metricsMiddleware);
-app.get("/metrics", metricsEndpoint);
+app.get("/api/metrics", metricsEndpoint);
+app.get("/api", (req, res) => {
+  res.json({
+    status: "ok",
+    message: "NutriHelp API is running",
+    uptime: process.uptime(),
+    metrics: "/api/metrics",
+    docs: "/api-docs"
+  });
+});
+app.get("/", (req, res) => {
+  res.redirect("/api");
+});
 
 // System routes (early in chain)
 app.use("/api/system", systemRoutes);

@@ -1,4 +1,15 @@
 const authService = require('../services/authService');
+const logger = require('../utils/logger');
+const { recordAuthInvalidTokenAttempt } = require('../Monitor_&_Logging/metrics');
+
+const getClientIp = (req) => {
+  return (
+    req.headers['x-forwarded-for']?.split(',')[0]?.trim() ||
+    req.ip ||
+    req.connection?.remoteAddress ||
+    'unknown'
+  );
+};
 
 /**
  * Access Token Authentication Middleware
@@ -8,8 +19,15 @@ const authService = require('../services/authService');
 const authenticateToken = (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
+    const ip = getClientIp(req);
 
     if (!authHeader) {
+      recordAuthInvalidTokenAttempt({
+        route: req.path,
+        ip,
+        reason: 'TOKEN_MISSING',
+      });
+      logger.warn('Authorization header missing', { route: req.path, ip });
       return res.status(401).json({
         success: false,
         error: 'Authorization header missing',
@@ -19,6 +37,12 @@ const authenticateToken = (req, res, next) => {
 
     const parts = authHeader.split(' ');
     if (parts.length !== 2 || parts[0] !== 'Bearer') {
+      recordAuthInvalidTokenAttempt({
+        route: req.path,
+        ip,
+        reason: 'INVALID_AUTH_HEADER',
+      });
+      logger.warn('Invalid authorization header format', { route: req.path, ip });
       return res.status(401).json({
         success: false,
         error: 'Invalid authorization format',
@@ -32,6 +56,12 @@ const authenticateToken = (req, res, next) => {
 
     // Ensure only access tokens are accepted
     if (!decoded || decoded.type !== 'access') {
+      recordAuthInvalidTokenAttempt({
+        route: req.path,
+        ip,
+        reason: 'INVALID_TOKEN_TYPE',
+      });
+      logger.warn('Invalid token type detected', { route: req.path, ip });
       return res.status(401).json({
         success: false,
         error: 'Invalid token type',
@@ -41,6 +71,12 @@ const authenticateToken = (req, res, next) => {
 
     // Validate payload
     if (!decoded.userId || !decoded.role) {
+      recordAuthInvalidTokenAttempt({
+        route: req.path,
+        ip,
+        reason: 'INVALID_TOKEN',
+      });
+      logger.warn('Invalid token payload', { route: req.path, ip });
       return res.status(401).json({
         success: false,
         error: 'Invalid token payload',
@@ -57,6 +93,19 @@ const authenticateToken = (req, res, next) => {
 
     next();
   } catch (error) {
+    const ip = getClientIp(req);
+    const reason = error?.name || 'TOKEN_INVALID';
+    recordAuthInvalidTokenAttempt({
+      route: req.path,
+      ip,
+      reason,
+    });
+    logger.warn('Access token verification failed', {
+      route: req.path,
+      ip,
+      reason,
+      message: error?.message,
+    });
     return res.status(401).json({
       success: false,
       error: 'Invalid or expired access token',
