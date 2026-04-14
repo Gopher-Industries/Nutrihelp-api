@@ -1,5 +1,6 @@
 const supabase = require("../dbConnection.js");
 const { decode } = require("base64-arraybuffer");
+const { encrypt, decrypt } = require("../utils/encryption");
 
 async function updateUser(
 	name,
@@ -14,8 +15,8 @@ async function updateUser(
 	attributes["first_name"] = first_name || undefined;
 	attributes["last_name"] = last_name || undefined;
 	attributes["email"] = email || undefined;
-	attributes["contact_number"] = contact_number || undefined;
-	attributes["address"] = address || undefined;
+	attributes["contact_number"] = contact_number ? encrypt(contact_number) : undefined;
+	attributes["address"] = address ? encrypt(address) : undefined;
 
 	try {
 		let { data, error } = await supabase
@@ -25,6 +26,13 @@ async function updateUser(
 			.select(
 				"user_id,name,first_name,last_name,email,contact_number,mfa_enabled,address"
 			);
+			
+			if (data && data.length > 0) {
+			data.forEach((user) => {
+				if (user.contact_number) user.contact_number = decrypt(user.contact_number);
+				if (user.address) user.address = decrypt(user.address);
+			});
+		}
 		return data;
 	} catch (error) {
 		throw error;
