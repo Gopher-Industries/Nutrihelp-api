@@ -1,92 +1,68 @@
 const authService = require('../services/authService');
 
 /**
- * Enhanced authentication middleware
+ * Access Token Authentication Middleware
+ * - Verifies JWT access tokens only
+ * - Attaches decoded user payload to req.user
  */
 const authenticateToken = (req, res, next) => {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+  try {
+    const authHeader = req.headers.authorization;
 
-    if (!token) {
-        return res.status(401).json({
-            success: false,
-            error: 'Access token required',
-            code: 'TOKEN_MISSING'
-        });
+    if (!authHeader) {
+      return res.status(401).json({
+        success: false,
+        error: 'Authorization header missing',
+        code: 'TOKEN_MISSING'
+      });
     }
 
-    try {
-        const decoded = authService.verifyAccessToken(token);
-
-        //
-        if (decoded.type && decoded.type !== 'access') {
-            return res.status(401).json({
-                success: false,
-                error: 'Invalid token type',
-                code: 'INVALID_TOKEN_TYPE'
-            });
-        }
-
-        if (!decoded.type && !decoded.role) {
-            return res.status(401).json({
-                success: false,
-                error: 'Invalid token structure',
-                code: 'INVALID_TOKEN'
-            });
-        }
-
-        // Attach user info to request
-        req.user = decoded;
-        next();
-
-    } catch (error) {
-        if (error.name === 'TokenExpiredError') {
-            return res.status(401).json({
-                success: false,
-                error: 'Access token expired',
-                code: 'TOKEN_EXPIRED'
-            });
-        } else if (error.name === 'JsonWebTokenError') {
-            return res.status(401).json({
-                success: false,
-                error: 'Invalid access token',
-                code: 'INVALID_TOKEN'
-            });
-        }
-
-        console.error('Token verification error:', error);
-        return res.status(500).json({
-            success: false,
-            error: 'Internal server error',
-            code: 'INTERNAL_ERROR'
-        });
-    }
-};
-
-/**
- * Optional authentication middleware
- * (attaches user if token exists, otherwise continues without blocking)
- */
-const optionalAuth = (req, res, next) => {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
-
-    if (!token) {
-        req.user = null;
-        return next();
+    const parts = authHeader.split(' ');
+    if (parts.length !== 2 || parts[0] !== 'Bearer') {
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid authorization format',
+        code: 'INVALID_AUTH_HEADER'
+      });
     }
 
-    try {
-        const decoded = authService.verifyAccessToken(token);
-        req.user = decoded;
-    } catch (error) {
-        req.user = null;
+    const token = parts[1];
+
+    const decoded = authService.verifyAccessToken(token);
+
+    // Ensure only access tokens are accepted
+    if (!decoded || decoded.type !== 'access') {
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid token type',
+        code: 'INVALID_TOKEN_TYPE'
+      });
     }
-    
+
+    // Validate payload
+    if (!decoded.userId || !decoded.role) {
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid token payload',
+        code: 'INVALID_TOKEN'
+      });
+    }
+
+    // Attach user to request
+    req.user = {
+      userId: decoded.userId,
+      email: decoded.email,
+      role: decoded.role
+    };
+
     next();
+  } catch (error) {
+    return res.status(401).json({
+      success: false,
+      error: 'Invalid or expired access token',
+      code: 'TOKEN_INVALID'
+    });
+  }
 };
 
-module.exports = {
-    authenticateToken,
-    optionalAuth
-};
+module.exports = { authenticateToken };

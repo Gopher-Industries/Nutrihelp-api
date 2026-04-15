@@ -17,4 +17,32 @@ async function getAllAppointments() {
     }
 }
 
-module.exports = getAllAppointments;
+async function getAllAppointmentsV2({ from = 0, to = 9, search = "" } = {}) {
+  try {
+    let query = supabase
+      .from("appointments")
+      .select("*", { count: "exact" })
+      .order("date", { ascending: true })
+      .order("time", { ascending: true })
+      .range(from, to);
+
+    if (search) {
+      query = query.or(
+        `title.ilike.%${search}%,doctor.ilike.%${search}%,type.ilike.%${search}%`
+      );
+    }
+
+    const { data, error, count } = await query;
+
+    if (error) throw error;
+
+    return { data, count };
+  } catch (err) {
+    throw err;
+  }
+}
+
+
+
+
+module.exports = {getAllAppointments, getAllAppointmentsV2};

@@ -4,6 +4,7 @@ import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 import sys
+import json
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sn
@@ -21,13 +22,21 @@ from PIL import Image
 import io
 
 # Get the relative path to the model file
-model_path = os.path.join('model', 'modeltt.h5')
+model_path = os.path.join('prediction_models', 'best_model_class.hdf5')
+
+def emit_result(success, prediction=None, confidence=None, error=None):
+    print(json.dumps({
+        "success": success,
+        "prediction": prediction,
+        "confidence": confidence,
+        "error": error
+    }))
 
 try:
     # Load the pre-trained model
-    model = load_model(model_path)
+    model = load_model(model_path,compile=False)
 except Exception as e:
-    print("Error loading model:", e)
+    emit_result(False, error=f"Error loading model: {str(e)}")
     sys.exit(1)
 
 from tensorflow.keras.preprocessing.image import load_img, img_to_array
@@ -169,20 +178,32 @@ calories = cal_values.splitlines()
 # Read image data from stdin
 image_data = sys.stdin.buffer.read()
 
-# Load image using PIL
-image = Image.open(io.BytesIO(image_data))
+try:
+    # Load image using PIL
+    image = Image.open(io.BytesIO(image_data))
 
-# Resize image to (224, 224)
-image = image.resize((224, 224))
+    if image.mode != 'RGB':
+        image = image.convert('RGB')
 
-# Convert image to numpy array
-image_array = np.array(image) / 255.0  # Normalize image data
+    # Resize image to (224, 224)
+    image = image.resize((224, 224))
 
-# Add batch dimension
-image_array = np.expand_dims(image_array, axis=0)
+    # Convert image to numpy array
+    image_array = np.array(image) / 255.0  # Normalize image data
 
-# Perform prediction
-prediction_result = model.predict(image_array).argmax()
+    # Add batch dimension
+    image_array = np.expand_dims(image_array, axis=0)
 
-# Output prediction result
-print(prediction_result, calories[prediction_result])
+    raw_prediction = model.predict(image_array, verbose=0)[0]
+    prediction_index = int(np.argmax(raw_prediction))
+    confidence = float(raw_prediction[prediction_index])
+
+    emit_result(
+        True,
+        prediction=calories[prediction_index],
+        confidence=round(confidence, 6),
+        error=None
+    )
+except Exception as e:
+    emit_result(False, error=f"Prediction failed: {str(e)}")
+    sys.exit(1)

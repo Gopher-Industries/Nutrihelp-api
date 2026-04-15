@@ -58,7 +58,23 @@ const createAndSaveRecipe = async (req, res) => {
 			await createRecipe.saveImage(recipe_image, savedData[0].id);
 		}
 
-		await createRecipe.saveRecipeRelation(recipe, savedData[0].id);
+		const recipeIngredients = await createRecipe.saveRecipeRelation(recipe, savedData[0].id);
+		
+		const allergies = recipeIngredients
+			.filter((r) => r.allergy)
+			.map((r) => r.recipe_id);
+
+		if (allergies.length > 0) {
+			await createRecipe.updateRecipeAllergy(allergies);
+		}
+
+		const dislikes = recipeIngredients
+			.filter((r) => r.dislike)
+			.map((r) => r.recipe_id);
+
+		if (dislikes.length > 0) {
+			await createRecipe.updateRecipeDislike(dislikes);
+		}
 
 		return res.status(201).json({ message: "success", statusCode: 201 });
 	} catch (error) {

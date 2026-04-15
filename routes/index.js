@@ -1,4 +1,7 @@
 module.exports = app => {
+    // home
+    app.use("/api/home/services", require('./homeService'));
+    app.use('/api/home/subscribe',require('./homeSubscribe'))
     app.use("/api/login", require('./login'));
     app.use("/api/signup", require('./signup'));
     app.use("/api/contactus", require('./contactus'));
@@ -8,7 +11,9 @@ module.exports = app => {
     app.use("/api/imageClassification", require('./imageClassification'));
     app.use("/api/recipeImageClassification", require('./recipeImageClassification'));
     app.use("/api/userprofile", require('./userprofile')); // get profile, update profile, update by identifier (email or username)
+    app.use("/api/profile", require('./profile'));
     app.use("/api/userpassword", require('./userpassword'));
+    app.use("/api/password", require('./password'));
     app.use("/api/fooddata", require('./fooddata'));
     app.use("/api/user/preferences", require('./userPreferences'));
     app.use("/api/mealplan", require('./mealplan'));
@@ -29,11 +34,13 @@ module.exports = app => {
     app.use('/api/recipe/scale', require('./recipeScaling'));
     app.use('/api/water-intake', require('./waterIntake'));
     app.use('/api/health-news', require('./healthNews'));
+    app.use('/api/health-tools', require('./healthTools'));
 
-    
     // Add shopping list routes
     app.use('/api/shopping-list', require('./shoppingList'));
     app.use('/api/barcode', require('./barcodeScanning'));
+    app.use('/api/security', require('./securityEvents'));
+    app.use('/api/recommendations', require('./recommendations'));
 
 
 };
