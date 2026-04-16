@@ -1,35 +1,45 @@
 const supabase = require("../dbConnection.js");
 const { decode } = require("base64-arraybuffer");
 
-async function updateUser(
-	name,
-	first_name,
-	last_name,
-	email,
-	contact_number,
-	address
-) {
-	let attributes = {};
-	attributes["name"] = name || undefined;
-	attributes["first_name"] = first_name || undefined;
-	attributes["last_name"] = last_name || undefined;
-	attributes["email"] = email || undefined;
-	attributes["contact_number"] = contact_number || undefined;
-	attributes["address"] = address || undefined;
+async function updateUser({ userId, attributes = {} }) {
+	const payload = Object.fromEntries(
+		Object.entries(attributes).filter(([, value]) => value !== undefined)
+	);
 
 	try {
-		let { data, error } = await supabase
+		if (!userId) {
+			throw new Error("userId is required");
+		}
+
+		if (Object.keys(payload).length === 0) {
+			const { data, error } = await supabase
+				.from("users")
+				.select(
+					"user_id,name,first_name,last_name,email,contact_number,mfa_enabled,address,image_id,registration_date,last_login,account_status,user_roles!left(role_name)"
+				)
+				.eq("user_id", userId)
+				.maybeSingle();
+
+			if (error) throw error;
+			return data;
+		}
+
+		const { data, error } = await supabase
 			.from("users")
-			.update(attributes) // e.g { email: "sample@email.com" }
-			.eq("email", email)
+			.update(payload)
+			.eq("user_id", userId)
 			.select(
-				"user_id,name,first_name,last_name,email,contact_number,mfa_enabled,address"
-			);
+				"user_id,name,first_name,last_name,email,contact_number,mfa_enabled,address,image_id,registration_date,last_login,account_status,user_roles!left(role_name)"
+			)
+			.maybeSingle();
+
+		if (error) throw error;
 		return data;
 	} catch (error) {
 		throw error;
 	}
 }
+
 async function saveImage(image, user_id) {
 	let file_name = `users/${user_id}.png`;
 	if (image === undefined || image === null) return null;
