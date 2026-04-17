@@ -1,83 +1,69 @@
-let { updateUser, saveImage } = require("../model/updateUserProfile.js");
-let getUser = require("../model/getUserProfile.js");
+const userProfileService = require('../services/userProfileService');
+const { ServiceError } = require('../services/serviceError');
+const logger = require('../utils/logger');
 
-/**
- * Update User Profile
- * - Normal users can update only their own profile (based on token email).
- * - Admins can update any profile by providing email in the body.
- */
-const updateUserProfile = async (req, res) => {
-	try {
-    const { role, email: tokenEmail } = req.user || {};
-    let targetEmail = req.body.email;
+function resolveTargetLookup(req) {
+  const isAdmin = req.user?.role === 'admin';
+  const explicitUserId = req.query.userId || req.body.targetUserId || req.body.userId || null;
+  const explicitEmail = req.query.email || req.body.targetEmail || null;
+  const legacyAdminEmailTarget = isAdmin && !req.body.profile && !explicitUserId && !explicitEmail
+    ? req.body.email
+    : null;
 
-    // Normal users must always use their own email
-    if (role !== "admin") {
-      targetEmail = tokenEmail;
-    }
-
-    if (!targetEmail) {
-      return res.status(400).json({ error: "Email is required" });
-    }
-
-    const userProfile = await updateUser(
-      req.body.name,
-      req.body.first_name,
-      req.body.last_name,
-      targetEmail,
-      req.body.contact_number,
-      req.body.address
-    );
-
-    if (!userProfile || userProfile.length === 0) {
-      return res.status(404).json({ error: "User not found" });
-    }
-
-    // If user image provided, save it and update image_url
-    if (req.body.user_image) {
-      const url = await saveImage(req.body.user_image, userProfile[0].user_id);
-      userProfile[0].image_url = url;
-    }
-
-    res.status(200).json(userProfile);
-  } catch (error) {
-    console.error("Error updating user profile:", error);
-    res.status(500).json({ message: "Internal server error" });
+  if (isAdmin && explicitUserId) {
+    return { userId: explicitUserId };
   }
-};
 
-/**
- * Get User Profile
- * - Normal users can only fetch their own profile (from token).
- * - Admins can fetch any profile using `?email=xxx`.
- */
+  if (isAdmin && (explicitEmail || legacyAdminEmailTarget)) {
+    return { email: explicitEmail || legacyAdminEmailTarget };
+  }
+
+  return { userId: req.user?.userId };
+}
+
+function handleProfileError(res, error, label, context = {}) {
+  if (error instanceof ServiceError) {
+    return res.status(error.statusCode).json({
+      success: false,
+      error: error.message
+    });
+  }
+
+  logger.error(label, { error: error.message, ...context });
+  return res.status(500).json({
+    success: false,
+    error: 'Internal server error'
+  });
+}
+
 const getUserProfile = async (req, res) => {
-	try {
-    const { role, email: tokenEmail } = req.user || {};
-    const { email: queryEmail } = req.query;
-
-    let targetEmail = tokenEmail;
-
-    // Admin can override with query email
-    if (role === "admin" && queryEmail) {
-      targetEmail = queryEmail;
-    }
-
-    if (!targetEmail) {
-      return res.status(400).json({ error: "Email is required" });
-    }
-
-    const userProfile = await getUser(targetEmail);
-
-    if (!userProfile) {
-      return res.status(404).json({ error: "User not found" });
-    }
-
-    res.status(200).json(userProfile);
+  try {
+    const response = await userProfileService.getCanonicalProfile(resolveTargetLookup(req));
+    return res.status(200).json(response);
   } catch (error) {
-    console.error("Error fetching user profile:", error);
-    res.status(500).json({ message: "Internal server error" });
+    return handleProfileError(res, error, 'Error fetching user profile', {
+      actorUserId: req.user?.userId
+    });
   }
 };
 
-module.exports = { updateUserProfile, getUserProfile };
+const updateUserProfile = async (req, res) => {
+  try {
+    const response = await userProfileService.updateCanonicalProfile({
+      actor: req.user,
+      targetLookup: resolveTargetLookup(req),
+      body: req.body
+    });
+
+    return res.status(200).json(response);
+  } catch (error) {
+    return handleProfileError(res, error, 'Error updating user profile', {
+      actorUserId: req.user?.userId
+    });
+  }
+};
+
+module.exports = {
+  getUserProfile,
+  updateUserProfile
+};

@@ -93,7 +93,7 @@ describe('Recommendation Service', () => {
           }]
         }
       }),
-      '../model/getUserProfile': async () => ([{ user_id: 5, email: 'user@example.com', first_name: 'Alex' }]),
+      '../model/getUserProfile': async () => ({ user_id: 5, email: 'user@example.com', first_name: 'Alex' }),
       './recommendationAiAdapter': {
         AI_ADAPTER_VERSION: 'v1',
         resolveAiRecommendationSignals: async () => ({
@@ -201,7 +201,7 @@ describe('Recommendation Service', () => {
         spice_levels: [],
         cooking_methods: []
       }),
-      '../model/getUserProfile': async () => ([{ user_id: 8, email: 'cache@example.com' }]),
+      '../model/getUserProfile': async () => ({ user_id: 8, email: 'cache@example.com' }),
       './recommendationAiAdapter': {
         AI_ADAPTER_VERSION: 'v1',
         resolveAiRecommendationSignals: async () => ({
@@ -253,7 +253,7 @@ describe('Recommendation Service', () => {
         spice_levels: [],
         cooking_methods: []
       }),
-      '../model/getUserProfile': async () => ([{ user_id: 12, email: 'fallback@example.com' }]),
+      '../model/getUserProfile': async () => ({ user_id: 12, email: 'fallback@example.com' }),
       './recommendationAiAdapter': {
         AI_ADAPTER_VERSION: 'v1',
         resolveAiRecommendationSignals: async () => ({
@@ -303,7 +303,7 @@ describe('Recommendation Service', () => {
         }]
       }),
       '../model/fetchUserPreferences': async () => null,
-      '../model/getUserProfile': async () => ([{ user_id: 12, email: 'fallback@example.com' }]),
+      '../model/getUserProfile': async () => ({ user_id: 12, email: 'fallback@example.com' }),
       './recommendationAiAdapter': proxyquire('../services/recommendationAiAdapter', {})
     });
 
@@ -342,7 +342,7 @@ describe('Recommendation Service', () => {
         }
       },
       '../model/fetchUserPreferences': async () => ({}),
-      '../model/getUserProfile': async () => ([{ user_id: 8, email: 'cache@example.com' }]),
+      '../model/getUserProfile': async () => ({ user_id: 8, email: 'cache@example.com' }),
       './recommendationAiAdapter': {
         AI_ADAPTER_VERSION: 'v1',
         resolveAiRecommendationSignals: async () => ({
@@ -387,7 +387,7 @@ describe('Recommendation Service', () => {
         }]
       }),
       '../model/fetchUserPreferences': async () => ({}),
-      '../model/getUserProfile': async () => ([{ user_id: 5, email: 'user@example.com', first_name: 'Alex' }]),
+      '../model/getUserProfile': async () => ({ user_id: 5, email: 'user@example.com', first_name: 'Alex' }),
       './recommendationAiAdapter': proxyquire('../services/recommendationAiAdapter', {})
     });
 

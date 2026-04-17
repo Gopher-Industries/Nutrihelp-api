@@ -109,16 +109,19 @@ describe('Auth controller service boundaries', () => {
   });
 
   it('delegates profile lookups to authService', async () => {
-    const authService = {
+    const userProfileService = {
       '@noCallThru': true,
-      getProfile: sinon.stub().resolves({
+      getCanonicalProfile: sinon.stub().resolves({
         success: true,
-        user: { id: 1, email: 'user@example.com' }
+        contractVersion: 'user-profile-v1',
+        profile: { id: 1, email: 'user@example.com' },
+        preferenceSummary: { allergies: [], hasPreferences: false }
       })
     };
 
     const controller = proxyquire('../controller/authController', {
-      '../services/authService': authService
+      '../services/authService': { '@noCallThru': {} },
+      '../services/userProfileService': userProfileService
     });
 
     const req = {
@@ -130,10 +133,12 @@ describe('Auth controller service boundaries', () => {
 
     await controller.getProfile(req, res);
 
-    expect(authService.getProfile.calledOnceWith(1)).to.equal(true);
+    expect(userProfileService.getCanonicalProfile.calledOnceWith({ userId: 1 })).to.equal(true);
     expect(res.json.calledWith({
       success: true,
-      user: { id: 1, email: 'user@example.com' }
+      contractVersion: 'user-profile-v1',
+      profile: { id: 1, email: 'user@example.com' },
+      preferenceSummary: { allergies: [], hasPreferences: false }
     })).to.equal(true);
   });
 });
