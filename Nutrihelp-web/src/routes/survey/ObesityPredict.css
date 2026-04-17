@@ -1,0 +1,237 @@
+
+.obesity-card {
+  width: 100%;
+  max-width: 1200px;
+  margin: 24px auto 40px;
+  padding: clamp(20px, 3vw, 32px) clamp(16px, 3vw, 28px) clamp(28px, 4vw, 40px);
+  background: #f5f7fb;
+  border-radius: 20px;
+  box-shadow: 0 18px 50px rgba(15, 23, 42, 0.12);
+  font-family: "Segoe UI", sans-serif;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.heading_survey {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: center;
+  padding: clamp(8px, 2vw, 10px) clamp(18px, 4vw, 32px);
+  border-radius: 999px;
+  background: linear-gradient(135deg, #667eea 0%, #005BBB 60%, #005BBB 100%);
+  color: #ffffff;
+  font-weight: 700;
+  font-size: clamp(1.1rem, 2vw, 1.6rem);
+  box-shadow: 0 10px 24px rgba(0, 91, 187, 0.25);
+  letter-spacing: 0.3px;
+}
+
+
+.prog {
+  display: flex;
+  justify-content: center;
+}
+
+.progress-label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: #e1ecff;
+  color: #1b3a6b;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+
+.main_foorm {
+  width: 100%;
+}
+
+.obesity-form {
+  max-height: none;
+  overflow: visible;
+  padding: 12px;
+  border-radius: 16px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+}
+
+.obesity-form::-webkit-scrollbar {
+  width: 8px;
+}
+
+.obesity-form::-webkit-scrollbar-thumb {
+  background-color: #cbd5f0;
+  border-radius: 4px;
+}
+
+.obesity-form::-webkit-scrollbar-track {
+  background-color: #f1f5f9;
+}
+
+
+.question-group {
+  padding: 18px 14px 8px;
+}
+
+.group-heading {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: #eef4ff;
+  color: #1b3a6b;
+  font-weight: 700;
+  font-size: 1rem;
+  margin-bottom: 10px;
+}
+
+.questions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+  width: 100%;
+  margin-top: 8px;
+}
+
+.question-card {
+  background: #f8fbff;
+  border: 1px solid #dbe7ff;
+  border-radius: 16px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 120px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.question-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 20px rgba(15, 23, 42, 0.08);
+  border-color: #aac6ff;
+}
+
+.question-card label {
+  color: #1f2937;
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.question-card input,
+.question-card select {
+  width: 100%;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 0.95rem;
+  color: #111827;
+  background: #ffffff;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.question-card input:focus,
+.question-card select:focus {
+  border-color: #6ea2ff;
+  box-shadow: 0 0 0 3px rgba(0, 91, 187, 0.2);
+}
+
+
+.predict {
+  display: flex;
+  justify-content: flex-end;
+  padding: 10px 16px 18px;
+}
+
+.predict-btn {
+  background: #005BBB;
+  color: #ffffff;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 20px;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 10px 20px rgba(0, 91, 187, 0.25);
+  transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+.predict-btn:hover {
+  background: #003f8a;
+}
+
+.predict-btn:active {
+  transform: scale(0.98);
+}
+
+.scroll-hint {
+  margin: 10px 0 0;
+  text-align: center;
+  color: #4b5563;
+  font-size: 0.9rem;
+}
+
+
+@media (max-width: 1024px) {
+  .obesity-card {
+    padding: 28px 22px 32px;
+  }
+
+  .heading_survey {
+    font-size: 1.4rem;
+  }
+
+  .questions-grid {
+    grid-template-columns: repeat(2, minmax(220px, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .obesity-card {
+    margin: 16px 12px 28px;
+    border-radius: 16px;
+  }
+
+  .heading_survey {
+    width: 100%;
+    font-size: 1.2rem;
+    text-align: center;
+  }
+
+  .obesity-form {
+    max-height: none;
+  }
+
+  .questions-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .predict {
+    justify-content: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .obesity-card {
+    padding: 20px 16px 24px;
+  }
+
+  .heading_survey {
+    font-size: 1.1rem;
+    padding: 10px 18px;
+  }
+
+  .question-card {
+    min-height: 0;
+  }
+
+  .predict-btn {
+    width: 100%;
+  }
+}

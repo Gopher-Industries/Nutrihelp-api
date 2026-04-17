@@ -1,0 +1,362 @@
+* { box-sizing: border-box; }
+
+body {
+  background-color: var(--background-color);
+  margin-top: 90px;
+  padding: 0;
+  font-family: sans-serif;
+}
+
+.mainBox {
+  position: relative;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+}
+
+.Title {
+  font-family: "Bangers", system-ui;
+  font-weight: 800;
+  font-size: clamp(1.25rem, 4.5vw, 1.875rem) !important;
+  line-height: 1.3;
+  margin-top: 10px;
+  color: var(--text-primary);
+}
+
+.Title h2 {
+  font-family: "Bangers", system-ui;
+  font-weight: 800;
+  font-size: clamp(1.25rem, 4.5vw, 1.875rem) !important;
+  line-height: 1.3;
+  margin: 0;
+}
+
+/* ==== Appointment Button Link ==== */
+.button-link {
+  text-decoration: none;
+  display: inline-block;
+}
+
+/* ==== Shared layout variables ==== */
+:root {
+  --water-width: 360px;
+}
+
+/* Row 1: Today aligned to meal pane width (left col), right col is just spacer */
+.today-row {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr var(--water-width);
+  gap: 24px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.today-align-grid {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr; 
+  align-items: center;
+}
+
+.today-text {
+  text-align: center;    
+  font-size: clamp(0.875rem, 3.5vw, 1.125rem);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.today-row-spacer {}
+
+/* Row 2: meal + water */
+.meal-water-row {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr var(--water-width);
+  gap: 24px;
+  align-items: stretch; 
+}
+
+/* Left meal pane */
+.meal-pane {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Tabs */
+/* Tabs container */
+.meal-nav-tabs {
+  width: 100%;
+  display: flex;
+  gap: 12px;  
+  padding: 8px;
+  border-radius: 16px;
+  background: var(--card-background);  
+  border: 2px solid var(--border-color);
+  margin: 0 0 12px 0;
+  box-shadow: var(--card-shadow);
+}
+
+/* Inactive tab button */
+.nav-tab-btn {
+  flex: 1;
+  border: 1px solid transparent;
+  background: transparent;
+  padding: 12px 14px;
+  font-size: clamp(0.875rem, 3vw, 1.125rem);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: var(--text-secondary);
+  text-align: center;
+  font-weight: 600;
+}
+
+/* Hover effect */
+.nav-tab-btn:hover {
+  background: var(--background-hover);
+  color: var(--primary-color);
+  border-color: var(--border-color);
+}
+
+/* Active tab button */
+.nav-tab-btn.active {
+  background: var(--primary-color);
+  color: var(--text-inverse);
+  font-weight: 700;
+  border-color: var(--primary-color);
+  box-shadow: 0 4px 8px rgba(0, 91, 187, 0.2);
+}
+
+/* Cards scroll */
+.meal-scroll-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  padding-bottom: 15px;
+}
+
+.meal-scroll-wrapper::-webkit-scrollbar { height: 6px; }
+.meal-scroll-wrapper::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 10px;
+}
+
+.cards-container {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 20px;
+  margin: 0;
+  padding: 0;
+}
+
+/* ==== Empty State ==== */
+.no-items {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  color: var(--text-muted);
+  font-size: 1rem;
+  font-style: italic;
+  text-align: center;
+  padding: 20px;
+}
+
+/* Right water panel */
+.water-panel {
+  display: flex;
+  min-width: var(--water-width);
+}
+
+.water-fill {
+  flex: 1;
+  display: flex;
+}
+
+/* Make WaterTracker stretch and remove its top margin so it aligns with tabs top */
+.water-panel .water-tracker {
+  margin-top: 0 !important;
+  height: 100%;
+}
+
+/* Graph section: NO outer card frame/shadow */
+.dashboard-graph-section {
+  margin-top: 22px;
+  padding: 0;             
+  background: transparent; 
+  border: none;          
+  border-radius: 0;
+  box-shadow: none;      
+}
+
+/* Remove any leftover purple debug border/outline inside the chart area only */
+.dashboard-graph-section .nutrition-summary,
+.dashboard-graph-section .nutrition-summary * {
+  border: none !important;
+  outline: none !important;
+}
+
+/* Appointment button */
+.appointment-btn {
+  position: absolute;
+  right: 20px;
+  top: 20px;
+  background-color: var(--primary-color);
+  color: var(--text-inverse);
+  border: none;
+  border-radius: 50px;
+  padding: 15px 30px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.appointment-btn:hover {
+  background-color: var(--primary-dark);
+}
+
+/* Responsive */
+@media (max-width: 980px) {
+  :root { 
+    --water-width: 100%; 
+  }
+
+  .today-row {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .meal-water-row {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .meal-pane {
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .water-panel {
+    width: 100% !important;
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+  
+  .water-fill {
+    width: 100%;
+    box-sizing: border-box;
+  }
+  
+  .water-tracker {
+    width: 100% !important;
+    margin: 0 !important;
+    box-sizing: border-box;
+  }
+  
+  .appointment-btn {
+    position: static;
+    margin-top: 10px;
+    width: 100%;
+  }
+}
+
+@media (max-width: 768px) {
+  .mainBox {
+    padding: 15px;
+  }
+  
+  .meal-water-row {
+    gap: 12px;
+  }
+  
+  .meal-nav-tabs {
+    padding: 6px;
+    gap: 8px;
+  }
+  
+  .nav-tab-btn {
+    padding: 10px 12px;
+    font-size: 1rem;
+  }
+  
+  .water-tracker {
+    padding: 1.2em;
+  }
+  
+  .water-tracker h3 {
+    font-size: 1.1em;
+  }
+  
+  .water-tracker p {
+    font-size: 0.9em;
+    margin-bottom: 1.6em !important;
+  }
+  
+  .tracker-controls {
+    margin-bottom: 1.6em !important;
+  }
+  
+  .glass-display {
+    margin-top: 16px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .mainBox {
+    padding: 10px;
+  }
+  
+  .today-text {
+    font-size: 1rem;
+  }
+  
+  .meal-water-row {
+    gap: 12px;
+  }
+  
+  .meal-nav-tabs {
+    padding: 4px;
+    gap: 6px;
+  }
+  
+  .nav-tab-btn {
+    padding: 8px 10px;
+    font-size: 0.875rem;
+  }
+  
+  .water-tracker {
+    padding: 1em;
+  }
+  
+  .water-tracker h3 {
+    font-size: 1em;
+  }
+  
+  .water-tracker p {
+    font-size: 0.85em;
+    margin-bottom: 1.5em !important;
+  }
+  
+  .tracker-controls {
+    margin-bottom: 1.5em !important;
+  }
+  
+  .tracker-controls button {
+    padding: 0.4em 0.8em;
+    font-size: 1em;
+  }
+  
+  .glass-display {
+    margin-top: 14px !important;
+  }
+  
+  .glass {
+    width: 25px;
+    height: 45px;
+  }
+}

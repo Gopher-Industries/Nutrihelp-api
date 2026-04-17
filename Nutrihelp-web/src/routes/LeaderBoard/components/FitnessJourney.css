@@ -1,0 +1,144 @@
+/* src/routes/LeaderBoard/components/FitnessJourney.css */
+  .fitness-journey{
+    /* border: 2px solid #000; */
+    width: 150vh;
+    height: 85vh;
+    display: flex;
+    flex-direction: row;
+    margin-top: 70px;
+    border-radius: 8px;
+    align-items: center;
+    justify-content: space-around;
+    background-color: #292929;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  }
+  
+  .week-plan h3 {
+    color: #c67aeff3;
+    font-weight: 300;
+    font-size: medium;
+    transition: color 0.2s;
+  }
+
+  .week-plan:hover h3 {
+    color: black;
+    font-weight: 300;
+    font-size: larger;
+    transition: color 0.2s;
+  }
+
+
+  .week-plan p{
+    color: white;
+  }
+  
+  .weekly-plan {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding: 0 10px;
+    width: 20vh;
+    height: 81vh;
+    overflow-y: auto;
+  }
+
+  .week-plan {
+  transition: transform 0.2s, box-shadow 0.2s;
+  cursor: pointer;
+}
+
+.week-plan:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  background-color: #c67aeff3; /* Slight background change */
+  color: black;
+}
+
+  .week-plan {
+    background-color: #1f1f1f;
+    border-radius: 12px;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    height: 108px;
+
+  }
+  
+  
+  .progress{
+    width: 120vh;
+    border-radius: 8px;
+    padding: 5px;
+    height: 80vh;
+    background-color: #1f1f1f;
+    display: flex;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .progress h3{
+    color: #c67aeff3;
+    font-weight: 500;
+    font-size: x-large;
+  }
+
+  .score {
+    font-size: 16px;
+    font-weight: bold;
+    text-align: center;
+    padding: 10px;
+    color: white;
+    background-color: #292929;
+    margin: 0;
+    position: absolute;
+    right: 44px;
+    top: 103px;
+    border-radius: 8px;
+  }
+
+  .score p{
+    color: #c67aeff3;
+  }
+
+  .tips{
+      display: contents;
+  }
+
+  .tips p{
+    color: white;
+  }
+
+  .feature-picker{
+    position: absolute;
+    left: 190px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    border: 2px solid #c67aeff3 ;
+    border-radius: 30px;
+    padding: 0.5rem;
+  }
+
+  .feature-icon {
+  padding: 0.5rem;
+  border-radius: 100px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  color: #c67aeff3;
+}
+
+.feature-icon:hover {
+  background-color: #dbbbe4;
+}
+
+.feature-icon.active {
+  background-color: #c67aeff3;
+  color: white;
+}
+
+  
+  

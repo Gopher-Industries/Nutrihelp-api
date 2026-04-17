@@ -1,0 +1,213 @@
+.landing-container {
+    background-color: #ede9f6;
+    position: relative;
+    height: 100vh;
+    padding: 20px;
+}
+
+.logo-and-menu {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.logo {
+    max-width: 150px;
+    height: auto;
+    margin-left: 170px;
+}
+
+.menu {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    margin-right: 200px; 
+}
+
+.menu-item {
+    font-family: "Poppins", Helvetica;
+    font-size: 16px;
+    font-weight: 500;
+    line-height: 28px;
+    color: #23155B;
+    cursor: pointer;
+}
+
+.content-container {
+    background-color: #fff;
+    padding: 20px;
+    margin-top: 40px;
+    border-radius: 8px;
+    text-align: center;
+    width: 2000px;
+    height: 645px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+
+.label .text-wrapper {
+    color: #000000;
+    font-family: "Poppins-SemiBold", Helvetica;
+    font-size: 32px;
+    font-weight: 600;
+    left: 0;
+    letter-spacing: 0;
+    line-height: normal;
+    text-align: center;
+    top: 0;
+    width: 180px;
+    margin-bottom: 10px;
+}
+
+.search-box {
+    margin-bottom: 20px; 
+    display: flex;
+    align-items: center;
+}
+
+.search-box input {
+    padding: 10px;
+    font-size: 15px; 
+    border: 1px solid #adadad; 
+    border-radius: 20px; 
+    width: 500px; 
+    color: #adadad; 
+    font-family: "Raleway-SemiBold", Helvetica;
+}
+
+.label1 .text-wrapper1 {
+    color: #000000;
+    font-family: "Poppins-Regular", Helvetica;
+    font-size: 18px;
+    font-weight: 400;
+    left: 0;
+    letter-spacing: 0;
+    line-height: normal;
+    text-align: center;
+    top: 0;
+    width: 409px;
+    margin-bottom: 10px;
+}
+
+.label2 .text-wrapper2 {
+    color: #000000;
+    font-family: "Poppins-Regular", Helvetica;
+    font-size: 18px;
+    font-weight: 400;
+    left: 0;
+    letter-spacing: 0;
+    line-height: normal;
+    text-align: center;
+    top: 0;
+    width: 409px;
+    margin-bottom: 5px;
+}
+
+.label2 {
+    display: flex;
+    justify-content: space-around;
+}
+
+.text-wrapper3 {
+    color: #000000;
+    font-family: "Poppins-Regular", Helvetica;
+    font-size: 18px;
+    font-weight: 400;
+    left: 0;
+    letter-spacing: 0;
+    line-height: normal;
+    text-align: center;
+    top: 0;
+    width: 409px;
+}
+
+.containers {
+    display: flex;
+    width: 100%;
+    margin-bottom: 20px;
+}
+
+.container1 {
+    background-color: #fff;
+    padding: 20px;
+    height: 370px;
+    width: 450px;
+    margin-left: 30px; 
+    margin-right: 20px;
+    box-shadow: 0px 0px 20px 0px rgba(0, 0, 0, 0.3);
+}
+
+.container2 {
+    background-color: #fff;
+    padding: 20px;
+    height: 370px; 
+    width: 450px;
+    margin-right: 30px;
+    margin-left: 20px;
+    box-shadow: 0px 0px 20px 0px rgba(0, 0, 0, 0.3);
+}
+  
+.box .rectangle {
+    background-color: #fff;
+    border-radius: 7px;
+    height: 35px;
+    left: 0;
+    top: 0;
+    width: 250px;
+    box-shadow: 0px 0px 20px 0px rgba(0, 0, 0, 0.3);
+    position: relative;
+    margin-bottom: 10px;
+}
+  
+.box-text {
+    position: absolute;
+    left: 10px; 
+    top: 10px; 
+    color: #000000;
+    font-family: "Poppins-Regular", Helvetica;
+    font-size: 14px;
+    font-weight: 400;
+    line-height: normal;
+    text-align: left;
+    margin: 0; 
+}
+
+.close-image {
+    position: absolute;
+    right: 10px; 
+    top: 10px; 
+    width: 20px; 
+    height: 20px; 
+}
+
+.text-wrapper4 p{
+    color: #000000;
+    font-family: "Poppins-Regular", Helvetica;
+    font-size: 14px;
+    font-weight: 400;
+    text-align: left;
+    margin-bottom: 10px;
+}
+
+.add-to-menu-button {
+    background-color:#ba49e7;
+    color: #fff;
+    padding: 15px 130px;
+    font-size: 16px;
+    font-family: "Poppins", Helvetica;
+    font-weight: 500;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+  
+.add-to-menu-button:hover {
+    background-color: #ba49e7;
+}
+  
+
+  

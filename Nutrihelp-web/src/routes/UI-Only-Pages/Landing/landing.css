@@ -1,0 +1,124 @@
+.landing-container {
+  background-color: var(--background-secondary);
+  position: relative;
+  height: 100vh;
+  padding: 20px;
+}
+
+.logo-and-menu {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.logo {
+  max-width: 150px;
+  height: auto;
+}
+
+.menu {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.menu-item {
+  font-family: "Poppins", Helvetica;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 28px;
+  color: var(--text-heading);
+  cursor: pointer;
+}
+
+.action-button {
+  font-family: "Poppins", Helvetica;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 28px;
+  color: var(--text-inverse);
+  background-color: var(--accent-color);
+  border: none;
+  padding: 10px 20px;
+  cursor: pointer;
+  border-radius: 5px;
+}
+
+.content-container {
+  background-color: var(--card-background);
+  padding: 20px;
+  margin-top: 40px;
+  border-radius: 8px;
+  text-align: center;
+  width: 80%;
+  max-width: 900px;
+  height: 500px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
+  margin-left: auto;
+  margin-right: auto;
+  box-shadow: var(--card-shadow);
+}
+
+.label1 .text-wrapper1 {
+  color: var(--accent-color);
+  font-family: "Poppins-Bold", Helvetica;
+  font-size: 40px;
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 96px;
+  text-align: center;
+}
+
+.label2 .text-wrapper2 {
+  color: var(--text-heading);
+  font-family: "Poppins-Regular", Helvetica;
+  font-size: 20px;
+  font-weight: 400;
+  letter-spacing: 0;
+  line-height: 20px;
+  text-align: center;
+  white-space: nowrap;
+  margin-bottom: 20px;
+}
+
+.label3 .text-wrapper3 {
+  color: var(--text-primary);
+  font-family: "Poppins-Medium", Helvetica;
+  font-size: 16px;
+  font-weight: 500;
+  left: 0;
+  letter-spacing: 0;
+  line-height: 28px;
+  text-align: center;
+  top: 0;
+  width: 574px;
+}
+
+.label4 .text-wrapper4 {
+  color: var(--text-heading);
+  font-family: "Poppins-Regular", Helvetica;
+  font-size: 20px;
+  font-weight: 400;
+  letter-spacing: 0;
+  line-height: 36px;
+  text-align: center;
+  white-space: nowrap;
+  margin-bottom: 20px;
+  width: 572px;
+}
+
+.image {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: 0;
+}
+
+.image .img {
+  max-height: 100px;
+  width: auto;
+  object-fit: contain;
+}

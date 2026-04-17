@@ -1,0 +1,61 @@
+/* RecipeCard.css */
+
+/* Card container */
+.recipe-card-div {
+  width: 260px;
+  height: 320px; /* reduced to remove room for instructions */
+  margin: 15px;
+  border-radius: 12px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  background-color: #fff;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  opacity: 0;
+  animation: fadeIn 1s ease forwards;
+  cursor: pointer;
+}
+
+/* Image at top */
+.image img {
+  width: 100%;
+  height: 180px;
+  object-fit: cover;
+  border-radius: 12px 12px 0 0;
+}
+
+/* Recipe name — bright pink text, no background */
+.name-box {
+  background-color: transparent;
+  color: #005BBB;
+  font-weight: bold;
+  font-size: 1.1rem;
+  text-align: center;
+  margin: 12px auto 4px auto;
+  transition: color 0.3s ease;
+}
+
+.name-box:hover {
+  color: #005BBB;
+}
+
+/* Cuisine label */
+.meta {
+  font-size: 0.9rem;
+  color: #333;
+  text-align: center;
+  margin-bottom: 12px;
+}
+
+/* Hover effect on entire card */
+.recipe-card-div:hover {
+  transform: scale(1.02);
+  box-shadow: 0 8px 15px rgba(0, 0, 0, 0.15);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}

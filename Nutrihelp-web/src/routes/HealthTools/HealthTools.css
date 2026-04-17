@@ -1,0 +1,300 @@
+:root {
+  --primary-color: #005BBB;
+  --primary-hover: #003f8a;
+  --background-color: #ffffff;
+  --card-bg: #ffffff;
+  --text-color: #333333;
+  --heading-color: #1A1A1A;
+  --border-color: #e0e0e0;
+  --success-color: #005BBB;
+}
+
+.dark-mode {
+  --card-bg: var(--card-background);
+  --text-color: var(--text-secondary);
+  --heading-color: var(--text-primary);
+}
+
+.health-tools {
+  margin: 0 auto;
+  padding: 24px 20px 32px 20px; 
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: 1200px;
+  background-color: var(--background-color);
+}
+
+.health-tools h1 {
+  position: relative;
+  display: inline-flex;               
+  align-items: center;
+  justify-content: center;
+  padding: 13px 56px;                  
+  margin: 0 auto 36px auto;
+
+  background: var(--gradient-accent);
+  border-radius: 25px;               
+
+  font-size: 2.2rem;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+
+  color: var(--text-inverse);
+  text-align: center;
+
+  box-shadow: var(--box-shadow-medium);
+}
+
+.health-tools h1::after {
+  content: '';
+  position: absolute;
+  bottom: 10px;                
+  left: 50%;
+  transform: translateX(-50%);
+  width: 35%;                 
+  height: 2px;
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 2px;
+}
+
+.how-to-section {
+  width: 100%;
+  max-width: 900px;
+  margin: 24px auto 28px;
+  padding: 18px 22px;
+  background: #e9f2ff;
+  border: 1px solid #cfe0ff;
+  border-left: 6px solid #005BBB;
+  border-radius: 12px;
+  box-shadow: 0 8px 18px rgba(0, 91, 187, 0.12);
+}
+
+.how-to-title {
+  margin: 0 0 10px 0;
+  font-size: 0.2rem;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  color: var(--heading-color);
+}
+
+.how-to-list {
+  margin: 0;
+  padding-left: 1.2rem;
+  list-style: disc;
+  color: var(--text-color);
+  line-height: 1.6;
+}
+
+.tool-tabs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  width: 100%;
+  max-width: 900px;
+  margin: 0 auto 32px;
+  padding: 10px;
+  background: #f4f7fb;
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
+}
+
+.tool-tab {
+  background: #ffffff;
+  border: 1px solid #d6dbe4;
+  border-radius: 12px;
+  padding: 14px 18px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--heading-color);
+  cursor: pointer;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.1s ease;
+}
+
+.tool-tab:hover {
+  border-color: #9bb8f2;
+  transform: translateY(-1px);
+}
+
+.tool-tab.active {
+  background: #49a84d;
+  border-color: #49a84d;
+  color: #ffffff;
+  box-shadow: 0 10px 18px rgba(73, 168, 77, 0.3);
+}
+
+.tool-panel {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.card {
+  flex: 1 1 45%; 
+  min-width: 300px; 
+  background-color: var(--card-bg);
+  padding: 40px; 
+  border-radius: 12px;
+  box-shadow: var(--box-shadow-medium);
+  color: var(--text-color);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
+  text-align: center;
+  transition: transform 0.2s ease;
+  border: 1px solid var(--border-color);
+}
+
+.card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--card-shadow-hover);
+}
+
+.card h3 {
+  margin-bottom: 20px;
+  font-size: 1.5rem; 
+  color: var(--heading-color);
+}
+
+.input-field {
+  width: 100%;
+  padding: 14px;
+  margin-bottom: 16px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  font-size: 1.1rem;
+  color: var(--input-text);
+  background-color: var(--input-background);
+  box-sizing: border-box;
+}
+
+.input-grid {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.input-grid .input-field {
+  margin-bottom: 0;
+}
+
+.input-field::placeholder {
+  color: var(--input-placeholder);
+}
+
+.primary-button {
+  width: 100%;
+  padding: 16px; 
+  font-size: 1.3rem; 
+  font-weight: 600;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  background-color: var(--primary-color);
+  color: var(--button-text);
+  transition: background-color 0.3s ease, transform 0.1s ease;
+}
+
+.primary-button:hover {
+  background-color: var(--primary-hover);
+}
+
+.primary-button:active {
+  transform: scale(0.98);
+}
+
+.result-text, .progress-text, .success-text {
+  font-size: 1.1rem;
+  font-weight: 500;
+  margin-top: 10px;
+  color: var(--text-color);
+}
+
+.success-text {
+  color: var(--success-color);
+}
+
+@media (max-width: 1024px) {
+  .health-tools {
+    padding: 20px 16px 28px 16px;
+  }
+
+  .health-tools h1 {
+    font-size: 2rem;
+    padding: 10px 40px;
+  }
+
+  .tool-tabs {
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 768px) {
+  .health-tools h1 {
+    font-size: 1.6rem;
+    padding: 10px 28px;
+  }
+
+  .tool-tabs {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 10px;
+    padding: 8px;
+  }
+
+  .tool-tab {
+    font-size: 0.95rem;
+    padding: 12px 14px;
+  }
+
+  .card {
+    padding: 28px;
+  }
+
+  .input-field {
+    font-size: 1rem;
+  }
+}
+
+@media (min-width: 769px) and (max-width: 900px) {
+  .card {
+    flex: 1 1 100%; 
+    padding: 30px;
+  }
+}
+
+@media (max-width: 480px) {
+  .health-tools {
+    padding: 16px 12px 24px 12px;
+  }
+
+  .health-tools h1 {
+    font-size: 1.4rem;
+    padding: 8px 20px;
+  }
+
+  .tool-tabs {
+    grid-template-columns: 1fr;
+  }
+
+  .tool-tab {
+    width: 100%;
+  }
+
+  .card {
+    min-width: 0;
+    padding: 22px;
+  }
+
+  .primary-button {
+    font-size: 1.1rem;
+    padding: 14px;
+  }
+
+  .how-to-section {
+    padding: 16px;
+  }
+}

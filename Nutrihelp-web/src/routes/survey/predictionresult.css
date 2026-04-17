@@ -1,0 +1,186 @@
+.prediction-result-card{
+    justify-content: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 54px;
+    border: 2px solid var(--border-color);
+    background-color: var(--card-background) !important;
+    height: fit-content;
+    padding: 50px;
+    margin-top: 50px;
+    border-radius:  15px;
+    transition: width 0.4s ease-in-out, height 0.4s ease-in-out;
+    color: var(--text-primary);
+}
+.prediction-result-card h2{
+    font-size: x-large;
+    color: var(--text-primary);
+}
+
+.result-info{
+    display: flex;
+    background: var(--glass-background, rgba(255,255,255,0.2)) !important;
+    padding: 0.5rem 1rem;
+    border-radius: 1rem;
+    font-weight: bolder;
+    font-size: x-large;
+    margin-top: 10px;
+    width: 90%;
+    justify-content: space-between;
+    align-items: center;
+    color: var(--text-primary);
+}
+
+.prediction-heading{
+    display: inline-block;
+    background: var(--glass-background, rgba(255,255,255,0.2)) !important;
+    padding: 0.5rem 1rem;
+    border-radius: 1rem;
+    font-weight: bolder;
+    font-size: x-large;
+    width: 90%;
+    margin-top: 10px;
+    text-align: center;
+    color: var(--text-light, white);
+}
+
+.full{
+    min-height: 831px;
+    max-height: 1000px;
+    background: var(--gradient-primary, linear-gradient(44deg, #7B44FF 0%, #F26CBA 100%)) !important;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: center;
+    overflow-y: auto;   /* ✅ vertical scroll when needed */
+    overflow-x: hidden; /* ✅ prevents sideways scroll */
+    gap: 30px;
+
+}
+
+.result-buttons{
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+}
+
+.save-btton {
+    background-color: var(--accent-color, #7B44FF);
+    border-radius: 8px;
+    padding: 5px !important;
+    border: 2px solid var(--border-color);
+    color: var(--button-text);
+}
+
+.copy-btn{
+    background-color: var(--accent-color, #7B44FF);
+    border-radius: 8px;
+    padding: 5px !important;
+    border: 2px solid var(--border-color);
+    color: var(--button-text);
+}
+
+.back-btn{
+    
+    background-color: var(--accent-color, #7B44FF);
+    border-radius: 8px;
+    padding: 5px !important;
+    border: 2px solid var(--border-color);
+    color: var(--button-text);
+}
+
+.expand-section{
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 20px;
+}
+
+.expand-btn{
+    color: var(--text-primary);
+    border: 2px solid var(--border-color);
+    width: 40px;
+    height: 40px;
+    border-radius: 100px;
+    background-color: var(--card-background);
+}
+
+.choice-buttons{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-primary);
+    gap: 10px;
+    
+}
+
+.choice-buttons button{
+    color: var(--button-text) !important;
+    border: 1px solid var(--border-color);
+    border-radius: 15px;
+    background-color: var(--accent-color, #7B44FF);
+}
+
+.fitness-question p{
+    font-size: x-large;
+    color: var(--text-primary);
+}
+
+.fitness-question{
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background: var(--glass-background, rgba(255,255,255,0.2)) !important;
+    padding: 0.5rem 1rem;
+    border-radius: 1rem;
+    font-weight: bolder;
+    font-size: x-large;
+    margin-top: 10px;
+    width: 90%;
+    color: var(--text-primary);
+}
+
+.no-journey{
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+
+}
+
+.no-journey button{
+    color: var(--button-text);
+    border: 1px solid var(--border-color);
+    border-radius: 15px;
+    background-color: var(--accent-color, #7B44FF);
+    width: fit-content;
+
+}
+
+.followup-questions{
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    color: var(--text-primary);
+}
+
+.followup-questions p{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-primary);
+}
+
+.followup-questions label{
+    color: var(--text-primary);
+}
+
+.followup-questions button{
+    width: fit-content;
+    display: flex;
+    border: 2px solid;
+    justify-content: end;
+}

@@ -1,0 +1,17 @@
+# 忽略系统生成的文件
+.vscode/
+AppData/
+*.log
+*.dat
+*.ini
+*.pfx
+
+# 忽略用户文件夹
+Desktop/
+Documents/
+Downloads/
+Pictures/
+Videos/
+
+# 忽略 Node.js 相关的本地依赖
+node_modules/

@@ -1,0 +1,1073 @@
+/* Shopping List Page Styles */
+.shopping-list-page {
+    min-height: 100vh;
+    padding: 20px;
+    font-family: 'Poppins', sans-serif;
+    overflow-x: hidden; /* Prevent horizontal scrolling */
+}
+
+.shopping-list-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    max-width: 1200px;
+    margin: 0 auto;
+    color: var(--text-primary);
+    background-color: white;
+    margin-bottom: 30px;
+    padding: 20px;
+    border-radius: 15px;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.shopping-list-header h1 {
+    font-size: 2.5rem;
+    color: var(--text-primary);
+}
+
+.add-item-form {
+    display: flex;
+    gap: 15px;
+    padding: 10px 0px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+/* Base styles for all input fields and select boxes */
+.item-input, .quantity-input, .unit-select, .category-select, .unit-edit {
+    border-radius: 8px;
+    border: 2px solid var(--border-color);
+    transition: border-color 0.3s;
+    font-family: 'Poppins', sans-serif;
+    background-color: var(--card-background);
+    color: var(--text-primary);
+}
+
+.item-input {
+    padding: 12px 15px;
+    font-size: 14px;
+    height: 48px;
+    flex: 2;
+    min-width: 200px;
+}
+
+.item-input:focus {
+    border-color: var(--primary-color);
+}
+
+.item-input::placeholder {
+    color: var(--text-muted);
+}
+
+.quantity-input, .unit-select, .category-select {
+    padding: 12px 15px;
+    font-size: 14px;
+    height: 48px;
+    flex: 1;
+    min-width: 120px;
+}
+
+.quantity-input:focus, .unit-select:focus, .category-select:focus {
+    border-color: var(--primary-color);
+}
+
+/* Dropdown option styles */
+.unit-select option, .category-select option, .unit-edit option {
+    background: var(--card-background);
+    color: var(--text-primary);
+    padding: 8px;
+    font-size: 14px;
+}
+
+/* Select box display with custom dropdown arrow */
+.unit-select, .category-select, .unit-edit {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6,9 12,15 18,9'%3e%3c/polyline%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 16px;
+    padding-right: 40px;
+    cursor: pointer;
+}
+
+/* Select box focus and hover states */
+.unit-select:focus, .category-select:focus, .unit-edit:focus {
+    border-color: var(--primary-color);
+}
+
+.unit-select:hover, .category-select:hover, .unit-edit:hover {
+    border-color: var(--primary-color);
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
+}
+
+/* Action button base styles */
+.edit-button, .remove-button {
+    padding: 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    transition: all 0.3s;
+    border: 2px solid;
+    background: var(--card-background);
+}
+
+/* Edit button styles */
+.edit-button {
+    color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.edit-button:hover {
+    background: var(--primary-light);
+}
+
+/* Remove button styles */
+.remove-button {
+    color: var(--error-color);
+    border-color: var(--error-color);
+}
+
+.remove-button:hover {
+    background: var(--error-light);
+}
+
+/* Save and Cancel button styles */
+.save-edit-button, .cancel-edit-button {
+    flex: 1;
+    padding: 12px;
+    font-size: 16px;
+    font-weight: 600;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: all 0.3s;
+}
+
+.save-edit-button {
+    border: none;
+    background: var(--success-color);
+    color: var(--text-inverse);
+}
+
+.save-edit-button:hover {
+    background: var(--success-dark);
+}
+
+.cancel-edit-button {
+    border: 2px solid var(--border-color);
+    background: var(--card-background);
+    color: var(--text-primary);
+}
+
+.cancel-edit-button:hover {
+    background: var(--hover-background);
+}
+
+/* Mobile responsive styles for select boxes - moved to consolidated responsive section */
+
+.add-button {
+    padding: 12px 25px;
+    border: 4px solid var(--primary-dark);
+    color: var(--text-secondary);
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    transition: all ease-in-out 0.3s;
+    height: 48px;
+}
+
+.add-button:hover {
+    color: var(--text-inverse);
+    background: var(--primary-dark);
+}
+
+/* Filter Controls Container */
+.filter-controls-container {
+    background-color: var(--card-background);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 24px;
+    box-shadow: var(--card-shadow);
+}
+
+.filter-controls-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    align-items: end;
+}
+
+.filter-control-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.filter-control-label {
+    display: block;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 8px;
+    line-height: 1.5;
+}
+
+.filter-category-select {
+    width: 100%;
+    padding: 16px;
+    font-size: 18px;
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    background-color: var(--card-background);
+    color: var(--text-primary);
+    line-height: 1.5;
+    cursor: pointer;
+    box-sizing: border-box;
+    transition: border-color 0.3s ease;
+}
+
+.filter-category-select:focus {
+    border-color: var(--primary-color);
+    outline: none;
+}
+
+.toggle-add-form-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding: 16px;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-inverse);
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    line-height: 1.5;
+    box-sizing: border-box;
+    transition: all 0.3s ease;
+}
+
+.toggle-add-form-btn.add {
+    background-color: var(--primary-color);
+}
+
+.toggle-add-form-btn.add:hover {
+    background-color: var(--primary-dark);
+}
+
+.toggle-add-form-btn.cancel {
+    background-color: var(--error-color);
+}
+
+.toggle-add-form-btn.cancel:hover {
+    background-color: var(--error-dark);
+}
+
+/* Items Section */
+.items-section {
+    background-color: var(--card-background);
+    padding: 30px;
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    align-content: center;
+    margin-bottom: 25px;
+}
+
+.section-header h2 {
+    margin: 0;
+    color: var(--text-primary);
+    font-size: 1.5rem;
+}
+
+.action-buttons-slist {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    align-content: center;
+    gap: 15px;
+}
+
+.clear-btn, .clear-all-btn, .mark-all-btn {
+    padding: 16px;
+    border: none;
+    font-size: 1.2rem;
+    cursor: pointer;
+    transition: all 0.3s;
+    border-radius: 8px;
+}
+
+.mark-all-btn {
+    border:4px solid var(--success-color);
+    color: var(--success-color);
+}
+
+.mark-all-btn:hover {
+    background: var(--success-dark);
+    color: var(--text-inverse);
+}
+
+.clear-btn {
+    border:4px solid var(--warning-color);
+    color: var(--warning-color);
+}
+
+.clear-btn:hover {
+    background: var(--warning-dark);
+    color: var(--text-inverse);
+}
+
+.clear-all-btn {
+    border:4px solid var(--error-color);
+    color: var(--error-color);
+}
+
+.clear-all-btn:hover {
+    background: var(--error-dark);
+    color: var(--text-inverse);
+}
+
+/* Empty State */
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-muted);
+}
+
+.empty-icon {
+    font-size: 4rem;
+    margin-bottom: 20px;
+}
+
+.empty-state h3 {
+    margin: 0 0 10px 0;
+    color: #333;
+}
+
+.empty-state p {
+    margin: 0;
+    font-size: 14px;
+}
+
+/* Items List */
+.items-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+/* Improved shopping list item layout */
+.shopping-item {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 15px 20px;
+    background: #fafafa;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+    position: relative;
+    flex-wrap: wrap;
+}
+
+.shopping-item:hover {
+    background: #f0f0f0;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
+}
+
+.shopping-item.checked {
+    background: #e8f5e8;
+    border-color: #4CAF50;
+    opacity: 0.7;
+}
+
+/* Improved item info area styles */
+.item-info {
+    flex: 1;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 1rem;
+    min-width: 0; /* Prevent text overflow */
+}
+
+.item-name, .item-category {
+    font-weight: 600;
+    font-size: 1.4rem;
+    color: #333;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    word-break: break-word; /* Allow long text to wrap */
+}
+
+.purchased-badge {
+    background: linear-gradient(135deg, #4CAF50, #45a049);
+    color: white;
+    padding: 2px 8px;
+    border-radius: 8px;
+    font-size: 10px;
+    font-weight: 500;
+    margin-left: 8px;
+}
+
+.shopping-item.checked .item-name {
+    text-decoration: line-through;
+    color: #666;
+}
+
+.shopping-item.checked .item-category {
+    opacity: 0.6;
+}
+
+/* Edit mode container */
+.edit-mode-container {
+    flex: 1;
+    width: 100%;
+}
+
+.edit-buttons-container {
+    display: flex;
+    gap: 8px;
+}
+
+.item-action-buttons {
+    display: flex;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.back-button {
+    display: inline-block;
+    padding: 12px 25px;
+    background-color: var(--button-background-color);
+    color: #3E3E3E;
+    text-decoration: none;
+    border-radius: 8px;
+    font-weight: 600;
+    transition: all ease-in-out 0.3s;
+}
+
+.back-button:hover {
+    color: black;
+}
+
+/* Note: Main responsive styles are consolidated at the end of this file */
+
+.shopping-list-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    border-radius: 20px;
+}
+
+/* Add Item Section */
+.add-item-section {
+    padding: 30px;
+    margin-bottom: 30px;
+    border-radius: 10px;
+    background: white;
+    border-bottom: 1px solid #e0e0e0;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.add-item-section h2 {
+    margin: 0 0 20px 0;
+    color: #333;
+    font-size: 1.5rem;
+}
+
+/* Note: Add item section responsive styles are in the consolidated section at end of file */
+
+.item-actions {
+    display: flex;
+    align-items: center;
+    margin-right: 12px;
+}
+
+.purchase-btn {
+    padding: 16px;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    white-space: nowrap;
+
+}
+
+.purchase-btn.unpurchased {
+    color: #ffffff;
+    border: 5px solid #FF9800;
+}
+
+.purchase-btn.unpurchased:hover {
+    background: #f57c00;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(255, 152, 0, 0.3);
+}
+
+.purchase-btn.purchased {
+    background: #4CAF50;
+    color: white;
+}
+
+.purchase-btn.purchased:hover {
+    background: #45a049;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);
+}
+
+/* Responsive design for purchase buttons */
+@media (max-width: 768px) {
+    .purchase-btn {
+        padding: 12px;
+    }
+    
+    .item-actions {
+        margin-right: 0;
+        margin-bottom: 8px;
+    }
+}
+
+@media (max-width: 480px) {
+    .purchase-btn {
+        padding: 10px;
+    }
+}
+
+/* ===========================================
+   COMPREHENSIVE RESPONSIVE DESIGN
+   =========================================== */
+
+/* Large Tablets and Small Desktops (max-width: 1024px) */
+@media (max-width: 1024px) {
+    .shopping-list-container {
+        max-width: 95%;
+    }
+
+    .shopping-list-header {
+        max-width: 95%;
+        padding: 18px;
+    }
+
+    .shopping-list-header h1 {
+        font-size: 2.2rem;
+    }
+
+    .item-info {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+
+    .filter-controls-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .add-item-section,
+    .items-section {
+        padding: 25px;
+    }
+
+    .item-input {
+        min-width: 180px;
+    }
+
+    .quantity-input,
+    .unit-select,
+    .category-select {
+        min-width: 100px;
+    }
+}
+
+/* Tablets (max-width: 768px) */
+@media (max-width: 768px) {
+    .shopping-list-page {
+        padding: 12px;
+    }
+
+    .shopping-list-container {
+        border-radius: 15px;
+    }
+
+    .shopping-list-header {
+        flex-direction: column;
+        text-align: center;
+        padding: 15px;
+        gap: 12px;
+        margin-bottom: 20px;
+    }
+
+    .shopping-list-header h1 {
+        font-size: 1.8rem;
+        width: 100%;
+    }
+
+    .back-button {
+        width: 100%;
+        text-align: center;
+        padding: 10px 20px;
+    }
+
+    .filter-controls-container {
+        padding: 15px;
+        margin-bottom: 20px;
+    }
+
+    .filter-controls-grid {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+    .filter-control-label {
+        font-size: 16px;
+        margin-bottom: 6px;
+    }
+
+    .filter-category-select {
+        padding: 14px;
+        font-size: 16px;
+    }
+
+    .toggle-add-form-btn {
+        padding: 14px;
+        font-size: 16px;
+    }
+
+    .add-item-section {
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+
+    .add-item-section h2 {
+        font-size: 1.3rem;
+        margin-bottom: 15px;
+    }
+
+    .add-item-form {
+        flex-direction: column;
+        gap: 10px;
+        align-items: stretch;
+    }
+
+    .item-input,
+    .quantity-input,
+    .unit-select,
+    .category-select {
+        width: 100%;
+        min-width: unset;
+        flex: none;
+        height: 46px;
+        font-size: 15px;
+    }
+
+    .add-button {
+        width: 100%;
+        margin-top: 5px;
+        height: 46px;
+        font-size: 15px;
+    }
+
+    .items-section {
+        padding: 20px;
+    }
+
+    .section-header {
+        flex-direction: column;
+        gap: 15px;
+        text-align: center;
+        margin-bottom: 20px;
+    }
+
+    .section-header h2 {
+        font-size: 1.3rem;
+    }
+
+    .action-buttons-slist {
+        flex-direction: column;
+        width: 100%;
+        gap: 10px;
+    }
+
+    .clear-btn,
+    .clear-all-btn,
+    .mark-all-btn {
+        width: 100%;
+        padding: 12px;
+        font-size: 1rem;
+        border-width: 3px;
+    }
+
+    .items-list {
+        gap: 10px;
+    }
+
+    .shopping-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 14px;
+    }
+
+    .item-info {
+        width: 100%;
+        gap: 0.4rem;
+    }
+
+    .item-name,
+    .item-category {
+        font-size: 1.2rem;
+    }
+
+    .item-action-buttons {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .edit-button,
+    .remove-button {
+        flex: 1;
+        padding: 10px;
+    }
+
+    .edit-mode-container .add-item-form {
+        gap: 8px;
+    }
+
+    .edit-buttons-container {
+        flex-direction: row;
+        gap: 8px;
+    }
+
+    .save-edit-button,
+    .cancel-edit-button {
+        flex: 1;
+        font-size: 15px;
+        padding: 12px;
+    }
+
+    .unit-edit {
+        width: 80px;
+        min-width: 80px;
+    }
+
+    .empty-state {
+        padding: 40px 15px;
+    }
+
+    .empty-icon {
+        font-size: 3rem;
+    }
+
+    .empty-state h3 {
+        font-size: 1.1rem;
+    }
+
+    .empty-state p {
+        font-size: 13px;
+    }
+
+    .purchase-btn {
+        padding: 12px;
+    }
+
+    .item-actions {
+        margin-right: 0;
+        margin-bottom: 8px;
+    }
+}
+
+/* Mobile Phones (max-width: 480px) */
+@media (max-width: 480px) {
+    .shopping-list-page {
+        padding: 8px;
+    }
+
+    .shopping-list-container {
+        border-radius: 10px;
+    }
+
+    .shopping-list-header {
+        padding: 12px;
+        margin-bottom: 15px;
+        border-radius: 10px;
+        gap: 10px;
+    }
+
+    .shopping-list-header h1 {
+        font-size: 1.5rem;
+    }
+
+    .back-button {
+        padding: 10px 18px;
+        font-size: 14px;
+    }
+
+    .filter-controls-container {
+        padding: 12px;
+        margin-bottom: 15px;
+        border-radius: 10px;
+    }
+
+    .filter-control-label {
+        font-size: 14px;
+    }
+
+    .filter-category-select,
+    .toggle-add-form-btn {
+        font-size: 14px;
+        padding: 12px;
+        border-radius: 6px;
+    }
+
+    .add-item-section {
+        padding: 15px;
+        margin-bottom: 15px;
+        border-radius: 8px;
+    }
+
+    .add-item-section h2 {
+        font-size: 1.1rem;
+        margin-bottom: 12px;
+    }
+
+    .add-item-form {
+        gap: 8px;
+    }
+
+    .item-input,
+    .quantity-input,
+    .unit-select,
+    .category-select {
+        font-size: 14px;
+        height: 44px;
+        padding: 10px 12px;
+        border-radius: 6px;
+    }
+
+    .add-button {
+        font-size: 14px;
+        height: 44px;
+        padding: 10px 18px;
+        border-width: 3px;
+    }
+
+    .items-section {
+        padding: 15px;
+    }
+
+    .section-header {
+        gap: 12px;
+        margin-bottom: 15px;
+    }
+
+    .section-header h2 {
+        font-size: 1.15rem;
+    }
+
+    .action-buttons-slist {
+        gap: 8px;
+    }
+
+    .clear-btn,
+    .clear-all-btn,
+    .mark-all-btn {
+        font-size: 0.9rem;
+        padding: 10px;
+        border-width: 3px;
+        border-radius: 6px;
+    }
+
+    .items-list {
+        gap: 8px;
+    }
+
+    .shopping-item {
+        padding: 12px;
+        gap: 10px;
+        border-radius: 6px;
+    }
+
+    .item-name,
+    .item-category {
+        font-size: 1rem;
+    }
+
+    .purchased-badge {
+        font-size: 9px;
+        padding: 2px 6px;
+        border-radius: 6px;
+    }
+
+    .item-action-buttons {
+        gap: 6px;
+    }
+
+    .edit-button,
+    .remove-button {
+        padding: 8px;
+        border-radius: 6px;
+    }
+
+    .edit-buttons-container {
+        gap: 6px;
+    }
+
+    .save-edit-button,
+    .cancel-edit-button {
+        font-size: 14px;
+        padding: 10px;
+        border-radius: 6px;
+    }
+
+    .unit-edit {
+        width: 70px;
+        min-width: 70px;
+    }
+
+    .empty-state {
+        padding: 30px 12px;
+    }
+
+    .empty-icon {
+        font-size: 2.5rem;
+        margin-bottom: 15px;
+    }
+
+    .empty-state h3 {
+        font-size: 1rem;
+        margin-bottom: 8px;
+    }
+
+    .empty-state p {
+        font-size: 12px;
+    }
+
+    .purchase-btn {
+        padding: 10px;
+    }
+}
+
+/* Extra Small Phones (max-width: 360px) */
+@media (max-width: 360px) {
+    .shopping-list-page {
+        padding: 6px;
+    }
+
+    .shopping-list-header {
+        padding: 10px;
+    }
+
+    .shopping-list-header h1 {
+        font-size: 1.3rem;
+    }
+
+    .back-button {
+        padding: 8px 14px;
+        font-size: 13px;
+    }
+
+    .filter-controls-container {
+        padding: 10px;
+    }
+
+    .filter-control-label {
+        font-size: 13px;
+    }
+
+    .filter-category-select,
+    .toggle-add-form-btn {
+        font-size: 13px;
+        padding: 10px;
+    }
+
+    .add-item-section {
+        padding: 12px;
+    }
+
+    .add-item-section h2 {
+        font-size: 1rem;
+    }
+
+    .item-input,
+    .quantity-input,
+    .unit-select,
+    .category-select {
+        font-size: 13px;
+        height: 42px;
+        padding: 8px 10px;
+    }
+
+    .add-button {
+        font-size: 13px;
+        height: 42px;
+    }
+
+    .items-section {
+        padding: 12px;
+    }
+
+    .section-header h2 {
+        font-size: 1.05rem;
+    }
+
+    .clear-btn,
+    .clear-all-btn,
+    .mark-all-btn {
+        font-size: 0.85rem;
+        padding: 8px;
+    }
+
+    .shopping-item {
+        padding: 10px;
+    }
+
+    .item-name,
+    .item-category {
+        font-size: 0.9rem;
+    }
+
+    .edit-button,
+    .remove-button {
+        padding: 6px;
+    }
+
+    .save-edit-button,
+    .cancel-edit-button {
+        font-size: 13px;
+        padding: 8px;
+    }
+
+    .unit-edit {
+        width: 60px;
+        min-width: 60px;
+    }
+
+    .empty-state {
+        padding: 25px 10px;
+    }
+
+    .empty-icon {
+        font-size: 2rem;
+    }
+
+    .empty-state h3 {
+        font-size: 0.95rem;
+    }
+
+    .purchase-btn {
+        padding: 8px;
+    }
+}

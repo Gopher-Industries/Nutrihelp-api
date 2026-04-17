@@ -1,0 +1,111 @@
+.menucard {
+  flex: 0 0 320px; 
+  height: 480px;
+  margin: 10px 5px;
+  padding: 15px;
+  border-radius: 15px;
+  display: flex;
+  flex-direction: column;
+  background: var(--card-background);
+  box-shadow: var(--card-shadow);
+  transition: transform 0.2s;
+  border: 1px solid var(--border-color);
+}
+
+.menucard:hover {
+  transform: translateY(-5px);
+}
+
+.menucard-image {
+  width: 100%;
+  height: 180px;
+  border-radius: 20px; 
+  object-fit: cover;
+  box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.menucard-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  margin-top: 15px;
+  min-height: 0; 
+  overflow: hidden; 
+}
+
+.menucard-body h5 {
+  margin: 0 0 10px 0;
+  text-align: left; 
+  font-weight: bold;
+  font-size: clamp(0.875rem, 3vw, 1.125rem);
+  color: var(--text-primary);
+}
+
+.menucard-body p {
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  margin: 0;
+  max-height: 90px; 
+  overflow-y: auto; 
+  padding-right: 5px;
+}
+
+.menucard-body p::-webkit-scrollbar {
+  width: 4px;
+}
+
+.menucard-body p::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 4px;
+}
+
+.menucard-body p::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+.menucard-body p:hover {
+  position: relative;
+  z-index: 10;
+}
+
+.menucard-footer {
+  margin-top: auto; 
+  padding-top: 15px;
+  text-align: center;
+  flex-shrink: 0; 
+}
+
+.recipe-link {
+  display: inline-block;
+  padding: 8px 25px;
+  background-color: var(--primary-light); 
+  color: var(--primary-color);
+  border: 1px solid var(--primary-color);
+  text-decoration: none;
+  border-radius: 20px;
+  font-size: 0.875rem;
+  transition: all 0.3s;
+}
+
+.recipe-link:hover {
+  background-color: var(--primary-color);
+  color: var(--text-inverse);
+}
+
+/* Responsive Design for MenuCard */
+@media (max-width: 768px) {
+  .menucard {
+    flex: 0 0 280px;
+    height: 460px;
+  }
+}
+
+@media (max-width: 480px) {
+  .menucard {
+    flex: 0 0 100%;
+    max-width: 400px;
+    height: auto;
+    min-height: 420px;
+  }
+}

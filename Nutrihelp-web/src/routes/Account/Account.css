@@ -1,0 +1,92 @@
+body {
+  font-family: "Montserrat", sans-serif;
+  color: var(--text-primary);
+}
+
+a {
+  text-decoration: none;
+  color: var(--text-link);
+}
+
+a:hover {
+  color: var(--text-link-hover);
+  text-decoration: none;
+}
+
+h1:not(#no-bg),
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: "Montserrat", sans-serif;
+  color: var(--text-heading);
+}
+
+#account {
+  width: 100%;
+  height: calc(100vh - 78px);
+  overflow-y: scroll;
+  scrollbar-width: thin;
+  scrollbar-color: var(--primary-color) var(--background-color);
+  background-color: var(--background-color);
+}
+
+.account,
+.titleInput {
+  box-shadow: var(--box-shadow-light);
+  background: var(--card-background);
+  border-radius: 20px;
+  padding: 20px;
+  border: 1px solid var(--border-color);
+}
+
+.account > .title {
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  transition: all 0.3s ease-in-out;
+  color: var(--text-primary);
+}
+
+.account > .title:hover {
+  color: var(--primary-color);
+}
+
+.account .message {
+  display: flex;
+}
+
+.account .message .left,
+.account .message .right {
+  width: 30%;
+  cursor: default;
+  transition: all 0.3s ease-in-out;
+}
+
+.account .message .left {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-radius: 20px;
+}
+
+.account .message .right {
+  overflow: hidden;
+  max-height: 25px;
+  color: var(--text-secondary);
+}
+
+.account .message:hover > .left {
+  background: var(--primary-color);
+  color: var(--text-inverse);
+}
+
+.account:hover .message > .right {
+  width: 70%;
+  max-height: 1000px;
+}
+
+.section-bg {
+  background-color: var(--background-secondary);
+}

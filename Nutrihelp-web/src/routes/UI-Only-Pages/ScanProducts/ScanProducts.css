@@ -1,0 +1,223 @@
+@import url("../../UiTimer/UiTimer.css");
+
+/* Ensure html and body fill viewport for this page */
+html, body, #root, .App {
+  min-height: 100%;
+}
+
+.scan-products-page {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
+  min-height: 100vh;
+  width: 100%;
+  box-sizing: border-box;
+  overflow-x: hidden;
+  padding: 2rem 1rem 100px 1rem;
+  background-color: var(--background-color);
+  position: relative;
+}
+
+/* Ensure all direct children take full width */
+.scan-products-page > * {
+  width: 100%;
+  max-width: 900px;
+}
+
+/* Nested scan-products-page (when ScanProducts/ScanBarcode rendered inside Scan) */
+.scan-products-page .scan-products-page {
+  min-height: auto;
+  padding: 0;
+  width: 100%;
+  max-width: 100%;
+}
+ 
+ /* Svan button selector */
+ .scan-button-selector{
+  background-color: var(--card-background);
+  color: var(--text-primary);
+  border: 4px solid var(--primary-color);
+  padding: 0.75rem 1.5rem;
+  width: 100%;
+  padding: 18px 22px;
+  border-radius: 18px;
+  cursor: pointer;
+  font-size: 1.06rem;
+  font-weight: 900;
+  transition: transform .06s ease, box-shadow .18s ease, filter .18s ease;
+ }
+.scan-button-selector:focus{
+  background-color: var(--primary-dark);
+  color: var(--text-inverse);
+ }
+
+.scan-products-container {
+  max-width: 900px;
+  width: 100%;
+  margin: 1rem auto;
+  padding: 40px 36px 32px;
+  background: var(--card-background);
+  border: 1px solid var(--border-color);
+  border-radius: 20px;
+  box-shadow: var(--card-shadow-hover);
+  position: relative;
+  overflow: hidden;
+  box-sizing: border-box;
+  flex-shrink: 0;
+}
+ 
+ 
+.scanned-products-heading,
+.scan-products-container h1,
+.scan-products-container h2 {
+  text-align: left;
+  font-size: clamp(1rem, 2.6vw, 2.2rem) !important;
+  font-weight: 900;
+  color: var(--text-primary);
+  padding: 1rem;
+  text-shadow: none;
+}
+/* .scanHead{
+  text-align: left;
+  width: 900px;
+  font-size: clamp(1rem, 2.6vw, 2.2rem) !important;
+  font-weight: 900;
+  color: #20123d;
+  padding: 1rem;
+  text-shadow: 0 1px 0 #fff;
+  margin: 20px auto !important;
+} */
+ 
+ 
+.scan-products-segment {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+ 
+ 
+.scan-products-form {
+  display: flex;
+  flex-direction: column;
+  padding: 1rem;
+}
+ 
+ 
+.scan-products-label {
+  font-size: 1.5rem;
+  margin: 16px 0px;
+  font-weight: 800;
+  color: var(--text-secondary);
+}
+ 
+ 
+ 
+.upload-section {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  min-height: 20rem;
+  padding: 22px 18px;
+  border-radius: 18px;
+  background-color: var(--primary-light);
+  border: 2px dashed var(--primary-dark);
+  text-align: center;
+  transition: border-color .18s ease, box-shadow .18s ease, background .18s ease, transform .06s ease;
+}
+.upload-section:hover {
+  border-color: var(--primary-dark);
+  background: var(--card-background);
+  box-shadow: 0 0 0 4px rgba(124,58,237,.12);
+  transform: translateY(-1px);
+}
+ 
+.upload-section input[type="file"] { display: none; }
+.scan-products-container input{
+  background-color: var(--input-background);
+  border: 1px solid var(--border-color);
+  width:100%;
+  padding: 1rem;
+  border-radius: 10px;
+  margin: 10px auto;
+  color: var(--text-primary);
+}
+.upload-section p{
+  font-size: 1.2rem !important;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  padding: 10px 18px;
+  font-weight: 800;
+  color: var(--primary-color) !important;
+  cursor: pointer;
+}
+.upload-section label[for="file-upload"]:hover {
+  filter: brightness(1.03);
+  box-shadow: 0 10px 20px rgba(124,58,237,.18);
+}
+ 
+.upload-button {
+  width: 100%;
+  background: var(--success-color);
+  color: var(--text-inverse);
+  padding: 18px 22px;
+  border: none;
+  border-radius: 18px;
+  cursor: pointer;
+  font-size: 1.06rem;
+  font-weight: 900;
+  box-shadow: var(--card-shadow);
+  transition: transform .06s ease, box-shadow .18s ease, filter .18s ease;
+}
+.upload-button:hover {
+  filter: brightness(1.02);
+  background-color: var(--success-dark);
+  transform: translateY(-1px);
+}
+ 
+.view-history-button {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  background: var(--card-background);
+  color: var(--primary-color);
+  padding: 12px 18px;
+  border: 1.5px solid var(--border-color);
+  border-radius: 999px;
+  font-weight: 800;
+  font-size: .98rem;
+  box-shadow: var(--card-shadow);
+  z-index: 100;
+}
+.view-history-button:hover {
+  filter: brightness(1.03);
+  box-shadow: var(--card-shadow-hover);
+  background: var(--hover-background);
+}
+ 
+@media (max-width: 780px){
+  .scan-products-page {
+    padding: 1rem 0.5rem 100px 0.5rem;
+  }
+  .scan-products-page > * {
+    max-width: 100%;
+  }
+  .scan-products-container { 
+    padding: 28px 20px; 
+    margin: 0;
+    width: 100%;
+    border-radius: 12px;
+  }
+  .scan-products-form { grid-template-columns: 1fr; }
+  .scan-products-label { font-size: .96rem; }
+  .upload-section {
+    min-height: 15rem;
+  }
+}
+ 
+.scan-products-container {
+  padding-top: 28px;
+}
+ 

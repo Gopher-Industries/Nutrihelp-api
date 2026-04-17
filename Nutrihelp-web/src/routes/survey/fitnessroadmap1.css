@@ -1,0 +1,233 @@
+.roadmap-page {
+  display: flex;
+  flex-direction: column;
+  max-width: 100%;
+  width: 100%;
+  padding: 1rem;
+  min-height: 100vh;
+  background: var(--gradient-primary, linear-gradient(44deg, #7B44FF 0%, #F26CBA 100%)) !important;
+  box-sizing: border-box;
+  overflow-x: hidden;
+}
+.heading{
+  background: var(--glass-background, rgba(255,255,255,0.2)) !important;
+  color: var(--text-light, white);
+  font-weight: bolder;
+  font-size: x-large;
+  padding: 0.5rem 1rem;
+  border-radius: 1rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-bottom: 20px;
+}
+
+.heading h1 {
+  margin-top: 0 !important;
+  text-align: center;
+}
+
+.selector-row {
+    display: flex;
+    justify-content: flex-start;
+    align-items: baseline;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    font-size: 1.1rem;
+    margin-left: 50px;
+}
+
+.week-card-inactive:hover{
+  transform: translateY(-2px) scale(1.03);
+  box-shadow: 0 8px 20px rgba(123, 68, 255, 0.35);
+  background: var(--gradient-secondary, linear-gradient(135deg, #7B44FF 0%, #F26CBA 100%));
+}
+
+.week-card-active:hover{
+  transform: translateY(-2px) scale(1.03);
+  box-shadow: 0 8px 20px rgba(123, 68, 255, 0.35);
+  background: var(--gradient-secondary, linear-gradient(135deg, #7B44FF 0%, #F26CBA 100%));
+}
+.week-card-active{
+  background: var(--glass-background-dark, rgba(67, 65, 65, 0.2)) !important;
+  color: var(--text-primary);
+  font-weight: bolder;
+  font-size: x-large;
+  padding: 0.5rem 1rem;
+  border-radius: 1rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.week-card-inactive{
+  background: var(--glass-background, rgba(255,255,255,0.2)) !important;
+  color: var(--text-light, white);
+  font-weight: bolder;
+  font-size: x-large;
+  padding: 0.5rem 1rem;
+  border-radius: 1rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+
+.day-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  margin-left: 50px;
+}
+
+.day-btn {
+  display: inline-block;
+  background: var(--glass-background, rgba(255,255,255,0.2)) !important;
+  color: var(--text-muted);
+  padding: 0.5rem 1rem;
+  border-radius: 1rem;
+  font-weight: bolder;
+  font-size: x-large;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-bottom: 20px;
+}
+
+.day-btn:hover {
+  transform: translateY(-2px) scale(1.03);
+  box-shadow: 0 8px 20px rgba(123, 68, 255, 0.35);
+  background: var(--gradient-secondary, linear-gradient(135deg, #7B44FF 0%, #F26CBA 100%));
+}
+
+.day-btn.active {
+  background: var(--glass-background-dark, rgba(67, 65, 65, 0.2)) !important;
+  /* background: linear-gradient(44deg, #7B44FF 0%, #F26CBA 100%) !important; */
+  color: var(--text-primary);
+}
+
+.content-grid {
+  margin-left: 50px;
+  display: grid;
+  /* grid-template-columns: repeat(2, auto); */
+  justify-content: flex-start;
+  gap: 1px;
+}
+
+.card {
+  display: inline-block;
+  background: var(--glass-background, rgba(255,255,255,0.2)) !important;
+  color: var(--text-primary);
+  padding: 20px;
+  border-radius: 1rem;
+  font-weight: 500;
+  font-size: x-large;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  width: fit-content;
+  
+}
+
+.card ul{
+  list-style: inside;
+  padding-left: 10px;
+  font-size: large;
+  font-weight: 700;
+}
+
+.card-1{
+  display: flex;
+  gap: 40px;
+}
+
+.card:hover {
+  transform: translateY(-2px) scale(1.03);
+  box-shadow: 0 8px 20px rgba(123, 68, 255, 0.35);
+  background: var(--gradient-secondary, linear-gradient(135deg, #7B44FF 0%, #F26CBA 100%));
+}
+
+.card h2 {
+  margin-top: 0;
+  margin-bottom: 0.5rem;
+  font-size: x-large !important;
+  font-weight: bold !important;
+}
+
+.card p{
+  font-weight: 700 !important;
+  font-size: large !important;
+}
+
+.roadmap-button{
+  display: flex;
+  justify-content: center;
+  margin-bottom: 30px;
+}
+
+.stats-panel {
+  position: absolute;
+  top: 170px;
+  right: 90px;
+  width: 250px;
+  background: var(--card-background);
+  backdrop-filter: blur(6px);
+  padding: 1rem;
+  border-radius: 12px;
+  box-shadow: var(--card-shadow);
+  z-index: 10; /* make sure it's above other elements */
+}
+
+.stats-panel h2 {
+  font-size: 1.2rem;
+  margin-bottom: 0.8rem;
+  color: var(--text-primary);
+}
+
+.progress-bar {
+  width: 100%;
+  height: 10px;
+  background: var(--background-secondary);
+  border-radius: 6px;
+  margin: 0.5rem 0;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--gradient-primary, linear-gradient(90deg, #7B44FF, #F26CBA));
+  transition: width 0.4s ease;
+}
+
+.rings-wrapper {
+  position: absolute;
+  top: 370px;
+  right: 90px;
+  width: 250px;
+  margin-top: 1rem;
+  text-align: center;
+   background: var(--card-background);
+  backdrop-filter: blur(6px);
+  padding: 1rem;
+  border-radius: 12px;
+  box-shadow: var(--card-shadow);
+  z-index: 10; /* make sure it's above other elements */
+}
+
+.rings-row {
+  display: flex;
+  flex-direction: column;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 0.5rem;
+}
+
+.ring-item {
+  width: 70px;
+}
+.ring-item p {
+  margin-top: 0.3rem;
+  font-size: 0.8rem;
+  font-weight: bold;
+  color: var(--text-primary);
+}
+

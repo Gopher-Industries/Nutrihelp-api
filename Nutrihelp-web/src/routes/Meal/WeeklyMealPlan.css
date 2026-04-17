@@ -1,0 +1,13 @@
+/* WeeklyMealPlan.css */
+
+@media (max-width: 768px) {
+  #meal-plan-pdf {
+    max-width: 100% !important;
+  }
+}
+
+@media (max-width: 480px) {
+  #meal-plan-pdf {
+    padding: 0 10px;
+  }
+}

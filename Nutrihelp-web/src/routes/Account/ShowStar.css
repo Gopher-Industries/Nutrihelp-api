@@ -1,0 +1,12 @@
+.ShowStar{
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    background: #bd49e7;
+}
+
+.star-icon {
+    color: gold; 
+    font-size: 30px; 
+    margin-right: 5px; 
+}

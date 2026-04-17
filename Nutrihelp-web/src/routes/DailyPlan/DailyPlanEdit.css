@@ -1,0 +1,583 @@
+/* DailyPlanEdit – SCOPED. Won't leak into the rest of the app */
+/* ===== CSS Variables Definition ===== */
+.dpe {
+  /* Colors */
+  --dpe-primary: #005bbb;
+  --dpe-primary-light: #eef6ff;
+  --dpe-primary-lighter: #E8F1FF;
+  --dpe-bg: #f8fbff;
+  --dpe-white: #ffffff;
+  --dpe-surface-2: #f8fafc;
+  --dpe-surface-3: #fcfdfe;
+  --dpe-text: #1e293b;
+  --dpe-text-medium: #475569;
+  --dpe-text-light: #94a3b8;
+  --dpe-border: #e2e8f0;
+  --dpe-border-light: #f1f5f9;
+  
+  /* Shadow */
+  --dpe-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+
+  /* Apply styles */
+  background-color: var(--dpe-bg);
+  min-height: 100vh;
+  padding: 30px;
+  color: var(--dpe-text);
+}
+
+.dpe-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  display: flex;
+  gap: 30px;
+  align-items: flex-start;
+}
+
+/* Sidebar */
+.dpe-sidebar {
+  width: 340px;
+  min-width: 300px;
+  flex-shrink: 0;
+}
+
+.dpe-sidebar-card {
+  background: var(--dpe-white);
+  border: 1px solid var(--dpe-border);
+  border-radius: 24px;
+  padding: 25px;
+  margin-bottom: 25px;
+  box-shadow: var(--dpe-shadow);
+}
+
+.dpe-card-title {
+  text-align: center;
+  color: var(--dpe-text-light);
+  font-size: clamp(0.75rem, 2.5vw, 0.875rem);
+  line-height: 1.3;
+  margin-bottom: 15px;
+  font-weight: 500;
+}
+
+/* Date navigation controls */
+.dpe-date-nav {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 20px;
+}
+
+.dpe-nav-btn {
+  background: var(--dpe-primary-light);
+  border: 1px solid var(--dpe-primary);
+  padding: 6px 8px;
+  border-radius: 12px;
+  cursor: pointer;
+  font-size: 0.6875rem;
+  color: #475569;
+  font-weight: 700;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.06s ease;
+  white-space: nowrap;
+  flex: 0 0 55px;
+}
+.dpe-nav-btn:hover {
+  background: var(--dpe-primary);
+  color: var(--dpe-white);
+}
+.dpe-nav-btn:active {
+  transform: translateY(1px);
+}
+
+.dpe-date-input {
+  flex: 1 !important;
+  text-align: center !important;
+  border: 1px solid var(--dpe-border) !important;
+  background: #ffffff !important; 
+  padding: 6px 8px !important;
+  border-radius: 15px !important;
+  font-size: 0.75rem !important;
+  font-weight: 700 !important;
+  color: var(--dpe-text) !important;
+  outline: none !important;
+  min-width: 0 !important;
+}
+.dpe-date-input:focus {
+  border-color: var(--dpe-primary) !important;
+  background: var(--dpe-primary-lighter) !important;
+}
+
+/* Sidebar button group */
+.dpe-action-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.dpe-btn-save {
+  grid-column: span 2;
+  background: var(--dpe-primary);
+  color: var(--dpe-white);
+  border: none;
+  padding: 14px;
+  border-radius: 16px;
+  font-size: 1rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: opacity 0.2s, transform 0.06s;
+}
+.dpe-btn-save:hover {
+  opacity: 0.92;
+}
+.dpe-btn-save:active {
+  transform: translateY(1px);
+}
+
+.dpe-btn-white {
+  background: var(--dpe-white);
+  border: 1px solid var(--dpe-border);
+  color: var(--dpe-text-medium);
+  padding: 10px;
+  border-radius: 14px;
+  font-size: 0.875rem;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background 0.15s ease;
+}
+.dpe-btn-white:hover {
+  background: var(--dpe-surface-2);
+}
+
+.dpe-btn-clear {
+  grid-column: span 2;
+  background: var(--dpe-white);
+  border: 1px solid var(--dpe-border);
+  color: var(--dpe-text-medium);
+  padding: 10px;
+  border-radius: 14px;
+  font-size: 0.875rem;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background 0.15s ease;
+}
+.dpe-btn-clear:hover {
+  background: var(--dpe-surface-2);
+}
+
+/* Nutrition summary */
+.dpe-summary-title {
+  font-size: clamp(1rem, 4vw, 1.25rem);
+  line-height: 1.3;
+  margin-bottom: 25px;
+  color: var(--dpe-text);
+  font-weight: 800;
+  text-align: center;
+}
+
+.dpe-summary-item {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  color: var(--dpe-text-medium);
+  font-size: 0.9375rem;
+  border-bottom: 1px solid var(--dpe-border-light);
+  padding-bottom: 12px;
+}
+
+/* Main content area (right side) */
+.dpe-main-content {
+  flex: 1;
+}
+
+.dpe-meal-card {
+  background: var(--dpe-white);
+  border: 1px solid var(--dpe-border);
+  border-radius: 24px;
+  padding: 35px;
+  margin-bottom: 30px;
+  box-shadow: var(--dpe-shadow);
+}
+
+.dpe-meal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+}
+
+.dpe-meal-header h2 {
+  font-size: clamp(1.25rem, 4vw, 1.625rem) !important;
+  line-height: 1.3;
+  color: var(--dpe-text);
+  font-weight: 900;
+  margin: 0;
+}
+
+.dpe-add-btn {
+  background: var(--dpe-primary);
+  color: var(--dpe-white);
+  border: none;
+  padding: 10px 25px;
+  border-radius: 14px;
+  font-size: 0.875rem;
+  font-weight: 800;
+  cursor: pointer;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.dpe-add-btn:hover {
+  opacity: 0.92;
+}
+
+/* Meal list and Input row */
+.dpe-item-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 18px;
+  padding: 18px;
+  border: 1px solid var(--dpe-border-light);
+  border-radius: 24px;
+  background: var(--dpe-surface-3);
+}
+
+.dpe-input-field {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+}
+
+.dpe-input-field.name {
+  flex: 2.5;
+}
+
+.dpe-input-field.num {
+  flex: 1;
+}
+
+.dpe-input-field.action {
+  flex: 0 0 120px;
+}
+
+.dpe-input-field input {
+  width: 100%;
+  border: 1px solid var(--dpe-border);
+  background: var(--dpe-white);
+  padding: 12px;
+  border-radius: 16px;
+  text-align: center;
+  font-size: 0.875rem;
+  outline: none;
+  transition: border-color 0.2s;
+  height: 40px;
+  box-sizing: border-box;
+}
+
+.dpe-input-field input:focus {
+  border-color: var(--dpe-primary);
+}
+
+.dpe-input-field label {
+  font-size: 0.6875rem;
+  color: var(--dpe-text-light);
+  margin-top: 10px;
+  font-weight: 700;
+  text-transform: capitalize;
+}
+
+/* Remove button */
+.dpe-remove-text {
+  color: var(--dpe-primary);
+  background: var(--dpe-primary-lighter);
+  border: 1px solid var(--dpe-primary);
+  border-radius: 12px;
+  padding: 0 14px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.875rem;
+  cursor: pointer;
+  font-weight: 800;
+  width: 100%;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.dpe-remove-text:hover {
+  background: var(--dpe-primary);
+  color: var(--dpe-white);
+}
+
+.dpe-empty-msg {
+  color: var(--dpe-text-light);
+  font-style: italic;
+  text-align: center;
+  padding: 20px;
+}
+
+/* Responsive */
+@media (max-width: 1100px) {
+  .dpe-container {
+    flex-direction: column;
+  }
+  
+  .dpe-sidebar {
+    width: 100%;
+  }
+
+  .dpe-main-content {
+    width: 100%;
+  }
+
+  .dpe-sidebar-card,
+  .dpe-meal-card {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 20px !important;
+  }
+
+  .dpe-input-field.action {
+    flex: 0 0 140px;
+  }
+}
+
+/* ===== Dark Mode Support ===== */
+.dark-mode .dpe {
+  /* Colors - Dark Mode */
+  --dpe-primary: #4da3ff;
+  --dpe-primary-light: #1e3a5f;
+  --dpe-primary-lighter: #2d4a6f;
+  --dpe-bg: #121212;
+  --dpe-white: #1e1e1e;
+  --dpe-surface-2: #2a2a2a;
+  --dpe-surface-3: #252525;
+  --dpe-text: #e5e7eb;
+  --dpe-text-medium: #9ca3af;
+  --dpe-text-light: #6b7280;
+  --dpe-border: #374151;
+  --dpe-border-light: #2d3748;
+  
+  /* Shadow */
+  --dpe-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.dark-mode .dpe-date-input {
+  background: var(--dpe-white) !important;
+  color: var(--dpe-text) !important;
+  border-color: var(--dpe-border) !important;
+}
+
+.dark-mode .dpe-date-input:focus {
+  background: var(--dpe-primary-lighter) !important;
+  border-color: var(--dpe-primary) !important;
+}
+
+.dark-mode .dpe-nav-btn {
+  color: var(--dpe-text);
+}
+
+.dark-mode .dpe-nav-btn:hover {
+  color: var(--dpe-white);
+}
+
+/* Enhanced Responsive Design for Tablets */
+@media (max-width: 768px) {
+  .dpe {
+    padding: 20px 15px;
+  }
+  
+  .dpe-sidebar-card,
+  .dpe-meal-card {
+    padding: 18px !important;
+    border-radius: 20px;
+  }
+  
+  .dpe-date-nav {
+    padding: 15px;
+  }
+  
+  .dpe-date-nav {
+    gap: 5px;
+  }
+
+  .dpe-date-input {
+    font-size: 0.6875rem !important;
+    padding: 5px 7px !important;
+  }
+  
+  .dpe-nav-btn {
+    padding: 5px 7px;
+    font-size: 0.625rem;
+    flex: 0 0 50px;
+  }
+  
+  .dpe-item-row {
+    padding: 15px;
+    gap: 10px;
+  }
+  
+  .dpe-input-field input {
+    font-size: 0.8125rem;
+    padding: 10px;
+  }
+  
+  .dpe-input-field label {
+    font-size: 0.625rem;
+  }
+  
+  .dpe-input-field.action {
+    flex: 0 0 100px;
+  }
+  
+  .dpe-remove-text {
+    font-size: 0.8125rem;
+    padding: 0 10px;
+  }
+}
+
+/* Enhanced Responsive Design for Mobile */
+@media (max-width: 480px) {
+  .dpe {
+    padding: 15px 10px;
+  }
+  
+  .dpe-sidebar-card,
+  .dpe-meal-card {
+    padding: 15px !important;
+    border-radius: 16px;
+  }
+  
+  .dpe-header {
+    font-size: 1.125rem;
+  }
+
+  .dpe-date-nav {
+    gap: 4px; 
+    padding: 0;  
+    margin-bottom: 16px;
+  }
+  
+  .dpe-nav-btn {
+    padding: 4px 6px;  
+    font-size: 0.625rem;  
+    border-radius: 10px;
+    flex: 0 0 45px;
+  }
+  
+  .dpe-date-input {
+    font-size: 0.625rem !important;
+    padding: 4px 6px !important;
+    border-radius: 10px !important;
+  }
+  
+  .dpe-nav-btn {
+    flex: 0 0 50px;
+    font-size: 0.625rem;
+    padding: 5px 6px;
+  }
+  
+  .dpe-meal-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  
+  .dpe-add-btn {
+    width: 100%;
+  }
+  
+  .dpe-item-row {
+    padding: 12px;
+    gap: 10px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+  
+  .dpe-input-field.name {
+    grid-column: 1 / -1;
+  }
+  
+  .dpe-input-field.num {
+    grid-column: span 1;
+  }
+  
+  .dpe-input-field.action {
+    grid-column: 1 / -1;
+    flex: none;
+  }
+  
+  .dpe-input-field input,
+  .dpe-input-field.name input {
+    font-size: 0.8125rem;
+    padding: 10px;
+    height: 42px;
+  }
+  
+  .dpe-input-field label {
+    font-size: 0.625rem;
+    margin-top: 6px;
+  }
+  
+  .dpe-remove-text {
+    padding: 0 12px;
+    height: 42px;
+    font-size: 0.875rem;
+  }
+  
+  .dpe-actions {
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .dpe-actions button {
+    width: 100%;
+  }
+  
+  .dpe-summary-item {
+    font-size: 0.875rem;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+  }
+  
+  .dpe-summary-title {
+    margin-bottom: 20px;
+  }
+}
+
+@media (max-width: 360px) {
+  .dpe {
+    padding: 12px 8px;
+  }
+  
+  .dpe-sidebar-card,
+  .dpe-meal-card {
+    padding: 12px !important;
+  }
+  
+  .dpe-item-row {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    padding: 10px;
+  }
+  
+  .dpe-input-field.name,
+  .dpe-input-field.num,
+  .dpe-input-field.action {
+    grid-column: 1 / -1;
+  }
+  
+  .dpe-input-field input {
+    font-size: 0.75rem;
+    padding: 9px;
+    height: 38px;
+  }
+  
+  .dpe-input-field label {
+    font-size: 0.5625rem;
+  }
+  
+  .dpe-remove-text {
+    height: 38px;
+    font-size: 0.8125rem;
+  }
+}

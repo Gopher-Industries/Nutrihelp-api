@@ -1,0 +1,636 @@
+.recipe-timer-container {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  max-width: 1000px;
+  margin: 2rem auto;
+  padding: 2rem;
+  text-align: center;
+  background-color: var(--background-color);
+}
+
+.recipe-timer-container h2 {
+  color: var(--text-primary);
+  margin-bottom: 3rem !important;
+  font-weight: 600 !important;
+  font-size: 2.5rem !important;
+}
+
+.recipe-selection {
+  margin-top: 2rem;
+  padding: 1.5rem;
+  border-radius: 8px;
+  box-shadow: var(--card-shadow);
+  background-color: var(--card-background);
+}
+
+.recipe-selection h3 {
+  color: var(--text-primary);
+  margin-bottom: 1rem;
+  font-weight: 500;
+  padding: 10px;
+}
+
+.recipe-grid {
+  display: grid;
+  width: calc(100% - 20%);
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 2rem;
+  margin: 0 auto;
+  margin-bottom: 1.5rem;
+  justify-content: center;
+  align-items: center;
+}
+
+.recipe-card {
+  background-color: var(--card-background);
+  border-radius: 8px;
+  padding: 1rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: 2px solid transparent;
+  box-shadow: var(--card-shadow);
+  color: var(--text-primary);
+}
+
+.recipe-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+}
+
+.recipe-card.selected {
+  border-color: var(--primary-color);
+  background-color: var(--hover-background);
+}
+
+.recipe-card.selected .recipe-time {
+  color: var(--primary-color);
+}
+
+.recipe-time {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--primary-color);
+  margin-top: 0.5rem;
+}
+
+.clear-selection {
+  background-color: transparent;
+  color: var(--error-color);
+  border: 1px solid var(--error-color);
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.clear-selection:hover {
+  background-color: var(--error-color);
+  color: var(--button-text);
+}
+
+.timer-display {
+  padding: 1.5rem;
+  background-color: var(--card-background);
+  border-radius: 8px;
+  box-shadow: var(--card-shadow);
+}
+
+.time-inputs, .time-display {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.recipe-timer-container .time-input-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 80px;
+}
+
+.recipe-timer-container .time-input-group .uiTimerInput {
+  font-size: 2.5rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  padding: 0.5rem 1rem;
+  position: relative;
+}
+
+.recipe-timer-container .time-input-group .uiTimerInput:empty:before {
+  content: attr(data-placeholder);
+  color: var(--text-muted);
+}
+
+.recipe-timer-container .time-input-group .uiTimerInput:focus {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.recipe-timer-container .time-input-group label {
+  font-size: 0.85rem;
+  color: var(--text-primary) !important;
+}
+
+.separator {
+  font-size: 2rem;
+  color: var(--text-muted);
+  margin: 0 0.5rem;
+}
+
+.time-unit {
+  font-size: 2.5rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  padding: 0.5rem 1rem;
+  position: relative;
+}
+
+.unit-label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: normal;
+  color: var(--text-muted);
+}
+
+.separator {
+  font-size: 2rem;
+  color: var(--text-muted);
+  margin: 0 0.5rem;
+}
+/* AdjustTime Parameters */
+.adjustTimeParameters{
+  display: grid;
+  width: 60%;
+  justify-content: center;
+  justify-items: center;
+  gap: 1rem;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+  margin: 2rem auto;
+}
+
+.adjustTimebtns{
+  font-size: 18px;
+  color: var(--primary-color);
+  width: 100px;
+  height: 100px;
+  border: 4px solid var(--primary-color);
+  border-radius: 50%;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background-color: var(--card-background);
+}
+
+.adjustTimebtns:hover {
+  background-color: var(--primary-color);
+  color: var(--button-text);
+  transform: scale(1.05);
+}
+
+.timer-controls {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+}
+
+.control-button {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 6px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-weight: 500;
+}
+
+.control-button:not(.reset) {
+  background-color: var(--primary-color);
+  color: var(--button-text);
+}
+
+.control-button:not(.reset):hover {
+  background-color: var(--primary-hover);
+}
+
+.control-button.reset {
+  background-color: var(--card-background);
+  border: 4px solid var(--primary-color);
+  color: var(--primary-color);
+}
+
+.control-button.reset:hover {
+  background-color: var(--primary-color);
+  color: var(--button-text);
+}
+
+.animate {
+  animation: pulse 0.5s ease;
+}
+
+/* steps styling */
+.mainContainer{
+  display: flex;
+  justify-content: start;
+  flex-direction: column;
+  margin-top: 2rem;
+  padding: 1rem;
+  background-color: var(--hover-background);
+  box-shadow: var(--card-shadow);
+  border-left: 6px solid var(--primary-color);
+  border-radius: 8px;
+}
+.guideHead{
+  display: block;
+  text-align: left;
+  font-size: 1.5rem;
+  font-weight: 800;
+  margin-left: 2rem;
+  color: var(--text-primary);
+}
+.stepContainer{
+  list-style: disc;
+  font-size: 1.3rem;
+  width: 70%;
+  text-align: left;
+  margin: 0 auto;
+  color: var(--text-primary);
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.1); color: var(--primary-color); }
+  100% { transform: scale(1); }
+}
+
+/* Responsive Styles */
+
+/* Large Tablets and Small Desktops (max-width: 992px) */
+@media (max-width: 992px) {
+  .recipe-timer-container {
+    max-width: 90%;
+    padding: 1.5rem;
+  }
+
+  .recipe-timer-container h2 {
+    font-size: 2rem !important;
+    margin-bottom: 2rem !important;
+  }
+
+  .recipe-grid {
+    width: calc(100% - 10%);
+    gap: 1.5rem;
+  }
+
+  .adjustTimeParameters {
+    width: 80%;
+  }
+
+  .adjustTimebtns {
+    width: 85px;
+    height: 85px;
+    font-size: 16px;
+  }
+
+  .stepContainer {
+    width: 85%;
+  }
+}
+
+/* Tablets (max-width: 768px) */
+@media (max-width: 768px) {
+  .recipe-timer-container {
+    max-width: 95%;
+    margin: 1rem auto;
+    padding: 1rem;
+  }
+
+  .recipe-timer-container h2 {
+    font-size: 1.75rem !important;
+    margin-bottom: 1.5rem !important;
+  }
+
+  .recipe-selection {
+    padding: 1rem;
+    margin-top: 1.5rem;
+  }
+
+  .recipe-grid {
+    width: 100%;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+  }
+
+  .recipe-card {
+    padding: 0.75rem;
+  }
+
+  .timer-display {
+    padding: 1rem;
+  }
+
+  .time-inputs, .time-display {
+    gap: 0.3rem;
+    flex-wrap: wrap;
+  }
+
+  .recipe-timer-container .time-input-group {
+    width: 65px;
+  }
+
+  .recipe-timer-container .time-input-group .uiTimerInput {
+    font-size: 2rem;
+    padding: 0.4rem 0.8rem;
+  }
+
+  .time-unit {
+    font-size: 2rem;
+    padding: 0.4rem 0.8rem;
+  }
+
+  .separator {
+    font-size: 1.5rem;
+    margin: 0 0.3rem;
+  }
+
+  .adjustTimeParameters {
+    width: 90%;
+    gap: 0.75rem;
+  }
+
+  .adjustTimebtns {
+    width: 70px;
+    height: 70px;
+    font-size: 14px;
+    border-width: 3px;
+  }
+
+  .timer-controls {
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+
+  .control-button {
+    padding: 0.6rem 1.2rem;
+    font-size: 0.9rem;
+  }
+
+  .mainContainer {
+    margin-top: 1.5rem;
+    padding: 0.75rem;
+  }
+
+  .guideHead {
+    font-size: 1.25rem;
+    margin-left: 1rem;
+  }
+
+  .stepContainer {
+    width: 90%;
+    font-size: 1.1rem;
+  }
+}
+
+/* Small Tablets and Large Phones (max-width: 600px) */
+@media (max-width: 600px) {
+  .recipe-timer-container {
+    margin: 0.5rem auto;
+    padding: 0.75rem;
+  }
+
+  .recipe-timer-container h2 {
+    font-size: 1.5rem !important;
+    margin-bottom: 1rem !important;
+  }
+
+  .recipe-selection h3 {
+    font-size: 1rem;
+    padding: 5px;
+  }
+
+  .recipe-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+  }
+
+  .recipe-card {
+    padding: 0.6rem;
+    font-size: 0.9rem;
+  }
+
+  .recipe-time {
+    font-size: 0.75rem;
+  }
+
+  .clear-selection {
+    padding: 0.4rem 0.8rem;
+    font-size: 0.85rem;
+  }
+
+  .time-inputs, .time-display {
+    margin-bottom: 1rem;
+  }
+
+  .recipe-timer-container .time-input-group {
+    width: 55px;
+  }
+
+  .recipe-timer-container .time-input-group .uiTimerInput {
+    font-size: 1.6rem;
+    padding: 0.3rem 0.5rem;
+  }
+
+  .recipe-timer-container .time-input-group label {
+    font-size: 0.75rem;
+  }
+
+  .time-unit {
+    font-size: 1.6rem;
+    padding: 0.3rem 0.5rem;
+  }
+
+  .unit-label {
+    font-size: 0.75rem;
+  }
+
+  .separator {
+    font-size: 1.25rem;
+    margin: 0 0.2rem;
+  }
+
+  .adjustTimeParameters {
+    width: 100%;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+    margin: 1.5rem auto;
+  }
+
+  .adjustTimebtns {
+    width: 65px;
+    height: 65px;
+    font-size: 13px;
+    border-width: 3px;
+  }
+
+  .timer-controls {
+    gap: 0.5rem;
+  }
+
+  .control-button {
+    padding: 0.5rem 1rem;
+    font-size: 0.85rem;
+    flex: 1;
+    min-width: 100px;
+  }
+
+  .control-button.reset {
+    border-width: 3px;
+  }
+
+  .mainContainer {
+    margin-top: 1rem;
+    border-left-width: 4px;
+  }
+
+  .guideHead {
+    font-size: 1.1rem;
+    margin-left: 0.5rem;
+  }
+
+  .stepContainer {
+    width: 95%;
+    font-size: 1rem;
+  }
+}
+
+/* Mobile Phones (max-width: 480px) */
+@media (max-width: 480px) {
+  .recipe-timer-container {
+    padding: 0.5rem;
+  }
+
+  .recipe-timer-container h2 {
+    font-size: 1.25rem !important;
+    margin-bottom: 0.75rem !important;
+  }
+
+  .recipe-selection {
+    padding: 0.75rem;
+    margin-top: 1rem;
+  }
+
+  .recipe-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem;
+  }
+
+  .recipe-card {
+    padding: 0.5rem;
+    font-size: 0.85rem;
+  }
+
+  .timer-display {
+    padding: 0.75rem;
+  }
+
+  .recipe-timer-container .time-input-group {
+    width: 50px;
+  }
+
+  .recipe-timer-container .time-input-group .uiTimerInput {
+    font-size: 1.4rem;
+    padding: 0.25rem 0.4rem;
+  }
+
+  .time-unit {
+    font-size: 1.4rem;
+    padding: 0.25rem 0.4rem;
+  }
+
+  .separator {
+    font-size: 1rem;
+    margin: 0 0.15rem;
+  }
+
+  .adjustTimeParameters {
+    gap: 0.75rem;
+    margin: 1rem auto;
+  }
+
+  .adjustTimebtns {
+    width: 55px;
+    height: 55px;
+    font-size: 11px;
+    border-width: 2px;
+  }
+
+  .control-button {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.8rem;
+    min-width: 80px;
+  }
+
+  .guideHead {
+    font-size: 1rem;
+  }
+
+  .stepContainer {
+    font-size: 0.9rem;
+    padding-left: 1rem;
+  }
+}
+
+/* Extra Small Phones (max-width: 360px) */
+@media (max-width: 360px) {
+  .recipe-timer-container h2 {
+    font-size: 1.1rem !important;
+  }
+
+  .recipe-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 0.4rem;
+  }
+
+  .recipe-card {
+    padding: 0.4rem;
+    font-size: 0.8rem;
+  }
+
+  .time-inputs, .time-display {
+    gap: 0.1rem;
+  }
+
+  .recipe-timer-container .time-input-group {
+    width: 45px;
+  }
+
+  .recipe-timer-container .time-input-group .uiTimerInput {
+    font-size: 1.2rem;
+    padding: 0.2rem 0.3rem;
+  }
+
+  .time-unit {
+    font-size: 1.2rem;
+    padding: 0.2rem 0.3rem;
+  }
+
+  .adjustTimebtns {
+    width: 50px;
+    height: 50px;
+    font-size: 10px;
+  }
+
+  .timer-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .control-button {
+    width: 100%;
+    min-width: unset;
+  }
+}

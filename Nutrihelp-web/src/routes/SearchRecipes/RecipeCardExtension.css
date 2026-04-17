@@ -1,0 +1,55 @@
+/* src/routes/SearchRecipes/RecipeCardExtension.css */
+
+/* Container now sits in page flow, no overlay */
+.recipe-card-modal {
+  position: relative;
+  width: 100%;
+  margin: 40px auto 0 auto;
+  display: block;
+  background: transparent;
+}
+
+/* The white card that holds your details */
+.recipe-modal-content {
+  position: relative;
+  margin: 0 auto;
+  background-color: #fff;
+  border-radius: 12px;
+  padding: 30px 20px;
+  max-width: 800px;
+  width: 90%;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+}
+
+/* Close icon in the top-right corner */
+.recipe-modal-content .icon[name="close"] {
+  position: absolute !important;
+  top: 12px;
+  right: 12px;
+  cursor: pointer;
+  color: #333;
+  font-size: 1.3rem;
+}
+
+/* Hide decorative background vectors (optional) */
+.vector-bg-left,
+.vector-bg-right {
+  display: none;
+}
+
+/* Main inner box styling */
+.recipe-modal-box {
+  margin-top: 10px;  /* less top padding since no overlay */
+}
+
+/* Grid columns */
+.recipe-modal-column {
+  padding: 10px !important;
+}
+
+/* Header inside modal */
+.recipe-modal-box h2 {
+  margin-bottom: 20px;
+  text-align: center;
+  color: #333;
+}
