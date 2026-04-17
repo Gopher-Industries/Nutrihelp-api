@@ -1,16 +1,34 @@
 const supabase = require("../dbConnection.js");
 
-async function getUserProfile(email) {
+async function getUserProfile(lookup = {}) {
 	try {
-		let { data, error } = await supabase
+		const query = supabase
 			.from("users")
 			.select(
-				"user_id,name,first_name,last_name,email,contact_number,mfa_enabled,address,image_id"
-			)
-			.eq("email", email);
+				"user_id,name,first_name,last_name,email,contact_number,mfa_enabled,address,image_id,registration_date,last_login,account_status,user_roles!left(role_name)"
+			);
 
-		if (data[0].image_id != null) {
-			data[0].image_url = await getImageUrl(data[0].image_id);
+		if (lookup.userId != null) {
+			query.eq("user_id", lookup.userId);
+		} else if (lookup.email) {
+			query.eq("email", lookup.email);
+		} else {
+			throw new Error("A userId or email lookup is required");
+		}
+
+		const { data, error } = await query.maybeSingle();
+		if (error) {
+			throw error;
+		}
+
+		if (!data) {
+			return null;
+		}
+
+		if (data.image_id != null) {
+			data.image_url = await getImageUrl(data.image_id);
+		} else {
+			data.image_url = null;
 		}
 
 		return data;

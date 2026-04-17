@@ -36,4 +36,23 @@ const formLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-module.exports = { loginLimiter, signupLimiter, formLimiter };
+// For sensitive password verification / change flows
+const passwordChangeLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => req.user?.userId || req.ip,
+  message: {
+    status: 429,
+    error: "Too many password verification attempts. Please try again later.",
+    code: "RATE_LIMITED",
+  },
+});
+
+module.exports = {
+  loginLimiter,
+  signupLimiter,
+  formLimiter,
+  passwordChangeLimiter,
+};
