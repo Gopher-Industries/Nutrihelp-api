@@ -2,6 +2,15 @@ const express = require('express');
 const router = express.Router();
 const { checkFileIntegrity, generateBaseline } = require('../tools/integrity/integrityService');
 const testErrorRouter = require('./testError');
+const { authenticateToken } = require('../middleware/authenticateToken');
+const authorizeRoles = require('../middleware/authorizeRoles');
+const {
+  createBlockMiddleware,
+} = require('../services/securityEvents/securityResponseService');
+
+router.use(createBlockMiddleware());
+router.use(authenticateToken);
+router.use(authorizeRoles('admin'));
 
 /**
  * @swagger
