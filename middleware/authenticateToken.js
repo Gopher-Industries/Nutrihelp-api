@@ -1,6 +1,10 @@
 const authService = require('../services/authService');
 const logger = require('../utils/logger');
 const { recordAuthInvalidTokenAttempt } = require('../Monitor_&_Logging/metrics');
+const {
+  getActiveBlock,
+  registerAuthFailure,
+} = require('../services/securityEvents/securityResponseService');
 
 const getClientIp = (req) => {
   return (
@@ -16,10 +20,25 @@ const getClientIp = (req) => {
  * - Verifies JWT access tokens only
  * - Attaches decoded user payload to req.user
  */
-const authenticateToken = (req, res, next) => {
+const authenticateToken = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
     const ip = getClientIp(req);
+    const activeBlock = getActiveBlock(req);
+
+    if (activeBlock) {
+      logger.warn('Blocked request rejected during token authentication', {
+        route: req.path,
+        ip,
+        eventType: activeBlock.eventType,
+      });
+      return res.status(429).json({
+        success: false,
+        error: 'This IP has been temporarily blocked for security reasons.',
+        code: 'SECURITY_TEMPORARY_BLOCK',
+        blockedUntil: activeBlock.expiresAt,
+      });
+    }
 
     if (!authHeader) {
       recordAuthInvalidTokenAttempt({
@@ -27,6 +46,7 @@ const authenticateToken = (req, res, next) => {
         ip,
         reason: 'TOKEN_MISSING',
       });
+      await registerAuthFailure(req, { reason: 'TOKEN_MISSING' });
       logger.warn('Authorization header missing', { route: req.path, ip });
       return res.status(401).json({
         success: false,
@@ -42,6 +62,7 @@ const authenticateToken = (req, res, next) => {
         ip,
         reason: 'INVALID_AUTH_HEADER',
       });
+      await registerAuthFailure(req, { reason: 'INVALID_AUTH_HEADER' });
       logger.warn('Invalid authorization header format', { route: req.path, ip });
       return res.status(401).json({
         success: false,
@@ -61,6 +82,7 @@ const authenticateToken = (req, res, next) => {
         ip,
         reason: 'INVALID_TOKEN_TYPE',
       });
+      await registerAuthFailure(req, { reason: 'INVALID_TOKEN_TYPE' });
       logger.warn('Invalid token type detected', { route: req.path, ip });
       return res.status(401).json({
         success: false,
@@ -76,6 +98,7 @@ const authenticateToken = (req, res, next) => {
         ip,
         reason: 'INVALID_TOKEN',
       });
+      await registerAuthFailure(req, { reason: 'INVALID_TOKEN' });
       logger.warn('Invalid token payload', { route: req.path, ip });
       return res.status(401).json({
         success: false,
@@ -100,6 +123,7 @@ const authenticateToken = (req, res, next) => {
       ip,
       reason,
     });
+    await registerAuthFailure(req, { reason });
     logger.warn('Access token verification failed', {
       route: req.path,
       ip,
