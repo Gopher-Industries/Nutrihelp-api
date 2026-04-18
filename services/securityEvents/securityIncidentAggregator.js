@@ -109,7 +109,8 @@ const inc = incidentsMap[incidentKey];
     if (ev.status === 'FAILURE') inc.failureCount += 1;
   }
 
-  return Object.values(incidentsMap).map((inc) => {
+  return Object.values(incidentsMap)
+  .map((inc) => {
     const firstSeenMs = new Date(inc.firstSeen).getTime();
     const lastSeenMs = new Date(inc.lastSeen).getTime();
 
@@ -127,7 +128,8 @@ const inc = incidentsMap[incidentKey];
       sources: Array.from(inc.sources),
       eventTypes: Array.from(inc.eventTypes),
     };
-  });
+  })
+  .sort((a, b) => b.riskScore - a.riskScore);
 }
 
 module.exports = {
