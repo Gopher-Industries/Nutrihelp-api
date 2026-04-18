@@ -1,0 +1,10 @@
+{
+ "user_id":15,
+ "recipe_name":"Tomato pesto chicken pasta",
+ "cuisine_id":5,
+ "total_servings":3,
+ "preparation_time":45,
+ "ingredient_id":[2,3,4,5,6,7,8],
+ "ingredient_quantity":[375,8,500,250,290,60,2],
+ "instructions":"Step 1 Cook the pasta in a large saucepan of boiling water following packet directions or until al dente. Drain, reserving ½ cup (125ml) of cooking liquid. Step 2 Meanwhile, heat oil in a large, deep non-stick frying pan over medium-high heat. Cook half the chicken, stirring, for 3 mins or until golden brown and cooked through. Transfer to a plate. Cover with foil to keep warm. Repeat with the remaining chicken. Step 3 Add the tomatoes to the pan and cook for 3 mins or until the tomatoes begin to collapse. Remove from heat. Transfer tomatoes to a separate plate. Step 4 Return chicken to pan with the pasta, pesto and reserved cooking liquid. Season. Toss to combine. Stir in the rocket. Top with the tomatoes."
+}
