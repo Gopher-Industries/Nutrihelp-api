@@ -1,27 +1,52 @@
 const supabase = require("../dbConnection.js");
 const { decrypt } = require("../utils/encryption");
 
-async function getUserProfile(email) {
+function decryptSensitiveFields(profile) {
+	if (!profile) {
+		return profile;
+	}
+
+	return {
+		...profile,
+		contact_number: profile.contact_number ? decrypt(profile.contact_number) : profile.contact_number,
+		address: profile.address ? decrypt(profile.address) : profile.address,
+	};
+}
+
+async function getUserProfile(lookup = {}) {
 	try {
-		let { data, error } = await supabase
+		const query = supabase
 			.from("users")
 			.select(
-				"user_id,name,first_name,last_name,email,contact_number,mfa_enabled,address,image_id"
-			)
-			.eq("email", email);
+				"user_id,name,first_name,last_name,email,contact_number,mfa_enabled,address,image_id,registration_date,last_login,account_status,user_roles!left(role_name)"
+			);
 
-if (data && data.length > 0) {
-			data.forEach(user => {
-				if (user.contact_number) user.contact_number = decrypt(user.contact_number);
-				if (user.address) user.address = decrypt(user.address);
-			});
+		if (lookup.userId != null) {
+			query.eq("user_id", lookup.userId);
+		} else if (lookup.email) {
+			query.eq("email", lookup.email);
+		} else {
+			throw new Error("A userId or email lookup is required");
 		}
 
-		if (data[0] && data[0].image_id != null) {
-			data[0].image_url = await getImageUrl(data[0].image_id);
+		const { data, error } = await query.maybeSingle();
+		if (error) {
+			throw error;
 		}
 
-		return data;
+		if (!data) {
+			return null;
+		}
+
+		const profile = decryptSensitiveFields(data);
+
+		if (profile.image_id != null) {
+			profile.image_url = await getImageUrl(profile.image_id);
+		} else {
+			profile.image_url = null;
+		}
+
+		return profile;
 	} catch (error) {
 		throw error;
 	}
@@ -30,7 +55,7 @@ if (data && data.length > 0) {
 async function getImageUrl(image_id) {
 	try {
 		if (image_id == null) return "";
-		let { data, error } = await supabase
+		let { data } = await supabase
 			.from("images")
 			.select("*")
 			.eq("id", image_id);
