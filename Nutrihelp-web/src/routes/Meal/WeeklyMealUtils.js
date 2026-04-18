@@ -3,6 +3,24 @@ import { supabase } from '../../supabaseClient';
 
 const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 const mealTypes = ['breakfast', 'lunch', 'dinner'];
+let mealDataAccessCheckPromise;
+
+async function ensureMealDataAccess() {
+  if (!mealDataAccessCheckPromise) {
+    mealDataAccessCheckPromise = (async () => {
+      const { error } = await supabase.from('weeklyrecipes').select('id').limit(1);
+      if (error) {
+        const message = error.message || 'Unknown Supabase error.';
+        if (message.toLowerCase().includes('fetch failed')) {
+          throw new Error('Unable to reach Supabase for weekly meal data. Verify REACT_APP_SUPABASE_URL and REACT_APP_SUPABASE_ANON_KEY.');
+        }
+        throw new Error(`Weekly meal data query failed: ${message}`);
+      }
+    })();
+  }
+
+  return mealDataAccessCheckPromise;
+}
 
 /**
  * Weekly plan (generic)
@@ -11,6 +29,8 @@ const mealTypes = ['breakfast', 'lunch', 'dinner'];
  * - Fetches ingredients in a single batch
  */
 export async function fetchWeeklyMealPlan() {
+  await ensureMealDataAccess();
+
   const plan = [];
   const recipeIdSet = new Set();
 
@@ -76,6 +96,8 @@ export async function fetchWeeklyMealPlan() {
  * - No duplicate recipes across the week
  */
 export async function fetchPersonalizedMealPlan(filters) {
+  await ensureMealDataAccess();
+
   const daysOfWeek = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
   const mealTypes = ['breakfast','lunch','dinner'];
 

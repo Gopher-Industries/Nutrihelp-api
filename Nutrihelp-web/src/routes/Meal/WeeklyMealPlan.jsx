@@ -22,7 +22,7 @@ const WeeklyMealPlan = ({ onExport, showExport = true }) => {
         }
       } catch (err) {
         console.error('Error generating meal plan:', err?.message || err);
-        setError('Failed to generate weekly meal plan.');
+        setError(err?.message || 'Failed to generate weekly meal plan.');
       } finally {
         setLoading(false);
       }

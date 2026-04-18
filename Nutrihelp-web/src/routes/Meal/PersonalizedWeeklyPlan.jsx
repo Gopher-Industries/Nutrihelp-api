@@ -22,7 +22,7 @@ export default function PersonalizedWeeklyPlan({ filters, onExport, showExport =
         }
       } catch (e) {
         console.error(e);
-        if (mounted) setError('Failed to build personalized plan.');
+        if (mounted) setError(e?.message || 'Failed to build personalized plan.');
       } finally {
         if (mounted) setLoading(false);
       }
