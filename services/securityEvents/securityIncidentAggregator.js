@@ -27,6 +27,19 @@ function calculateRiskScore(eventCount, severity) {
   return eventCount * (severityWeight[severity] || 1);
 }
 
+function getIncidentPriority(riskScore) {
+  if (riskScore >= 20) return "CRITICAL";
+  if (riskScore >= 10) return "HIGH";
+  if (riskScore >= 5) return "MEDIUM";
+  return "LOW";
+}
+
+function getIncidentStatus(inc) {
+  if (inc.eventCount > 5) return "OPEN";
+  if (inc.eventCount > 2) return "MONITORING";
+  return "RESOLVED";
+}
+
 function detectIncidentType(events) {
   const eventTypes = events.map((e) => e.type || '');
 
@@ -106,6 +119,10 @@ const inc = incidentsMap[incidentKey];
       incidentType: detectIncidentType(inc.events),
       summary: `${inc.eventCount} event(s) grouped as ${detectIncidentType(inc.events)}`,
       riskScore: calculateRiskScore(inc.eventCount, inc.severity),
+      priority: getIncidentPriority(
+        calculateRiskScore(inc.eventCount, inc.severity)
+      ),
+      status: getIncidentStatus(inc),
       actors: Array.from(inc.actors),
       sources: Array.from(inc.sources),
       eventTypes: Array.from(inc.eventTypes),
