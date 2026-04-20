@@ -11,28 +11,36 @@ const isArrayOfIntegers = (value) =>
 // ─────────────────────────────────────────────────────────────────────────────
 // Shared: flat food-preference ID arrays
 // ─────────────────────────────────────────────────────────────────────────────
-const foodPreferenceRules = [
-  body('dietary_requirements')
-    .optional()
-    .custom(isArrayOfIntegers).withMessage('dietary_requirements must be an array of integers'),
-  body('allergies')
-    .optional()
-    .custom(isArrayOfIntegers).withMessage('allergies must be an array of integers'),
-  body('cuisines')
-    .optional()
-    .custom(isArrayOfIntegers).withMessage('cuisines must be an array of integers'),
-  body('dislikes')
-    .optional()
-    .custom(isArrayOfIntegers).withMessage('dislikes must be an array of integers'),
-  body('health_conditions')
-    .optional()
-    .custom(isArrayOfIntegers).withMessage('health_conditions must be an array of integers'),
-  body('spice_levels')
-    .optional()
-    .custom(isArrayOfIntegers).withMessage('spice_levels must be an array of integers'),
-  body('cooking_methods')
-    .optional()
-    .custom(isArrayOfIntegers).withMessage('cooking_methods must be an array of integers'),
+function buildIntegerArrayRule(field, required) {
+  const chain = body(field);
+
+  if (required) {
+    chain.exists({ checkNull: true }).withMessage(`${field} is required`).bail();
+  } else {
+    chain.optional();
+  }
+
+  return chain.custom(isArrayOfIntegers).withMessage(`${field} must be an array of integers`);
+}
+
+const requiredFoodPreferenceRules = [
+  buildIntegerArrayRule('dietary_requirements', true),
+  buildIntegerArrayRule('allergies', true),
+  buildIntegerArrayRule('cuisines', true),
+  buildIntegerArrayRule('dislikes', true),
+  buildIntegerArrayRule('health_conditions', true),
+  buildIntegerArrayRule('spice_levels', true),
+  buildIntegerArrayRule('cooking_methods', true),
+];
+
+const optionalFoodPreferenceRules = [
+  buildIntegerArrayRule('dietary_requirements', false),
+  buildIntegerArrayRule('allergies', false),
+  buildIntegerArrayRule('cuisines', false),
+  buildIntegerArrayRule('dislikes', false),
+  buildIntegerArrayRule('health_conditions', false),
+  buildIntegerArrayRule('spice_levels', false),
+  buildIntegerArrayRule('cooking_methods', false),
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -164,14 +172,7 @@ const uiSettingsRules = [
 // POST /api/user/preferences — flat food-preference ID arrays + health_context
 // ─────────────────────────────────────────────────────────────────────────────
 exports.validateUserPreferences = [
-  body('user')
-    .notEmpty().withMessage('User object is required')
-    .isObject().withMessage('User must be an object'),
-  body('user.userId')
-    .notEmpty().withMessage('User ID is required')
-    .isInt().withMessage('User ID must be an integer'),
-  ...foodPreferenceRules,
-  ...healthContextRules,
+  ...requiredFoodPreferenceRules,
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -180,7 +181,7 @@ exports.validateUserPreferences = [
 // ─────────────────────────────────────────────────────────────────────────────
 exports.validateHealthContext = [
   ...healthContextRules,
-  ...foodPreferenceRules,
+  ...optionalFoodPreferenceRules,
   ...uiSettingsRules,
 ];
 

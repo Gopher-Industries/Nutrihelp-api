@@ -1,6 +1,7 @@
 const { expect } = require('chai');
 const sinon = require('sinon');
 const proxyquire = require('proxyquire').noCallThru();
+const { ServiceError } = require('../services/serviceError');
 
 describe('User Preferences Controller', () => {
   afterEach(() => {
@@ -53,13 +54,13 @@ describe('User Preferences Controller', () => {
     const req = {
       user: { userId: 55 },
       body: {
-        health_context: {
-          medications: [{
-            name: 'Metformin',
-            dosage: { amount: '500', unit: 'mg' },
-            frequency: { timesPerDay: 2 }
-          }]
-        }
+        dietary_requirements: [1],
+        allergies: [2],
+        cuisines: [3],
+        dislikes: [4],
+        health_conditions: [5],
+        spice_levels: [6],
+        cooking_methods: [7]
       }
     };
     const res = {
@@ -71,5 +72,29 @@ describe('User Preferences Controller', () => {
 
     expect(updateUserPreferences.calledOnceWith(55, req.body)).to.equal(true);
     expect(res.status.calledWith(204)).to.equal(true);
+  });
+
+  it('preserves model statusCode errors on POST', async () => {
+    const updateUserPreferences = sinon.stub().rejects(
+      new ServiceError(400, 'All preference groups are required')
+    );
+
+    const controller = proxyquire('../controller/userPreferencesController', {
+      '../model/fetchUserPreferences': sinon.stub(),
+      '../model/updateUserPreferences': updateUserPreferences,
+      '../services/userPreferencesService': {},
+      '../utils/logger': { error: sinon.stub() }
+    });
+
+    const req = { user: { userId: 55 }, body: {} };
+    const res = {
+      status: sinon.stub().returnsThis(),
+      json: sinon.stub()
+    };
+
+    await controller.postUserPreferences(req, res);
+
+    expect(res.status.calledWith(400)).to.equal(true);
+    expect(res.json.calledOnce).to.equal(true);
   });
 });

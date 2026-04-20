@@ -1,5 +1,6 @@
 const supabase = require("../dbConnection.js");
 const { EMPTY_HEALTH_CONTEXT, saveUserPreferenceState } = require("./userPreferenceState");
+const { ServiceError } = require("../services/serviceError");
 
 function listFromHealthContext(items = []) {
   return (Array.isArray(items) ? items : [])
@@ -38,28 +39,55 @@ function normalizeNotificationPreferences(preferences = {}) {
   };
 }
 
-async function replaceJoinTable(table, userId, foreignKey, values) {
-  const { error: deleteError } = await supabase
-    .from(table)
-    .delete()
-    .eq("user_id", userId);
-  if (deleteError) throw deleteError;
+function normalizePreferenceIds(values = []) {
+  if (!Array.isArray(values)) {
+    return [];
+  }
 
-  if (!values.length) {
+  return [...new Set(values
+    .map((value) => Number(value))
+    .filter((value) => Number.isInteger(value) && value > 0))];
+}
+
+function hasOwnProperty(object, key) {
+  return Object.prototype.hasOwnProperty.call(object, key);
+}
+
+async function replaceUserPreferencesTransaction(userId, preferenceGroups) {
+  const { error } = await supabase.rpc("replace_user_preferences", {
+    p_user_id: userId,
+    p_dietary_requirements: preferenceGroups.dietary_requirements,
+    p_allergies: preferenceGroups.allergies,
+    p_cuisines: preferenceGroups.cuisines,
+    p_dislikes: preferenceGroups.dislikes,
+    p_health_conditions: preferenceGroups.health_conditions,
+    p_spice_levels: preferenceGroups.spice_levels,
+    p_cooking_methods: preferenceGroups.cooking_methods
+  });
+
+  if (!error) {
     return;
   }
 
-  const { error: insertError } = await supabase
-    .from(table)
-    .insert(values.map((id) => ({ user_id: userId, [foreignKey]: id })));
+  const rpcMissing = error.code === "PGRST202"
+    || error.code === "42883"
+    || /replace_user_preferences/i.test(error.message || "");
 
-  if (insertError) throw insertError;
+  if (rpcMissing) {
+    throw new ServiceError(
+      500,
+      "Database function replace_user_preferences is missing. Apply database/user-preferences-transaction.sql in Supabase before deploying this API."
+    );
+  }
+
+  throw error;
 }
 
 async function updateUserPreferences(userId, body = {}) {
   try {
-    if (!userId) {
-      throw new Error('User ID is required');
+    const normalizedUserId = Number(userId);
+    if (!Number.isInteger(normalizedUserId) || normalizedUserId <= 0) {
+      throw new ServiceError(400, 'User ID must be a positive integer');
     }
 
     const healthContext = normalizeHealthContext(body.health_context);
@@ -82,14 +110,36 @@ async function updateUserPreferences(userId, body = {}) {
       'cooking_methods'
     ].some((key) => body[key] !== undefined) || body.health_context !== undefined;
 
+    if (
+      !body.health_context
+      && !body.notification_preferences
+      && !body.ui_settings
+      && ![
+        'dietary_requirements',
+        'allergies',
+        'cuisines',
+        'dislikes',
+        'health_conditions',
+        'spice_levels',
+        'cooking_methods'
+      ].every((key) => hasOwnProperty(body, key))
+    ) {
+      throw new ServiceError(
+        400,
+        'All preference groups are required: dietary_requirements, allergies, cuisines, dislikes, health_conditions, spice_levels, cooking_methods'
+      );
+    }
+
     if (shouldUpdateJoinTables) {
-      await replaceJoinTable("user_dietary_requirements", userId, "dietary_requirement_id", dietaryRequirements);
-      await replaceJoinTable("user_allergies", userId, "allergy_id", allergies);
-      await replaceJoinTable("user_cuisines", userId, "cuisine_id", cuisines);
-      await replaceJoinTable("user_dislikes", userId, "dislike_id", dislikes);
-      await replaceJoinTable("user_health_conditions", userId, "health_condition_id", healthConditions);
-      await replaceJoinTable("user_spice_levels", userId, "spice_level_id", spiceLevels);
-      await replaceJoinTable("user_cooking_methods", userId, "cooking_method_id", cookingMethods);
+      await replaceUserPreferencesTransaction(normalizedUserId, {
+        dietary_requirements: normalizePreferenceIds(dietaryRequirements),
+        allergies: normalizePreferenceIds(allergies),
+        cuisines: normalizePreferenceIds(cuisines),
+        dislikes: normalizePreferenceIds(dislikes),
+        health_conditions: normalizePreferenceIds(healthConditions),
+        spice_levels: normalizePreferenceIds(spiceLevels),
+        cooking_methods: normalizePreferenceIds(cookingMethods)
+      });
     }
 
     if (
@@ -97,7 +147,7 @@ async function updateUserPreferences(userId, body = {}) {
       body.notification_preferences !== undefined ||
       body.ui_settings !== undefined
     ) {
-      await saveUserPreferenceState(userId, (current) => ({
+      await saveUserPreferenceState(normalizedUserId, (current) => ({
         ...current,
         health_context: body.health_context !== undefined
           ? normalizeHealthContext(body.health_context)

@@ -3,9 +3,17 @@ const { ServiceError } = require('../services/serviceError');
 const fetchUserPreferences = require('../model/fetchUserPreferences');
 const updateUserPreferences = require('../model/updateUserPreferences');
 const userPreferencesService = require('../services/userPreferencesService');
+const isPositiveInteger = (value) => Number.isInteger(value) && value > 0;
 
 function handleError(res, error, label, context = {}) {
   if (error instanceof ServiceError) {
+    return res.status(error.statusCode).json({
+      success: false,
+      error: error.message
+    });
+  }
+
+  if (Number.isInteger(error?.statusCode) && error.statusCode >= 400) {
     return res.status(error.statusCode).json({
       success: false,
       error: error.message
@@ -36,6 +44,10 @@ const getUserPreferences = async (req, res) => {
 const postUserPreferences = async (req, res) => {
   try {
     const userId = req.user.userId;
+    if (!isPositiveInteger(userId)) {
+      throw new ServiceError(400, 'User ID must be a positive integer');
+    }
+
     await updateUserPreferences(userId, req.body);
     return res.status(204).send();
   } catch (error) {

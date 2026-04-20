@@ -15,39 +15,24 @@ async function runValidation(body) {
 }
 
 describe('User Preferences Validation', () => {
-  it('rejects malformed medication dosage/frequency payloads', async () => {
+  it('rejects payloads with missing required preference groups', async () => {
     const errors = await runValidation({
-      health_context: {
-        medications: [{
-          name: 'Metformin',
-          dosage: '500mg twice daily'
-        }]
-      }
+      dietary_requirements: [1],
+      allergies: [2]
     });
 
     expect(errors.length).to.be.greaterThan(0);
   });
 
-  it('accepts structured health context records', async () => {
+  it('accepts all seven preference groups as integer arrays', async () => {
     const errors = await runValidation({
-      health_context: {
-        allergies: [{ referenceId: 1, severity: 'moderate', notes: 'Mild rash' }],
-        chronic_conditions: [{ referenceId: 2, status: 'active', notes: 'Routine monitoring' }],
-        medications: [{
-          name: 'Metformin',
-          dosage: { amount: '500', unit: 'mg' },
-          frequency: { timesPerDay: 2, interval: 'daily', schedule: ['breakfast', 'dinner'] }
-        }]
-      },
-      notification_preferences: {
-        mealReminders: true,
-        waterReminders: false
-      },
-      ui_settings: {
-        language: 'en',
-        theme: 'dark',
-        font_size: '18px'
-      }
+      dietary_requirements: [1, 2],
+      allergies: [3],
+      cuisines: [4],
+      dislikes: [5],
+      health_conditions: [6],
+      spice_levels: [7],
+      cooking_methods: [8]
     });
 
     expect(errors).to.deep.equal([]);
