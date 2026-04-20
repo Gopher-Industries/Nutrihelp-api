@@ -12,13 +12,14 @@ const validate = require('../middleware/validateRequest');
 const { loginLimiter, mfaResendLimiter } = require('../middleware/rateLimiter'); // ✅ rate limiter added
 
 // POST /login
-router.post('/', loginLimiter, loginValidator, validate, (req, res) => {
-    controller.login(req, res);
-});
+router.post('/', loginLimiter, loginValidator, validate, controller.login);
 
 // POST /login/mfa
-router.post('/mfa', loginLimiter, mfaloginValidator, validate, (req, res) => {
-    controller.loginMfa(req, res);
+router.post('/mfa', loginLimiter, mfaloginValidator, validate, controller.loginMfa);
+
+// POST /login/resend-mfa
+router.post('/resend-mfa', loginLimiter, (req, res) => {
+    controller.resendMfa(req, res);
 });
 
 router.post('/resend-mfa', mfaResendLimiter, resendMfaValidator, validate, (req, res) => {

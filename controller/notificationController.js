@@ -1,4 +1,5 @@
 const supabase = require('../dbConnection.js');
+const logger = require('../utils/logger');
 
 // Create a new notification
 exports.createNotification = async (req, res) => {
@@ -13,7 +14,7 @@ exports.createNotification = async (req, res) => {
 
         res.status(201).json({ message: 'Notification created', notification: data });
     } catch (error) {
-        console.error('Error creating notification:', error);
+        logger.error('Error creating notification', { error: error.message, user_id: req.body.user_id });
         res.status(500).json({ error: 'An error occurred while creating the notification' });
     }
 };
@@ -36,7 +37,7 @@ exports.getNotificationsByUserId = async (req, res) => {
 
         res.status(200).json(data);
     } catch (error) {
-        console.error('Error retrieving notifications:', error);
+        logger.error('Error retrieving notifications', { error: error.message, user_id: req.params.user_id });
         res.status(500).json({ error: 'An error occurred while retrieving notifications' });
     }
 };
@@ -54,7 +55,7 @@ exports.updateNotificationStatusById = async (req, res) => {
             
 
         if (error) {
-            console.error('Error updating notification:', error);
+            logger.error('Error updating notification', { error: error.message, notificationId: id });
             return res.status(500).json({ error: 'Failed to update notification' });
         }
 
@@ -65,7 +66,7 @@ exports.updateNotificationStatusById = async (req, res) => {
 
         res.status(200).json({ message: 'Notification updated successfully', notification: data });
     } catch (error) {
-        console.error('Error updating notification:', error);
+        logger.error('Error updating notification', { error: error.message, notificationId: req.params.id });
         res.status(500).json({ error: 'An error occurred while updating the notification' });
     }
 };
@@ -82,7 +83,7 @@ exports.deleteNotificationById = async (req, res) => {
            
 
         if (error) {
-            console.error('Error deleting notification:', error);
+            logger.error('Error deleting notification', { error: error.message, notificationId: id });
             return res.status(500).json({ error: 'Failed to delete notification' });
         }
 
@@ -93,7 +94,7 @@ exports.deleteNotificationById = async (req, res) => {
 
         res.status(200).json({ message: 'Notification deleted successfully' });
     } catch (error) {
-        console.error('Error deleting notification:', error);
+        logger.error('Error deleting notification', { error: error.message, notificationId: req.params.id });
         res.status(500).json({ error: 'An error occurred while deleting the notification' });
     }
 };
@@ -121,7 +122,7 @@ exports.markAllUnreadNotificationsAsRead = async (req, res) => {
         
         res.status(200).json({ message: 'All unread notifications marked as read', updatedNotifications: data });
     } catch (error) {
-        console.error('Error marking notifications as read:', error);
+        logger.error('Error marking notifications as read', { error: error.message, user_id: req.params.user_id });
         res.status(500).json({ error: 'An error occurred while marking notifications as read' });
     }
 };

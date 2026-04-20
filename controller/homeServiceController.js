@@ -1,4 +1,5 @@
 const supabase = require("../dbConnection.js");
+const logger = require('../utils/logger');
 const {
   createServiceModel,
   updateServiceModel,
@@ -17,7 +18,7 @@ const getServiceContents = async (req, res) => {
       .select("title, description, image");
 
     if (error) {
-      console.error("Error get service contents:", error.message);
+      logger.error('Error getting service contents', { error: error.message });
       return res.status(500).json({ error: "Failed to get service contents" });
     }
 
@@ -25,7 +26,7 @@ const getServiceContents = async (req, res) => {
       .status(200)
       .json({ message: "Get service contents successfully", data });
   } catch (error) {
-    console.error("Internal server error:", error.message);
+    logger.error('Internal server error in getServiceContents', { error: error.message });
     return res.status(500).json({ error: "Internal server error" });
   }
 };
@@ -62,7 +63,7 @@ const getServiceContentsPage = async (req, res) => {
     const { data, error, count } = await query;
 
     if (error) {
-      console.error("Error getting service contents:", error.message);
+      logger.error('Error getting service contents', { error: error.message });
       return res.status(500).json({ error: "Failed to get service contents" });
     }
 
@@ -75,7 +76,7 @@ const getServiceContentsPage = async (req, res) => {
       data,
     });
   } catch (error) {
-    console.error("Internal server error:", error.message);
+    logger.error('Internal server error in getServiceContentsPage', { error: error.message });
     return res.status(500).json({ error: "Internal server error" });
   }
 };
@@ -100,7 +101,7 @@ const createService = async (req, res) => {
       data: service,
     });
   } catch (error) {
-    console.error("Error creating service:", error.message);
+    logger.error('Error creating service', { error: error.message });
     res.status(500).json({ error: error.message });
   }
 };
@@ -126,7 +127,7 @@ const updateService = async (req, res) => {
       data: service,
     });
   } catch (error) {
-    console.error("Error updating service:", error.message);
+    logger.error('Error updating service', { error: error.message, serviceId: req.params.id });
     res.status(500).json({ error: error.message });
   }
 };
@@ -145,7 +146,7 @@ const deleteService = async (req, res) => {
       message: "Service deleted successfully",
     });
   } catch (error) {
-    console.error("Error deleting service:", error.message);
+    logger.error('Error deleting service', { error: error.message, serviceId: req.params.id });
     res.status(500).json({ error: error.message });
   }
 };
@@ -167,7 +168,7 @@ const addSubscribe = async (req, res) => {
       data: subscribe,
     });
   } catch (error) {
-    console.error("Error creating subscribe:", error.message);
+    logger.error('Error creating subscribe', { error: error.message, email: req.body.email });
     res.status(500).json({ error: error.message });
   }
 };

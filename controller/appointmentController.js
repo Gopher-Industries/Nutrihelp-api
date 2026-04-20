@@ -1,5 +1,6 @@
 const {addAppointment, addAppointmentModelV2, updateAppointmentModel, deleteAppointmentById} = require('../model/appointmentModel.js');
 const {getAllAppointments, getAllAppointmentsV2 } = require('../model/getAppointments.js');
+const logger = require('../utils/logger');
 const { validationResult } = require('express-validator');
 
 
@@ -20,7 +21,7 @@ const saveAppointment = async (req, res) => {
         // Respond with success message if appointment data is successfully saved
         res.status(201).json({ message: 'Appointment saved successfully' });//, appointmentId: result.id 
     } catch (error) {
-        console.error('Error saving appointment:', error);
+        logger.error('Error saving appointment', { error: error.message, userId });
         res.status(500).json({ error: 'Internal server error' });
     }
 };
@@ -65,7 +66,7 @@ const saveAppointmentV2 = async (req, res) => {
       appointment,
     });
   } catch (error) {
-    console.error("Error saving appointment:", error);
+    logger.error('Error saving appointment (V2)', { error: error.message, userId });
     res.status(500).json({ error: "Internal server error" });
   }
 };
@@ -114,7 +115,7 @@ const updateAppointment = async (req,res)=>{
       appointment: updatedAppointment,
     });
   } catch (error) {
-    console.error('Error updating appointment:', error);
+    logger.error('Error updating appointment', { error: error.message, appointmentId: id });
     res.status(500).json({ error: 'Internal server error' });
   }
 }
@@ -133,7 +134,7 @@ const delAppointment = async (req,res)=>{
       message: 'Appointment deleted successfully',
     });
   } catch (error) {
-    console.error('Error deleting appointment:', error);
+    logger.error('Error deleting appointment', { error: error.message, appointmentId: id });
     res.status(500).json({ error: 'Internal server error' });
   }
 }
@@ -149,7 +150,7 @@ const getAppointments = async (req, res) => {
         // Respond with the retrieved appointment data
         res.status(200).json(appointments);
     } catch (error) {
-        console.error('Error retrieving appointments:', error);
+        logger.error('Error retrieving appointments', { error: error.message });
         res.status(500).json({ error: 'Internal server error' });
     }
 };
@@ -174,7 +175,7 @@ const getAppointmentsV2 = async (req, res) => {
       appointments
     });
   } catch (error) {
-    console.error("Error retrieving appointments:", error);
+    logger.error('Error retrieving appointments (V2)', { error: error.message });
     res.status(500).json({ error: "Internal server error" });
   }
 };

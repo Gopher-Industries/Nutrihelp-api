@@ -55,7 +55,7 @@ describe('Recommendation Service', () => {
         spice_levels: [],
         cooking_methods: [{ id: 3, name: 'Grilled' }]
       }),
-      '../model/getUserProfile': async () => ([{ user_id: 5, email: 'user@example.com', first_name: 'Alex' }]),
+      '../model/getUserProfile': async () => ({ user_id: 5, email: 'user@example.com', first_name: 'Alex' }),
       './recommendationAiAdapter': {
         AI_ADAPTER_VERSION: 'v1',
         resolveAiRecommendationSignals: async () => ({
@@ -95,6 +95,15 @@ describe('Recommendation Service', () => {
     expect(result.recommendations[0].explanation).to.include('preferred cuisine');
     expect(result.recommendations[0].metadata.sourceTags).to.include('request');
     expect(result.source.ai.applied).to.equal(true);
+    expect(result.userContext.profile).to.deep.include({
+      id: 5,
+      email: 'user@example.com',
+      firstName: 'Alex'
+    });
+    expect(result.userContext.preferences).to.deep.include({
+      cuisines: ['mediterranean'],
+      hasPreferences: true
+    });
   });
 
   it('returns cached results for repeated requests', async () => {
@@ -130,7 +139,7 @@ describe('Recommendation Service', () => {
         spice_levels: [],
         cooking_methods: []
       }),
-      '../model/getUserProfile': async () => ([{ user_id: 8, email: 'cache@example.com' }]),
+      '../model/getUserProfile': async () => ({ user_id: 8, email: 'cache@example.com' }),
       './recommendationAiAdapter': {
         AI_ADAPTER_VERSION: 'v1',
         resolveAiRecommendationSignals: async () => ({
@@ -182,7 +191,7 @@ describe('Recommendation Service', () => {
         spice_levels: [],
         cooking_methods: []
       }),
-      '../model/getUserProfile': async () => ([{ user_id: 12, email: 'fallback@example.com' }]),
+      '../model/getUserProfile': async () => ({ user_id: 12, email: 'fallback@example.com' }),
       './recommendationAiAdapter': {
         AI_ADAPTER_VERSION: 'v1',
         resolveAiRecommendationSignals: async () => ({
@@ -232,7 +241,7 @@ describe('Recommendation Service', () => {
         }]
       }),
       '../model/fetchUserPreferences': async () => null,
-      '../model/getUserProfile': async () => ([{ user_id: 12, email: 'fallback@example.com' }]),
+      '../model/getUserProfile': async () => ({ user_id: 12, email: 'fallback@example.com' }),
       './recommendationAiAdapter': proxyquire('../services/recommendationAiAdapter', {})
     });
 
@@ -258,7 +267,7 @@ describe('Recommendation Service', () => {
         getCandidateRecipes: async () => [],
       },
       '../model/fetchUserPreferences': async () => ({}),
-      '../model/getUserProfile': async () => ([{ user_id: 8, email: 'cache@example.com' }]),
+      '../model/getUserProfile': async () => ({ user_id: 8, email: 'cache@example.com' }),
       './recommendationAiAdapter': {
         AI_ADAPTER_VERSION: 'v1',
         resolveAiRecommendationSignals: async () => ({
@@ -303,7 +312,7 @@ describe('Recommendation Service', () => {
         }]
       }),
       '../model/fetchUserPreferences': async () => ({}),
-      '../model/getUserProfile': async () => ([{ user_id: 5, email: 'user@example.com', first_name: 'Alex' }]),
+      '../model/getUserProfile': async () => ({ user_id: 5, email: 'user@example.com', first_name: 'Alex' }),
       './recommendationAiAdapter': proxyquire('../services/recommendationAiAdapter', {})
     });
 

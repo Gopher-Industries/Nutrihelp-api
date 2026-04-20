@@ -1,4 +1,5 @@
 const multer = require('multer');
+const logger = require('../utils/logger');
 const { createClient } = require('@supabase/supabase-js');
 
 const supabase = createClient(
@@ -76,7 +77,7 @@ exports.uploadFile = async (req, res) => {
 
       return res.status(201).json({ message: 'File uploaded successfully', fileUrl: fileUrl });
     } catch (error) {
-      console.error('❌ File upload failed:', error);
+      logger.error('File upload failed', { error: error.message, userId: req.user?.userId });
       return res.status(500).json({ error: 'File upload failed' });
     }
   });

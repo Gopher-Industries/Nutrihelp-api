@@ -1,0 +1,8 @@
+node_modules/
+dist/
+build/
+coverage/
+test-results/
+security/reports/
+*.log
+package-lock.json

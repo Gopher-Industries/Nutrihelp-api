@@ -2,6 +2,11 @@ const fetchUserPreferences = require('../model/fetchUserPreferences');
 const getUserProfile = require('../model/getUserProfile');
 const recommendationRepository = require('../repositories/mobile/recommendationRepository');
 const {
+  buildCanonicalProfile,
+  buildPreferenceSummary,
+  normalizeNameList
+} = require('./userProfileService');
+const {
   AI_ADAPTER_VERSION,
   resolveAiRecommendationSignals
 } = require('./recommendationAiAdapter');
@@ -29,15 +34,6 @@ function compact(arr) {
 
 function unique(arr) {
   return [...new Set(compact(arr))];
-}
-
-function normalizeNameList(items) {
-  const normalizedItems = Array.isArray(items) ? items : [];
-  return unique(normalizedItems.map((item) => {
-    if (!item) return null;
-    if (typeof item === 'string') return item.trim().toLowerCase();
-    return item.name ? String(item.name).trim().toLowerCase() : null;
-  }));
 }
 
 function normalizeIdList(items) {
@@ -318,23 +314,15 @@ async function generateRecommendations({
   }
 
   const [profileRows, preferences, recentRecipeIds, candidateRecipes] = await Promise.all([
-    email ? getUserProfile(email) : Promise.resolve([]),
+    email ? getUserProfile({ email }) : Promise.resolve(null),
     fetchUserPreferences(userId),
     fetchRecentRecipeIds(userId),
     fetchCandidateRecipes(100)
   ]);
 
-  const profile = Array.isArray(profileRows) ? profileRows[0] || null : profileRows || null;
+  const profile = buildCanonicalProfile(profileRows);
   const preferenceData = preferences && typeof preferences === 'object' ? preferences : {};
-  const preferenceSummary = {
-    dietaryRequirements: normalizeNameList(preferenceData.dietary_requirements),
-    allergies: normalizeNameList(preferenceData.allergies),
-    cuisines: normalizeNameList(preferenceData.cuisines),
-    dislikes: normalizeNameList(preferenceData.dislikes),
-    healthConditions: normalizeNameList(preferenceData.health_conditions),
-    spiceLevels: normalizeNameList(preferenceData.spice_levels),
-    cookingMethods: normalizeNameList(preferenceData.cooking_methods)
-  };
+  const preferenceSummary = buildPreferenceSummary(preferenceData);
 
   const mergedGoalState = {
     ...goalState,
