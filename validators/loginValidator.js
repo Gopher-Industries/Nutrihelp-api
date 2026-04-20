@@ -34,7 +34,16 @@ const mfaloginValidator = [
         .withMessage('Token must be numeric')
 ];
 
+const resendMfaValidator = [
+    body('email')
+        .notEmpty()
+        .withMessage('Email is required')
+        .isEmail()
+        .withMessage('Email must be valid')
+];
+
 module.exports = {
     loginValidator,
-    mfaloginValidator
+    mfaloginValidator,
+    resendMfaValidator
 };
