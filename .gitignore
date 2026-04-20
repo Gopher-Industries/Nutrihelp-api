@@ -59,3 +59,4 @@ dist/
 build/
 test-results/
 >>>>>>> f5521984adfc4042bad0433a05a959281b20842d
+# removing png/jpg files from git tracking
