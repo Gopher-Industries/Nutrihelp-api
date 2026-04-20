@@ -4,6 +4,7 @@ const bcrypt = require('bcrypt');
 const crypto = require('crypto');
 const logLoginEvent = require('../Monitor_&_Logging/loginLogger');
 const { ServiceError } = require('./serviceError');
+const userProfileService = require('./userProfileService');
 
 const supabaseAnon = createClient(
   process.env.SUPABASE_URL,
@@ -541,34 +542,7 @@ class AuthService {
       throw new ServiceError(400, 'User ID is required');
     }
 
-    const { data: user, error } = await supabaseAnon
-      .from('users')
-      .select(`
-        user_id, email, name, first_name, last_name,
-        registration_date, last_login, account_status,
-        user_roles!inner(role_name)
-      `)
-      .eq('user_id', userId)
-      .single();
-
-    if (error || !user) {
-      throw new ServiceError(404, 'User not found');
-    }
-
-    return {
-      success: true,
-      user: {
-        id: user.user_id,
-        email: user.email,
-        name: user.name,
-        firstName: user.first_name,
-        lastName: user.last_name,
-        role: user.user_roles?.role_name,
-        registrationDate: user.registration_date,
-        lastLogin: user.last_login,
-        accountStatus: user.account_status
-      }
-    };
+    return userProfileService.getCanonicalProfile({ userId });
   }
 
   async logLoginAttempt({ email, userId, success, ipAddress, createdAt }) {

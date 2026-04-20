@@ -1,5 +1,6 @@
 const authService = require('../services/authService');
-const { isServiceError } = require('../services/serviceError');
+const { isServiceError, ServiceError } = require('../services/serviceError');
+const userProfileService = require('../services/userProfileService');
 const logger = require('../utils/logger');
 
 const TRUSTED_DEVICE_COOKIE = authService.trustedDeviceCookieName || 'trusted_device';
@@ -127,11 +128,21 @@ exports.revokeTrustedDevices = async (req, res) => {
 
 exports.getProfile = async (req, res) => {
   try {
-    const result = await authService.getProfile(req.user.userId);
+    const result = await userProfileService.getCanonicalProfile({ userId: req.user.userId });
     return res.json(result);
   } catch (error) {
+    if (error instanceof ServiceError) {
+      return res.status(error.statusCode).json({
+        success: false,
+        error: error.message
+      });
+    }
+
     logger.error('Get profile error', { error: error.message, userId: req.user?.userId });
-    return handleServiceError(res, error, 500, 'Get profile error:');
+    return res.status(500).json({
+      success: false,
+      error: 'Internal server error'
+    });
   }
 };
 
