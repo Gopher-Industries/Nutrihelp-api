@@ -12,6 +12,39 @@ const loginLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+const mfaResendLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  max: 5,
+  message: {
+    status: 429,
+    error: "Too many MFA resend attempts, please try again after 10 minutes.",
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const passwordRecoveryLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 6,
+  message: {
+    status: 429,
+    error: "Too many password recovery attempts, please try again after 15 minutes.",
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const passwordResetLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: {
+    status: 429,
+    error: "Too many password reset attempts, please try again after 15 minutes.",
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 // For signup
 const signupLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,
@@ -36,4 +69,11 @@ const formLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-module.exports = { loginLimiter, signupLimiter, formLimiter };
+module.exports = {
+  formLimiter,
+  loginLimiter,
+  mfaResendLimiter,
+  passwordRecoveryLimiter,
+  passwordResetLimiter,
+  signupLimiter,
+};

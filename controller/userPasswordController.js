@@ -2,6 +2,33 @@ const bcrypt = require('bcryptjs');
 let updateUser = require("../model/updateUserPassword.js");
 let getUser = require("../model/getUserPassword.js");
 
+const verifyUserPassword = async (req, res) => {
+    try {
+        if (!req.body.user_id) {
+            return res.status(400).send({ message: "User ID is required" });
+        }
+
+        if (!req.body.password) {
+            return res.status(400).send({ message: "Current password is required" });
+        }
+
+        const user = await getUser(req.body.user_id);
+        if (!user || user.length === 0) {
+            return res.status(401).json({ error: "Invalid user id" });
+        }
+
+        const isPasswordValid = await bcrypt.compare(req.body.password, user[0].password);
+        if (!isPasswordValid) {
+            return res.status(401).json({ error: "Invalid password" });
+        }
+
+        res.status(200).json({ success: true, message: "Password verified successfully" });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+};
+
 const updateUserPassword = async (req, res) => {
     try {
         if (!req.body.user_id) {
@@ -44,4 +71,4 @@ const updateUserPassword = async (req, res) => {
     }
 };
 
-module.exports = { updateUserPassword };
+module.exports = { updateUserPassword, verifyUserPassword };

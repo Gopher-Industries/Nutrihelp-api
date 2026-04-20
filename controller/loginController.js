@@ -2,7 +2,11 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const logLoginEvent = require("../Monitor_&_Logging/loginLogger");
 const getUserCredentials = require("../model/getUserCredentials.js");
-const { addMfaToken, verifyMfaToken } = require("../model/addMfaToken.js");
+const {
+  addMfaToken,
+  invalidateMfaTokens,
+  verifyMfaToken,
+} = require("../model/addMfaToken.js");
 const nodemailer = require("nodemailer");
 const crypto = require("crypto");
 const supabase = require("../dbConnection");
@@ -184,6 +188,11 @@ const loginMfa = async (req, res) => {
 // Send OTP email via Nodemailer
 async function sendOtpEmail(email, token) {
   try {
+    if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
+      console.log(`📨 [DEV] MFA code for ${email}: ${token}`);
+      return;
+    }
+
     await transporter.sendMail({
       from: `"NutriHelp Security" <${process.env.GMAIL_USER}>`,
       to: email,
@@ -203,6 +212,43 @@ async function sendOtpEmail(email, token) {
     console.error("Error sending OTP email:", err.message);
   }
 }
+
+const resendMfa = async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
+  const email = req.body.email?.trim().toLowerCase();
+
+  try {
+    const user = await getUserCredentials(email);
+
+    if (!user || !user.mfa_enabled) {
+      return res.status(404).json({
+        success: false,
+        error: "MFA is not enabled for this account",
+      });
+    }
+
+    await invalidateMfaTokens(user.user_id);
+
+    const token = crypto.randomInt(100000, 999999);
+    await addMfaToken(user.user_id, token);
+    await sendOtpEmail(user.email, token);
+
+    return res.status(200).json({
+      success: true,
+      message: "A new MFA token has been sent to your email address",
+    });
+  } catch (err) {
+    console.error("MFA resend error:", err);
+    return res.status(500).json({
+      success: false,
+      error: "Unable to resend MFA token",
+    });
+  }
+};
 
 // Send failed login alert via Nodemailer
 async function sendFailedLoginAlert(email, ip) {
@@ -226,4 +272,4 @@ async function sendFailedLoginAlert(email, ip) {
   }
 }
 
-module.exports = { login, loginMfa };
+module.exports = { login, loginMfa, resendMfa };
