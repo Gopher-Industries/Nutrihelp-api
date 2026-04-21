@@ -193,12 +193,6 @@ class AuthService {
 
         throw new Error('Invalid credentials');
       }
-      if (error || !user) throw new ServiceError(401, 'Invalid credentials');
-      if (user.account_status !== 'active') throw new ServiceError(403, 'Account is not active');
-
-      const validPassword = await bcrypt.compare(password, user.password);
-      if (!validPassword) throw new ServiceError(401, 'Invalid credentials');
-
       const tokens = await this.generateTokenPair(user, deviceInfo);
 
       await supabaseAnon
