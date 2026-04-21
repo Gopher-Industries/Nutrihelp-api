@@ -1,10 +1,37 @@
 const supabase = require("../dbConnection.js");
 const { decode } = require("base64-arraybuffer");
+const { encrypt, decrypt } = require("../utils/encryption");
 
-async function updateUser({ userId, attributes = {} }) {
+function decryptSensitiveFields(profile) {
+	if (!profile) {
+		return profile;
+	}
+
+	return {
+		...profile,
+		contact_number: profile.contact_number ? decrypt(profile.contact_number) : profile.contact_number,
+		address: profile.address ? decrypt(profile.address) : profile.address,
+	};
+}
+
+function buildPayload(attributes = {}) {
 	const payload = Object.fromEntries(
 		Object.entries(attributes).filter(([, value]) => value !== undefined)
 	);
+
+	if (payload.contact_number) {
+		payload.contact_number = encrypt(payload.contact_number);
+	}
+
+	if (payload.address) {
+		payload.address = encrypt(payload.address);
+	}
+
+	return payload;
+}
+
+async function updateUser({ userId, attributes = {} }) {
+	const payload = buildPayload(attributes);
 
 	try {
 		if (!userId) {
@@ -21,7 +48,7 @@ async function updateUser({ userId, attributes = {} }) {
 				.maybeSingle();
 
 			if (error) throw error;
-			return data;
+			return decryptSensitiveFields(data);
 		}
 
 		const { data, error } = await supabase
@@ -34,7 +61,7 @@ async function updateUser({ userId, attributes = {} }) {
 			.maybeSingle();
 
 		if (error) throw error;
-		return data;
+		return decryptSensitiveFields(data);
 	} catch (error) {
 		throw error;
 	}
@@ -61,7 +88,7 @@ async function saveImage(image, user_id) {
 
 		await supabase
 			.from("users")
-			.update({ image_id: image_data[0].id }) // e.g { email: "sample@email.com" }
+			.update({ image_id: image_data[0].id })
 			.eq("user_id", user_id);
 
 		return `${process.env.SUPABASE_STORAGE_URL}${file_name}`;

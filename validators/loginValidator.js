@@ -6,11 +6,15 @@ const loginValidator = [
         .notEmpty()
         .withMessage('Email is required')
         .isEmail()
-        .withMessage('Email must be valid'),
+        .withMessage('Email must be valid')
+        .isLength({ max: 255 })
+        .withMessage('Email must be under 255 characters'),
 
     body('password')
         .notEmpty()
         .withMessage('Password is required')
+        .isLength({ max: 100 })
+        .withMessage('Password must be under 100 characters')
 ];
 
 // MFA login validation
@@ -19,11 +23,15 @@ const mfaloginValidator = [
         .notEmpty()
         .withMessage('Email is required')
         .isEmail()
-        .withMessage('Email must be valid'),
+        .withMessage('Email must be valid')
+        .isLength({ max: 255 })
+        .withMessage('Email must be under 255 characters'),
 
     body('password')
         .notEmpty()
-        .withMessage('Password is required'),
+        .withMessage('Password is required')
+        .isLength({ max: 100 })
+        .withMessage('Password must be under 100 characters'),
 
     body('mfa_token')
         .notEmpty()

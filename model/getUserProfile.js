@@ -1,4 +1,17 @@
 const supabase = require("../dbConnection.js");
+const { decrypt } = require("../utils/encryption");
+
+function decryptSensitiveFields(profile) {
+	if (!profile) {
+		return profile;
+	}
+
+	return {
+		...profile,
+		contact_number: profile.contact_number ? decrypt(profile.contact_number) : profile.contact_number,
+		address: profile.address ? decrypt(profile.address) : profile.address,
+	};
+}
 
 async function getUserProfile(lookup = {}) {
 	try {
@@ -25,13 +38,15 @@ async function getUserProfile(lookup = {}) {
 			return null;
 		}
 
-		if (data.image_id != null) {
-			data.image_url = await getImageUrl(data.image_id);
+		const profile = decryptSensitiveFields(data);
+
+		if (profile.image_id != null) {
+			profile.image_url = await getImageUrl(profile.image_id);
 		} else {
-			data.image_url = null;
+			profile.image_url = null;
 		}
 
-		return data;
+		return profile;
 	} catch (error) {
 		throw error;
 	}
@@ -40,7 +55,7 @@ async function getUserProfile(lookup = {}) {
 async function getImageUrl(image_id) {
 	try {
 		if (image_id == null) return "";
-		let { data, error } = await supabase
+		let { data } = await supabase
 			.from("images")
 			.select("*")
 			.eq("id", image_id);
