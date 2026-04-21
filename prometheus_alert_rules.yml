@@ -1,0 +1,44 @@
+groups:
+  - name: nutrihelp-token-session-alerts
+    rules:
+      - alert: ExcessiveInvalidTokenAttempts
+        expr: |
+          sum by (ip, reason) (
+            increase(auth_invalid_token_attempts_total[5m])
+          ) > 20
+        labels:
+          severity: warning
+        annotations:
+          summary: "Excessive invalid token attempts detected"
+          description: "More than 20 invalid token validation failures were observed in the last 5 minutes from the same IP. This may indicate token abuse or credential stuffing."
+
+      - alert: FrequentTokenRefreshFailures
+        expr: |
+          sum by (userId, route) (
+            increase(auth_refresh_requests_total{status=~"4..|5.."}[10m])
+          ) > 5
+        labels:
+          severity: warning
+        annotations:
+          summary: "Frequent token refresh failures detected"
+          description: "Multiple failed refresh requests were observed for the same user or route within 10 minutes. This may indicate session hijacking or refresh abuse."
+
+      - alert: SuspiciousHighSessionVelocity
+        expr: |
+          sum by (userId) (
+            increase(session_suspicious_events_total{event_type="high_request_velocity"}[1m])
+          ) > 0
+        labels:
+          severity: critical
+        annotations:
+          summary: "Suspicious high session request velocity detected"
+          description: "A user session is sending requests at unusually high speed. Investigate for bot activity or hijacked sessions."
+
+      - alert: SuspiciousSessionEventDetected
+        expr: |
+          sum(increase(session_suspicious_events_total[5m])) > 0
+        labels:
+          severity: warning
+        annotations:
+          summary: "Suspicious session event detected"
+          description: "One or more suspicious session events were recorded in the last 5 minutes. Review session behavior and token usage metrics."

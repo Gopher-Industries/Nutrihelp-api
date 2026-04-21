@@ -28,8 +28,9 @@ const requestLoggingMiddleware = (req, res, next) => {
   // Extract useful request info
   const method = req.method;
   const path = req.path;
-  const ip = req.ip || req.connection.remoteAddress;
+  const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip || req.connection.remoteAddress;
   const userAgent = req.headers['user-agent'] || 'unknown';
+  const sessionId = req.sessionId || req.headers['x-session-id'];
   
   // Log incoming request
   logger.info(`→ ${method} ${path}`, {
@@ -38,7 +39,8 @@ const requestLoggingMiddleware = (req, res, next) => {
     path,
     ip,
     userAgent,
-    ...(req.user ? { userId: req.user.id } : {}),
+    ...(req.user ? { userId: req.user.userId } : {}),
+    ...(sessionId ? { sessionId } : {}),
     query: Object.keys(req.query).length > 0 ? req.query : undefined
   });
 
