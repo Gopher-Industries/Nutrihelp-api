@@ -8,9 +8,6 @@ const {
   createBlockMiddleware,
 } = require('../services/securityEvents/securityResponseService');
 
-const { authenticateToken } = require('../middleware/authenticateToken');
-const authorizeRoles = require('../middleware/authorizeRoles');
-
 const {
   exportSecurityEvents,
 } = require('../controller/securityEventsController');
