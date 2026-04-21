@@ -8,6 +8,9 @@ const {
   createBlockMiddleware,
 } = require('../services/securityEvents/securityResponseService');
 
+const { authenticateToken } = require('../middleware/authenticateToken');
+const authorizeRoles = require('../middleware/authorizeRoles');
+
 const {
   exportSecurityEvents,
 } = require('../controller/securityEventsController');
@@ -17,6 +20,7 @@ router.use(authenticateToken);
 router.use(authorizeRoles('admin'));
 
 // GET /security/events/export
-router.get('/events/export', exportSecurityEvents);
+// Only admins should be able to export security events
+router.get('/events/export', authenticateToken, authorizeRoles('admin'), exportSecurityEvents);
 
 module.exports = router;
