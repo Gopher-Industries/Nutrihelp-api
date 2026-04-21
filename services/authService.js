@@ -1,6 +1,5 @@
 console.log("🟢 Loaded AuthService from:", __filename);
 console.log("URL:", process.env.SUPABASE_URL);
-console.log("KEY:", process.env.SUPABASE_ANON_KEY);
 console.log("LOGIN FUNCTION HIT");
 
 const { createClient } = require('@supabase/supabase-js');
