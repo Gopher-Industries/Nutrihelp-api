@@ -18,7 +18,9 @@ const authService = require("../services/authService");
 const nodemailer = require("nodemailer");
 
 // ✅ SendGrid setup
-sgMail.setApiKey(process.env.SENDGRID_KEY);
+if (process.env.SENDGRID_KEY) {
+  sgMail.setApiKey(process.env.SENDGRID_KEY);
+}
 
 // ✅ Access Token
 function createAccessToken(user) {
@@ -32,9 +34,23 @@ function createAccessToken(user) {
   );
 }
 
+// Optional helper: only call if implemented elsewhere. Safe-guard added.
+async function safeSendFailedLoginAlert(email, ip) {
+  if (typeof sendFailedLoginAlert === "function") {
+    try {
+      await sendFailedLoginAlert(email, ip);
+    } catch (err) {
+      logger.warn("sendFailedLoginAlert failed", err);
+    }
+    return;
+  }
+  // If sendFailedLoginAlert isn't defined, just log a warning (no-op)
+  logger.warn("sendFailedLoginAlert not available - skipping alert");
+}
+
 // ================= LOGIN =================
 const login = async (req, res) => {
-  console.log("LOGIN CONTROLLER HIT");
+  logger.info("Login controller invoked");
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({ errors: errors.array() });
@@ -70,127 +86,134 @@ const login = async (req, res) => {
   try {
     const user = await getUserCredentials(email);
 
-      if (!user) {
-        await supabase.from("brute_force_logs").insert([{
+    if (!user) {
+      // Record brute force attempt
+      await supabase.from("brute_force_logs").insert([
+        {
           email,
           ip_address: clientIp,
           success: false,
-          created_at: new Date().toISOString()
-        }]);
+          created_at: new Date().toISOString(),
+        },
+      ]);
 
-        await logSecurityEvent({
-          event_type: "LOGIN_FAILED",
-          severity: "medium",
-          user_id: null,
-          ip_address: clientIp,
-          user_agent: req.headers["user-agent"],
-          resource: "/api/auth/login",
-          metadata: {
-            email,
-            reason: "account_not_found"
-          }
-        });
-
-        log(
-          createLog({
-            event_type: "AUTH_LOGIN_FAILED",
-            severity_level: "MEDIUM",
-            user_id: null,
-            source_service: "login-controller",
-            ip_address: clientIp,
-            endpoint: req.originalUrl,
-            method: req.method,
-            status: "FAILED",
-            message: "User not found",
-          })
-        );
-
-        await sendFailedLoginAlert(email, clientIp);
-        return res.status(404).json({
-          error: "Account not found. Please create an account first."
-        });
-      }
-
-
-      const isPasswordValid = await bcrypt.compare(password, user.password);
-
-      if (!isPasswordValid) {
-        await supabase.from("brute_force_logs").insert([{
+      await logSecurityEvent({
+        event_type: "LOGIN_FAILED",
+        severity: "medium",
+        user_id: null,
+        ip_address: clientIp,
+        user_agent: req.headers["user-agent"],
+        resource: "/api/auth/login",
+        metadata: {
           email,
-          ip_address: clientIp,
-          success: false,
-          created_at: new Date().toISOString()
-        }]);
+          reason: "account_not_found",
+        },
+      });
 
-        console.log("About to log LOGIN_FAILED event");
-
-        await logSecurityEvent({
-          event_type: "LOGIN_FAILED",
-          severity: "medium",
-          user_id: user.user_id,
-          ip_address: clientIp,
-          user_agent: req.headers["user-agent"],
-          resource: "/api/auth/login",
-          metadata: {
-            email,
-            reason: "invalid_password"
-          }
-        });
-
-        log(
-          createLog({
-            event_type: "AUTH_LOGIN_FAILED",
-            severity_level: "MEDIUM",
-            user_id: user.user_id,
-            source_service: "login-controller",
-            ip_address: clientIp,
-            endpoint: req.originalUrl,
-            method: req.method,
-            status: "FAILED",
-            message: "Invalid password",
-          })
-        );
-
-        await sendFailedLoginAlert(email, clientIp);
-        return res.status(401).json({ error: "Invalid password" });
-      }
-
-      // SUCCESS LOG
       log(
         createLog({
-          event_type: "AUTH_LOGIN_SUCCESS",
-          severity_level: "LOW",
+          event_type: "AUTH_LOGIN_FAILED",
+          severity_level: "MEDIUM",
+          user_id: null,
+          source_service: "login-controller",
+          ip_address: clientIp,
+          endpoint: req.originalUrl,
+          method: req.method,
+          status: "FAILED",
+          message: "User not found",
+        })
+      );
+
+      await safeSendFailedLoginAlert(email, clientIp);
+      return res.status(404).json({
+        error: "Account not found. Please create an account first.",
+      });
+    }
+
+    // Check password
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+
+    if (!isPasswordValid) {
+      // Record brute force attempt
+      await supabase.from("brute_force_logs").insert([
+        {
+          email,
+          ip_address: clientIp,
+          success: false,
+          created_at: new Date().toISOString(),
+        },
+      ]);
+
+      logger.debug("Logging LOGIN_FAILED event for invalid password");
+
+      await logSecurityEvent({
+        event_type: "LOGIN_FAILED",
+        severity: "medium",
+        user_id: user.user_id,
+        ip_address: clientIp,
+        user_agent: req.headers["user-agent"],
+        resource: "/api/auth/login",
+        metadata: {
+          email,
+          reason: "invalid_password",
+        },
+      });
+
+      log(
+        createLog({
+          event_type: "AUTH_LOGIN_FAILED",
+          severity_level: "MEDIUM",
           user_id: user.user_id,
           source_service: "login-controller",
           ip_address: clientIp,
           endpoint: req.originalUrl,
           method: req.method,
-          status: "SUCCESS",
-          message: "User logged in successfully",
+          status: "FAILED",
+          message: "Invalid password",
         })
       );
 
-      await logLoginEvent({
-        userId: user.user_id,
-        eventType: "LOGIN_SUCCESS",
-        ip: clientIp,
-        userAgent: req.headers["user-agent"],
-      });
+      await safeSendFailedLoginAlert(email, clientIp);
+      return res.status(401).json({ error: "Invalid password" });
+    }
 
-      await logSecurityEvent({
-        event_type: "LOGIN_SUCCESS",
-        severity: "low",
+    // SUCCESS LOG
+    log(
+      createLog({
+        event_type: "AUTH_LOGIN_SUCCESS",
+        severity_level: "LOW",
         user_id: user.user_id,
-        session_id: null,
+        source_service: "login-controller",
         ip_address: clientIp,
-        user_agent: req.headers["user-agent"],
-        resource: "/api/auth/login",
-        metadata: { email }
-      });
+        endpoint: req.originalUrl,
+        method: req.method,
+        status: "SUCCESS",
+        message: "User logged in successfully",
+      })
+    );
 
-      const token = createAccessToken(user);
-      return res.status(200).json({ user, token });
+    await logLoginEvent({
+      userId: user.user_id,
+      eventType: "LOGIN_SUCCESS",
+      ip: clientIp,
+      userAgent: req.headers["user-agent"],
+    });
 
+    await logSecurityEvent({
+      event_type: "LOGIN_SUCCESS",
+      severity: "low",
+      user_id: user.user_id,
+      session_id: null,
+      ip_address: clientIp,
+      user_agent: req.headers["user-agent"],
+      resource: "/api/auth/login",
+      metadata: {
+        email,
+      },
+    });
+
+    const token = createAccessToken(user);
+    return res.status(200).json({ user, token });
   } catch (err) {
     log(
       createLog({

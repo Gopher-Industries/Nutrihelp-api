@@ -1,5 +1,3 @@
-// routes/securityEvents.js
-
 const express = require('express');
 const router = express.Router();
 const { authenticateToken } = require('../middleware/authenticateToken');
@@ -7,6 +5,7 @@ const authorizeRoles = require('../middleware/authorizeRoles');
 const {
   createBlockMiddleware,
 } = require('../services/securityEvents/securityResponseService');
+
 const {
   exportSecurityEvents,
 } = require('../controller/securityEventsController');
