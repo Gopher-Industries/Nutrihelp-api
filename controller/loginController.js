@@ -17,7 +17,7 @@ const logger = require("../utils/logger");
 const authService = require("../services/authService");
 const nodemailer = require("nodemailer");
 
-// ✅ SendGrid setup
+// ✅ SendGrid setup (only if provided)
 if (process.env.SENDGRID_KEY) {
   sgMail.setApiKey(process.env.SENDGRID_KEY);
 }
@@ -34,18 +34,19 @@ function createAccessToken(user) {
   );
 }
 
-// Optional helper: only call if implemented elsewhere. Safe-guard added.
+// Safe alert helper: uses authService.sendFailedLoginAlert if implemented
 async function safeSendFailedLoginAlert(email, ip) {
-  if (typeof sendFailedLoginAlert === "function") {
-    try {
-      await sendFailedLoginAlert(email, ip);
-    } catch (err) {
-      logger.warn("sendFailedLoginAlert failed", err);
+  try {
+    if (authService && typeof authService.sendFailedLoginAlert === "function") {
+      await authService.sendFailedLoginAlert(email, ip);
+      return;
     }
+  } catch (err) {
+    logger.warn("sendFailedLoginAlert failed", err);
     return;
   }
-  // If sendFailedLoginAlert isn't defined, just log a warning (no-op)
-  logger.warn("sendFailedLoginAlert not available - skipping alert");
+  // Not configured — no-op but record a debug line
+  logger.debug("sendFailedLoginAlert not configured; skipping alert");
 }
 
 // ================= LOGIN =================
