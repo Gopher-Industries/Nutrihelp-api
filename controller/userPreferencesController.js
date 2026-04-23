@@ -25,15 +25,18 @@ const getUserPreferences = async (req, res) => {
 
 const postUserPreferences = async (req, res) => {
 	try {
-		const { user } = req.body;
+		const authenticatedUserId = req.user?.userId;
+		if (!authenticatedUserId) {
+			return res.status(401).json({ error: "Unauthorized" });
+		}
 
-		await updateUserPreferences(user.userId, req.body);
+		await updateUserPreferences(authenticatedUserId, req.body);
 		return res
-			.status(204)
-			.json({ message: "User preferences updated successfully" });
+				.status(204)
+				.json({ message: "User preferences updated successfully" });
 	} catch (error) {
-		logger.error('Error updating user preferences', { error: error.message, userId: req.body.user?.userId });
-		return res.status(500).json({ error: "Internal server error" });
+			logger.error('Error updating user preferences', { error: error.message, userId: req.user?.userId });
+			return res.status(500).json({ error: "Internal server error" });
 	}
 };
 

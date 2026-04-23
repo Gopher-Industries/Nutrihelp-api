@@ -21,6 +21,12 @@ const transporter = nodemailer.createTransport({
   }
 });
 
+function sanitizeUserForResponse(user) {
+  if (!user) return user;
+  const { password, ...safeUser } = user;
+  return safeUser;
+}
+
 const login = async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -131,7 +137,7 @@ const login = async (req, res) => {
       { expiresIn: "1h" }
     );
 
-    return res.status(200).json({ user, token });
+    return res.status(200).json({ user: sanitizeUserForResponse(user), token });
 
   } catch (err) {
     console.error("Login error:", err);
@@ -180,7 +186,7 @@ const loginMfa = async (req, res) => {
       { expiresIn: "1h" }
     );
 
-    return res.status(200).json({ user, token });
+    return res.status(200).json({ user: sanitizeUserForResponse(user), token });
 
   } catch (err) {
     console.error("MFA login error:", err);
