@@ -1,3 +1,16 @@
+/**
+ * services/recommendationService.js
+ *
+ * Top-level recommendation service. Fetches candidate recipes, gathers
+ * the user's profile, preferences, structured health context, recent
+ * meal history, and AI hints, then delegates all scoring / filtering /
+ * explanation work to the safety-aware scoring engine in
+ * ./recommendationScoring.
+ *
+ * Response shape is documented in technical_docs/Recommendation
+ * Intelligence Contract.md (contractVersion: recommendation-response-v2).
+ */
+
 const supabase = require('../dbConnection');
 const fetchUserPreferences = require('../model/fetchUserPreferences');
 const getUserProfile = require('../model/getUserProfile');
@@ -11,21 +24,21 @@ const {
   resolveAiRecommendationSignals
 } = require('./recommendationAiAdapter');
 const { buildStructuredHealthContext } = require('./userPreferencesService');
+const scoringEngine = require('./recommendationScoring');
 
 const DEFAULT_MAX_RESULTS = 5;
 const DEFAULT_CACHE_TTL_MS = 5 * 60 * 1000;
-const RECOMMENDATION_RESPONSE_VERSION = 'recommendation-response-v1';
+const RECOMMENDATION_RESPONSE_VERSION = 'recommendation-response-v2';
+const DEFAULT_DISCLAIMER = 'Recommendations are informational and do not replace guidance from a healthcare professional.';
 const recommendationCache = new Map();
 
 function stableStringify(value) {
   if (Array.isArray(value)) {
     return `[${value.map(stableStringify).join(',')}]`;
   }
-
   if (value && typeof value === 'object') {
     return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${stableStringify(value[key])}`).join(',')}}`;
   }
-
   return JSON.stringify(value);
 }
 
@@ -38,8 +51,8 @@ function unique(arr) {
 }
 
 function normalizeIdList(items) {
-  const normalizedItems = Array.isArray(items) ? items : [];
-  return unique(normalizedItems.map((item) => {
+  const src = Array.isArray(items) ? items : [];
+  return unique(src.map((item) => {
     if (item == null) return null;
     if (typeof item === 'number') return Number.isInteger(item) && item > 0 ? item : null;
     if (typeof item === 'string' && /^[1-9]\d*$/.test(item.trim())) return Number(item.trim());
@@ -49,15 +62,6 @@ function normalizeIdList(items) {
     }
     return null;
   }));
-}
-
-function safeNumber(value) {
-  if (value == null || value === '') {
-    return null;
-  }
-
-  const numeric = Number(value);
-  return Number.isFinite(numeric) ? numeric : null;
 }
 
 function normalizeHealthGoals(healthGoals) {
@@ -106,7 +110,7 @@ async function fetchRecentRecipeIds(userId) {
   return unique((data || []).map((row) => row.recipe_id));
 }
 
-async function fetchCandidateRecipes(limit = 50) {
+async function fetchCandidateRecipes(limit = 100) {
   const { data, error } = await supabase
     .from('recipes')
     .select('id, recipe_name, cuisine_id, cooking_method_id, total_servings, preparation_time, calories, fat, carbohydrates, protein, fiber, sodium, sugar, allergy, dislike')
@@ -119,141 +123,6 @@ async function fetchCandidateRecipes(limit = 50) {
   return data || [];
 }
 
-function buildExplanation(reasons, fallbackReason) {
-  const explanationParts = reasons.slice(0, 3);
-
-  if (!explanationParts.length && fallbackReason) {
-    explanationParts.push(fallbackReason);
-  }
-
-  return explanationParts.join('; ');
-}
-
-function scoreRecipe(recipe, context) {
-  const reasons = [];
-  const matchedSignals = [];
-  let score = 0;
-  const protein = safeNumber(recipe.protein);
-  const fiber = safeNumber(recipe.fiber);
-  const sugar = safeNumber(recipe.sugar);
-  const sodium = safeNumber(recipe.sodium);
-  const calories = safeNumber(recipe.calories);
-  const fat = safeNumber(recipe.fat);
-  const carbohydrates = safeNumber(recipe.carbohydrates);
-
-  if (recipe.allergy || recipe.dislike) {
-    return null;
-  }
-
-  if (context.excludedRecipeIds.includes(recipe.id)) {
-    return null;
-  }
-
-  if (context.preferredCuisineIds.includes(recipe.cuisine_id)) {
-    score += 20;
-    reasons.push('matches preferred cuisine');
-    matchedSignals.push('preferred_cuisine');
-  }
-
-  if (context.preferredCookingMethodIds.includes(recipe.cooking_method_id)) {
-    score += 12;
-    reasons.push('matches preferred cooking method');
-    matchedSignals.push('preferred_cooking_method');
-  }
-
-  if (context.preferredRecipeIds.includes(recipe.id)) {
-    score += 25;
-    reasons.push('boosted by AI preference signal');
-    matchedSignals.push('ai_preferred_recipe');
-  }
-
-  if (context.goalState.prioritizeProtein && protein != null && protein >= 15) {
-    score += 12;
-    reasons.push('supports higher protein intake');
-    matchedSignals.push('high_protein');
-  }
-
-  if (context.goalState.prioritizeFiber && fiber != null && fiber >= 5) {
-    score += 12;
-    reasons.push('supports higher fiber intake');
-    matchedSignals.push('high_fiber');
-  }
-
-  if (context.goalState.limitSugar) {
-    if (sugar != null && sugar <= 10) {
-      score += 12;
-      reasons.push('fits lower sugar preference');
-      matchedSignals.push('low_sugar');
-    } else if (sugar != null) {
-      score -= 10;
-    }
-  }
-
-  if (context.goalState.limitSodium) {
-    if (sodium != null && sodium <= 400) {
-      score += 12;
-      reasons.push('fits lower sodium preference');
-      matchedSignals.push('low_sodium');
-    } else if (sodium != null) {
-      score -= 10;
-    }
-  }
-
-  if (context.goalState.targetCalories != null && calories != null) {
-    const delta = Math.abs(calories - context.goalState.targetCalories);
-    if (delta <= 100) {
-      score += 10;
-      reasons.push('close to target calories');
-      matchedSignals.push('target_calories');
-    } else if (delta <= 250) {
-      score += 4;
-    }
-  }
-
-  if (context.recentRecipeIds.includes(recipe.id)) {
-    score -= 15;
-    reasons.push('deprioritized because it was recently served');
-    matchedSignals.push('recent_recipe_penalty');
-  }
-
-  if (!reasons.length) {
-    score += 2;
-  }
-
-  return {
-    recipeId: recipe.id,
-    title: recipe.recipe_name,
-    score,
-    explanation: buildExplanation(reasons, 'fallback recommendation based on available nutrition data'),
-    metadata: {
-      cuisineId: recipe.cuisine_id,
-      cookingMethodId: recipe.cooking_method_id,
-      nutrition: {
-        calories,
-        protein,
-        fiber,
-        sugar,
-        sodium,
-        fat,
-        carbohydrates
-      },
-      preparationTime: recipe.preparation_time ?? null,
-      totalServings: recipe.total_servings ?? null,
-      matchedSignals,
-      sourceTags: unique([
-        context.aiSource,
-        context.strategy,
-        ...(context.aiExplanationTags || [])
-      ]),
-      explanationMetadata: {
-        aiApplied: context.aiApplied,
-        fallbackUsed: context.fallbackUsed,
-        adapterFailed: context.adapterFailed
-      }
-    }
-  };
-}
-
 function buildCacheKey(payload) {
   return stableStringify(payload);
 }
@@ -261,24 +130,37 @@ function buildCacheKey(payload) {
 function getCachedRecommendation(key) {
   const cached = recommendationCache.get(key);
   if (!cached) return null;
-
   if (cached.expiresAt <= Date.now()) {
     recommendationCache.delete(key);
     return null;
   }
-
   return cached.value;
 }
 
 function setCachedRecommendation(key, value, ttlMs = DEFAULT_CACHE_TTL_MS) {
-  recommendationCache.set(key, {
-    expiresAt: Date.now() + ttlMs,
-    value
-  });
+  recommendationCache.set(key, { expiresAt: Date.now() + ttlMs, value });
 }
 
 function clearRecommendationCache() {
   recommendationCache.clear();
+}
+
+function mergeGoalState(goalState, aiHints, healthContext) {
+  const chronicNames = healthContext?.normalized_summary?.chronicConditionNames || [];
+  const hasDiabetes = chronicNames.some((condition) => condition.includes('diabetes'));
+  const hasHypertension = chronicNames.some((condition) => condition.includes('hypertension') || condition.includes('blood pressure'));
+
+  return {
+    ...goalState,
+    prioritizeFiber: goalState.prioritizeFiber || aiHints.prioritizeFiber === true || hasDiabetes,
+    prioritizeProtein: goalState.prioritizeProtein || aiHints.prioritizeProtein === true,
+    limitSugar: goalState.limitSugar || aiHints.limitSugar === true || hasDiabetes,
+    limitSodium: goalState.limitSodium || aiHints.limitSodium === true || hasHypertension,
+    labels: unique([
+      ...goalState.labels,
+      ...normalizeNameList(aiHints.goalLabels)
+    ])
+  };
 }
 
 async function generateRecommendations({
@@ -300,11 +182,7 @@ async function generateRecommendations({
     ? DEFAULT_MAX_RESULTS
     : Math.max(1, Math.min(maxResults, 20));
   const goalState = normalizeHealthGoals(healthGoals);
-  const aiContext = await resolveAiRecommendationSignals({
-    aiInsights,
-    medicalReport,
-    aiAdapterInput
-  });
+  const aiContext = await resolveAiRecommendationSignals({ aiInsights, medicalReport, aiAdapterInput });
   const effectiveDietaryConstraints = {
     dietaryRequirementIds: normalizeIdList(dietaryConstraints.dietaryRequirementIds || dietaryConstraints.dietary_requirements),
     allergyIds: normalizeIdList(dietaryConstraints.allergyIds || dietaryConstraints.allergies)
@@ -316,19 +194,14 @@ async function generateRecommendations({
     goalState,
     effectiveDietaryConstraints,
     aiContext,
-    normalizedMaxResults
+    normalizedMaxResults,
+    contractVersion: RECOMMENDATION_RESPONSE_VERSION
   });
 
   if (!refreshCache) {
     const cached = getCachedRecommendation(cacheKey);
     if (cached) {
-      return {
-        ...cached,
-        cache: {
-          ...cached.cache,
-          hit: true
-        }
-      };
+      return { ...cached, cache: { ...cached.cache, hit: true } };
     }
   }
 
@@ -341,33 +214,9 @@ async function generateRecommendations({
 
   const profile = buildCanonicalProfile(profileRows);
   const preferenceData = preferences && typeof preferences === 'object' ? preferences : {};
-  const preferenceSummary = {
-    dietaryRequirements: normalizeNameList(preferenceData.dietary_requirements),
-    allergies: normalizeNameList(preferenceData.allergies),
-    cuisines: normalizeNameList(preferenceData.cuisines),
-    dislikes: normalizeNameList(preferenceData.dislikes),
-    healthConditions: normalizeNameList(preferenceData.health_conditions),
-    spiceLevels: normalizeNameList(preferenceData.spice_levels),
-    cookingMethods: normalizeNameList(preferenceData.cooking_methods)
-  };
+  const preferenceSummary = buildPreferenceSummary(preferenceData);
   const structuredHealthContext = buildStructuredHealthContext(preferenceData);
-
-  const mergedGoalState = {
-    ...goalState,
-    prioritizeFiber: goalState.prioritizeFiber
-      || aiContext.hints.prioritizeFiber === true
-      || structuredHealthContext.normalized_summary.chronicConditionNames.some((condition) => condition.includes('diabetes')),
-    prioritizeProtein: goalState.prioritizeProtein || aiContext.hints.prioritizeProtein === true,
-    limitSugar: goalState.limitSugar
-      || aiContext.hints.limitSugar === true
-      || structuredHealthContext.normalized_summary.chronicConditionNames.some((condition) => condition.includes('diabetes')),
-    limitSodium: goalState.limitSodium
-      || structuredHealthContext.normalized_summary.chronicConditionNames.some((condition) => condition.includes('hypertension') || condition.includes('blood pressure')),
-    labels: unique([
-      ...goalState.labels,
-      ...(normalizeNameList(aiContext.hints.goalLabels))
-    ])
-  };
+  const mergedGoalState = mergeGoalState(goalState, aiContext.hints, structuredHealthContext);
 
   const scoringContext = {
     preferredCuisineIds: normalizeIdList(aiContext.hints.preferredCuisineIds),
@@ -375,36 +224,36 @@ async function generateRecommendations({
     preferredRecipeIds: normalizeIdList(aiContext.hints.preferredRecipeIds),
     excludedRecipeIds: normalizeIdList(aiContext.hints.excludedRecipeIds),
     recentRecipeIds,
+    dislikes: preferenceSummary.dislikes,
+    allergies: structuredHealthContext.allergies,
+    conditionNames: structuredHealthContext.normalized_summary.chronicConditionNames,
+    medications: structuredHealthContext.medications,
     goalState: mergedGoalState,
     aiSource: aiContext.source,
-    strategy: 'hybrid_rule_based',
-    aiApplied: aiContext.source !== 'none',
-    fallbackUsed: aiContext.fallbackUsed,
-    adapterFailed: aiContext.adapterFailed,
+    aiFallbackUsed: aiContext.fallbackUsed,
+    aiAdapterFailed: aiContext.adapterFailed,
     aiExplanationTags: normalizeNameList(aiContext.hints.explanationTags)
   };
 
-  const recommendations = candidateRecipes
-    .map((recipe) => scoreRecipe(recipe, scoringContext))
-    .filter(Boolean)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, normalizedMaxResults)
-    .map((item, index) => ({
-      rank: index + 1,
-      ...item
-    }));
+  const { recommendations, blockedRecipes, downgradedRecipes } = scoringEngine.rankRecipes(
+    candidateRecipes,
+    scoringContext,
+    { maxResults: normalizedMaxResults }
+  );
 
   const response = {
     success: true,
     generatedAt: new Date().toISOString(),
     contractVersion: RECOMMENDATION_RESPONSE_VERSION,
+    disclaimer: DEFAULT_DISCLAIMER,
     cache: {
       key: cacheKey,
       hit: false,
       ttlMs: DEFAULT_CACHE_TTL_MS
     },
     source: {
-      strategy: 'hybrid_rule_based',
+      strategy: scoringEngine.STRATEGY_ID,
+      scoringContractVersion: scoringEngine.CONTRACT_VERSION,
       ai: {
         source: aiContext.source,
         version: aiContext.version || AI_ADAPTER_VERSION,
@@ -426,7 +275,15 @@ async function generateRecommendations({
       healthContext: structuredHealthContext,
       recentRecipeIds
     },
-    recommendations
+    recommendations,
+    blockedRecipes,
+    downgradedRecipes,
+    summary: {
+      totalCandidates: candidateRecipes.length,
+      totalBlocked: blockedRecipes.length,
+      totalDowngraded: downgradedRecipes.length,
+      totalReturned: recommendations.length
+    }
   };
 
   setCachedRecommendation(cacheKey, response);
