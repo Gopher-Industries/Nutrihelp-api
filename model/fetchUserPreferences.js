@@ -1,4 +1,8 @@
 const supabase = require("../dbConnection.js");
+const {
+  getUserPreferenceState,
+  EMPTY_HEALTH_CONTEXT,
+} = require("./userPreferenceState");
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -50,28 +54,17 @@ async function fetchUserPreferences(userId) {
       dislikes,
       healthConditions,
       spiceLevels,
-      cookingMethods
+      cookingMethods,
+      storedState,
     ] = await Promise.all([
       fetchPreferenceRows(
         "user_dietary_requirements",
         "...dietary_requirement_id(id, name)",
         userId
       ),
-      fetchPreferenceRows(
-        "user_allergies",
-        "...allergy_id(id, name)",
-        userId
-      ),
-      fetchPreferenceRows(
-        "user_cuisines",
-        "...cuisine_id(id, name)",
-        userId
-      ),
-      fetchPreferenceRows(
-        "user_dislikes",
-        "...dislike_id(id, name)",
-        userId
-      ),
+      fetchPreferenceRows("user_allergies", "...allergy_id(id, name)", userId),
+      fetchPreferenceRows("user_cuisines", "...cuisine_id(id, name)", userId),
+      fetchPreferenceRows("user_dislikes", "...dislike_id(id, name)", userId),
       fetchPreferenceRows(
         "user_health_conditions",
         "...health_condition_id(id, name)",
@@ -86,7 +79,8 @@ async function fetchUserPreferences(userId) {
         "user_cooking_methods",
         "...cooking_method_id(id, name)",
         userId
-      )
+      ),
+      getUserPreferenceState(userId),
     ]);
 
     return {
@@ -96,7 +90,10 @@ async function fetchUserPreferences(userId) {
       dislikes,
       health_conditions: healthConditions,
       spice_levels: spiceLevels,
-      cooking_methods: cookingMethods
+      cooking_methods: cookingMethods,
+      health_context: storedState.health_context || EMPTY_HEALTH_CONTEXT,
+      notification_preferences: storedState.notification_preferences || {},
+      ui_settings: storedState.ui_settings || {},
     };
   } catch (error) {
     throw error;
