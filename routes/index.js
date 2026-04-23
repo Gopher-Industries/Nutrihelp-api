@@ -11,7 +11,9 @@ module.exports = app => {
     app.use("/api/imageClassification", require('./imageClassification'));
     app.use("/api/recipeImageClassification", require('./recipeImageClassification'));
     app.use("/api/userprofile", require('./userprofile'));
+    app.use("/api/profile", require('./profile'));
     app.use("/api/userpassword", require('./userpassword'));
+    app.use("/api/password", require('./password'));
     app.use("/api/fooddata", require('./fooddata'));
     app.use("/api/user/preferences", require('./userPreferences'));
     app.use("/api/mealplan", require('./mealplan'));
@@ -23,6 +25,7 @@ module.exports = app => {
     app.use('/api/recipe/cost', require('./costEstimation'));
     app.use('/api/chatbot', require('./chatbot'));
     // app.use('/api/obesity', require('./obesityPrediction'));
+    app.use('/api/upload', require('./upload'));
     app.use("/api/articles", require('./articles'));
     app.use('/api/medical-report', require('./medicalPrediction'));
     app.use('/api/recipe/nutritionlog', require('./recipeNutritionlog'));
@@ -33,4 +36,6 @@ module.exports = app => {
     app.use('/api/shopping-list', require('./shoppingList'));
     app.use('/api/barcode', require('./barcodeScanning'));
     app.use('/api/security', require('./securityEvents'));
+    app.use('/api/recommendations', require('./recommendations'));
+    app.use('/api/meal-plan', require('./mealPlanAIRoutes'));
 };

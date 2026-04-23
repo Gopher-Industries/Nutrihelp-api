@@ -168,6 +168,8 @@ routesRegistrar(app);
 // File uploads & static
 app.use('/api', uploadRoutes);
 app.use('/uploads', express.static('uploads'));
+app.use('/api/sms', require('./routes/sms'));
+app.use('/security', require('./routes/securityEvents'));
 
 // Error logging middleware (structured)
 app.use(errorLogger);
