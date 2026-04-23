@@ -1,90 +1,168 @@
 const supabase = require("../dbConnection.js");
+const { EMPTY_HEALTH_CONTEXT, saveUserPreferenceState } = require("./userPreferenceState");
+const { ServiceError } = require("../services/serviceError");
 
-async function updateUserPreferences(userId, body) {
-    try {
-        if (!body.dietary_requirements || !body.allergies || !body.cuisines || !body.dislikes || !body.health_conditions || !body.spice_levels || !body.cooking_methods) {
-            throw "Missing required fields";
-        }
+function listFromHealthContext(items = []) {
+  return (Array.isArray(items) ? items : [])
+    .map((item) => {
+      if (Number.isInteger(item)) return item;
+      if (item && Number.isInteger(item.referenceId)) return item.referenceId;
+      if (item && Number.isInteger(item.id)) return item.id;
+      return null;
+    })
+    .filter(Number.isInteger);
+}
 
-        const {error: drError} = await supabase
-            .from("user_dietary_requirements")
-            .delete()
-            .eq("user_id", userId);
-        if (drError) throw drError;
+function normalizeHealthContext(healthContext = {}) {
+  return {
+    allergies: Array.isArray(healthContext.allergies) ? healthContext.allergies : [],
+    chronic_conditions: Array.isArray(healthContext.chronic_conditions) ? healthContext.chronic_conditions : [],
+    medications: Array.isArray(healthContext.medications) ? healthContext.medications : []
+  };
+}
 
-        const {error: aError} = await supabase
-            .from("user_allergies")
-            .delete()
-            .eq("user_id", userId);
-        if (aError) throw aError;
+function normalizeUiSettings(settings = {}) {
+  return {
+    language: settings.language || 'en',
+    theme: settings.theme || 'light',
+    font_size: settings.font_size || '16px'
+  };
+}
 
-        const {error: cError} = await supabase
-            .from("user_cuisines")
-            .delete()
-            .eq("user_id", userId);
-        if (cError) throw cError;
+function normalizeNotificationPreferences(preferences = {}) {
+  return {
+    mealReminders: preferences.mealReminders !== false,
+    waterReminders: preferences.waterReminders !== false,
+    healthTips: preferences.healthTips !== false,
+    weeklyReports: Boolean(preferences.weeklyReports),
+    systemUpdates: preferences.systemUpdates !== false
+  };
+}
 
-        const {error: dError} = await supabase
-            .from("user_dislikes")
-            .delete()
-            .eq("user_id", userId);
-        if (dError) throw dError;
+function normalizePreferenceIds(values = []) {
+  if (!Array.isArray(values)) {
+    return [];
+  }
 
-        const {error: hError} = await supabase
-            .from("user_health_conditions")
-            .delete()
-            .eq("user_id", userId);
-        if (hError) throw hError;
+  return [...new Set(values
+    .map((value) => Number(value))
+    .filter((value) => Number.isInteger(value) && value > 0))];
+}
 
-        const {error: sError} = await supabase
-            .from("user_spice_levels")
-            .delete()
-            .eq("user_id", userId);
-        if (sError) throw sError;
+function hasOwnProperty(object, key) {
+  return Object.prototype.hasOwnProperty.call(object, key);
+}
 
-        const {error: cmError} = await supabase
-            .from("user_cooking_methods")
-            .delete()
-            .eq("user_id", userId);
-        if (cmError) throw cmError;
+async function replaceUserPreferencesTransaction(userId, preferenceGroups) {
+  const { error } = await supabase.rpc("replace_user_preferences", {
+    p_user_id: userId,
+    p_dietary_requirements: preferenceGroups.dietary_requirements,
+    p_allergies: preferenceGroups.allergies,
+    p_cuisines: preferenceGroups.cuisines,
+    p_dislikes: preferenceGroups.dislikes,
+    p_health_conditions: preferenceGroups.health_conditions,
+    p_spice_levels: preferenceGroups.spice_levels,
+    p_cooking_methods: preferenceGroups.cooking_methods
+  });
 
-        const {error: driError} = await supabase
-            .from("user_dietary_requirements")
-            .insert(body.dietary_requirements.map((id) => ({user_id: userId, dietary_requirement_id: id})));
-        if (driError) throw driError;
+  if (!error) {
+    return;
+  }
 
-        const {error: aiError} = await supabase
-            .from("user_allergies")
-            .insert(body.allergies.map((id) => ({user_id: userId, allergy_id: id})));
-        if (aiError) throw aiError;
+  const rpcMissing = error.code === "PGRST202"
+    || error.code === "42883"
+    || /replace_user_preferences/i.test(error.message || "");
 
-        const {error: ciError} = await supabase
-            .from("user_cuisines")
-            .insert(body.cuisines.map((id) => ({user_id: userId, cuisine_id: id})));
-        if (ciError) throw ciError;
+  if (rpcMissing) {
+    throw new ServiceError(
+      500,
+      "Database function replace_user_preferences is missing. Apply database/user-preferences-transaction.sql in Supabase before deploying this API."
+    );
+  }
 
-        const {error: diError} = await supabase
-            .from("user_dislikes")
-            .insert(body.dislikes.map((id) => ({user_id: userId, dislike_id: id})));
-        if (diError) throw diError;
+  throw error;
+}
 
-        const {error: hiError} = await supabase
-            .from("user_health_conditions")
-            .insert(body.health_conditions.map((id) => ({user_id: userId, health_condition_id: id})));
-        if (hiError) throw hiError;
-
-        const {error: siError} = await supabase
-            .from("user_spice_levels")
-            .insert(body.spice_levels.map((id) => ({user_id: userId, spice_level_id: id})));
-        if (siError) throw siError;
-
-        const {error: cmiError} = await supabase
-            .from("user_cooking_methods")
-            .insert(body.cooking_methods.map((id) => ({user_id: userId, cooking_method_id: id})));
-        if (cmiError) throw cmiError;
-    } catch (error) {
-        throw error;
+async function updateUserPreferences(userId, body = {}) {
+  try {
+    const normalizedUserId = Number(userId);
+    if (!Number.isInteger(normalizedUserId) || normalizedUserId <= 0) {
+      throw new ServiceError(400, 'User ID must be a positive integer');
     }
+
+    const healthContext = normalizeHealthContext(body.health_context);
+
+    const dietaryRequirements = Array.isArray(body.dietary_requirements) ? body.dietary_requirements : [];
+    const allergies = Array.isArray(body.allergies) ? body.allergies : listFromHealthContext(healthContext.allergies);
+    const cuisines = Array.isArray(body.cuisines) ? body.cuisines : [];
+    const dislikes = Array.isArray(body.dislikes) ? body.dislikes : [];
+    const healthConditions = Array.isArray(body.health_conditions) ? body.health_conditions : listFromHealthContext(healthContext.chronic_conditions);
+    const spiceLevels = Array.isArray(body.spice_levels) ? body.spice_levels : [];
+    const cookingMethods = Array.isArray(body.cooking_methods) ? body.cooking_methods : [];
+
+    const shouldUpdateJoinTables = [
+      'dietary_requirements',
+      'allergies',
+      'cuisines',
+      'dislikes',
+      'health_conditions',
+      'spice_levels',
+      'cooking_methods'
+    ].some((key) => body[key] !== undefined) || body.health_context !== undefined;
+
+    if (
+      !body.health_context
+      && !body.notification_preferences
+      && !body.ui_settings
+      && ![
+        'dietary_requirements',
+        'allergies',
+        'cuisines',
+        'dislikes',
+        'health_conditions',
+        'spice_levels',
+        'cooking_methods'
+      ].every((key) => hasOwnProperty(body, key))
+    ) {
+      throw new ServiceError(
+        400,
+        'All preference groups are required: dietary_requirements, allergies, cuisines, dislikes, health_conditions, spice_levels, cooking_methods'
+      );
+    }
+
+    if (shouldUpdateJoinTables) {
+      await replaceUserPreferencesTransaction(normalizedUserId, {
+        dietary_requirements: normalizePreferenceIds(dietaryRequirements),
+        allergies: normalizePreferenceIds(allergies),
+        cuisines: normalizePreferenceIds(cuisines),
+        dislikes: normalizePreferenceIds(dislikes),
+        health_conditions: normalizePreferenceIds(healthConditions),
+        spice_levels: normalizePreferenceIds(spiceLevels),
+        cooking_methods: normalizePreferenceIds(cookingMethods)
+      });
+    }
+
+    if (
+      body.health_context !== undefined ||
+      body.notification_preferences !== undefined ||
+      body.ui_settings !== undefined
+    ) {
+      await saveUserPreferenceState(normalizedUserId, (current) => ({
+        ...current,
+        health_context: body.health_context !== undefined
+          ? normalizeHealthContext(body.health_context)
+          : current.health_context || EMPTY_HEALTH_CONTEXT,
+        notification_preferences: body.notification_preferences !== undefined
+          ? normalizeNotificationPreferences(body.notification_preferences)
+          : current.notification_preferences || {},
+        ui_settings: body.ui_settings !== undefined
+          ? normalizeUiSettings(body.ui_settings)
+          : current.ui_settings || {}
+      }));
+    }
+  } catch (error) {
+    throw error;
+  }
 }
 
 module.exports = updateUserPreferences;

@@ -9,13 +9,12 @@ const supabase = require("../dbConnection");
 const { validationResult } = require("express-validator");
 const { logSecurityEvent } = require("../services/securityEventService");
 
-// ✅ Your logging
 const { createLog, log } = require("../services/securityLogger");
-
-// ✅ Team modules
 const logger = require("../utils/logger");
 const authService = require("../services/authService");
 const nodemailer = require("nodemailer");
+const { ok, fail, validationError } = require("../utils/apiResponse");
+const { msg } = require("../utils/messages");
 
 // ✅ SendGrid setup (only if provided)
 if (process.env.SENDGRID_KEY) {
@@ -54,7 +53,7 @@ const login = async (req, res) => {
   logger.info("Login controller invoked");
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
-    return res.status(400).json({ errors: errors.array() });
+    return validationError(res, errors.array());
   }
 
   const email = req.body.email?.trim().toLowerCase();
@@ -79,7 +78,7 @@ const login = async (req, res) => {
       })
     );
 
-    return res.status(400).json({ error: "Email and password are required" });
+    return fail(res, msg("auth.login.failed_missing_fields"), 400, "AUTH_MISSING_FIELDS");
   }
 
   try {
@@ -124,9 +123,7 @@ const login = async (req, res) => {
       );
 
       await safeSendFailedLoginAlert(email, clientIp);
-      return res.status(404).json({
-        error: "Account not found. Please create an account first.",
-      });
+      return fail(res, msg("auth.login.failed_not_found"), 404, "AUTH_NOT_FOUND");
     }
 
     // Check password
@@ -173,7 +170,7 @@ const login = async (req, res) => {
       );
 
       await safeSendFailedLoginAlert(email, clientIp);
-      return res.status(401).json({ error: "Invalid password" });
+      return fail(res, msg("auth.login.failed_credentials"), 401, "AUTH_INVALID_CREDENTIALS");
     }
 
     // SUCCESS LOG
@@ -212,7 +209,7 @@ const login = async (req, res) => {
     });
 
     const token = createAccessToken(user);
-    return res.status(200).json({ user, token });
+    return ok(res, { user, token });
   } catch (err) {
     log(
       createLog({
@@ -229,7 +226,7 @@ const login = async (req, res) => {
     );
 
     logger.error("Login error", err);
-    return res.status(500).json({ error: "Internal server error" });
+    return fail(res, msg("general.internal_error"), 500, "INTERNAL_ERROR");
   }
 };
 
@@ -240,30 +237,28 @@ const loginMfa = async (req, res) => {
   const mfa_token = req.body.mfa_token;
 
   if (!email || !password || !mfa_token) {
-    return res
-      .status(400)
-      .json({ error: "Email, password, and token are required" });
+    return fail(res, msg("auth.login.mfa_required"), 400, "AUTH_MFA_REQUIRED");
   }
 
   try {
     const user = await getUserCredentials(email);
     if (!user) {
-      return res.status(401).json({ error: "Invalid credentials" });
+      return fail(res, msg("auth.login.failed_credentials"), 401, "AUTH_INVALID_CREDENTIALS");
     }
 
     const validPassword = await bcrypt.compare(password, user.password);
     const validToken = await verifyMfaToken(user.user_id, mfa_token);
 
     if (!validPassword || !validToken) {
-      return res.status(401).json({ error: "Invalid credentials" });
+      return fail(res, msg("auth.login.mfa_invalid"), 401, "AUTH_MFA_INVALID");
     }
 
     const token = createAccessToken(user);
 
-    return res.status(200).json({ user, token });
+    return ok(res, { user, token });
   } catch (err) {
     logger.error("MFA error", err);
-    return res.status(500).json({ error: "Internal server error" });
+    return fail(res, msg("general.internal_error"), 500, "INTERNAL_ERROR");
   }
 };
 
