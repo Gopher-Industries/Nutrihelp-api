@@ -8,6 +8,12 @@ async function addMfaToken(userId, token) {
     // Ensure userId is stored as integer
     const parsedUserId = parseInt(userId, 10);
 
+    await supabase
+      .from('mfatokens')
+      .update({ is_used: true })
+      .eq('user_id', parsedUserId)
+      .eq('is_used', false);
+
     const { data, error } = await supabase
       .from('mfatokens')
       .insert({
@@ -21,6 +27,24 @@ async function addMfaToken(userId, token) {
     return data;
   } catch (error) {
     console.error("Error adding MFA token:", error);
+    throw error;
+  }
+}
+
+async function invalidateMfaTokens(userId) {
+  try {
+    const parsedUserId = parseInt(userId, 10);
+
+    const { error } = await supabase
+      .from("mfatokens")
+      .update({ is_used: true })
+      .eq("user_id", parsedUserId)
+      .eq("is_used", false);
+
+    if (error) throw error;
+    return true;
+  } catch (error) {
+    console.error("Error invalidating MFA tokens:", error);
     throw error;
   }
 }
@@ -69,4 +93,4 @@ async function verifyMfaToken(userId, token) {
   }
 }
 
-module.exports = { addMfaToken, verifyMfaToken };
+module.exports = { addMfaToken, invalidateMfaTokens, verifyMfaToken };

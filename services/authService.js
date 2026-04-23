@@ -192,7 +192,6 @@ class AuthService {
 
         throw new Error('Invalid credentials');
       }
-
       const tokens = await this.generateTokenPair(user, deviceInfo);
 
       await supabaseAnon

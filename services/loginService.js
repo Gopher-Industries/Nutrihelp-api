@@ -66,7 +66,9 @@ function buildJwt(user) {
   return jwt.sign(
     {
       userId: user.user_id,
-      role: user.user_roles?.role_name || 'unknown'
+      email: user.email,
+      role: user.user_roles?.role_name || 'unknown',
+      type: 'access'
     },
     process.env.JWT_TOKEN,
     { expiresIn: '1h' }
