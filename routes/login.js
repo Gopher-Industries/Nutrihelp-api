@@ -3,9 +3,13 @@ const router = express.Router();
 const controller = require('../controller/loginController.js');
 
 // Import validation rules and middleware
-const { loginValidator, mfaloginValidator } = require('../validators/loginValidator');
+const {
+    loginValidator,
+    mfaloginValidator,
+    resendMfaValidator
+} = require('../validators/loginValidator');
 const validate = require('../middleware/validateRequest');
-const { loginLimiter } = require('../middleware/rateLimiter'); // ✅ rate limiter added
+const { loginLimiter, mfaResendLimiter } = require('../middleware/rateLimiter'); // ✅ rate limiter added
 
 // POST /login
 router.post('/', loginLimiter, loginValidator, validate, controller.login);
@@ -13,8 +17,7 @@ router.post('/', loginLimiter, loginValidator, validate, controller.login);
 // POST /login/mfa
 router.post('/mfa', loginLimiter, mfaloginValidator, validate, controller.loginMfa);
 
-// POST /login/resend-mfa
-router.post('/resend-mfa', loginLimiter, (req, res) => {
+router.post('/resend-mfa', mfaResendLimiter, resendMfaValidator, validate, (req, res) => {
     controller.resendMfa(req, res);
 });
 

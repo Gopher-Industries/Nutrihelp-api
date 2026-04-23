@@ -3,7 +3,9 @@ class ServiceError extends Error {
     super(message);
     this.name = 'ServiceError';
     this.statusCode = statusCode;
+    this.status = statusCode;
     this.details = details;
+    Error.captureStackTrace?.(this, ServiceError);
   }
 }
 
