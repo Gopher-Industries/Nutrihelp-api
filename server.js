@@ -1,10 +1,11 @@
 require("dotenv").config();
 
-// Structured Logging - NEW
 const logger = require('./utils/logger');
 const { requestLoggingMiddleware } = require('./middleware/requestLogger');
 const { sessionMonitorMiddleware } = require('./middleware/sessionMonitor');
 const { structuredErrorHandler } = require('./middleware/structuredErrorHandler');
+const responseContractMiddleware = require('./middleware/responseContract');
+const { localeMiddleware } = require('./utils/messages');
 
 //Logging & Metrics
 const {
@@ -83,6 +84,8 @@ let db = require("./dbConnection");
 // ⚠️ CRITICAL: Add request logging middleware FIRST, before any routes
 app.use(requestLoggingMiddleware);
 app.use(sessionMonitorMiddleware);
+app.use(localeMiddleware);
+app.use(responseContractMiddleware);
 
 // CORS
 app.use(
@@ -152,6 +155,12 @@ app.use(express.urlencoded({ limit: "50mb", extended: true }));
 //Logging & Metrics routes
 app.use(metricsMiddleware);
 app.get("/api/metrics", metricsEndpoint);
+
+// AI service quality stats — admin only in production
+app.get("/api/ai/stats", (req, res) => {
+  const aiMonitor = require('./services/aiServiceMonitor');
+  res.json({ success: true, data: aiMonitor.getStats() });
+});
 app.get("/api", (req, res) => {
   res.json({
     status: "ok",
