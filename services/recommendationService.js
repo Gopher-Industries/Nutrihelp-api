@@ -64,6 +64,82 @@ function normalizeIdList(items) {
   }));
 }
 
+function normalizeLookupRow(row) {
+  if (!row) return null;
+  if (typeof row === 'string') {
+    const normalized = row.trim().toLowerCase();
+    return normalized ? { id: null, name: normalized } : null;
+  }
+  if (typeof row === 'object') {
+    const name = row.name != null ? String(row.name).trim().toLowerCase() : null;
+    const id = Number.isInteger(row.id) ? row.id : null;
+    if (!name) return null;
+    return { id, name };
+  }
+  return null;
+}
+
+async function resolveLookupNames(table, ids, fallbackRows = []) {
+  const normalizedIds = normalizeIdList(ids);
+  if (!normalizedIds.length) {
+    return [];
+  }
+
+  const resolvedById = new Map(
+    (Array.isArray(fallbackRows) ? fallbackRows : [])
+      .map(normalizeLookupRow)
+      .filter(Boolean)
+      .filter((row) => row.id != null)
+      .map((row) => [row.id, row.name])
+  );
+
+  const unresolvedIds = normalizedIds.filter((id) => !resolvedById.has(id));
+
+  if (unresolvedIds.length) {
+    const { data, error } = await supabase
+      .from(table)
+      .select('id, name')
+      .in('id', unresolvedIds);
+
+    if (error) {
+      throw error;
+    }
+
+    for (const row of data || []) {
+      const normalized = normalizeLookupRow(row);
+      if (normalized && normalized.id != null) {
+        resolvedById.set(normalized.id, normalized.name);
+      }
+    }
+  }
+
+  return unique(normalizedIds.map((id) => resolvedById.get(id)));
+}
+
+function mergeAllergyContext(primaryAllergies = [], requestedAllergyNames = []) {
+  const existingNames = new Set(
+    (Array.isArray(primaryAllergies) ? primaryAllergies : [])
+      .map((item) => item?.name)
+      .filter(Boolean)
+      .map((name) => String(name).trim().toLowerCase())
+  );
+
+  const merged = [...(Array.isArray(primaryAllergies) ? primaryAllergies : [])];
+
+  for (const name of normalizeNameList(requestedAllergyNames)) {
+    if (existingNames.has(name)) continue;
+    existingNames.add(name);
+    merged.push({
+      referenceId: null,
+      name,
+      severity: 'unknown',
+      notes: 'Applied from request dietaryConstraints'
+    });
+  }
+
+  return merged;
+}
+
 function normalizeHealthGoals(healthGoals) {
   if (!healthGoals) {
     return {
@@ -113,7 +189,7 @@ async function fetchRecentRecipeIds(userId) {
 async function fetchCandidateRecipes(limit = 100) {
   const { data, error } = await supabase
     .from('recipes')
-    .select('id, recipe_name, cuisine_id, cooking_method_id, total_servings, preparation_time, calories, fat, carbohydrates, protein, fiber, sodium, sugar, allergy, dislike')
+    .select('id, recipe_name, description, ingredients, cuisine_id, cooking_method_id, total_servings, preparation_time, calories, fat, carbohydrates, protein, fiber, sodium, sugar, allergy, dislike')
     .limit(limit);
 
   if (error) {
@@ -216,7 +292,16 @@ async function generateRecommendations({
   const preferenceData = preferences && typeof preferences === 'object' ? preferences : {};
   const preferenceSummary = buildPreferenceSummary(preferenceData);
   const structuredHealthContext = buildStructuredHealthContext(preferenceData);
+  const [requestedDietaryRequirementNames, requestedAllergyNames] = await Promise.all([
+    resolveLookupNames('dietary_requirements', effectiveDietaryConstraints.dietaryRequirementIds, preferenceData.dietary_requirements),
+    resolveLookupNames('allergies', effectiveDietaryConstraints.allergyIds, preferenceData.allergies)
+  ]);
   const mergedGoalState = mergeGoalState(goalState, aiContext.hints, structuredHealthContext);
+  const mergedAllergies = mergeAllergyContext(structuredHealthContext.allergies, requestedAllergyNames);
+  const activeDietaryRequirements = unique([
+    ...preferenceSummary.dietaryRequirements,
+    ...requestedDietaryRequirementNames
+  ]);
 
   const scoringContext = {
     preferredCuisineIds: normalizeIdList(aiContext.hints.preferredCuisineIds),
@@ -225,7 +310,8 @@ async function generateRecommendations({
     excludedRecipeIds: normalizeIdList(aiContext.hints.excludedRecipeIds),
     recentRecipeIds,
     dislikes: preferenceSummary.dislikes,
-    allergies: structuredHealthContext.allergies,
+    allergies: mergedAllergies,
+    dietaryRequirements: activeDietaryRequirements,
     conditionNames: structuredHealthContext.normalized_summary.chronicConditionNames,
     medications: structuredHealthContext.medications,
     goalState: mergedGoalState,
@@ -271,8 +357,14 @@ async function generateRecommendations({
     },
     userContext: {
       profile,
-      preferences: preferenceSummary,
-      healthContext: structuredHealthContext,
+      preferences: {
+        ...preferenceSummary,
+        dietaryRequirements: activeDietaryRequirements
+      },
+      healthContext: {
+        ...structuredHealthContext,
+        allergies: mergedAllergies
+      },
       recentRecipeIds
     },
     recommendations,

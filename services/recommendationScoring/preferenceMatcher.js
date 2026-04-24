@@ -20,6 +20,77 @@ const GOAL_SODIUM_WEIGHT = 8;
 const TARGET_CALORIES_CLOSE = 8;
 const TARGET_CALORIES_NEAR = 3;
 
+const DIETARY_RULES = [
+  {
+    id: 'vegetarian',
+    match: (name) => name.includes('vegetarian'),
+    fitMessage: 'Aligned with your vegetarian preference.',
+    conflictMessage: 'Recipe appears to include meat, which conflicts with your vegetarian preference.',
+    fitWeight: 8,
+    conflictPenalty: -22,
+    conflicts: ['chicken', 'beef', 'pork', 'bacon', 'ham', 'lamb', 'turkey', 'fish', 'salmon', 'tuna', 'shrimp', 'prawn']
+  },
+  {
+    id: 'vegan',
+    match: (name) => name.includes('vegan'),
+    fitMessage: 'Aligned with your vegan preference.',
+    conflictMessage: 'Recipe appears to include animal products, which conflicts with your vegan preference.',
+    fitWeight: 10,
+    conflictPenalty: -26,
+    conflicts: ['chicken', 'beef', 'pork', 'bacon', 'ham', 'lamb', 'turkey', 'fish', 'salmon', 'tuna', 'shrimp', 'prawn', 'milk', 'cheese', 'cream', 'butter', 'yogurt', 'yoghurt', 'egg', 'omelette', 'honey']
+  },
+  {
+    id: 'gluten_free',
+    match: (name) => name.includes('gluten free') || name.includes('gluten-free') || name.includes('coeliac') || name.includes('celiac'),
+    fitMessage: 'Looks compatible with your gluten-free preference.',
+    conflictMessage: 'Recipe name or ingredients suggest gluten-containing items.',
+    fitWeight: 8,
+    conflictPenalty: -20,
+    conflicts: ['bread', 'pasta', 'noodle', 'wheat', 'barley', 'rye', 'couscous', 'bulgur', 'seitan']
+  },
+  {
+    id: 'dairy_free',
+    match: (name) => name.includes('dairy free') || name.includes('dairy-free') || name.includes('lactose free') || name.includes('lactose-free'),
+    fitMessage: 'Looks compatible with your dairy-free preference.',
+    conflictMessage: 'Recipe appears to include dairy ingredients.',
+    fitWeight: 7,
+    conflictPenalty: -18,
+    conflicts: ['milk', 'cheese', 'cream', 'butter', 'yogurt', 'yoghurt', 'ghee', 'paneer']
+  },
+  {
+    id: 'low_carb',
+    match: (name) => name.includes('low carb') || name.includes('low-carb') || name.includes('keto'),
+    fitWeight: 7,
+    conflictPenalty: -12,
+    evaluate(recipe, out) {
+      if (recipe.carbohydrates != null && recipe.carbohydrates <= 25) {
+        out.score += 7;
+        out.matchedSignals.push('dietary_low_carb');
+        out.reasons.push({ tag: 'dietary_low_carb', message: 'Supports your low-carb preference.', weight: 7 });
+      } else if (recipe.carbohydrates != null && recipe.carbohydrates > 50) {
+        out.score -= 12;
+        out.warnings.push({ tag: 'dietary_low_carb_conflict', message: `Carbohydrates ${recipe.carbohydrates}g are above a typical low-carb target.`, severity: 'info' });
+      }
+    }
+  },
+  {
+    id: 'high_protein',
+    match: (name) => name.includes('high protein') || name.includes('high-protein'),
+    fitWeight: 8,
+    conflictPenalty: -8,
+    evaluate(recipe, out) {
+      if (recipe.protein != null && recipe.protein >= 20) {
+        out.score += 8;
+        out.matchedSignals.push('dietary_high_protein');
+        out.reasons.push({ tag: 'dietary_high_protein', message: 'Supports your high-protein preference.', weight: 8 });
+      } else if (recipe.protein != null && recipe.protein < 12) {
+        out.score -= 8;
+        out.warnings.push({ tag: 'dietary_high_protein_conflict', message: `Protein ${recipe.protein}g is lower than a typical high-protein meal target.`, severity: 'info' });
+      }
+    }
+  }
+];
+
 function normalizeIdList(list) {
   return Array.isArray(list) ? list.filter((id) => id != null) : [];
 }
@@ -33,11 +104,69 @@ function dislikeMatches(recipe, dislikes) {
   return dislikes.find((term) => term && text.includes(lower(term))) || null;
 }
 
+function recipeText(recipe) {
+  return [
+    lower(recipe.recipe_name),
+    lower(recipe.description),
+    lower(Array.isArray(recipe.ingredients) ? recipe.ingredients.join(' ') : recipe.ingredients)
+  ].join(' ');
+}
+
+function escapeRegex(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function containsPhrase(text, phrase) {
+  if (!text || !phrase) return false;
+  const pattern = new RegExp(`(^|[^a-z])${escapeRegex(phrase)}([^a-z]|$)`, 'i');
+  return pattern.test(text);
+}
+
+function normalizeNameList(list) {
+  return Array.isArray(list)
+    ? [...new Set(list.map((item) => lower(item).trim()).filter(Boolean))]
+    : [];
+}
+
+function applyDietaryRequirementSignals(recipe, dietaryRequirements, out) {
+  const recipeTextValue = recipeText(recipe);
+
+  for (const requirementName of normalizeNameList(dietaryRequirements)) {
+    const rule = DIETARY_RULES.find((candidate) => candidate.match(requirementName));
+    if (!rule) continue;
+
+    if (typeof rule.evaluate === 'function') {
+      rule.evaluate(recipe, out);
+      continue;
+    }
+
+    const conflict = rule.conflicts.find((term) => containsPhrase(recipeTextValue, term));
+    if (conflict) {
+      out.score += rule.conflictPenalty;
+      out.warnings.push({
+        tag: `dietary_${rule.id}_conflict`,
+        message: `${rule.conflictMessage} Matched "${conflict}".`,
+        severity: 'info'
+      });
+      continue;
+    }
+
+    out.score += rule.fitWeight;
+    out.matchedSignals.push(`dietary_${rule.id}`);
+    out.reasons.push({
+      tag: `dietary_${rule.id}`,
+      message: rule.fitMessage,
+      weight: rule.fitWeight
+    });
+  }
+}
+
 /**
  * @param {object} recipe
  * @param {object} context - {
  *   preferredCuisineIds, preferredCookingMethodIds, preferredRecipeIds,
  *   excludedRecipeIds, recentRecipeIds, dislikes (string[]),
+ *   dietaryRequirements (string[]),
  *   goalState: { prioritizeProtein, prioritizeFiber, limitSugar, limitSodium, targetCalories }
  * }
  */
@@ -50,6 +179,7 @@ function evaluate(recipe, context = {}) {
   const excludedRecipes = normalizeIdList(context.excludedRecipeIds);
   const recentRecipes = normalizeIdList(context.recentRecipeIds);
   const dislikes = Array.isArray(context.dislikes) ? context.dislikes : [];
+  const dietaryRequirements = Array.isArray(context.dietaryRequirements) ? context.dietaryRequirements : [];
   const goals = context.goalState || {};
 
   if (excludedRecipes.includes(recipe.id)) {
@@ -98,6 +228,8 @@ function evaluate(recipe, context = {}) {
     out.score += RECENT_RECIPE_PENALTY;
     out.reasons.push({ tag: 'recent_meal_penalty', message: 'Recently served — deprioritised for variety.', weight: RECENT_RECIPE_PENALTY });
   }
+
+  applyDietaryRequirementSignals(recipe, dietaryRequirements, out);
 
   if (goals.prioritizeProtein && recipe.protein != null && recipe.protein >= 15) {
     out.score += GOAL_PROTEIN_WEIGHT;

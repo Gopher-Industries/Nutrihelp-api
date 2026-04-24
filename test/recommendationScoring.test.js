@@ -293,6 +293,7 @@ describe('recommendationScoring — orchestrator.scoreRecipe', () => {
     expect(result.safetyLevel).to.equal('caution');
     expect(result.triggeredMedicationRuleIds).to.include('statin_grapefruit');
     expect(result.explanation.safetyNotes[0].disclaimer).to.equal(true);
+    expect(result.breakdown.medicationPenalty).to.equal(-3);
   });
 
   it('handles a conflicted case — safe but demoted by condition warnings', () => {

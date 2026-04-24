@@ -69,6 +69,7 @@ function scoreRecipe(recipe, context = {}) {
     excludedRecipeIds: context.excludedRecipeIds,
     recentRecipeIds: context.recentRecipeIds,
     dislikes: context.dislikes,
+    dietaryRequirements: context.dietaryRequirements,
     goalState: context.goalState
   });
 
@@ -97,7 +98,11 @@ function scoreRecipe(recipe, context = {}) {
     condition: conditionResult.score,
     nutrition: balance.score,
     aiSignal: aiSignalBonus,
-    medicationPenalty: medResult.safetyNotes.some((n) => n.severity === 'high') ? -6 : 0
+    medicationPenalty: medResult.safetyNotes.reduce((total, note) => {
+      if (note?.severity === 'high') return total - 6;
+      if (note?.severity === 'warn') return total - 3;
+      return total;
+    }, 0)
   };
 
   const score = subtotals.preference
