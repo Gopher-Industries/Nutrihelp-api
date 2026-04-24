@@ -30,7 +30,9 @@ const DEFAULT_MAX_RESULTS = 5;
 const DEFAULT_CACHE_TTL_MS = 5 * 60 * 1000;
 const RECOMMENDATION_RESPONSE_VERSION = 'recommendation-response-v2';
 const DEFAULT_DISCLAIMER = 'Recommendations are informational and do not replace guidance from a healthcare professional.';
+const RECOMMENDATION_PERSISTENCE_SCHEMA_VERSION = 'recommendation-persistence-v1';
 const recommendationCache = new Map();
+let hasWarnedAboutMissingRecommendationTables = false;
 
 function stableStringify(value) {
   if (Array.isArray(value)) {
@@ -203,6 +205,149 @@ function buildCacheKey(payload) {
   return stableStringify(payload);
 }
 
+function isMissingRelationError(error) {
+  return error?.code === '42P01';
+}
+
+function buildPersistenceRows({ userId, response }) {
+  const baseMetadata = {
+    schemaVersion: RECOMMENDATION_PERSISTENCE_SCHEMA_VERSION,
+    cache: response.cache,
+    source: response.source
+  };
+
+  const recommendationList = {
+    user_id: userId,
+    request_fingerprint: response.cache?.key || null,
+    cache_key: response.cache?.key || null,
+    contract_version: response.contractVersion,
+    source_strategy: response.source?.strategy || null,
+    ai_source: response.source?.ai?.source || null,
+    ai_version: response.source?.ai?.version || null,
+    generated_at: response.generatedAt,
+    max_results: response.input?.maxResults || null,
+    input: response.input || {},
+    user_context: response.userContext || {},
+    metadata: baseMetadata
+  };
+
+  const recommendationRows = response.recommendations.map((item) => ({
+    user_id: userId,
+    recipe_id: item.recipeId,
+    rank: item.rank,
+    title: item.title,
+    score: item.score,
+    explanation: item.explanation,
+    metadata: item.metadata || {}
+  }));
+
+  return {
+    recommendationList,
+    recommendationRows
+  };
+}
+
+async function persistRecommendationSnapshot({ userId, response }) {
+  const { recommendationList, recommendationRows } = buildPersistenceRows({ userId, response });
+  const recommendationListQuery = supabase.from('recommendation_lists');
+
+  if (typeof recommendationListQuery?.insert !== 'function') {
+    return {
+      enabled: false,
+      persisted: false,
+      reason: 'unsupported_client'
+    };
+  }
+
+  const { data: listData, error: listError } = await recommendationListQuery
+    .insert(recommendationList)
+    .select('id')
+    .single();
+
+  if (listError) {
+    throw listError;
+  }
+
+  const recommendationListId = listData.id;
+
+  const recommendationPayload = recommendationRows.map((row) => ({
+    ...row,
+    recommendation_list_id: recommendationListId
+  }));
+
+  const { data: recommendationsData, error: recommendationsError } = await supabase
+    .from('recommendations')
+    .insert(recommendationPayload)
+    .select('id, recipe_id, rank');
+
+  if (recommendationsError) {
+    throw recommendationsError;
+  }
+
+  const recommendationIdByRecipeId = new Map(
+    (recommendationsData || []).map((row) => [row.recipe_id, row.id])
+  );
+
+  const recommendationResultPayload = recommendationRows.map((row) => ({
+    recommendation_list_id: recommendationListId,
+    recipe_id: row.recipe_id,
+    rank: row.rank,
+    title: row.title,
+    score: row.score,
+    explanation: row.explanation,
+    metadata: row.metadata
+  }));
+
+  const { error: resultsError } = await supabase
+    .from('recommendation_results')
+    .insert(recommendationResultPayload);
+
+  if (resultsError) {
+    throw resultsError;
+  }
+
+  const userRecommendationPayload = recommendationRows.map((row) => ({
+    user_id: userId,
+    recommendation_id: recommendationIdByRecipeId.get(row.recipe_id) || null,
+    recommendation_list_id: recommendationListId,
+    recipe_id: row.recipe_id,
+    rank: row.rank,
+    status: 'generated'
+  }));
+
+  const { error: userRecommendationsError } = await supabase
+    .from('user_recommendations')
+    .insert(userRecommendationPayload);
+
+  if (userRecommendationsError) {
+    throw userRecommendationsError;
+  }
+
+  const { error: historyError } = await supabase
+    .from('recommendation_history')
+    .insert({
+      user_id: userId,
+      recommendation_list_id: recommendationListId,
+      event_type: 'generated',
+      payload: {
+        recommendationCount: recommendationRows.length,
+        topRecipeId: recommendationRows[0]?.recipe_id || null,
+        source: response.source
+      }
+    });
+
+  if (historyError) {
+    throw historyError;
+  }
+
+  return {
+    enabled: true,
+    persisted: true,
+    recommendationListId,
+    resultCount: recommendationRows.length
+  };
+}
+
 function getCachedRecommendation(key) {
   const cached = recommendationCache.get(key);
   if (!cached) return null;
@@ -329,6 +474,7 @@ async function generateRecommendations({
 
   const response = {
     success: true,
+    message: 'Recommendations generated successfully',
     generatedAt: new Date().toISOString(),
     contractVersion: RECOMMENDATION_RESPONSE_VERSION,
     disclaimer: DEFAULT_DISCLAIMER,
@@ -377,6 +523,27 @@ async function generateRecommendations({
       totalReturned: recommendations.length
     }
   };
+
+  try {
+    response.persistence = await persistRecommendationSnapshot({
+      userId,
+      response
+    });
+  } catch (error) {
+    const missingTables = isMissingRelationError(error);
+    if (missingTables && !hasWarnedAboutMissingRecommendationTables) {
+      hasWarnedAboutMissingRecommendationTables = true;
+      console.warn('[recommendationService] Recommendation persistence skipped because Supabase tables are missing.');
+    } else if (!missingTables) {
+      console.warn('[recommendationService] Recommendation persistence failed:', error.message || error);
+    }
+
+    response.persistence = {
+      enabled: !missingTables,
+      persisted: false,
+      reason: missingTables ? 'schema_missing' : 'write_failed'
+    };
+  }
 
   setCachedRecommendation(cacheKey, response);
   return response;

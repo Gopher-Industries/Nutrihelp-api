@@ -91,6 +91,7 @@ function buildProfileResponse(profile, preferences) {
 
   return {
     success: true,
+    message: 'Profile retrieved successfully',
     contractVersion: PROFILE_CONTRACT_VERSION,
     profile: canonicalProfile,
     preferenceSummary
@@ -162,6 +163,7 @@ async function updateCanonicalProfile({ actor, targetLookup, body }) {
 
   return {
     ...buildProfileResponse(mergedProfile, preferences),
+    message: 'Profile updated successfully',
     meta: {
       updatedBy: actor?.userId || null
     }
