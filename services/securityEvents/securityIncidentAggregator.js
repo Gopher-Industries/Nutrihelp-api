@@ -113,16 +113,16 @@ const inc = incidentsMap[incidentKey];
   .map((inc) => {
     const firstSeenMs = new Date(inc.firstSeen).getTime();
     const lastSeenMs = new Date(inc.lastSeen).getTime();
+    const incidentType = detectIncidentType(inc.events);
+    const riskScore = calculateRiskScore(inc.eventCount, inc.severity);
 
     return {
       ...inc,
       durationMs: lastSeenMs - firstSeenMs,
-      incidentType: detectIncidentType(inc.events),
-      summary: `${inc.eventCount} event(s) grouped as ${detectIncidentType(inc.events)}`,
-      riskScore: calculateRiskScore(inc.eventCount, inc.severity),
-      priority: getIncidentPriority(
-        calculateRiskScore(inc.eventCount, inc.severity)
-      ),
+      incidentType,
+      summary: `${inc.eventCount} event(s) grouped as ${incidentType}`,
+      riskScore,
+      priority: getIncidentPriority(riskScore),
       status: getIncidentStatus(inc),
       actors: Array.from(inc.actors),
       sources: Array.from(inc.sources),

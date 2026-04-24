@@ -3432,15 +3432,9 @@ paths:
             text/csv:
               schema:
                 type: string
-         feature/CT-007-event-correlation-and-incident-aggregation-jpthomas
-              example: # 'id,occurredAt,type,userId,sessionId,ipAddress,userAgent,source,metadataJson
-
-              # brute_4092...,2025-12-04T07:24:13.965+00:00,BRUTE_FORCE_DETECTED,,,,,public.brute_force_logs,"{""email"":""john@nutrihelp.com""}"
- 
               example: |
                 id,occurredAt,type,userId,sessionId,ipAddress,userAgent,source,metadataJson
                 brute_4092...,2025-12-04T07:24:13.965+00:00,BRUTE_FORCE_DETECTED,,,,,public.brute_force_logs,"{""email"":""john@nutrihelp.com""}"
-         master
 
   /userpassword/verify:
     post:
