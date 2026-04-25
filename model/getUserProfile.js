@@ -1,15 +1,25 @@
 const supabase = require("../dbConnection.js");
-const { decrypt } = require("../utils/encryption");
+const { decrypt } = require("../services/encryptionService");
 
-function decryptSensitiveFields(profile) {
+async function decryptSensitiveFields(profile) {
 	if (!profile) {
 		return profile;
 	}
 
+	const decryptedContact = profile.contact_number ? await (async () => {
+		const encryptedObj = JSON.parse(profile.contact_number);
+		return await decrypt(encryptedObj.encrypted, encryptedObj.iv, encryptedObj.authTag);
+	})() : profile.contact_number;
+
+	const decryptedAddress = profile.address ? await (async () => {
+		const encryptedObj = JSON.parse(profile.address);
+		return await decrypt(encryptedObj.encrypted, encryptedObj.iv, encryptedObj.authTag);
+	})() : profile.address;
+
 	return {
 		...profile,
-		contact_number: profile.contact_number ? decrypt(profile.contact_number) : profile.contact_number,
-		address: profile.address ? decrypt(profile.address) : profile.address,
+		contact_number: decryptedContact,
+		address: decryptedAddress,
 	};
 }
 
@@ -38,7 +48,7 @@ async function getUserProfile(lookup = {}) {
 			return null;
 		}
 
-		const profile = decryptSensitiveFields(data);
+		const profile = await decryptSensitiveFields(data);
 
 		if (profile.image_id != null) {
 			profile.image_url = await getImageUrl(profile.image_id);
