@@ -191,8 +191,46 @@ async function decrypt(encryptedData, iv, authTag) {
   }
 }
 
+// Week 6: Database helper functions for encrypting on write and decrypting on read
+async function encryptForDatabase(data) {
+  const result = await encrypt(data);
+  return {
+    encrypted: result.encrypted,
+    iv: result.iv,
+    authTag: result.authTag,
+    keyVersion: result.keyVersion,
+    algorithm: result.algorithm,
+  };
+}
+
+async function decryptFromDatabase(record, fieldMap = {}) {
+  if (!record || typeof record !== 'object') return null;
+
+  const encryptedField = fieldMap.encrypted || 'encrypted';
+  const ivField = fieldMap.iv || 'iv';
+  const authTagField = fieldMap.authTag || 'authTag';
+
+  const encryptedValue = record[encryptedField];
+  const ivValue = record[ivField];
+  const authTagValue = record[authTagField];
+
+  if (!encryptedValue || !ivValue || !authTagValue) {
+    return null;
+  }
+
+  return decrypt(encryptedValue, ivValue, authTagValue);
+}
+
+function clearCachedKeyForRotation() {
+  cachedKey = null;
+  cachedKeyVersion = null;
+}
+
 module.exports = {
   encrypt,
   decrypt,
+  encryptForDatabase,
+  decryptFromDatabase,
   loadEncryptionKey,
+  clearCachedKeyForRotation,
 };
