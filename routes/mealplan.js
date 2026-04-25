@@ -26,8 +26,6 @@ router.route('/')
     .get(
         authenticateToken, 
         authorizeRoles("user", "nutritionist", "admin"), 
-        getMealPlanValidation, 
-        validate, 
         (req, res) => controller.getMealPlan(req, res)
     )
 

@@ -1,4 +1,9 @@
 const supabase = require('../dbConnection.js');
+const {
+    createErrorResponse,
+    createSuccessResponse,
+    formatNotifications
+} = require('../services/apiResponseService');
 
 // Create a new notification
 exports.createNotification = async (req, res) => {
@@ -21,23 +26,45 @@ exports.createNotification = async (req, res) => {
 // Get all notifications for a specific user by user_id
 exports.getNotificationsByUserId = async (req, res) => {
     try {
-        const { user_id } = req.params;
+        const userId = req.params.user_id || req.user?.userId;
+        const status = req.query.status;
+        const limit = req.query.limit ? Number.parseInt(req.query.limit, 10) : null;
 
-        const { data, error } = await supabase
+        let query = supabase
             .from('notifications')
-            .select('*')
-            .eq('user_id', user_id);
+            .select('simple_id, type, content, status, created_at')
+            .eq('user_id', userId)
+            .order('created_at', { ascending: false });
+
+        if (status) {
+            query = query.eq('status', status);
+        }
+
+        if (Number.isInteger(limit) && limit > 0) {
+            query = query.limit(limit);
+        }
+
+        const { data, error } = await query;
 
         if (error) throw error;
 
-        if (data.length === 0) {
-            return res.status(404).json({ message: 'No notifications found for this user' });
-        }
+        const { count, error: countError } = await supabase
+            .from('notifications')
+            .select('simple_id', { count: 'exact', head: true })
+            .eq('user_id', userId)
+            .eq('status', 'unread');
 
-        res.status(200).json(data);
+        if (countError) throw countError;
+
+        res.status(200).json(createSuccessResponse({
+            items: formatNotifications(data || [])
+        }, {
+            count: Array.isArray(data) ? data.length : 0,
+            unreadCount: count || 0
+        }));
     } catch (error) {
         console.error('Error retrieving notifications:', error);
-        res.status(500).json({ error: 'An error occurred while retrieving notifications' });
+        res.status(500).json(createErrorResponse('An error occurred while retrieving notifications', 'NOTIFICATIONS_LOAD_FAILED'));
     }
 };
 

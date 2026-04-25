@@ -1,10 +1,27 @@
 const authService = require('../services/authService');
 const { createClient } = require('@supabase/supabase-js');
+const {
+    createSuccessResponse,
+    createErrorResponse,
+    formatProfile,
+    formatSession
+} = require('../services/apiResponseService');
 
-const supabase = createClient(
-    process.env.SUPABASE_URL,
-    process.env.SUPABASE_ANON_KEY
-);
+function getSupabaseClient() {
+    return createClient(
+        process.env.SUPABASE_URL,
+        process.env.SUPABASE_ANON_KEY
+    );
+}
+
+function getDeviceInfo(req) {
+    return {
+        ip: req.ip,
+        userAgent: req.get('User-Agent') || 'Unknown',
+        deviceId: req.get('X-Device-Id') || null,
+        clientType: req.get('X-Client-Type') || 'web'
+    };
+}
 
 /**
  * User Registration
@@ -15,24 +32,29 @@ exports.register = async (req, res) => {
 
         // Basic validation
         if (!name || !email || !password) {
-            return res.status(400).json({
-                success: false,
-                error: 'Name, email, and password are required'
-            });
+            return res.status(400).json(createErrorResponse(
+                'Name, email, and password are required',
+                'VALIDATION_ERROR'
+            ));
         }
 
         const result = await authService.register({
             name, email, password, first_name, last_name
         });
 
-        res.status(201).json(result);
+        res.status(201).json(createSuccessResponse({
+            user: {
+                id: result.user?.user_id || null,
+                email: result.user?.email || email,
+                name: result.user?.name || name
+            }
+        }, {
+            message: result.message || 'User registered successfully'
+        }));
 
     } catch (error) {
         console.error('Registration error:', error);
-        res.status(400).json({
-            success: false,
-            error: error.message
-        });
+        res.status(400).json(createErrorResponse(error.message, 'REGISTER_FAILED'));
     }
 };
 
@@ -44,28 +66,23 @@ exports.login = async (req, res) => {
         const { email, password } = req.body;
 
         if (!email || !password) {
-            return res.status(400).json({
-                success: false,
-                error: 'Email and password are required'
-            });
+            return res.status(400).json(createErrorResponse(
+                'Email and password are required',
+                'VALIDATION_ERROR'
+            ));
         }
 
         // Collect device information
-        const deviceInfo = {
-            ip: req.ip,
-            userAgent: req.get('User-Agent') || 'Unknown'
-        };
+        const result = await authService.login({ email, password }, getDeviceInfo(req));
 
-        const result = await authService.login({ email, password }, deviceInfo);
-
-        res.json(result);
+        res.json(createSuccessResponse({
+            user: result.user,
+            session: formatSession(result)
+        }));
 
     } catch (error) {
         console.error('Login error:', error);
-        res.status(401).json({
-            success: false,
-            error: error.message
-        });
+        res.status(401).json(createErrorResponse(error.message, 'AUTHENTICATION_FAILED'));
     }
 };
 
@@ -77,27 +94,21 @@ exports.refreshToken = async (req, res) => {
         const { refreshToken } = req.body;
 
         if (!refreshToken) {
-            return res.status(400).json({
-                success: false,
-                error: 'Refresh token is required'
-            });
+            return res.status(400).json(createErrorResponse(
+                'Refresh token is required',
+                'VALIDATION_ERROR'
+            ));
         }
 
-        const deviceInfo = {
-            ip: req.ip,
-            userAgent: req.get('User-Agent') || 'Unknown'
-        };
+        const result = await authService.refreshAccessToken(refreshToken, getDeviceInfo(req));
 
-        const result = await authService.refreshAccessToken(refreshToken, deviceInfo);
-
-        res.json(result);
+        res.json(createSuccessResponse({
+            session: formatSession(result)
+        }));
 
     } catch (error) {
         console.error('Token refresh error:', error);
-        res.status(401).json({
-            success: false,
-            error: error.message
-        });
+        res.status(401).json(createErrorResponse(error.message, 'REFRESH_FAILED'));
     }
 };
 
@@ -110,14 +121,14 @@ exports.logout = async (req, res) => {
 
         const result = await authService.logout(refreshToken);
 
-        res.json(result);
+        res.json(createSuccessResponse(null, {
+            message: result.message
+        }));
 
     } catch (error) {
         console.error('Logout error:', error);
-        res.status(500).json({
-            success: false,
-            error: error.message
-        });
+        const statusCode = error.statusCode || 500;
+        res.status(statusCode).json(createErrorResponse(error.message, 'LOGOUT_FAILED'));
     }
 };
 
@@ -130,14 +141,14 @@ exports.logoutAll = async (req, res) => {
 
         const result = await authService.logoutAll(userId);
 
-        res.json(result);
+        res.json(createSuccessResponse(null, {
+            message: result.message
+        }));
 
     } catch (error) {
         console.error('Logout all error:', error);
-        res.status(500).json({
-            success: false,
-            error: error.message
-        });
+        const statusCode = error.statusCode || 500;
+        res.status(statusCode).json(createErrorResponse(error.message, 'LOGOUT_ALL_FAILED'));
     }
 };
 
@@ -147,45 +158,19 @@ exports.logoutAll = async (req, res) => {
 exports.getProfile = async (req, res) => {
     try {
         const userId = req.user.userId;
+        const result = await authService.getProfile(userId);
 
-        const { data: user, error } = await supabase
-            .from('users')
-            .select(`
-                user_id, email, name, first_name, last_name,
-                registration_date, last_login, account_status,
-                user_roles!inner(role_name)
-            `)
-            .eq('user_id', userId)
-            .single();
-
-        if (error || !user) {
-            return res.status(404).json({
-                success: false,
-                error: 'User not found'
-            });
-        }
-
-        res.json({
-            success: true,
-            user: {
-                id: user.user_id,
-                email: user.email,
-                name: user.name,
-                firstName: user.first_name,
-                lastName: user.last_name,
-                role: user.user_roles?.role_name,
-                registrationDate: user.registration_date,
-                lastLogin: user.last_login,
-                accountStatus: user.account_status
-            }
-        });
+        res.json(createSuccessResponse({
+            user: formatProfile(result.user)
+        }));
 
     } catch (error) {
         console.error('Get profile error:', error);
-        res.status(500).json({
-            success: false,
-            error: 'Internal server error'
-        });
+        const statusCode = error.statusCode || 500;
+        res.status(statusCode).json(createErrorResponse(
+            statusCode === 404 ? 'User not found' : 'Internal server error',
+            statusCode === 404 ? 'USER_NOT_FOUND' : 'PROFILE_LOAD_FAILED'
+        ));
     }
 };
 
@@ -199,7 +184,7 @@ exports.logLoginAttempt = async (req, res) => {
         });
     }
 
-    const { error } = await supabase.from('auth_logs').insert([
+    const { error } = await getSupabaseClient().from('auth_logs').insert([
         {
             email,
             user_id: user_id || null,
@@ -227,7 +212,7 @@ exports.sendSMSByEmail = async (req, res) => {
   }
 
   try {
-    const { data, error } = await supabase
+    const { data, error } = await getSupabaseClient()
       .from('users')
       .select('contact_number')
       .eq('email', email)
@@ -251,4 +236,3 @@ exports.sendSMSByEmail = async (req, res) => {
     return res.status(500).json({ error: 'Internal server error' });
   }
 };
-

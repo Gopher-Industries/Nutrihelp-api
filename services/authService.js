@@ -3,16 +3,21 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
 const { ServiceError } = require('./serviceError');
+const authRepository = require('../repositories/authRepository');
 
-const supabaseAnon = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_ANON_KEY
-);
+function getAnonClient() {
+  return createClient(
+    process.env.SUPABASE_URL,
+    process.env.SUPABASE_ANON_KEY
+  );
+}
 
-const supabaseService = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+function getServiceClient() {
+  return createClient(
+    process.env.SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY
+  );
+}
 
 class AuthService {
   constructor() {
@@ -42,7 +47,7 @@ class AuthService {
         throw new ServiceError(400, 'Name, email, and password are required');
       }
 
-      const { data: existingUser } = await supabaseAnon
+      const { data: existingUser } = await getAnonClient()
         .from('users')
         .select('user_id')
         .eq('email', email)
@@ -54,7 +59,7 @@ class AuthService {
 
       const hashedPassword = await bcrypt.hash(password, 12);
 
-      const { data: newUser, error } = await supabaseAnon
+      const { data: newUser, error } = await getAnonClient()
         .from('users')
         .insert({
           name,
@@ -98,7 +103,7 @@ class AuthService {
         throw new ServiceError(400, 'Email and password are required');
       }
 
-      const { data: user, error } = await supabaseAnon
+      const { data: user, error } = await getAnonClient()
         .from('users')
         .select(`
           user_id, email, password, name, role_id,
@@ -116,7 +121,7 @@ class AuthService {
 
       const tokens = await this.generateTokenPair(user, deviceInfo);
 
-      await supabaseAnon
+      await getAnonClient()
         .from('users')
         .update({ last_login: new Date().toISOString() })
         .eq('user_id', user.user_id);
@@ -161,31 +166,22 @@ class AuthService {
         { expiresIn: this.accessTokenExpiry, algorithm: 'HS256' }
       );
 
-      await supabaseService
-         .from('user_sessiontoken')
-         .update({ is_active: false })
-         .eq('user_id', user.user_id);
-
       const rawRefreshToken = crypto.randomBytes(32).toString('hex');
       const hashedRefreshToken = await bcrypt.hash(rawRefreshToken, 12);
       const lookupHash = this.createLookupHash(rawRefreshToken);
       const expiresAt = new Date(Date.now() + this.refreshTokenExpiry);
 
-      const { error } = await supabaseService
-        .from('user_sessiontoken')
-        .insert({
-          user_id: user.user_id,
-          refresh_token: hashedRefreshToken,
-          refresh_token_lookup: lookupHash,
-          token_type: 'refresh',
-          device_info: deviceInfo,
-          ip_address: deviceInfo.ip || null,
-          user_agent: deviceInfo.userAgent || null,
-          expires_at: expiresAt.toISOString(),
-          is_active: true
-        });
-
-      if (error) throw error;
+      await authRepository.createRefreshSession({
+        user_id: user.user_id,
+        refresh_token: hashedRefreshToken,
+        refresh_token_lookup: lookupHash,
+        token_type: 'refresh',
+        device_info: deviceInfo,
+        ip_address: deviceInfo.ip || null,
+        user_agent: deviceInfo.userAgent || null,
+        expires_at: expiresAt.toISOString(),
+        is_active: true
+      });
 
       return {
         accessToken,
@@ -209,25 +205,11 @@ class AuthService {
 
       const lookupHash = this.createLookupHash(refreshToken);
 
-      const { data: sessions, error } = await supabaseService
-        .from('user_sessiontoken')
-        .select(`
-          id,
-          user_id,
-          refresh_token,
-          refresh_token_lookup,
-          expires_at,
-          is_active
-        `)
-        .eq('refresh_token_lookup', lookupHash)
-        .eq('is_active', true)
-        .limit(1);
-      
-      if (error || !sessions || sessions.length === 0) {
+      const session = await authRepository.findActiveRefreshSessionByLookupHash(lookupHash);
+
+      if (!session) {
         throw new ServiceError(401, 'Invalid refresh token');
       }
-
-      const session = sessions[0];
 
       const match = await bcrypt.compare(refreshToken, session.refresh_token);
       if (!match) throw new ServiceError(401, 'Invalid refresh token');
@@ -236,33 +218,15 @@ class AuthService {
         throw new ServiceError(401, 'Refresh token expired');
       }
 
-      const { data: user, error: userError } = await supabaseAnon
-         .from('users')
-         .select(`
-           user_id,
-           email,
-           name,
-           role_id,
-           account_status
-          `)
-          .eq('user_id', session.user_id)
-          .single();
-
-      if (userError || !user) {
-        throw new ServiceError(404, 'User not found');
-      }
+      const user = await authRepository.findUserByIdForSession(session.user_id);
 
       if (user.account_status !== 'active') {
         throw new ServiceError(403, 'Account is not active');
       }
 
-
       const newTokens = await this.generateTokenPair(user, deviceInfo);
 
-      await supabaseService
-        .from('user_sessiontoken')
-        .update({ is_active: false })
-        .eq('id', session.id);
+      await authRepository.deactivateSessionById(session.id);
 
       return {
         success: true,
@@ -288,10 +252,7 @@ class AuthService {
 
       const lookupHash = this.createLookupHash(refreshToken);
 
-      await supabaseService
-        .from('user_sessiontoken')
-        .update({ is_active: false })
-        .eq('refresh_token_lookup', lookupHash);
+      await authRepository.deactivateSessionByLookupHash(lookupHash);
 
       return { success: true, message: 'Logout successful' };
     } catch (error) {
@@ -312,10 +273,7 @@ class AuthService {
         throw new ServiceError(400, 'User ID is required');
       }
 
-      await supabaseService
-        .from('user_sessiontoken')
-        .update({ is_active: false })
-        .eq('user_id', userId);
+      await authRepository.deactivateSessionsByUserId(userId);
 
       return { success: true, message: 'Logged out from all devices' };
     } catch (error) {
@@ -358,7 +316,7 @@ class AuthService {
      ========================= */
   async cleanupExpiredSessions() {
     try {
-      await supabaseService
+      await getServiceClient()
         .from('user_sessiontoken')
         .update({ is_active: false })
         .lt('expires_at', new Date().toISOString());
@@ -372,7 +330,7 @@ class AuthService {
       throw new ServiceError(400, 'User ID is required');
     }
 
-    const { data: user, error } = await supabaseAnon
+    const { data: user, error } = await getAnonClient()
       .from('users')
       .select(`
         user_id, email, name, first_name, last_name,
@@ -407,7 +365,7 @@ class AuthService {
       throw new ServiceError(400, 'Missing required fields: email, success, ip_address, created_at');
     }
 
-    const { error } = await supabaseAnon.from('auth_logs').insert([
+    const { error } = await getAnonClient().from('auth_logs').insert([
       {
         email,
         user_id: userId || null,
@@ -429,7 +387,7 @@ class AuthService {
       throw new ServiceError(400, 'Email is required');
     }
 
-    const { data, error } = await supabaseAnon
+    const { data, error } = await getAnonClient()
       .from('users')
       .select('contact_number')
       .eq('email', email)

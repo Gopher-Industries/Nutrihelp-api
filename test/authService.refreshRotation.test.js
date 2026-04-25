@@ -3,11 +3,8 @@ const sinon = require("sinon");
 const proxyquire = require("proxyquire").noCallThru();
 
 describe("authService refresh rotation", () => {
-  let jwt;
-  let bcrypt;
-  let cryptoMock;
-  let authRepository;
   let authService;
+  let authRepository;
 
   beforeEach(() => {
     process.env.SUPABASE_URL = "https://example.supabase.co";
@@ -15,16 +12,16 @@ describe("authService refresh rotation", () => {
     process.env.SUPABASE_SERVICE_ROLE_KEY = "service-role-key";
     process.env.JWT_TOKEN = "jwt-secret";
 
-    jwt = {
+    const jwt = {
       sign: sinon.stub().returns("new-access-token"),
     };
 
-    bcrypt = {
+    const bcrypt = {
       hash: sinon.stub().resolves("hashed-refresh-token"),
       compare: sinon.stub().resolves(true),
     };
 
-    cryptoMock = {
+    const cryptoMock = {
       randomBytes: sinon.stub().returns(Buffer.from("new-refresh-seed")),
       createHash: sinon.stub().returns({
         update: sinon.stub().returnsThis(),
@@ -43,8 +40,7 @@ describe("authService refresh rotation", () => {
       jsonwebtoken: jwt,
       bcrypt,
       crypto: cryptoMock,
-      "../repositories/mobile/authRepository": authRepository,
-      "../Monitor_&_Logging/loginLogger": sinon.stub().resolves(),
+      "../repositories/authRepository": authRepository,
     });
   });
 

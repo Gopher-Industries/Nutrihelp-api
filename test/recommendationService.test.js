@@ -11,7 +11,7 @@ function createRecommendationRepositoryStub({ recentRecipeIds = [], recipes = []
 describe('Recommendation Service', () => {
   it('ranks recommendations using preferences and AI insight metadata', async () => {
     const service = proxyquire('../services/recommendationService', {
-      '../repositories/mobile/recommendationRepository': createRecommendationRepositoryStub({
+      '../repositories/recommendationRepository': createRecommendationRepositoryStub({
         recentRecipeIds: [2],
         recipes: [
           {
@@ -100,7 +100,7 @@ describe('Recommendation Service', () => {
   it('returns cached results for repeated requests', async () => {
     let recipeQueryCount = 0;
     const service = proxyquire('../services/recommendationService', {
-      '../repositories/mobile/recommendationRepository': {
+      '../repositories/recommendationRepository': {
         getRecentRecipeIdsByUserId: async () => [],
         getCandidateRecipes: async () => {
           recipeQueryCount += 1;
@@ -156,7 +156,7 @@ describe('Recommendation Service', () => {
 
   it('falls back cleanly when the AI adapter reports failure', async () => {
     const service = proxyquire('../services/recommendationService', {
-      '../repositories/mobile/recommendationRepository': createRecommendationRepositoryStub({
+      '../repositories/recommendationRepository': createRecommendationRepositoryStub({
         recipes: [{
           id: 4,
           recipe_name: 'Fallback Soup',
@@ -214,7 +214,7 @@ describe('Recommendation Service', () => {
     delete process.env.AI_RECOMMENDATION_URL;
 
     const service = proxyquire('../services/recommendationService', {
-      '../repositories/mobile/recommendationRepository': createRecommendationRepositoryStub({
+      '../repositories/recommendationRepository': createRecommendationRepositoryStub({
         recipes: [{
           id: 4,
           recipe_name: 'Fallback Soup',
@@ -251,7 +251,7 @@ describe('Recommendation Service', () => {
 
   it('propagates recent recipe fetch failures instead of silently treating them as empty history', async () => {
     const service = proxyquire('../services/recommendationService', {
-      '../repositories/mobile/recommendationRepository': {
+      '../repositories/recommendationRepository': {
         getRecentRecipeIdsByUserId: async () => {
           throw new Error('recent recipe query failed');
         },
@@ -285,7 +285,7 @@ describe('Recommendation Service', () => {
 
   it('handles multiple medical reports and combines hint derivation signals', async () => {
     const service = proxyquire('../services/recommendationService', {
-      '../repositories/mobile/recommendationRepository': createRecommendationRepositoryStub({
+      '../repositories/recommendationRepository': createRecommendationRepositoryStub({
         recipes: [{
           id: 1,
           recipe_name: 'Protein Bowl',

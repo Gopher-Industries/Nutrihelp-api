@@ -1,4 +1,9 @@
 const { generateRecommendations } = require('../services/recommendationService');
+const {
+  createErrorResponse,
+  createSuccessResponse,
+  formatRecommendations
+} = require('../services/apiResponseService');
 
 function isPlainObject(value) {
   return value != null && typeof value === 'object' && !Array.isArray(value);
@@ -48,7 +53,16 @@ async function getRecommendations(req, res) {
       refreshCache: req.body?.refreshCache === true
     });
 
-    return res.status(200).json(result);
+    return res.status(200).json(createSuccessResponse({
+      items: formatRecommendations(result.recommendations || [])
+    }, {
+      count: (result.recommendations || []).length,
+      generatedAt: result.generatedAt,
+      contractVersion: result.contractVersion,
+      source: result.source,
+      cache: result.cache,
+      input: result.input
+    }));
   } catch (error) {
     console.error('[recommendationController] error:', error);
     const statusCode = error.statusCode || 500;
@@ -56,10 +70,10 @@ async function getRecommendations(req, res) {
       ? 'Failed to generate recommendations'
       : (error.message || 'Invalid recommendation request');
 
-    return res.status(statusCode).json({
-      success: false,
-      error: clientMessage
-    });
+    return res.status(statusCode).json(createErrorResponse(
+      clientMessage,
+      statusCode >= 500 ? 'RECOMMENDATION_FAILED' : 'VALIDATION_ERROR'
+    ));
   }
 }
 

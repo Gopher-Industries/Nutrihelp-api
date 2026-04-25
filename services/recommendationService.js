@@ -1,6 +1,6 @@
 const fetchUserPreferences = require('../model/fetchUserPreferences');
 const getUserProfile = require('../model/getUserProfile');
-const recommendationRepository = require('../repositories/mobile/recommendationRepository');
+const recommendationRepository = require('../repositories/recommendationRepository');
 const {
   AI_ADAPTER_VERSION,
   resolveAiRecommendationSignals

@@ -1,5 +1,10 @@
 let { updateUser, saveImage } = require("../model/updateUserProfile.js");
 let getUser = require("../model/getUserProfile.js");
+const {
+  createErrorResponse,
+  createSuccessResponse,
+  formatProfile
+} = require("../services/apiResponseService");
 
 /**
  * Update User Profile
@@ -17,7 +22,7 @@ const updateUserProfile = async (req, res) => {
     }
 
     if (!targetEmail) {
-      return res.status(400).json({ error: "Email is required" });
+      return res.status(400).json(createErrorResponse("Email is required", "VALIDATION_ERROR"));
     }
 
     const userProfile = await updateUser(
@@ -30,7 +35,7 @@ const updateUserProfile = async (req, res) => {
     );
 
     if (!userProfile || userProfile.length === 0) {
-      return res.status(404).json({ error: "User not found" });
+      return res.status(404).json(createErrorResponse("User not found", "USER_NOT_FOUND"));
     }
 
     // If user image provided, save it and update image_url
@@ -39,10 +44,12 @@ const updateUserProfile = async (req, res) => {
       userProfile[0].image_url = url;
     }
 
-    res.status(200).json(userProfile);
+    res.status(200).json(createSuccessResponse({
+      user: formatProfile(Array.isArray(userProfile) ? userProfile[0] : userProfile)
+    }));
   } catch (error) {
     console.error("Error updating user profile:", error);
-    res.status(500).json({ message: "Internal server error" });
+    res.status(500).json(createErrorResponse("Internal server error", "PROFILE_UPDATE_FAILED"));
   }
 };
 
@@ -64,19 +71,21 @@ const getUserProfile = async (req, res) => {
     }
 
     if (!targetEmail) {
-      return res.status(400).json({ error: "Email is required" });
+      return res.status(400).json(createErrorResponse("Email is required", "VALIDATION_ERROR"));
     }
 
     const userProfile = await getUser(targetEmail);
 
     if (!userProfile) {
-      return res.status(404).json({ error: "User not found" });
+      return res.status(404).json(createErrorResponse("User not found", "USER_NOT_FOUND"));
     }
 
-    res.status(200).json(userProfile);
+    res.status(200).json(createSuccessResponse({
+      user: formatProfile(Array.isArray(userProfile) ? userProfile[0] : userProfile)
+    }));
   } catch (error) {
     console.error("Error fetching user profile:", error);
-    res.status(500).json({ message: "Internal server error" });
+    res.status(500).json(createErrorResponse("Internal server error", "PROFILE_LOAD_FAILED"));
   }
 };
 

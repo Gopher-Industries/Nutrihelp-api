@@ -100,29 +100,46 @@ Docker is the supported development workflow for this repository. If you need to
 The API is documented using OpenAPI 3.0, located in `index.yaml`.
 You can view the documentation by navigating to `http://localhost:80/api-docs` in your browser.
 
+## Frontend / Mobile Integration Notes
+The backend no longer exposes a separate `/api/mobile` namespace. Frontend and mobile clients should use the existing shared API routes.
+
+Recommended routes and response contracts:
+
+- `POST /api/auth/register`: returns `{ success, data: { user }, meta: { message } }`
+- `POST /api/auth/login`: returns `{ success, data: { user, session } }`
+- `POST /api/auth/refresh`: returns `{ success, data: { session } }`
+- `POST /api/auth/logout`: returns `{ success, data: null, meta: { message } }`
+- `GET /api/auth/profile`: returns `{ success, data: { user } }`
+- `GET /api/notifications`: preferred for the signed-in user; supports optional `status` and `limit`
+- `GET /api/notifications/:user_id`: admin-oriented variant for fetching another user's notifications
+- `GET /api/mealplan`: uses the bearer token for normal users; admin and nutritionist clients may optionally pass `?user_id=<id>`
+- `POST /api/recommendations`: returns `{ success, data: { items }, meta }`
+
+Compatibility guidance:
+
+- Prefer using the authenticated user from the access token instead of sending `user_id` in request bodies for client-owned screens.
+- Treat empty lists as successful responses. Notifications and meal plans now return `200` with empty `items` instead of using `404` for “no data”.
+- Read `data` and `meta` consistently for the routes above. New client work should avoid depending on older raw payload shapes.
+- Send refresh tokens only to `/api/auth/refresh` and `/api/auth/logout`. Access tokens should continue to be sent as `Authorization: Bearer <token>`.
+
 ## Automated Testing
-1. In order to run the jest test cases, make sure your package.json file has the following test script added:
+This repository uses `mocha` for the main automated test suite.
+
+1. Install dependencies:
 ```bash
-"scripts": {
-  "test": "jest"
-}
+npm install
 ```
-Also, have the followiing dependency added below scripts:
+2. Run the full test suite:
 ```bash
-"jest": {
-    "testMatch": [
-      "**/test/**/*.js"
-    ]
-  },
+npm test
 ```
-2. Make sure to run the server before running the test cases.
-3. Run the test cases using jest and supertest:
+3. Run a focused test file directly with Mocha:
 ```bash
-npx jest .\test\<TEST_SUITE_FILE_NAME>
+./node_modules/.bin/mocha ./test/recommendationController.test.js
 ```
-For example:
+4. If a test suite depends on the running API server or Docker services, start the backend first with:
 ```bash
-npx jest .\test\healthNews.test.js
+docker compose up --build
 ```
 
 /\ Please refer to the "PatchNotes_VersionControl" file for  /\
