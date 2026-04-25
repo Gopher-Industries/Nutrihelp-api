@@ -3,6 +3,8 @@ require('dotenv').config();
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
+const http = require('http');
+const https = require('https');
 const { exec } = require('child_process');
 
 const logger = require('./utils/logger');
@@ -34,7 +36,8 @@ console.log('   PORT:', process.env.PORT || '80 (default)');
 console.log('');
 
 const app = express();
-const port = process.env.PORT || 80;
+const HTTPS_PORT = Number(process.env.HTTPS_PORT) || 443;
+const HTTP_PORT = Number(process.env.HTTP_PORT || process.env.PORT) || 80;
 
 // DB init (side-effect module)
 let db = require('./dbConnection');
@@ -110,6 +113,11 @@ app.use(helmet({
   },
   crossOriginEmbedderPolicy: true,
   referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+  hsts: {
+    maxAge: 63072000,
+    includeSubDomains: true,
+    preload: true,
+  },
 }));
 
 // Rate limiter
@@ -147,6 +155,10 @@ app.get('/api/ai/stats', (req, res) => {
   const aiMonitor = require('./services/aiServiceMonitor');
   res.json({ success: true, data: aiMonitor.getStats() });
 });
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', tls: '1.3 enforced' });
+});
+
 app.get('/api', (req, res) => {
   res.json({
     status: 'ok',
@@ -192,17 +204,56 @@ app.use((err, req, res, next) => {
 process.on('uncaughtException', uncaughtExceptionHandler);
 process.on('unhandledRejection', unhandledRejectionHandler);
 
-// Start server
-app.listen(port, async () => {
+// Start HTTPS server with TLS 1.3 enforcement and an HTTP redirect server
+const tlsKeyPath = process.env.TLS_KEY_PATH || path.join(__dirname, 'Nutrihelp-api', 'certs', 'local-key.pem');
+const tlsCertPath = process.env.TLS_CERT_PATH || path.join(__dirname, 'Nutrihelp-api', 'certs', 'local-cert.pem');
+
+let httpsServer;
+try {
+  const tlsOptions = {
+    key: fs.readFileSync(tlsKeyPath),
+    cert: fs.readFileSync(tlsCertPath),
+    minVersion: 'TLSv1.3',
+    maxVersion: 'TLSv1.3',
+  };
+  httpsServer = https.createServer(tlsOptions, app);
+} catch (tlsError) {
+  console.error('Failed to load TLS certificates.');
+  console.error(`Expected key at: ${tlsKeyPath}`);
+  console.error(`Expected cert at: ${tlsCertPath}`);
+  console.error(tlsError.message);
+  process.exit(1);
+}
+
+const redirectServer = http.createServer((req, res) => {
+  const host = (req.headers.host || 'localhost').replace(/:\d+$/, `:${HTTPS_PORT}`);
+  const redirectUrl = `https://${host}${req.url || '/'}`;
+  res.writeHead(301, { Location: redirectUrl });
+  res.end();
+});
+
+httpsServer.listen(HTTPS_PORT, () => {
   console.log('\n🎉 NutriHelp API launched successfully!');
   console.log('='.repeat(50));
-  console.log(`Server is running on port ${port}`);
-  console.log(`📚 Swagger UI: http://localhost:${port}/api-docs`);
+  console.log(`🔒 HTTPS server running on port ${HTTPS_PORT} (TLS 1.3 enforced)`);
+  console.log(`🔁 HTTP redirect server running on port ${HTTP_PORT}`);
+  console.log(`📚 Swagger UI: https://localhost:${HTTPS_PORT}/api-docs`);
   console.log('='.repeat(50));
   console.log('💡 Press Ctrl+C to stop the server \n');
 
-  // Open Swagger on Windows only
   if (process.platform === 'win32') {
-    exec(`start http://localhost:${port}/api-docs`);
+    exec(`start https://localhost:${HTTPS_PORT}/api-docs`);
   }
 });
+
+redirectServer.on('error', (err) => {
+  if (err.code === 'EACCES' || err.code === 'EADDRINUSE') {
+    console.warn(`⚠️ HTTP redirect server could not start on port ${HTTP_PORT} (${err.code}).`);
+    console.warn('⚠️ HTTPS API is still running. For local testing, use https://localhost:${HTTPS_PORT} directly.');
+    console.warn('⚠️ Optionally set HTTP_PORT=8081 in .env to test redirect without admin permissions.');
+    return;
+  }
+  throw err;
+});
+
+redirectServer.listen(HTTP_PORT);
