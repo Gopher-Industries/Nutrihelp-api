@@ -1,20 +1,28 @@
-const { chatbotService } = require('../services/chatbotService');
-const { isServiceError } = require('../services/serviceError');
+const { aiAndMedical, authAndIdentity, shared } = require('../services');
 const logger = require('../utils/logger');
 
+const { chatbotService } = aiAndMedical;
+const { serviceError } = authAndIdentity;
+const { isServiceError } = serviceError;
+const { createErrorResponse } = shared.apiResponse;
+
 function serviceErrorToPayload(error) {
-  return {
-    error: error.message,
-    ...(process.env.NODE_ENV === 'development' && error.details ? { details: error.details } : {})
-  };
+  return createErrorResponse(
+    error.message,
+    error.statusCode >= 500 ? 'CHATBOT_REQUEST_FAILED' : 'VALIDATION_ERROR',
+    process.env.NODE_ENV === 'development' ? error.details : undefined
+  );
 }
 
 function handleUnexpectedError(res, label, error, context = {}) {
   logger.error(label, { error: error.message, ...context });
-  return res.status(500).json({
-    error: 'Internal server error',
-    details: process.env.NODE_ENV === 'development' ? error.message : undefined
-  });
+  return res.status(500).json(
+    createErrorResponse(
+      'Internal server error',
+      'CHATBOT_INTERNAL_ERROR',
+      process.env.NODE_ENV === 'development' ? { message: error.message } : undefined
+    )
+  );
 }
 
 async function getChatResponse(req, res) {
@@ -41,7 +49,7 @@ async function addURL(req, res) {
     return res.status(result.statusCode).json(result.body);
   } catch (error) {
     if (isServiceError(error)) {
-      return res.status(error.statusCode).json({ error: error.message });
+      return res.status(error.statusCode).json(serviceErrorToPayload(error));
     }
 
     return handleUnexpectedError(res, 'Error processing URL', error, {
@@ -56,7 +64,7 @@ async function addPDF(req, res) {
     return res.status(result.statusCode).json(result.body);
   } catch (error) {
     if (isServiceError(error)) {
-      return res.status(error.statusCode).json({ error: error.message });
+      return res.status(error.statusCode).json(serviceErrorToPayload(error));
     }
 
     return handleUnexpectedError(res, 'Error processing PDF', error);
