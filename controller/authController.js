@@ -1,7 +1,8 @@
-const authService = require('../services/authService');
-const { isServiceError, ServiceError } = require('../services/serviceError');
-const userProfileService = require('../services/userProfileService');
+const { authAndIdentity } = require('../services');
 const logger = require('../utils/logger');
+
+const { authService, userProfileService, serviceError } = authAndIdentity;
+const { isServiceError, ServiceError } = serviceError;
 
 const TRUSTED_DEVICE_COOKIE = authService.trustedDeviceCookieName || 'trusted_device';
 
