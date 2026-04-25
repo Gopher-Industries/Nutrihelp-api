@@ -2,6 +2,44 @@
 
 This is the backend API for the NutriHelp project. It exposes the REST endpoints used by the frontend, integrates with Supabase, serves OpenAPI documentation, and supports optional Python-based AI features used by some endpoints.
 
+## TLS 1.3 Configuration & Verification
+
+The API enforces TLS 1.3 only for all HTTPS connections, with automatic HTTP-to-HTTPS redirects and HSTS headers.
+
+### TLS Configuration
+- **Protocol**: TLS 1.3 only (minVersion + maxVersion enforced)
+- **HSTS**: 2-year max-age with subdomains and preload
+- **Redirect**: HTTP requests automatically redirect to HTTPS
+- **Ports**: HTTPS on 443, HTTP redirect on 80
+
+### Verification Commands
+
+**Test TLS 1.3 Connection:**
+```bash
+openssl s_client -connect localhost:443 -tls1_3
+```
+
+**Test TLS 1.2 Block (should fail):**
+```bash
+openssl s_client -connect localhost:443 -tls1_2
+```
+
+**Check HSTS Header:**
+```bash
+curl -I https://localhost:443/api/health | grep -i strict-transport-security
+```
+
+**Test HTTP Redirect:**
+```bash
+curl -I http://localhost:80/api/health
+# Should return 301 redirect to https://localhost:443/api/health
+```
+
+**Certificate Verification:**
+```bash
+openssl x509 -in Nutrihelp-api/certs/local-cert.pem -text -noout
+```
+
 ## Quick Start
 
 If you want the fastest setup path for local development:
