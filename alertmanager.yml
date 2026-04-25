@@ -1,0 +1,52 @@
+global:
+  resolve_timeout: 5m
+  slack_api_url: 'https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK'
+  smtp_smarthost: 'smtp.example.com:587'
+  smtp_from: 'alertmanager@nutrihelp.example.com'
+  smtp_auth_username: 'alertmanager@example.com'
+  smtp_auth_password: 'CHANGE_ME'
+
+route:
+  receiver: 'default-receiver'
+  group_by: ['alertname', 'severity']
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 3h
+  routes:
+    - match:
+        severity: 'critical'
+      receiver: 'critical-receiver'
+      continue: true
+    - match_re:
+        alertname: 'ExcessiveInvalidTokenAttempts|FrequentTokenRefreshFailures|SuspiciousHighSessionVelocity|SuspiciousSessionEventDetected'
+      receiver: 'security-receiver'
+      continue: false
+
+receivers:
+  - name: 'default-receiver'
+    slack_configs:
+      - channel: '#nutrihelp-alerts'
+        title: '{{ template "slack.default.title" . }}'
+        text: '{{ template "slack.default.text" . }}'
+
+  - name: 'critical-receiver'
+    slack_configs:
+      - channel: '#nutrihelp-critical'
+        title: '{{ template "slack.default.title" . }}'
+        text: '{{ template "slack.default.text" . }}'
+    email_configs:
+      - to: 'security-team@nutrihelp.example.com'
+        send_resolved: true
+
+  - name: 'security-receiver'
+    slack_configs:
+      - channel: '#nutrihelp-security'
+        title: '{{ template "slack.default.title" . }}'
+        text: '{{ template "slack.default.text" . }}'
+
+inhibit_rules:
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['alertname', 'instance']

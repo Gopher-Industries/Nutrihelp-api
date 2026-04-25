@@ -2,6 +2,8 @@ const { createClient } = require('@supabase/supabase-js');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
+const { logSecurityEvent: persistSecurityEvent } = require('./securityEventService');
+const logLoginEvent = require('../Monitor_&_Logging/loginLogger');
 const { ServiceError } = require('./serviceError');
 const authRepository = require('../repositories/authRepository');
 
@@ -22,12 +24,11 @@ function getServiceClient() {
 class AuthService {
   constructor() {
     this.accessTokenExpiry = '15m';
-    this.refreshTokenExpiry = 7 * 24 * 60 * 60 * 1000; // 7 days
+    this.refreshTokenExpiry = 7 * 24 * 60 * 60 * 1000;
+    this.trustedDeviceExpiry = 30 * 24 * 60 * 60 * 1000;
+    this.trustedDeviceCookieName = 'trusted_device';
   }
 
-  /* =========================
-     Helper
-     ========================= */
   createLookupHash(token) {
     return crypto
       .createHash('sha256')
@@ -36,9 +37,35 @@ class AuthService {
       .slice(0, 16);
   }
 
-  /* =========================
-     Register
-     ========================= */
+  hashDeviceFingerprint(deviceInfo = {}) {
+    return crypto
+      .createHash('sha256')
+      .update(String(deviceInfo.userAgent || 'unknown-device'))
+      .digest('hex');
+  }
+
+  async recordStructuredSecurityEvent(event) {
+    try {
+      await persistSecurityEvent(event);
+    } catch {
+      // silent by design
+    }
+  }
+
+  async logSecurityEvent(userId, eventType, deviceInfo = {}, details = {}) {
+    try {
+      await logLoginEvent({
+        userId,
+        eventType,
+        ip: deviceInfo.ip || null,
+        userAgent: deviceInfo.userAgent || null,
+        details,
+      });
+    } catch {
+      // silent by design
+    }
+  }
+
   async register(userData) {
     const { name, email, password, first_name, last_name } = userData;
 
@@ -76,7 +103,9 @@ class AuthService {
         .select('user_id, email, name')
         .single();
 
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
 
       return {
         success: true,
@@ -92,9 +121,6 @@ class AuthService {
     }
   }
 
-  /* =========================
-     Login
-     ========================= */
   async login(loginData, deviceInfo = {}) {
     const { email, password } = loginData;
 
@@ -113,11 +139,45 @@ class AuthService {
         .eq('email', email)
         .single();
 
-      if (error || !user) throw new ServiceError(401, 'Invalid credentials');
-      if (user.account_status !== 'active') throw new ServiceError(403, 'Account is not active');
+      if (error || !user) {
+        await this.recordStructuredSecurityEvent({
+          event_type: 'LOGIN_FAILED',
+          severity: 'medium',
+          user_id: null,
+          ip_address: deviceInfo.ip || null,
+          user_agent: deviceInfo.userAgent || null,
+          resource: '/api/auth/login',
+          metadata: { email, reason: 'user_not_found' }
+        });
+        throw new ServiceError(401, 'Invalid credentials');
+      }
+
+      if (user.account_status !== 'active') {
+        await this.recordStructuredSecurityEvent({
+          event_type: 'LOGIN_FAILED',
+          severity: 'medium',
+          user_id: user.user_id,
+          ip_address: deviceInfo.ip || null,
+          user_agent: deviceInfo.userAgent || null,
+          resource: '/api/auth/login',
+          metadata: { email, reason: 'account_inactive' }
+        });
+        throw new ServiceError(403, 'Account is not active');
+      }
 
       const validPassword = await bcrypt.compare(password, user.password);
-      if (!validPassword) throw new ServiceError(401, 'Invalid credentials');
+      if (!validPassword) {
+        await this.recordStructuredSecurityEvent({
+          event_type: 'LOGIN_FAILED',
+          severity: 'medium',
+          user_id: user.user_id,
+          ip_address: deviceInfo.ip || null,
+          user_agent: deviceInfo.userAgent || null,
+          resource: '/api/auth/login',
+          metadata: { email, reason: 'invalid_password' }
+        });
+        throw new ServiceError(401, 'Invalid credentials');
+      }
 
       const tokens = await this.generateTokenPair(user, deviceInfo);
 
@@ -127,6 +187,15 @@ class AuthService {
         .eq('user_id', user.user_id);
 
       await this.logAuthAttempt(user.user_id, email, true, deviceInfo);
+      await this.recordStructuredSecurityEvent({
+        event_type: 'LOGIN_SUCCESS',
+        severity: 'low',
+        user_id: user.user_id,
+        ip_address: deviceInfo.ip || null,
+        user_agent: deviceInfo.userAgent || null,
+        resource: '/api/auth/login',
+        metadata: { email }
+      });
 
       return {
         success: true,
@@ -148,15 +217,12 @@ class AuthService {
     }
   }
 
-  /* =========================
-     Generate Tokens
-     ========================= */
   async generateTokenPair(user, deviceInfo = {}) {
     try {
       const accessPayload = {
         userId: user.user_id,
         email: user.email,
-        role: user.user_roles?.role_name || 'user',
+        role: user.user_roles?.role_name || user.role || 'user',
         type: 'access'
       };
 
@@ -194,9 +260,6 @@ class AuthService {
     }
   }
 
-  /* =========================
-     Refresh Token
-     ========================= */
   async refreshAccessToken(refreshToken, deviceInfo = {}) {
     try {
       if (!refreshToken) {
@@ -204,7 +267,6 @@ class AuthService {
       }
 
       const lookupHash = this.createLookupHash(refreshToken);
-
       const session = await authRepository.findActiveRefreshSessionByLookupHash(lookupHash);
 
       if (!session) {
@@ -212,20 +274,20 @@ class AuthService {
       }
 
       const match = await bcrypt.compare(refreshToken, session.refresh_token);
-      if (!match) throw new ServiceError(401, 'Invalid refresh token');
+      if (!match) {
+        throw new ServiceError(401, 'Invalid refresh token');
+      }
 
       if (new Date(session.expires_at) < new Date()) {
         throw new ServiceError(401, 'Refresh token expired');
       }
 
       const user = await authRepository.findUserByIdForSession(session.user_id);
-
       if (user.account_status !== 'active') {
         throw new ServiceError(403, 'Account is not active');
       }
 
       const newTokens = await this.generateTokenPair(user, deviceInfo);
-
       await authRepository.deactivateSessionById(session.id);
 
       return {
@@ -241,9 +303,6 @@ class AuthService {
     }
   }
 
-  /* =========================
-     Logout
-     ========================= */
   async logout(refreshToken) {
     try {
       if (!refreshToken) {
@@ -251,7 +310,6 @@ class AuthService {
       }
 
       const lookupHash = this.createLookupHash(refreshToken);
-
       await authRepository.deactivateSessionByLookupHash(lookupHash);
 
       return { success: true, message: 'Logout successful' };
@@ -264,16 +322,29 @@ class AuthService {
     }
   }
 
-  /* =========================
-     Logout All
-     ========================= */
-  async logoutAll(userId) {
+  async logoutAll(userId, options = {}) {
     try {
       if (!userId) {
         throw new ServiceError(400, 'User ID is required');
       }
 
+      const reason = options.reason || 'logout_all';
+      const deviceInfo = options.deviceInfo || {};
+      const { data: trustedDevices } = await getServiceClient()
+        .from('user_sessiontoken')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('token_type', 'trusted_device')
+        .eq('is_active', true);
+
       await authRepository.deactivateSessionsByUserId(userId);
+
+      if ((trustedDevices || []).length > 0) {
+        await this.logSecurityEvent(userId, 'TRUSTED_DEVICE_REVOKED', deviceInfo, {
+          reason,
+          revoked_count: trustedDevices.length,
+        });
+      }
 
       return { success: true, message: 'Logged out from all devices' };
     } catch (error) {
@@ -285,19 +356,144 @@ class AuthService {
     }
   }
 
-  /* =========================
-     Verify Access Token
-     ========================= */
+  async issueTrustedDeviceToken(userId, deviceInfo = {}) {
+    try {
+      const rawTrustedToken = crypto.randomBytes(32).toString('hex');
+      const hashedTrustedToken = await bcrypt.hash(rawTrustedToken, 12);
+      const lookupHash = this.createLookupHash(rawTrustedToken);
+      const expiresAt = new Date(Date.now() + this.trustedDeviceExpiry);
+      const deviceFingerprint = this.hashDeviceFingerprint(deviceInfo);
+
+      await getServiceClient()
+        .from('user_sessiontoken')
+        .update({ is_active: false })
+        .eq('user_id', userId)
+        .eq('token_type', 'trusted_device')
+        .eq('is_active', true)
+        .contains('device_info', { userAgentHash: deviceFingerprint });
+
+      const { error } = await getServiceClient()
+        .from('user_sessiontoken')
+        .insert({
+          user_id: userId,
+          refresh_token: hashedTrustedToken,
+          refresh_token_lookup: lookupHash,
+          token_type: 'trusted_device',
+          device_info: {
+            trusted: true,
+            userAgentHash: deviceFingerprint,
+          },
+          ip_address: deviceInfo.ip || null,
+          user_agent: deviceInfo.userAgent || null,
+          expires_at: expiresAt.toISOString(),
+          is_active: true,
+        });
+
+      if (error) {
+        throw error;
+      }
+
+      await this.logSecurityEvent(userId, 'TRUSTED_DEVICE_CREATED', deviceInfo, {
+        expires_at: expiresAt.toISOString(),
+      });
+
+      return {
+        token: rawTrustedToken,
+        expiresAt,
+      };
+    } catch (error) {
+      throw new Error(`Trusted device issue failed: ${error.message}`);
+    }
+  }
+
+  async validateTrustedDeviceToken(userId, rawToken, deviceInfo = {}) {
+    try {
+      if (!userId || !rawToken) {
+        return { valid: false, reason: 'missing' };
+      }
+
+      const lookupHash = this.createLookupHash(rawToken);
+      const { data: sessions, error } = await getServiceClient()
+        .from('user_sessiontoken')
+        .select('id, refresh_token, expires_at, is_active, device_info')
+        .eq('user_id', userId)
+        .eq('token_type', 'trusted_device')
+        .eq('refresh_token_lookup', lookupHash)
+        .eq('is_active', true)
+        .limit(1);
+
+      if (error || !sessions || sessions.length === 0) {
+        return { valid: false, reason: 'missing' };
+      }
+
+      const trustedDevice = sessions[0];
+      const tokenMatches = await bcrypt.compare(rawToken, trustedDevice.refresh_token);
+      if (!tokenMatches) {
+        return { valid: false, reason: 'invalid' };
+      }
+
+      if (new Date(trustedDevice.expires_at) < new Date()) {
+        await getServiceClient()
+          .from('user_sessiontoken')
+          .update({ is_active: false })
+          .eq('id', trustedDevice.id);
+        return { valid: false, reason: 'expired' };
+      }
+
+      const expectedFingerprint = trustedDevice.device_info?.userAgentHash;
+      const currentFingerprint = this.hashDeviceFingerprint(deviceInfo);
+      if (expectedFingerprint && expectedFingerprint !== currentFingerprint) {
+        return { valid: false, reason: 'device_mismatch' };
+      }
+
+      await this.logSecurityEvent(userId, 'TRUSTED_DEVICE_USED', deviceInfo, {
+        trusted_device_id: trustedDevice.id,
+      });
+
+      return { valid: true, trustedDeviceId: trustedDevice.id };
+    } catch (error) {
+      return { valid: false, reason: 'error', error };
+    }
+  }
+
+  async revokeTrustedDevices(userId, reason = 'manual', deviceInfo = {}) {
+    try {
+      const { data: trustedDevices } = await getServiceClient()
+        .from('user_sessiontoken')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('token_type', 'trusted_device')
+        .eq('is_active', true);
+
+      await getServiceClient()
+        .from('user_sessiontoken')
+        .update({ is_active: false })
+        .eq('user_id', userId)
+        .eq('token_type', 'trusted_device');
+
+      if ((trustedDevices || []).length > 0) {
+        await this.logSecurityEvent(userId, 'TRUSTED_DEVICE_REVOKED', deviceInfo, {
+          reason,
+          revoked_count: trustedDevices.length,
+        });
+      }
+
+      return {
+        success: true,
+        revokedCount: (trustedDevices || []).length,
+      };
+    } catch (error) {
+      throw new Error(`Trusted device revoke failed: ${error.message}`);
+    }
+  }
+
   verifyAccessToken(token) {
     return jwt.verify(token, process.env.JWT_TOKEN);
   }
 
-  /* =========================
-     Auth Logs
-     ========================= */
   async logAuthAttempt(userId, email, success, deviceInfo) {
     try {
-      await supabaseAnon
+      await getAnonClient()
         .from('auth_logs')
         .insert({
           user_id: userId,
@@ -311,9 +507,6 @@ class AuthService {
     }
   }
 
-  /* =========================
-     Cleanup
-     ========================= */
   async cleanupExpiredSessions() {
     try {
       await getServiceClient()
@@ -346,17 +539,7 @@ class AuthService {
 
     return {
       success: true,
-      user: {
-        id: user.user_id,
-        email: user.email,
-        name: user.name,
-        firstName: user.first_name,
-        lastName: user.last_name,
-        role: user.user_roles?.role_name,
-        registrationDate: user.registration_date,
-        lastLogin: user.last_login,
-        accountStatus: user.account_status
-      }
+      user
     };
   }
 
