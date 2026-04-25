@@ -10,3 +10,4 @@ test-results/
 server.pid
 server.log
 *.bak
+certs/*.pem
