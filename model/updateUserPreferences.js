@@ -53,6 +53,47 @@ function hasOwnProperty(object, key) {
   return Object.prototype.hasOwnProperty.call(object, key);
 }
 
+const PREFERENCE_TABLES = [
+  { table: "user_dietary_requirements", foreignKey: "dietary_requirement_id", key: "dietary_requirements" },
+  { table: "user_allergies", foreignKey: "allergy_id", key: "allergies" },
+  { table: "user_cuisines", foreignKey: "cuisine_id", key: "cuisines" },
+  { table: "user_dislikes", foreignKey: "dislike_id", key: "dislikes" },
+  { table: "user_health_conditions", foreignKey: "health_condition_id", key: "health_conditions" },
+  { table: "user_spice_levels", foreignKey: "spice_level_id", key: "spice_levels" },
+  { table: "user_cooking_methods", foreignKey: "cooking_method_id", key: "cooking_methods" }
+];
+
+async function replaceJoinTable(table, userId, foreignKey, values = []) {
+  const { error: deleteError } = await supabase
+    .from(table)
+    .delete()
+    .eq("user_id", userId);
+
+  if (deleteError) {
+    throw deleteError;
+  }
+
+  if (!values.length) {
+    return;
+  }
+
+  const records = values.map((value) => ({
+    user_id: userId,
+    [foreignKey]: value
+  }));
+
+  const { error: insertError } = await supabase.from(table).insert(records);
+  if (insertError) {
+    throw insertError;
+  }
+}
+
+async function replaceUserPreferencesFallback(userId, preferenceGroups) {
+  for (const { table, foreignKey, key } of PREFERENCE_TABLES) {
+    await replaceJoinTable(table, userId, foreignKey, preferenceGroups[key] || []);
+  }
+}
+
 async function replaceUserPreferencesTransaction(userId, preferenceGroups) {
   const { error } = await supabase.rpc("replace_user_preferences", {
     p_user_id: userId,
@@ -74,10 +115,8 @@ async function replaceUserPreferencesTransaction(userId, preferenceGroups) {
     || /replace_user_preferences/i.test(error.message || "");
 
   if (rpcMissing) {
-    throw new ServiceError(
-      500,
-      "Database function replace_user_preferences is missing. Apply database/user-preferences-transaction.sql in Supabase before deploying this API."
-    );
+    await replaceUserPreferencesFallback(userId, preferenceGroups);
+    return;
   }
 
   throw error;
