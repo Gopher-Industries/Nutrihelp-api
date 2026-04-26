@@ -1,80 +1,77 @@
-const path = require('path');
-const { spawn } = require('child_process');
 const fs = require('fs');
+const path = require('path');
+const logger = require('../utils/logger');
+const { executePythonScript } = require('../services/aiExecutionService');
+const { ok, fail } = require('../utils/apiResponse');
+const { msg } = require('../utils/messages');
+const monitor = require('../services/aiServiceMonitor');
 
-// Utility to delete the uploaded file
+const SERVICE_NAME = 'image_classification';
+
 const deleteFile = (filePath) => {
   fs.unlink(filePath, (err) => {
-    if (err) {
-      console.error('Error deleting file:', err);
-    }
+    if (err) logger.error('Error deleting image file', { filePath, error: err.message });
   });
 };
 
-// Function to clean the raw prediction output
-const cleanPrediction = (prediction) => {
-  const lines = prediction.split('\n');
-  const lastLine = lines[lines.length - 2]; // Skip the last empty line
-  const startIndex = lastLine.indexOf(' ') + 1;
-  return lastLine.slice(startIndex).trim();
-};
-
-// Function to handle prediction logic
-const predictImage = (req, res) => {
-  // Path to the uploaded image file
-  const imagePath = req.file.path;
-
-  if (!imagePath) {
-    return res.status(400).json({ error: 'Image path is missing.' });
+const predictImage = async (req, res) => {
+  if (!req.file || !req.file.path) {
+    return fail(res, msg('image.no_file'), 400, 'IMAGE_MISSING');
   }
 
-  // Read the image file from disk
-  fs.readFile(imagePath, (err, imageData) => {
-    if (err) {
-      console.error('Error reading image file:', err);
-      deleteFile(imagePath);
-      return res.status(500).json({ error: 'Internal server error' });
+  const imagePath = req.file.path;
+
+  // Circuit-breaker check — refuse early if service is known-down
+  if (monitor.isCircuitOpen(SERVICE_NAME)) {
+    logger.warn('Image classification circuit is open — returning 503');
+    deleteFile(imagePath);
+    return fail(res, msg('image.classification_unavailable'), 503, 'AI_SERVICE_UNAVAILABLE');
+  }
+
+  try {
+    const imageData = await fs.promises.readFile(imagePath);
+    const start = Date.now();
+
+    const result = await executePythonScript({
+      scriptPath: path.join(__dirname, '..', 'model', 'imageClassification.py'),
+      stdin: imageData,
+      serviceName: SERVICE_NAME,
+    });
+
+    const durationMs = Date.now() - start;
+    const explainability = monitor.buildExplainability(SERVICE_NAME, result, durationMs);
+
+    if (!result.success) {
+      const isTimeout = result.timedOut;
+      const status = isTimeout ? 504 : 500;
+      const errorMsg = isTimeout
+        ? msg('image.classification_timeout')
+        : msg('image.classification_failed');
+      const code = isTimeout ? 'AI_TIMEOUT' : 'AI_FAILED';
+
+      logger.error('Image classification failed', {
+        error: result.error,
+        timedOut: isTimeout,
+        durationMs,
+      });
+
+      return fail(res, errorMsg, status, code);
     }
 
-    // Execute Python script using child_process.spawn
-    const pythonProcess = spawn('python', ['model/imageClassification.py']);
-
-    // Pass image data to Python script via stdin
-    pythonProcess.stdin.write(imageData);
-    pythonProcess.stdin.end();
-
-    // Collect data from Python script output
-    let prediction = '';
-    pythonProcess.stdout.on('data', (data) => {
-      prediction += data.toString();
+    return ok(res, {
+      prediction: result.prediction,
+      confidence: result.confidence,
+      explainability,
     });
-    console.log(prediction)
-
-    let stderrOutput = '';
-    // Handle errors
-    pythonProcess.stderr.on('data', (data) => {
-      stderrOutput += data.toString();
+  } catch (error) {
+    logger.error('Error in image classification controller', {
+      error: error.message,
+      filePath: imagePath,
     });
-
-    // When Python script finishes execution
-    pythonProcess.on('close', (code) => {
-      deleteFile(imagePath);
-
-      if (code !== 0) {
-        console.error('Python script exited with code:', code);
-        return res.status(500).json({ error: 'Model execution failed.' });
-      }       
-      try{
-        const cleanedPrediction = cleanPrediction(prediction);
-        res.status(200).json({ prediction: cleanedPrediction });
-      } catch (e) {
-        console.error('Python script exited with code:', code);
-        res.status(500).json({ error: 'Internal server error' });
-      }
-    });
-  });
+    return fail(res, msg('general.internal_error'), 500, 'INTERNAL_ERROR');
+  } finally {
+    deleteFile(imagePath);
+  }
 };
 
-module.exports = {
-  predictImage
-};
+module.exports = { predictImage };

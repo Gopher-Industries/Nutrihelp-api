@@ -1,35 +1,72 @@
 const supabase = require("../dbConnection.js");
 const { decode } = require("base64-arraybuffer");
+const { encrypt, decrypt } = require("../utils/encryption");
 
-async function updateUser(
-	name,
-	first_name,
-	last_name,
-	email,
-	contact_number,
-	address
-) {
-	let attributes = {};
-	attributes["name"] = name || undefined;
-	attributes["first_name"] = first_name || undefined;
-	attributes["last_name"] = last_name || undefined;
-	attributes["email"] = email || undefined;
-	attributes["contact_number"] = contact_number || undefined;
-	attributes["address"] = address || undefined;
+function decryptSensitiveFields(profile) {
+	if (!profile) {
+		return profile;
+	}
+
+	return {
+		...profile,
+		contact_number: profile.contact_number ? decrypt(profile.contact_number) : profile.contact_number,
+		address: profile.address ? decrypt(profile.address) : profile.address,
+	};
+}
+
+function buildPayload(attributes = {}) {
+	const payload = Object.fromEntries(
+		Object.entries(attributes).filter(([, value]) => value !== undefined)
+	);
+
+	if (payload.contact_number) {
+		payload.contact_number = encrypt(payload.contact_number);
+	}
+
+	if (payload.address) {
+		payload.address = encrypt(payload.address);
+	}
+
+	return payload;
+}
+
+async function updateUser({ userId, attributes = {} }) {
+	const payload = buildPayload(attributes);
 
 	try {
-		let { data, error } = await supabase
+		if (!userId) {
+			throw new Error("userId is required");
+		}
+
+		if (Object.keys(payload).length === 0) {
+			const { data, error } = await supabase
+				.from("users")
+				.select(
+					"user_id,name,first_name,last_name,email,contact_number,mfa_enabled,address,image_id,registration_date,last_login,account_status,user_roles!left(role_name)"
+				)
+				.eq("user_id", userId)
+				.maybeSingle();
+
+			if (error) throw error;
+			return decryptSensitiveFields(data);
+		}
+
+		const { data, error } = await supabase
 			.from("users")
-			.update(attributes) // e.g { email: "sample@email.com" }
-			.eq("email", email)
+			.update(payload)
+			.eq("user_id", userId)
 			.select(
-				"user_id,name,first_name,last_name,email,contact_number,mfa_enabled,address"
-			);
-		return data;
+				"user_id,name,first_name,last_name,email,contact_number,mfa_enabled,address,image_id,registration_date,last_login,account_status,user_roles!left(role_name)"
+			)
+			.maybeSingle();
+
+		if (error) throw error;
+		return decryptSensitiveFields(data);
 	} catch (error) {
 		throw error;
 	}
 }
+
 async function saveImage(image, user_id) {
 	let file_name = `users/${user_id}.png`;
 	if (image === undefined || image === null) return null;
@@ -51,7 +88,7 @@ async function saveImage(image, user_id) {
 
 		await supabase
 			.from("users")
-			.update({ image_id: image_data[0].id }) // e.g { email: "sample@email.com" }
+			.update({ image_id: image_data[0].id })
 			.eq("user_id", user_id);
 
 		return `${process.env.SUPABASE_STORAGE_URL}${file_name}`;

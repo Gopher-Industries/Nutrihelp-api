@@ -2,6 +2,28 @@ const express = require('express');
 const router = express.Router();
 const { checkFileIntegrity, generateBaseline } = require('../tools/integrity/integrityService');
 const testErrorRouter = require('./testError');
+const { authenticateToken } = require('../middleware/authenticateToken');
+const authorizeRoles = require('../middleware/authorizeRoles');
+const {
+  createBlockMiddleware,
+} = require('../services/securityEvents/securityResponseService');
+
+// Public health check (no auth required)
+router.get('/health', (req, res) => {
+  res.status(200).json({
+    status: 'ok',
+    service: 'nutrihelp-api',
+    nodeEnv: process.env.NODE_ENV || 'development',
+    nodeVersion: process.version,
+    pythonCommand: process.env.PYTHON_BIN || 'python3',
+    timestamp: new Date().toISOString()
+  });
+});
+
+// All routes below require auth + admin role
+router.use(createBlockMiddleware());
+router.use(authenticateToken);
+router.use(authorizeRoles('admin'));
 
 /**
  * @swagger
@@ -66,8 +88,10 @@ router.get('/integrity-check', (req, res) => {
   }
 });
 
-// Mount test error router for triggering errors (used for demo/testing)
-router.use('/test-error', testErrorRouter);
+// Mount test error router only in development
+if (process.env.NODE_ENV !== 'production') {
+  router.use('/test-error', testErrorRouter);
+}
 
 
 module.exports = router;

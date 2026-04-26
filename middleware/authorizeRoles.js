@@ -1,12 +1,12 @@
 /**
  * Role-based access control (RBAC) middleware with violation logging
  */
-const { createClient } = require('@supabase/supabase-js');
-
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_ANON_KEY // ✅ still using anon key
-);
+const { supabaseService } = require('../services/supabaseClient');
+const logger = require('../utils/logger');
+const {
+  getClientIp,
+  registerRbacViolation,
+} = require('../services/securityEvents/securityResponseService');
 
 function authorizeRoles(...allowedRoles) {
   return async (req, res, next) => {
@@ -14,6 +14,10 @@ function authorizeRoles(...allowedRoles) {
 
     if (!userRole) {
       await logViolation(req, userRole, "ROLE_MISSING");
+      await registerRbacViolation(req, {
+        status: 'ROLE_MISSING',
+        allowedRoles,
+      });
       return res.status(403).json({
         success: false,
         error: "Role missing in token",
@@ -26,6 +30,10 @@ function authorizeRoles(...allowedRoles) {
 
     if (!normalizedAllowed.includes(roleValue)) {
       await logViolation(req, roleValue, "ACCESS_DENIED");
+      await registerRbacViolation(req, {
+        status: 'ACCESS_DENIED',
+        allowedRoles: normalizedAllowed,
+      });
       return res.status(403).json({
         success: false,
         error: "Access denied: insufficient role",
@@ -42,24 +50,32 @@ async function logViolation(req, role, status) {
   const payload = {
     request_id: req.requestId,
     user_id: req.user?.userId || "unknown",
-    email: req.user?.email || "unknown", // ✅ added email
+    email: req.user?.email || "unknown",
     role: role || "unknown",
     endpoint: req.originalUrl,
     method: req.method,
     status,
+    ip_address: getClientIp(req),
+    created_at: new Date().toISOString(),
   };
 
   try {
-    const { error } = await supabase.from("rbac_violation_logs").insert([payload]);
+    const { error } = await supabaseService.from("rbac_violation_logs").insert([payload]);
     if (error) {
-      console.error("❌ Supabase insert error:", error.message);
+      logger.warn("Failed to persist RBAC violation log", {
+        message: error.message,
+        endpoint: payload.endpoint,
+        role: payload.role,
+      });
     } else {
-      console.log("✅ RBAC violation logged:", payload);
+      logger.warn("RBAC violation logged", payload);
     }
   } catch (err) {
-    console.error("❌ RBAC log exception:", err.message);
+    logger.logError("RBAC log exception", err, {
+      endpoint: payload.endpoint,
+      role: payload.role,
+    });
   }
 }
 
 module.exports = authorizeRoles;
-

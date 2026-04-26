@@ -19,10 +19,16 @@ async function getSecurityEvents(fromDate, toDate) {
     { data: authLogs, error: authError },
     { data: bruteLogs, error: bruteError },
     { data: sessions, error: sessionError },
+    { data: auditLogs, error: auditError },
+    { data: errorLogs, error: appError },
+    { data: rbacLogs, error: rbacError },
   ] = await Promise.all([
     supabase.from('auth_logs').select('*').gte('created_at', fromIso).lte('created_at', toIso),
     supabase.from('brute_force_logs').select('*').gte('created_at', fromIso).lte('created_at', toIso),
     supabase.from('user_session').select('*').gte('created_at', fromIso).lte('created_at', toIso),
+    supabase.from('audit_logs').select('*').gte('created_at', fromIso).lte('created_at', toIso),
+    supabase.from('error_logs').select('*').gte('created_at', fromIso).lte('created_at', toIso),
+    supabase.from('rbac_violation_logs').select('*').gte('created_at', fromIso).lte('created_at', toIso),
   ]);
 
   // ===== 1) Login events from public.auth_logs =====
@@ -180,6 +186,91 @@ async function getSecurityEvents(fromDate, toDate) {
     }
   }
 
+  // =========================
+  // AUDIT LOGS → Security Events
+  // =========================
+  if (auditLogs) {
+    auditLogs.forEach(log => {
+      events.push({
+        occurredAt: log.created_at,
+        type: log.event_type || 'AUDIT_EVENT',
+        severity: 'LOW',
+        actor: {
+          userId: log.user_id,
+          email: null,
+          role: null,
+        },
+        network: {
+          ip: log.ip_address,
+          userAgent: log.user_agent,
+        },
+        source: {
+          system: 'supabase',
+          table: 'audit_logs',
+          recordId: log.id,
+        },
+        metadata: log.details || {},
+      });
+    });
+  }
+
+  // =========================
+  // ERROR LOGS → Security Events
+  // =========================
+  if (errorLogs) {
+    errorLogs.forEach(log => {
+      events.push({
+        occurredAt: log.created_at,
+        type: log.error_type || 'SYSTEM_ERROR',
+        severity: log.error_type === 'system' ? 'HIGH' : 'MEDIUM',
+        actor: {
+          userId: log.user_id,
+        },
+        network: {
+          ip: log.ip_address,
+        },
+        source: {
+          system: 'supabase',
+          table: 'error_logs',
+          recordId: log.id,
+        },
+        metadata: {
+          message: log.error_message,
+        },
+      });
+    });
+  }
+
+  // =========================
+  // RBAC VIOLATIONS → Security Events
+  // =========================
+  if (rbacLogs) {
+    rbacLogs.forEach(log => {
+      events.push({
+        occurredAt: log.created_at,
+        type: 'RBAC_VIOLATION',
+        severity: 'HIGH',
+        actor: {
+          userId: log.user_id,
+          email: log.email,
+          role: log.role,
+        },
+        network: {
+          ip: null,
+        },
+        source: {
+          system: 'supabase',
+          table: 'rbac_violation_logs',
+          recordId: log.id,
+        },
+        metadata: {
+          endpoint: log.endpoint,
+          method: log.method,
+          status: log.status,
+        },
+      });
+    });
+  }
   // ===== sort by occurredAt (do this ONCE) =====
   events.sort((a, b) => String(a.occurredAt).localeCompare(String(b.occurredAt)));
 

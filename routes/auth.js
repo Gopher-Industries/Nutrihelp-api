@@ -11,6 +11,7 @@ router.post('/login', authController.login);
 router.post('/refresh', authController.refreshToken);
 router.post('/logout', authController.logout);
 router.post('/logout-all', authenticateToken, authController.logoutAll);
+router.post('/trusted-devices/revoke', authenticateToken, authController.revokeTrustedDevices);
 router.get('/profile', authenticateToken, authController.getProfile);
 router.post('/log-login-attempt', authController.logLoginAttempt);
 

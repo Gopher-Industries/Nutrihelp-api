@@ -1,47 +1,251 @@
 const bcrypt = require('bcryptjs');
 let updateUser = require("../model/updateUserPassword.js");
 let getUser = require("../model/getUserPassword.js");
+const authService = require("../services/authService");
 
-const updateUserPassword = async (req, res) => {
+const TRUSTED_DEVICE_COOKIE = authService.trustedDeviceCookieName || "trusted_device";
+
+const PASSWORD_RULES = [
+    {
+        test: (password) => String(password || "").length >= 8,
+        code: "WEAK_PASSWORD",
+        error: "New password must be at least 8 characters long",
+    },
+    {
+        test: (password) => /[A-Z]/.test(String(password || "")),
+        code: "WEAK_PASSWORD",
+        error: "New password must contain at least one uppercase letter",
+    },
+    {
+        test: (password) => /[a-z]/.test(String(password || "")),
+        code: "WEAK_PASSWORD",
+        error: "New password must contain at least one lowercase letter",
+    },
+    {
+        test: (password) => /[0-9]/.test(String(password || "")),
+        code: "WEAK_PASSWORD",
+        error: "New password must contain at least one number",
+    },
+    {
+        test: (password) => /[!@#$%^&*()_\-+=[\]{};':"\\|,.<>/?]/.test(String(password || "")),
+        code: "WEAK_PASSWORD",
+        error: "New password must contain at least one special character",
+    },
+];
+
+const jsonError = (res, status, error, code) =>
+    res.status(status).json({ error, code });
+
+const resolveAuthenticatedUserId = (req, res) => {
+    const tokenUserId = req.user?.userId;
+    const bodyUserId = req.body?.user_id;
+
+    if (!tokenUserId) {
+        jsonError(res, 401, "Invalid or expired access token", "TOKEN_INVALID");
+        return null;
+    }
+
+    if (bodyUserId && String(bodyUserId) !== String(tokenUserId)) {
+        jsonError(
+            res,
+            403,
+            "Authenticated user does not match requested account",
+            "UNAUTHORIZED_USER_CONTEXT"
+        );
+        return null;
+    }
+
+    return tokenUserId;
+};
+
+const findUserById = async (userId, res) => {
+    const user = await getUser(userId);
+    if (!user || user.length === 0) {
+        jsonError(res, 404, "User not found", "USER_NOT_FOUND");
+        return null;
+    }
+
+    return user[0];
+};
+
+const validateStrongPassword = (password) => {
+    for (const rule of PASSWORD_RULES) {
+        if (!rule.test(password)) {
+            return { error: rule.error, code: rule.code };
+        }
+    }
+
+    return null;
+};
+
+const verifyCurrentPassword = async (req, res) => {
     try {
-        if (!req.body.user_id) {
-            return res.status(400).send({ message: "User ID is required" });
+        const userId = resolveAuthenticatedUserId(req, res);
+        if (!userId) {
+            return;
         }
 
         if (!req.body.password) {
-            return res.status(400).send({ message: "Current password is required" });
+            return jsonError(
+                res,
+                400,
+                "Current password is required",
+                "CURRENT_PASSWORD_REQUIRED"
+            );
+        }
+
+        const user = await findUserById(userId, res);
+        if (!user) {
+            return;
+        }
+
+        const isPasswordValid = await bcrypt.compare(req.body.password, user.password);
+        if (!isPasswordValid) {
+            return jsonError(
+                res,
+                401,
+                "Current password is incorrect",
+                "CURRENT_PASSWORD_INVALID"
+            );
+        }
+
+        return res.status(200).json({
+            message: "Current password verified",
+            verified: true,
+        });
+    } catch (error) {
+        console.error(error);
+        return jsonError(res, 500, "Internal server error", "INTERNAL_SERVER_ERROR");
+    }
+};
+
+const updateUserPassword = async (req, res) => {
+    try {
+        const userId = resolveAuthenticatedUserId(req, res);
+        if (!userId) {
+            return;
+        }
+
+        if (!req.body.password) {
+            return jsonError(
+                res,
+                400,
+                "Current password is required",
+                "CURRENT_PASSWORD_REQUIRED"
+            );
         }
 
         if (!req.body.new_password) {
-            return res.status(400).send({ message: "New password is required" });
+            return jsonError(
+                res,
+                400,
+                "New password is required",
+                "NEW_PASSWORD_REQUIRED"
+            );
         }
 
-        const user = await getUser(req.body.user_id);
-        if (!user || user.length === 0) {
-            return res
-                .status(401)
-                .json({ error: "Invalid user id" });
+        const confirmPassword = req.body.confirm_password ?? req.body.new_password;
+
+        if (!confirmPassword) {
+            return jsonError(
+                res,
+                400,
+                "Confirm password is required",
+                "CONFIRM_PASSWORD_REQUIRED"
+            );
         }
 
-        const isPasswordValid = await bcrypt.compare(req.body.password, user[0].password);
+        if (req.body.new_password !== confirmPassword) {
+            return jsonError(
+                res,
+                400,
+                "Confirm password must match the new password",
+                "PASSWORD_MISMATCH"
+            );
+        }
+
+        if (req.body.password === req.body.new_password) {
+            return jsonError(
+                res,
+                400,
+                "New password must be different from your current password",
+                "PASSWORD_REUSE"
+            );
+        }
+
+        const passwordStrengthError = validateStrongPassword(req.body.new_password);
+        if (passwordStrengthError) {
+            return jsonError(
+                res,
+                400,
+                passwordStrengthError.error,
+                passwordStrengthError.code
+            );
+        }
+
+        const user = await findUserById(userId, res);
+        if (!user) {
+            return;
+        }
+
+        const isPasswordValid = await bcrypt.compare(req.body.password, user.password);
         if (!isPasswordValid) {
-            return res
-                .status(401)
-                .json({ error: "Invalid password" });
+            return jsonError(
+                res,
+                401,
+                "Current password is incorrect",
+                "CURRENT_PASSWORD_INVALID"
+            );
         }
 
         const hashedPassword = await bcrypt.hash(req.body.new_password, 10);
 
-        await updateUser(
-            req.body.user_id,
-            hashedPassword
-        );
+        await updateUser(userId, hashedPassword);
+        await authService.logoutAll(userId, {
+            reason: "password_change",
+            deviceInfo: {
+                ip: req.ip,
+                userAgent: req.get?.("User-Agent") || req.headers?.["user-agent"] || "Unknown",
+            },
+        });
+        if (res.clearCookie) {
+            res.clearCookie(TRUSTED_DEVICE_COOKIE, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === "production",
+                sameSite: "lax",
+                path: "/",
+            });
+        }
+        const requiresMfaLogin = Boolean(user.mfa_enabled);
 
-        res.status(200).json({ message: "Password updaded successfully" });
+        return res.status(200).json({
+            message: "Password updated successfully",
+            code: "PASSWORD_UPDATED",
+            require_reauthentication: true,
+            require_mfa: requiresMfaLogin,
+            reauthentication_flow: requiresMfaLogin ? "LOGIN_MFA" : "LOGIN",
+        });
     } catch (error) {
         console.error(error);
-        res.status(500).json({ message: "Internal server error" });
+        return jsonError(res, 500, "Internal server error", "INTERNAL_SERVER_ERROR");
     }
 };
 
-module.exports = { updateUserPassword };
+const legacyPasswordHandler = async (req, res) => {
+    if (
+        req.body?.password &&
+        req.body?.new_password &&
+        req.body.new_password === req.body.password &&
+        !req.body?.confirm_password
+    ) {
+        return verifyCurrentPassword(req, res);
+    }
+
+    if (req.body?.new_password && !req.body?.confirm_password) {
+        req.body.confirm_password = req.body.new_password;
+    }
+
+    return updateUserPassword(req, res);
+};
+
+module.exports = { verifyCurrentPassword, updateUserPassword, legacyPasswordHandler };

@@ -1,10 +1,15 @@
 console.log("🟢 Loaded AuthService from:", __filename);
 console.log("URL:", process.env.SUPABASE_URL);
-console.log("KEY:", process.env.SUPABASE_ANON_KEY);
+console.log("LOGIN FUNCTION HIT");
+
 const { createClient } = require('@supabase/supabase-js');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
+const { logSecurityEvent } = require('./securityEventService');
+const logLoginEvent = require('../Monitor_&_Logging/loginLogger');
+const { ServiceError } = require('./serviceError');
+const userProfileService = require('./userProfileService');
 
 const supabaseAnon = createClient(
   process.env.SUPABASE_URL,
@@ -20,6 +25,8 @@ class AuthService {
   constructor() {
     this.accessTokenExpiry = '15m';
     this.refreshTokenExpiry = 7 * 24 * 60 * 60 * 1000; // 7 days
+    this.trustedDeviceExpiry = 30 * 24 * 60 * 60 * 1000; // 30 days
+    this.trustedDeviceCookieName = 'trusted_device';
   }
 
   /* =========================
@@ -33,6 +40,27 @@ class AuthService {
       .slice(0, 16);
   }
 
+  hashDeviceFingerprint(deviceInfo = {}) {
+    return crypto
+      .createHash('sha256')
+      .update(String(deviceInfo.userAgent || 'unknown-device'))
+      .digest('hex');
+  }
+
+  async logSecurityEvent(userId, eventType, deviceInfo = {}, details = {}) {
+    try {
+      await logLoginEvent({
+        userId,
+        eventType,
+        ip: deviceInfo.ip || null,
+        userAgent: deviceInfo.userAgent || null,
+        details,
+      });
+    } catch {
+      // silent by design
+    }
+  }
+
   /* =========================
      Register
      ========================= */
@@ -40,6 +68,10 @@ class AuthService {
     const { name, email, password, first_name, last_name } = userData;
 
     try {
+      if (!name || !email || !password) {
+        throw new ServiceError(400, 'Name, email, and password are required');
+      }
+
       const { data: existingUser } = await supabaseAnon
         .from('users')
         .select('user_id')
@@ -47,7 +79,7 @@ class AuthService {
         .single();
 
       if (existingUser) {
-        throw new Error('User already exists');
+        throw new ServiceError(400, 'User already exists');
       }
 
       const hashedPassword = await bcrypt.hash(password, 12);
@@ -77,7 +109,11 @@ class AuthService {
         message: 'User registered successfully'
       };
     } catch (error) {
-      throw new Error(`Registration failed: ${error.message}`);
+      if (error instanceof ServiceError) {
+        throw error;
+      }
+
+      throw new ServiceError(400, `Registration failed: ${error.message}`);
     }
   }
 
@@ -85,9 +121,14 @@ class AuthService {
      Login
      ========================= */
   async login(loginData, deviceInfo = {}) {
+    console.log("LOGIN FUNCTION HIT");
     const { email, password } = loginData;
 
     try {
+      if (!email || !password) {
+        throw new ServiceError(400, 'Email and password are required');
+      }
+
       const { data: user, error } = await supabaseAnon
         .from('users')
         .select(`
@@ -98,12 +139,59 @@ class AuthService {
         .eq('email', email)
         .single();
 
-      if (error || !user) throw new Error('Invalid credentials');
-      if (user.account_status !== 'active') throw new Error('Account is not active');
+      if (error || !user) {
+        await logSecurityEvent({
+          event_type: "LOGIN_FAILED",
+          severity: "medium",
+          user_id: null,
+          ip_address: deviceInfo.ip || null,
+          user_agent: deviceInfo.userAgent || null,
+          resource: "/api/auth/login",
+          metadata: {
+            email,
+            reason: "user_not_found"
+          }
+        });
+
+        throw new Error('Invalid credentials');
+      }
+
+      if (user.account_status !== 'active') {
+        await logSecurityEvent({
+          event_type: "LOGIN_FAILED",
+          severity: "medium",
+          user_id: user.user_id,
+          ip_address: deviceInfo.ip || null,
+          user_agent: deviceInfo.userAgent || null,
+          resource: "/api/auth/login",
+          metadata: {
+            email,
+            reason: "account_inactive"
+          }
+        });
+
+        throw new Error('Account is not active');
+      }
 
       const validPassword = await bcrypt.compare(password, user.password);
-      if (!validPassword) throw new Error('Invalid credentials');
 
+      if (!validPassword) {
+        console.log("LOGIN FAILED TRIGGERED");
+        await logSecurityEvent({
+          event_type: "LOGIN_FAILED",
+          severity: "medium",
+          user_id: user.user_id,
+          ip_address: deviceInfo.ip || null,
+          user_agent: deviceInfo.userAgent || null,
+          resource: "/api/auth/login",
+          metadata: {
+            email,
+            reason: "invalid_password"
+          }
+        });
+
+        throw new Error('Invalid credentials');
+      }
       const tokens = await this.generateTokenPair(user, deviceInfo);
 
       await supabaseAnon
@@ -112,6 +200,18 @@ class AuthService {
         .eq('user_id', user.user_id);
 
       await this.logAuthAttempt(user.user_id, email, true, deviceInfo);
+
+      await logSecurityEvent({
+        event_type: "LOGIN_SUCCESS",
+        severity: "low",
+        user_id: user.user_id,
+        ip_address: deviceInfo.ip || null,
+        user_agent: deviceInfo.userAgent || null,
+        resource: "/api/auth/login",
+        metadata: {
+          email
+        }
+      });
 
       return {
         success: true,
@@ -125,7 +225,11 @@ class AuthService {
       };
     } catch (error) {
       await this.logAuthAttempt(null, email, false, deviceInfo);
-      throw error;
+      if (error instanceof ServiceError) {
+        throw error;
+      }
+
+      throw new ServiceError(401, error.message);
     }
   }
 
@@ -148,9 +252,9 @@ class AuthService {
       );
 
       await supabaseService
-         .from('user_sessiontoken')
-         .update({ is_active: false })
-         .eq('user_id', user.user_id);
+        .from('user_sessiontoken')
+        .update({ is_active: false })
+        .eq('user_id', user.user_id);
 
       const rawRefreshToken = crypto.randomBytes(32).toString('hex');
       const hashedRefreshToken = await bcrypt.hash(rawRefreshToken, 12);
@@ -189,7 +293,9 @@ class AuthService {
      ========================= */
   async refreshAccessToken(refreshToken, deviceInfo = {}) {
     try {
-      
+      if (!refreshToken) {
+        throw new ServiceError(400, 'Refresh token is required');
+      }
 
       const lookupHash = this.createLookupHash(refreshToken);
 
@@ -206,42 +312,40 @@ class AuthService {
         .eq('refresh_token_lookup', lookupHash)
         .eq('is_active', true)
         .limit(1);
-      
-      console.log('supabase query result:', { sessions, error});
 
+      
       if (error || !sessions || sessions.length === 0) {
-        throw new Error('Invalid refresh token');
+        throw new ServiceError(401, 'Invalid refresh token');
       }
 
       const session = sessions[0];
 
       const match = await bcrypt.compare(refreshToken, session.refresh_token);
-      if (!match) throw new Error('Invalid refresh token');
+      if (!match) throw new ServiceError(401, 'Invalid refresh token');
 
       if (new Date(session.expires_at) < new Date()) {
-        throw new Error('Refresh token expired');
+        throw new ServiceError(401, 'Refresh token expired');
       }
 
       const { data: user, error: userError } = await supabaseAnon
-         .from('users')
-         .select(`
-           user_id,
-           email,
-           name,
-           role_id,
-           account_status
-          `)
-          .eq('user_id', session.user_id)
-          .single();
+        .from('users')
+        .select(`
+          user_id,
+          email,
+          name,
+          role_id,
+          account_status
+        `)
+        .eq('user_id', session.user_id)
+        .single();
 
       if (userError || !user) {
-        throw new Error('User not found');
+        throw new ServiceError(404, 'User not found');
       }
 
       if (user.account_status !== 'active') {
-        throw new Error('Account is not active');
+        throw new ServiceError(403, 'Account is not active');
       }
-
 
       const newTokens = await this.generateTokenPair(user, deviceInfo);
 
@@ -255,8 +359,11 @@ class AuthService {
         ...newTokens
       };
     } catch (error) {
-      console.error('REFRESH FAILED:', error.message);
-      throw new Error(`Token refresh failed: ${error.message}`);
+      if (error instanceof ServiceError) {
+        throw error;
+      }
+
+      throw new ServiceError(401, `Token refresh failed: ${error.message}`);
     }
   }
 
@@ -265,6 +372,10 @@ class AuthService {
      ========================= */
   async logout(refreshToken) {
     try {
+      if (!refreshToken) {
+        throw new ServiceError(400, 'Refresh token is required');
+      }
+
       const lookupHash = this.createLookupHash(refreshToken);
 
       await supabaseService
@@ -274,23 +385,180 @@ class AuthService {
 
       return { success: true, message: 'Logout successful' };
     } catch (error) {
-      throw new Error(`Logout failed: ${error.message}`);
+      if (error instanceof ServiceError) {
+        throw error;
+      }
+
+      throw new ServiceError(500, `Logout failed: ${error.message}`);
     }
   }
 
   /* =========================
      Logout All
      ========================= */
-  async logoutAll(userId) {
+  async logoutAll(userId, options = {}) {
     try {
+      if (!userId) {
+        throw new ServiceError(400, 'User ID is required');
+      }
+
+      const reason = options.reason || 'logout_all';
+      const deviceInfo = options.deviceInfo || {};
+      const { data: trustedDevices } = await supabaseService
+        .from('user_sessiontoken')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('token_type', 'trusted_device')
+        .eq('is_active', true);
+
       await supabaseService
         .from('user_sessiontoken')
         .update({ is_active: false })
         .eq('user_id', userId);
 
+      if ((trustedDevices || []).length > 0) {
+        await this.logSecurityEvent(userId, 'TRUSTED_DEVICE_REVOKED', deviceInfo, {
+          reason,
+          revoked_count: trustedDevices.length,
+        });
+      }
+
       return { success: true, message: 'Logged out from all devices' };
     } catch (error) {
-      throw new Error(`Logout all failed: ${error.message}`);
+      if (error instanceof ServiceError) {
+        throw error;
+      }
+
+      throw new ServiceError(500, `Logout all failed: ${error.message}`);
+    }
+  }
+
+  async issueTrustedDeviceToken(userId, deviceInfo = {}) {
+    try {
+      const rawTrustedToken = crypto.randomBytes(32).toString('hex');
+      const hashedTrustedToken = await bcrypt.hash(rawTrustedToken, 12);
+      const lookupHash = this.createLookupHash(rawTrustedToken);
+      const expiresAt = new Date(Date.now() + this.trustedDeviceExpiry);
+      const deviceFingerprint = this.hashDeviceFingerprint(deviceInfo);
+
+      await supabaseService
+        .from('user_sessiontoken')
+        .update({ is_active: false })
+        .eq('user_id', userId)
+        .eq('token_type', 'trusted_device')
+        .eq('is_active', true)
+        .contains('device_info', { userAgentHash: deviceFingerprint });
+
+      const { error } = await supabaseService
+        .from('user_sessiontoken')
+        .insert({
+          user_id: userId,
+          refresh_token: hashedTrustedToken,
+          refresh_token_lookup: lookupHash,
+          token_type: 'trusted_device',
+          device_info: {
+            trusted: true,
+            userAgentHash: deviceFingerprint,
+          },
+          ip_address: deviceInfo.ip || null,
+          user_agent: deviceInfo.userAgent || null,
+          expires_at: expiresAt.toISOString(),
+          is_active: true,
+        });
+
+      if (error) throw error;
+
+      await this.logSecurityEvent(userId, 'TRUSTED_DEVICE_CREATED', deviceInfo, {
+        expires_at: expiresAt.toISOString(),
+      });
+
+      return {
+        token: rawTrustedToken,
+        expiresAt,
+      };
+    } catch (error) {
+      throw new Error(`Trusted device issue failed: ${error.message}`);
+    }
+  }
+
+  async validateTrustedDeviceToken(userId, rawToken, deviceInfo = {}) {
+    try {
+      if (!userId || !rawToken) {
+        return { valid: false, reason: 'missing' };
+      }
+
+      const lookupHash = this.createLookupHash(rawToken);
+      const { data: sessions, error } = await supabaseService
+        .from('user_sessiontoken')
+        .select('id, refresh_token, expires_at, is_active, device_info')
+        .eq('user_id', userId)
+        .eq('token_type', 'trusted_device')
+        .eq('refresh_token_lookup', lookupHash)
+        .eq('is_active', true)
+        .limit(1);
+
+      if (error || !sessions || sessions.length === 0) {
+        return { valid: false, reason: 'missing' };
+      }
+
+      const trustedDevice = sessions[0];
+      const tokenMatches = await bcrypt.compare(rawToken, trustedDevice.refresh_token);
+      if (!tokenMatches) {
+        return { valid: false, reason: 'invalid' };
+      }
+
+      if (new Date(trustedDevice.expires_at) < new Date()) {
+        await supabaseService
+          .from('user_sessiontoken')
+          .update({ is_active: false })
+          .eq('id', trustedDevice.id);
+        return { valid: false, reason: 'expired' };
+      }
+
+      const expectedFingerprint = trustedDevice.device_info?.userAgentHash;
+      const currentFingerprint = this.hashDeviceFingerprint(deviceInfo);
+      if (expectedFingerprint && expectedFingerprint !== currentFingerprint) {
+        return { valid: false, reason: 'device_mismatch' };
+      }
+
+      await this.logSecurityEvent(userId, 'TRUSTED_DEVICE_USED', deviceInfo, {
+        trusted_device_id: trustedDevice.id,
+      });
+
+      return { valid: true, trustedDeviceId: trustedDevice.id };
+    } catch (error) {
+      return { valid: false, reason: 'error', error };
+    }
+  }
+
+  async revokeTrustedDevices(userId, reason = 'manual', deviceInfo = {}) {
+    try {
+      const { data: trustedDevices } = await supabaseService
+        .from('user_sessiontoken')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('token_type', 'trusted_device')
+        .eq('is_active', true);
+
+      await supabaseService
+        .from('user_sessiontoken')
+        .update({ is_active: false })
+        .eq('user_id', userId)
+        .eq('token_type', 'trusted_device');
+
+      if ((trustedDevices || []).length > 0) {
+        await this.logSecurityEvent(userId, 'TRUSTED_DEVICE_REVOKED', deviceInfo, {
+          reason,
+          revoked_count: trustedDevices.length,
+        });
+      }
+
+      return {
+        success: true,
+        revokedCount: (trustedDevices || []).length,
+      };
+    } catch (error) {
+      throw new Error(`Trusted device revoke failed: ${error.message}`);
     }
   }
 
@@ -332,6 +600,60 @@ class AuthService {
     } catch {
       // silent by design
     }
+  }
+
+  async getProfile(userId) {
+    if (!userId) {
+      throw new ServiceError(400, 'User ID is required');
+    }
+
+    return userProfileService.getCanonicalProfile({ userId });
+  }
+
+  async logLoginAttempt({ email, userId, success, ipAddress, createdAt }) {
+    if (!email || success === undefined || !ipAddress || !createdAt) {
+      throw new ServiceError(400, 'Missing required fields: email, success, ip_address, created_at');
+    }
+
+    const { error } = await supabaseAnon.from('auth_logs').insert([
+      {
+        email,
+        user_id: userId || null,
+        success,
+        ip_address: ipAddress,
+        created_at: createdAt
+      }
+    ]);
+
+    if (error) {
+      throw new ServiceError(500, 'Failed to log login attempt');
+    }
+
+    return { message: 'Login attempt logged successfully' };
+  }
+
+  async sendSmsCodeByEmail(email) {
+    if (!email) {
+      throw new ServiceError(400, 'Email is required');
+    }
+
+    const { data, error } = await supabaseAnon
+      .from('users')
+      .select('contact_number')
+      .eq('email', email)
+      .single();
+
+    if (error || !data?.contact_number) {
+      throw new ServiceError(404, 'Phone number not found for the given email');
+    }
+
+    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+    console.log(`📨 [DEV] Verification code for ${data.contact_number}: ${verificationCode}`);
+
+    return {
+      message: 'SMS code sent (check server console for code)',
+      phone: data.contact_number
+    };
   }
 }
 
