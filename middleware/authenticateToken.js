@@ -50,8 +50,8 @@ const authenticateToken = async (req, res, next) => {
       logger.warn('Authorization header missing', { route: req.path, ip });
       return res.status(401).json({
         success: false,
-        error: 'Authorization header missing',
-        code: 'TOKEN_MISSING'
+        error: "Authorization header missing",
+        code: "TOKEN_MISSING",
       });
     }
 
@@ -66,8 +66,8 @@ const authenticateToken = async (req, res, next) => {
       logger.warn('Invalid authorization header format', { route: req.path, ip });
       return res.status(401).json({
         success: false,
-        error: 'Invalid authorization format',
-        code: 'INVALID_AUTH_HEADER'
+        error: "Invalid authorization format",
+        code: "INVALID_AUTH_HEADER",
       });
     }
 
@@ -86,8 +86,8 @@ const authenticateToken = async (req, res, next) => {
       logger.warn('Invalid token type detected', { route: req.path, ip });
       return res.status(401).json({
         success: false,
-        error: 'Invalid token type',
-        code: 'INVALID_TOKEN_TYPE'
+        error: "Invalid token type",
+        code: "INVALID_TOKEN_TYPE",
       });
     }
 
@@ -102,8 +102,8 @@ const authenticateToken = async (req, res, next) => {
       logger.warn('Invalid token payload', { route: req.path, ip });
       return res.status(401).json({
         success: false,
-        error: 'Invalid token payload',
-        code: 'INVALID_TOKEN'
+        error: "Invalid token payload",
+        code: "INVALID_TOKEN",
       });
     }
 
@@ -111,7 +111,7 @@ const authenticateToken = async (req, res, next) => {
     req.user = {
       userId: decoded.userId,
       email: decoded.email,
-      role: decoded.role
+      role: decoded.role,
     };
 
     next();
@@ -132,8 +132,9 @@ const authenticateToken = async (req, res, next) => {
     });
     return res.status(401).json({
       success: false,
-      error: 'Invalid or expired access token',
-      code: 'TOKEN_INVALID'
+      error: "Invalid or expired access token",
+      code: "TOKEN_INVALID",
+      requestId: req.requestId,
     });
   }
 };

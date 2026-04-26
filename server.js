@@ -13,6 +13,7 @@ const responseContractMiddleware = require('./middleware/responseContract');
 const { localeMiddleware } = require('./utils/messages');
 
 const { errorLogger, responseTimeLogger, uncaughtExceptionHandler, unhandledRejectionHandler } = require('./middleware/errorLogger');
+const requestIdMiddleware = require("./middleware/requestId");
 
 const helmet = require('helmet');
 const cors = require('cors');
@@ -25,6 +26,7 @@ const systemRoutes = require('./routes/systemRoutes');
 const { metricsMiddleware, metricsEndpoint } = require('./Monitor_&_Logging/metrics');
 
 const FRONTEND_ORIGIN = 'http://localhost:3000';
+
 
 // Debug environment variables
 console.log('🔧 Environment Variables Check:');
@@ -72,6 +74,7 @@ setInterval(cleanupOldFiles, 3 * 60 * 60 * 1000);
 
 // --- Trusted early middlewares ---
 // Request logging MUST be first so we capture every request
+app.use(requestIdMiddleware);
 app.use(requestLoggingMiddleware);
 app.use(sessionMonitorMiddleware);
 app.use(localeMiddleware);
@@ -184,6 +187,7 @@ app.use((err, req, res, next) => {
   res.status(status).json({
     success: false,
     error: message,
+    requestId: req.requestId,
     timestamp: new Date().toISOString(),
   });
 });
