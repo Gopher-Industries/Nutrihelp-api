@@ -6,6 +6,7 @@ const {
   metricsEndpoint,
 } = require("./Monitor_&_Logging/metrics");
 
+
 // Debug environment variables
 console.log("🔧 Environment Variables Check:");
 console.log(
@@ -21,6 +22,7 @@ console.log("");
 
 const express = require("express");
 const { errorLogger, responseTimeLogger } = require("./middleware/errorLogger");
+const requestIdMiddleware = require("./middleware/requestId");
 const FRONTEND_ORIGIN = "http://localhost:3000";
 
 const helmet = require("helmet");
@@ -72,6 +74,9 @@ const port = process.env.PORT || 80;
 
 // DB
 let db = require("./dbConnection");
+
+// request tracing
+app.use(requestIdMiddleware);
 
 // System routes
 app.use("/api/system", systemRoutes);
@@ -170,6 +175,7 @@ app.use((err, req, res, next) => {
   res.status(status).json({
     success: false,
     error: message,
+    requestId: req.requestId,
     timestamp: new Date().toISOString(),
   });
 });

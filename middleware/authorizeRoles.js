@@ -40,12 +40,13 @@ function authorizeRoles(...allowedRoles) {
  //feature/rbac-extension
 async function logViolation(req, role, status) {
   const payload = {
+    request_id: req.requestId,
     user_id: req.user?.userId || "unknown",
-    email: req.user?.email || "unknown",    // ✅ added email
+    email: req.user?.email || "unknown", // ✅ added email
     role: role || "unknown",
     endpoint: req.originalUrl,
     method: req.method,
-    status
+    status,
   };
 
   try {

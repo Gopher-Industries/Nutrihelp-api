@@ -1,4 +1,4 @@
-const authService = require('../services/authService');
+const authService = require("../services/authService");
 
 /**
  * Access Token Authentication Middleware
@@ -12,17 +12,17 @@ const authenticateToken = (req, res, next) => {
     if (!authHeader) {
       return res.status(401).json({
         success: false,
-        error: 'Authorization header missing',
-        code: 'TOKEN_MISSING'
+        error: "Authorization header missing",
+        code: "TOKEN_MISSING",
       });
     }
 
-    const parts = authHeader.split(' ');
-    if (parts.length !== 2 || parts[0] !== 'Bearer') {
+    const parts = authHeader.split(" ");
+    if (parts.length !== 2 || parts[0] !== "Bearer") {
       return res.status(401).json({
         success: false,
-        error: 'Invalid authorization format',
-        code: 'INVALID_AUTH_HEADER'
+        error: "Invalid authorization format",
+        code: "INVALID_AUTH_HEADER",
       });
     }
 
@@ -31,11 +31,11 @@ const authenticateToken = (req, res, next) => {
     const decoded = authService.verifyAccessToken(token);
 
     // Ensure only access tokens are accepted
-    if (!decoded || decoded.type !== 'access') {
+    if (!decoded || decoded.type !== "access") {
       return res.status(401).json({
         success: false,
-        error: 'Invalid token type',
-        code: 'INVALID_TOKEN_TYPE'
+        error: "Invalid token type",
+        code: "INVALID_TOKEN_TYPE",
       });
     }
 
@@ -43,8 +43,8 @@ const authenticateToken = (req, res, next) => {
     if (!decoded.userId || !decoded.role) {
       return res.status(401).json({
         success: false,
-        error: 'Invalid token payload',
-        code: 'INVALID_TOKEN'
+        error: "Invalid token payload",
+        code: "INVALID_TOKEN",
       });
     }
 
@@ -52,15 +52,16 @@ const authenticateToken = (req, res, next) => {
     req.user = {
       userId: decoded.userId,
       email: decoded.email,
-      role: decoded.role
+      role: decoded.role,
     };
 
     next();
   } catch (error) {
     return res.status(401).json({
       success: false,
-      error: 'Invalid or expired access token',
-      code: 'TOKEN_INVALID'
+      error: "Invalid or expired access token",
+      code: "TOKEN_INVALID",
+      requestId: req.requestId,
     });
   }
 };
