@@ -8,6 +8,7 @@ const validate = require('../middleware/validateRequest');
 // --- Authentication routes ---
 router.post('/register', registerValidation, validate, authController.register);
 router.post('/login', authController.login);
+router.post('/google/exchange', authController.googleExchange);
 router.post('/refresh', authController.refreshToken);
 router.post('/logout', authController.logout);
 router.post('/logout-all', authenticateToken, authController.logoutAll);

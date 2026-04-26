@@ -5,11 +5,46 @@ process.env.SUPABASE_URL = process.env.SUPABASE_URL || 'https://example.supabase
 process.env.SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || 'anon-key';
 process.env.SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || 'service-role-key';
 
-function createSupabaseStub({ recentRecipeIds = [], recipes = [], dietaryRequirements = [], allergies = [] } = {}) {
+function createSupabaseStub({
+  recentRecipeIds = [],
+  recipes = [],
+  dietaryRequirements = [],
+  allergies = [],
+  inserts = {}
+} = {}) {
   return {
     from(table) {
+      const insertedRows = inserts[table] || [];
       const query = {
+        _insertRows: null,
         _inValues: null,
+        select() {
+          return this;
+        },
+        insert(rows) {
+          this._insertRows = Array.isArray(rows) ? rows : [rows];
+          return this;
+        },
+        single() {
+          if (table === 'recommendation_lists') {
+            return Promise.resolve({
+              data: { id: 'list-1' },
+              error: null
+            });
+          }
+
+          return Promise.resolve({
+            data: this._insertRows?.[0] || null,
+            error: null
+          });
+        },
+        eq() {
+          return this;
+        },
+        in(_column, values) {
+          this._inValues = Array.isArray(values) ? values : [];
+          return this;
+        },
         _execute() {
           if (table === 'recipe_meal') {
             return Promise.resolve({
@@ -41,20 +76,17 @@ function createSupabaseStub({ recentRecipeIds = [], recipes = [], dietaryRequire
 
           return Promise.resolve({ data: [], error: null });
         },
-        select() {
-          return this;
-        },
-        eq() {
-          return this;
-        },
-        in(_column, values) {
-          this._inValues = Array.isArray(values) ? values : [];
-          return this;
-        },
         limit() {
           return this._execute();
         },
         then(resolve, reject) {
+          if (this._insertRows) {
+            const rows = insertedRows.length ? insertedRows : this._insertRows;
+            return Promise.resolve({
+              data: rows,
+              error: null
+            }).then(resolve, reject);
+          }
           return this._execute().then(resolve, reject);
         }
       };
@@ -258,6 +290,111 @@ describe('Recommendation Service', () => {
     expect(first.cache.hit).to.equal(false);
     expect(second.cache.hit).to.equal(true);
     expect(recipeQueryCount).to.equal(1);
+  });
+
+  it('persists recommendation snapshots when recommendation tables are available', async () => {
+    const insertedTables = [];
+    const service = proxyquire('../services/recommendationService', {
+      '../dbConnection': {
+        from(table) {
+          insertedTables.push(table);
+          return {
+            _insertRows: null,
+            select() {
+              return this;
+            },
+            insert(rows) {
+              this._insertRows = Array.isArray(rows) ? rows : [rows];
+              return this;
+            },
+            single() {
+              return Promise.resolve({ data: { id: 'list-123' }, error: null });
+            },
+            eq() {
+              return this;
+            },
+            limit() {
+              if (table === 'recipe_meal') {
+                return Promise.resolve({ data: [], error: null });
+              }
+
+              if (table === 'recipes') {
+                return Promise.resolve({
+                  data: [{
+                    id: 1,
+                    recipe_name: 'Protein Bowl',
+                    cuisine_id: 1,
+                    cooking_method_id: 1,
+                    calories: 420,
+                    protein: 24,
+                    fiber: 8,
+                    sugar: 5,
+                    sodium: 220,
+                    fat: 11,
+                    carbohydrates: 34,
+                    allergy: false,
+                    dislike: false
+                  }],
+                  error: null
+                });
+              }
+
+              return Promise.resolve({ data: [], error: null });
+            },
+            then(resolve, reject) {
+              if (table === 'recommendations') {
+                return Promise.resolve({
+                  data: [{ id: 'rec-1', recipe_id: 1, rank: 1 }],
+                  error: null
+                }).then(resolve, reject);
+              }
+
+              if (this._insertRows) {
+                return Promise.resolve({
+                  data: this._insertRows,
+                  error: null
+                }).then(resolve, reject);
+              }
+
+              return Promise.resolve({ data: [], error: null }).then(resolve, reject);
+            }
+          };
+        }
+      },
+      '../model/fetchUserPreferences': async () => ({}),
+      '../model/getUserProfile': async () => ({ user_id: 33, email: 'persist@example.com' }),
+      './recommendationAiAdapter': {
+        AI_ADAPTER_VERSION: 'v1',
+        resolveAiRecommendationSignals: async () => ({
+          source: 'none',
+          version: 'v1',
+          fallbackUsed: true,
+          adapterFailed: false,
+          warnings: [],
+          hints: {}
+        })
+      }
+    });
+
+    const result = await service.generateRecommendations({
+      userId: 33,
+      email: 'persist@example.com',
+      dietaryConstraints: {}
+    });
+
+    expect(result.persistence).to.deep.include({
+      enabled: true,
+      persisted: true,
+      recommendationListId: 'list-123',
+      resultCount: 1
+    });
+    expect(insertedTables).to.include.members([
+      'recommendation_lists',
+      'recommendations',
+      'recommendation_results',
+      'user_recommendations',
+      'recommendation_history'
+    ]);
   });
 
   it('falls back cleanly when the AI adapter reports failure', async () => {
