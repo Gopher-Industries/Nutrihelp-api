@@ -14,3 +14,4 @@
 | A10 | High | Monitoring ingestion/heartbeat failure >5 min | Email: Backend Lead, Cyber Security Lead | Restore pipeline, verify backlog replay, record blind spot and risk impact | <= 60 min |
 | A11 | High/Critical | Security-critical error on auth/session/security routes; Critical if >=3 in 10 min | Email: Cyber Security Lead, Backend Lead | Identify blast radius, triage exploit vs bug, apply hotfix or route guard, escalate if repeated | <= 60 min (High), <= 15 min (Critical burst) |
 | A12 | High | Decrypt failure anomaly: >=10 failures or >=30% failure rate in 15 min | Email: Cyber Security Lead, AI Lead, Backend Lead | Validate key usage/version, inspect replay/misuse, rotate keys if compromise suspected | <= 60 min |
+
