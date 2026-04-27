@@ -1,18 +1,34 @@
+/**
+ * imageClassificationController.js
+ *
+ * Thin controller — all orchestration lives in the classification gateway.
+ * This file is intentionally small and does three things:
+ *
+ *   1. Validate that an upload exists on `req.file`.
+ *   2. Hand the image bytes to the gateway.
+ *   3. Translate the gateway's normalised result into an HTTP response using
+ *      the shared { success, data, error, code } envelope.
+ *
+ * The gateway is responsible for AI-vs-fallback selection, uncertainty
+ * flagging, circuit-breaker coordination, and populating explainability
+ * metadata.  See services/imageClassificationGateway.js and
+ * services/imageClassificationContract.js.
+ */
+
 const fs = require('fs');
-const path = require('path');
 const logger = require('../utils/logger');
-const { executePythonScript } = require('../services/aiExecutionService');
 const { ok, fail } = require('../utils/apiResponse');
 const { msg } = require('../utils/messages');
-const monitor = require('../services/aiServiceMonitor');
+const gateway = require('../services/imageClassificationGateway');
 
-const SERVICE_NAME = 'image_classification';
-
-const deleteFile = (filePath) => {
+function safeDelete(filePath) {
+  if (!filePath) return;
   fs.unlink(filePath, (err) => {
-    if (err) logger.error('Error deleting image file', { filePath, error: err.message });
+    if (err && err.code !== 'ENOENT') {
+      logger.error('Error deleting image file', { filePath, error: err.message });
+    }
   });
-};
+}
 
 const predictImage = async (req, res) => {
   if (!req.file || !req.file.path) {
@@ -21,56 +37,39 @@ const predictImage = async (req, res) => {
 
   const imagePath = req.file.path;
 
-  // Circuit-breaker check — refuse early if service is known-down
-  if (monitor.isCircuitOpen(SERVICE_NAME)) {
-    logger.warn('Image classification circuit is open — returning 503');
-    deleteFile(imagePath);
-    return fail(res, msg('image.classification_unavailable'), 503, 'AI_SERVICE_UNAVAILABLE');
-  }
-
   try {
     const imageData = await fs.promises.readFile(imagePath);
-    const start = Date.now();
+    const result = await gateway.classify(imageData);
 
-    const result = await executePythonScript({
-      scriptPath: path.join(__dirname, '..', 'model', 'imageClassification.py'),
-      stdin: imageData,
-      serviceName: SERVICE_NAME,
-    });
-
-    const durationMs = Date.now() - start;
-    const explainability = monitor.buildExplainability(SERVICE_NAME, result, durationMs);
-
-    if (!result.success) {
-      const isTimeout = result.timedOut;
-      const status = isTimeout ? 504 : 500;
-      const errorMsg = isTimeout
-        ? msg('image.classification_timeout')
-        : msg('image.classification_failed');
-      const code = isTimeout ? 'AI_TIMEOUT' : 'AI_FAILED';
-
-      logger.error('Image classification failed', {
-        error: result.error,
-        timedOut: isTimeout,
-        durationMs,
+    if (!result.ok) {
+      logger.warn('Image classification returned error', {
+        code: result.code,
+        status: result.httpStatus,
       });
-
-      return fail(res, errorMsg, status, code);
+      return fail(
+        res,
+        result.error || msg('image.classification_failed'),
+        result.httpStatus,
+        result.code,
+        result.meta
+      );
     }
 
-    return ok(res, {
-      prediction: result.prediction,
-      confidence: result.confidence,
-      explainability,
+    logger.info('Image classification succeeded', {
+      source: result.data.classification.source,
+      uncertain: result.data.classification.uncertain,
+      durationMs: result.data.explainability.durationMs,
     });
+
+    return ok(res, result.data);
   } catch (error) {
-    logger.error('Error in image classification controller', {
+    logger.error('Unexpected error in image classification controller', {
       error: error.message,
       filePath: imagePath,
     });
     return fail(res, msg('general.internal_error'), 500, 'INTERNAL_ERROR');
   } finally {
-    deleteFile(imagePath);
+    safeDelete(imagePath);
   }
 };
 

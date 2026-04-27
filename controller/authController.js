@@ -1,15 +1,18 @@
-const authService = require('../services/authService');
-const { isServiceError, ServiceError } = require('../services/serviceError');
-const userProfileService = require('../services/userProfileService');
+const { authAndIdentity } = require('../services');
 const logger = require('../utils/logger');
 const { tokenHookOnIssue, tokenHookOnRefresh, tokenHookOnRevoke } = require('../services/tokenLogService');
+
+const { authService, userProfileService, serviceError } = authAndIdentity;
+const { isServiceError, ServiceError } = serviceError;
 
 const TRUSTED_DEVICE_COOKIE = authService.trustedDeviceCookieName || 'trusted_device';
 
 function getDeviceInfo(req) {
   return {
     ip: req.ip,
-    userAgent: req.get('User-Agent') || 'Unknown'
+    userAgent: req.get('User-Agent') || 'Unknown',
+    deviceId: req.get('X-Device-Id') || null,
+    clientType: req.get('X-Client-Type') || 'web'
   };
 }
 
@@ -90,6 +93,23 @@ exports.refreshToken = async (req, res) => {
   } catch (error) {
     logger.error('Token refresh error', { error: error.message });
     return handleServiceError(res, error, 401, 'Token refresh error:');
+  }
+};
+
+exports.googleExchange = async (req, res) => {
+  try {
+    const supabaseAccessToken = req.body.supabaseAccessToken || req.body.accessToken || req.body.token;
+    const provider = req.body.provider || 'google';
+
+    const result = await authService.exchangeSupabaseToken(
+      { supabaseAccessToken, provider },
+      getDeviceInfo(req)
+    );
+
+    return res.json(result);
+  } catch (error) {
+    logger.error('Google exchange error', { error: error.message });
+    return handleServiceError(res, error, 401, 'Google exchange error:');
   }
 };
 

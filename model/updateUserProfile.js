@@ -30,6 +30,105 @@ function buildPayload(attributes = {}) {
 	return payload;
 }
 
+function parseBase64Image(image) {
+	const raw = typeof image === "string" ? image.trim() : "";
+	if (!raw) {
+		throw new Error("Invalid image payload");
+	}
+
+	const dataUrlMatch = raw.match(/^data:image\/([a-zA-Z0-9.+-]+);base64,(.+)$/);
+	const mimeType = dataUrlMatch ? dataUrlMatch[1].toLowerCase() : "png";
+	const base64 = dataUrlMatch ? dataUrlMatch[2] : (raw.split(",")[1] || raw);
+
+	if (!base64) {
+		throw new Error("Invalid base64 image content");
+	}
+
+	const extMap = {
+		jpeg: "jpg",
+		jpg: "jpg",
+		png: "png",
+		webp: "webp",
+		gif: "gif",
+		"svg+xml": "svg",
+	};
+
+	return {
+		base64,
+		extension: extMap[mimeType] || "png",
+	};
+}
+
+async function upsertImageMetadata(file_name, file_size) {
+	const metadata = {
+		file_name,
+		display_name: file_name,
+		file_size,
+	};
+
+	const { data: existingRow, error: existingError } = await supabase
+		.from("images")
+		.select("id")
+		.eq("file_name", file_name)
+		.order("id", { ascending: false })
+		.limit(1)
+		.maybeSingle();
+
+	if (existingError) {
+		throw existingError;
+	}
+
+	if (existingRow?.id) {
+		const { data: updatedRow, error: updateError } = await supabase
+			.from("images")
+			.update(metadata)
+			.eq("id", existingRow.id)
+			.select("id")
+			.maybeSingle();
+
+		if (updateError) {
+			throw updateError;
+		}
+
+		return updatedRow?.id || existingRow.id;
+	}
+
+	const { data: insertedRows, error: insertError } = await supabase
+		.from("images")
+		.insert(metadata)
+		.select("id");
+
+	if (insertError) {
+		throw insertError;
+	}
+
+	if (!Array.isArray(insertedRows) || !insertedRows[0]?.id) {
+		throw new Error("Failed to create image metadata");
+	}
+
+	return insertedRows[0].id;
+}
+
+async function resolveImageUrl(file_name) {
+	if (!file_name) return null;
+
+	const { data: signedData, error: signedError } = await supabase
+		.storage
+		.from("images")
+		.createSignedUrl(file_name, 60 * 60 * 24);
+
+	if (!signedError && signedData?.signedUrl) {
+		return signedData.signedUrl;
+	}
+
+	const { data: publicData } = supabase
+		.storage
+		.from("images")
+		.getPublicUrl(file_name);
+
+	return publicData?.publicUrl || null;
+}
+
 async function updateUser({ userId, attributes = {} }) {
 	const payload = buildPayload(attributes);
 
@@ -68,30 +167,33 @@ async function updateUser({ userId, attributes = {} }) {
 }
 
 async function saveImage(image, user_id) {
-	let file_name = `users/${user_id}.png`;
 	if (image === undefined || image === null) return null;
 
 	try {
-		await supabase.storage.from("images").upload(file_name, decode(image), {
-			cacheControl: "3600",
-			upsert: false,
-		});
-		const test = {
-			file_name: file_name,
-			display_name: file_name,
-			file_size: base64FileSize(image),
-		};
-		let { data: image_data } = await supabase
-			.from("images")
-			.insert(test)
-			.select("*");
+		const { base64, extension } = parseBase64Image(image);
+		const file_name = `users/${user_id}.${extension}`;
 
-		await supabase
+		const { error: uploadError } = await supabase.storage.from("images").upload(file_name, decode(base64), {
+			cacheControl: "3600",
+			upsert: true,
+		});
+
+		if (uploadError) {
+			throw uploadError;
+		}
+
+		const imageId = await upsertImageMetadata(file_name, base64FileSize(base64));
+
+		const { error: userUpdateError } = await supabase
 			.from("users")
-			.update({ image_id: image_data[0].id })
+			.update({ image_id: imageId })
 			.eq("user_id", user_id);
 
-		return `${process.env.SUPABASE_STORAGE_URL}${file_name}`;
+		if (userUpdateError) {
+			throw userUpdateError;
+		}
+
+		return await resolveImageUrl(file_name);
 	} catch (error) {
 		throw error;
 	}

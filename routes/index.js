@@ -39,4 +39,8 @@ module.exports = app => {
     app.use('/api/security/alerts', require('./alerts'));
     app.use('/api/recommendations', require('./recommendations'));
     app.use('/api/meal-plan', require('./mealPlanAIRoutes'));
+const { registerRouteGroups } = require('./routeGroups');
+
+module.exports = (app) => {
+  registerRouteGroups(app);
 };
