@@ -1,5 +1,8 @@
-const shoppingListService = require('../services/shoppingListService');
-const { isServiceError } = require('../services/serviceError');
+const { coreApp, authAndIdentity } = require('../services');
+
+const { shoppingListService } = coreApp;
+const { serviceError } = authAndIdentity;
+const { isServiceError } = serviceError;
 
 function handleError(res, error, label) {
   if (isServiceError(error)) {
@@ -16,10 +19,14 @@ function handleError(res, error, label) {
   });
 }
 
+function handleServiceResult(res, result) {
+  return res.status(result.statusCode).json(result.body);
+}
+
 async function getIngredientOptions(req, res) {
   try {
     const result = await shoppingListService.getIngredientOptions(req.query.name);
-    return res.status(result.statusCode).json(result.body);
+    return handleServiceResult(res, result);
   } catch (error) {
     return handleError(res, error, 'getIngredientOptions');
   }
@@ -31,7 +38,7 @@ async function generateFromMealPlan(req, res) {
       userId: req.body.user_id,
       mealPlanIds: req.body.meal_plan_ids
     });
-    return res.status(result.statusCode).json(result.body);
+    return handleServiceResult(res, result);
   } catch (error) {
     return handleError(res, error, 'generateFromMealPlan');
   }
@@ -45,7 +52,7 @@ async function createShoppingList(req, res) {
       items: req.body.items,
       estimatedTotalCost: req.body.estimated_total_cost
     });
-    return res.status(result.statusCode).json(result.body);
+    return handleServiceResult(res, result);
   } catch (error) {
     return handleError(res, error, 'createShoppingList');
   }
@@ -54,7 +61,7 @@ async function createShoppingList(req, res) {
 async function getShoppingList(req, res) {
   try {
     const result = await shoppingListService.getShoppingList(req.query.user_id);
-    return res.status(result.statusCode).json(result.body);
+    return handleServiceResult(res, result);
   } catch (error) {
     return handleError(res, error, 'getShoppingList');
   }
@@ -67,7 +74,7 @@ async function updateShoppingListItem(req, res) {
       quantity: req.body.quantity,
       notes: req.body.notes
     });
-    return res.status(result.statusCode).json(result.body);
+    return handleServiceResult(res, result);
   } catch (error) {
     return handleError(res, error, 'updateShoppingListItem');
   }
@@ -86,7 +93,7 @@ async function addShoppingListItem(req, res) {
       mealTags: req.body.meal_tags,
       estimatedCost: req.body.estimated_cost
     });
-    return res.status(result.statusCode).json(result.body);
+    return handleServiceResult(res, result);
   } catch (error) {
     return handleError(res, error, 'addShoppingListItem');
   }
@@ -95,7 +102,7 @@ async function addShoppingListItem(req, res) {
 async function deleteShoppingListItem(req, res) {
   try {
     const result = await shoppingListService.deleteShoppingListItem(req.params.id);
-    return res.status(result.statusCode).json(result.body);
+    return handleServiceResult(res, result);
   } catch (error) {
     return handleError(res, error, 'deleteShoppingListItem');
   }
