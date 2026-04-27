@@ -30,6 +30,7 @@ const rateLimit = require('express-rate-limit');
 const uploadRoutes = require('./routes/uploadRoutes');
 const systemRoutes = require('./routes/systemRoutes');
 const { metricsMiddleware, metricsEndpoint } = require('./Monitor_&_Logging/metrics');
+const { runAlertCheckJob } = require('./services/securityAlertService');
 
 const FRONTEND_ORIGIN = 'http://localhost:3000';
 
@@ -82,6 +83,16 @@ function cleanupOldFiles() {
 }
 cleanupOldFiles();
 setInterval(cleanupOldFiles, 3 * 60 * 60 * 1000);
+
+// CT-004 Week 6: Schedule real-time alert checks every 5 minutes
+// This continuously evaluates 12 security alert conditions (A1-A12)
+try {
+  runAlertCheckJob();
+  setInterval(runAlertCheckJob, 5 * 60 * 1000); // Every 5 minutes
+  console.log('[server] CT-004 Alert checking job initialized (5-minute interval)');
+} catch (err) {
+  console.warn('[server] Failed to initialize alert checking job:', err.message);
+}
 
 // --- Trusted early middlewares ---
 app.use(requestLoggingMiddleware);

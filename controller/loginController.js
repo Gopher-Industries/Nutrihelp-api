@@ -16,6 +16,8 @@ const logger = require("../utils/logger");
 const nodemailer = require("nodemailer");
 const { ok, fail, validationError } = require("../utils/apiResponse");
 const { msg } = require("../utils/messages");
+const { sessionHookOnLoginSuccess } = require("../services/sessionLogService");
+
 
 const transporter = nodemailer.createTransport({
   service: "gmail",
@@ -255,8 +257,15 @@ const login = async (req, res) => {
       },
     });
 
-    const token = createAccessToken(user);
-    return ok(res, { user: sanitizeUserForResponse(user), token });
+    const token = createAccessToken(user);    
+    // CT-004 Week 6: Log session for alert A6 (geo-impossible travel detection)
+    try {
+      await sessionHookOnLoginSuccess(req, user);
+    } catch (hookErr) {
+      logger.warn('[loginController] sessionHookOnLoginSuccess failed:', hookErr.message);
+      // Don't block login if hook fails
+    }
+        return ok(res, { user: sanitizeUserForResponse(user), token });
   } catch (err) {
     log(
       createLog({

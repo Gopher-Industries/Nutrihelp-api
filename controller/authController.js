@@ -2,6 +2,7 @@ const authService = require('../services/authService');
 const { isServiceError, ServiceError } = require('../services/serviceError');
 const userProfileService = require('../services/userProfileService');
 const logger = require('../utils/logger');
+const { tokenHookOnIssue, tokenHookOnRefresh, tokenHookOnRevoke } = require('../services/tokenLogService');
 
 const TRUSTED_DEVICE_COOKIE = authService.trustedDeviceCookieName || 'trusted_device';
 
@@ -74,6 +75,17 @@ exports.login = async (req, res) => {
 exports.refreshToken = async (req, res) => {
   try {
     const result = await authService.refreshAccessToken(req.body.refreshToken, getDeviceInfo(req));
+    
+    // CT-004 Week 6: Log token refresh for alert A7 (token abuse patterns)
+    try {
+      if (result && result.accessToken) {
+        await tokenHookOnRefresh(req, result.userId, result.refreshToken);
+      }
+    } catch (hookErr) {
+      logger.warn('[authController.refreshToken] tokenHookOnRefresh failed:', hookErr.message);
+      // Don't block token refresh if hook fails
+    }
+    
     return res.json(result);
   } catch (error) {
     logger.error('Token refresh error', { error: error.message });

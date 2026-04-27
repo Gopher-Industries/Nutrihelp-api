@@ -36,6 +36,7 @@ module.exports = app => {
     app.use('/api/shopping-list', require('./shoppingList'));
     app.use('/api/barcode', require('./barcodeScanning'));
     app.use('/api/security', require('./securityEvents'));
+    app.use('/api/security/alerts', require('./alerts'));
     app.use('/api/recommendations', require('./recommendations'));
     app.use('/api/meal-plan', require('./mealPlanAIRoutes'));
 };
