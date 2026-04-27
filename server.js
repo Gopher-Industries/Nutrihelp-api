@@ -3,6 +3,8 @@ require('dotenv').config();
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
+const http = require('http');
+const https = require('https');
 const { exec } = require('child_process');
 
 const logger = require('./utils/logger');
@@ -12,7 +14,12 @@ const { structuredErrorHandler } = require('./middleware/structuredErrorHandler'
 const responseContractMiddleware = require('./middleware/responseContract');
 const { localeMiddleware } = require('./utils/messages');
 
-const { errorLogger, responseTimeLogger, uncaughtExceptionHandler, unhandledRejectionHandler } = require('./middleware/errorLogger');
+const {
+  errorLogger,
+  responseTimeLogger,
+  uncaughtExceptionHandler,
+  unhandledRejectionHandler
+} = require('./middleware/errorLogger');
 
 const helmet = require('helmet');
 const cors = require('cors');
@@ -30,11 +37,15 @@ const FRONTEND_ORIGIN = 'http://localhost:3000';
 console.log('🔧 Environment Variables Check:');
 console.log('   SUPABASE_URL:', process.env.SUPABASE_URL ? '✓ Set' : '✗ Missing');
 console.log('   SUPABASE_ANON_KEY:', process.env.SUPABASE_ANON_KEY ? '✓ Set' : '✗ Missing');
-console.log('   PORT:', process.env.PORT || '80 (default)');
+console.log('   HTTPS_PORT:', process.env.HTTPS_PORT || '443 (default)');
+console.log('   HTTP_PORT:', process.env.HTTP_PORT || process.env.PORT || '80 (default)');
 console.log('');
 
 const app = express();
-const port = process.env.PORT || 80;
+const HTTPS_PORT = Number(process.env.HTTPS_PORT) || 443;
+const HTTP_PORT = Number(process.env.HTTP_PORT || process.env.PORT) || 80;
+const tlsKeyPath = process.env.TLS_KEY_PATH || path.join(__dirname, 'certs', 'local-key.pem');
+const tlsCertPath = process.env.TLS_CERT_PATH || path.join(__dirname, 'certs', 'local-cert.pem');
 
 // DB init (side-effect module)
 let db = require('./dbConnection');
@@ -61,7 +72,9 @@ function cleanupOldFiles() {
     for (const file of fs.readdirSync(tempDir)) {
       const filePath = path.join(tempDir, file);
       const stats = fs.statSync(filePath);
-      if (now - stats.mtimeMs > ONE_DAY) fs.unlinkSync(filePath);
+      if (now - stats.mtimeMs > ONE_DAY) {
+        fs.unlinkSync(filePath);
+      }
     }
   } catch (err) {
     console.error('Error during file cleanup:', err);
@@ -71,7 +84,6 @@ cleanupOldFiles();
 setInterval(cleanupOldFiles, 3 * 60 * 60 * 1000);
 
 // --- Trusted early middlewares ---
-// Request logging MUST be first so we capture every request
 app.use(requestLoggingMiddleware);
 app.use(sessionMonitorMiddleware);
 app.use(localeMiddleware);
@@ -80,7 +92,10 @@ app.use(responseContractMiddleware);
 // CORS (whitelist-ish)
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin) return callback(null, true);
+    if (!origin) {
+      return callback(null, true);
+    }
+
     if (
       origin.startsWith('http://localhost') ||
       origin.startsWith('http://127.0.0.1') ||
@@ -95,7 +110,10 @@ app.use(cors({
   credentials: true,
 }));
 app.options('*', cors({ origin: FRONTEND_ORIGIN, credentials: true }));
-app.use((req, res, next) => { res.header('Access-Control-Allow-Credentials', 'true'); next(); });
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Credentials', 'true');
+  next();
+});
 app.set('trust proxy', 1);
 
 // Security headers
@@ -109,6 +127,11 @@ app.use(helmet({
     },
   },
   crossOriginEmbedderPolicy: true,
+  hsts: {
+    maxAge: 63072000,
+    includeSubDomains: true,
+    preload: true,
+  },
   referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
 }));
 
@@ -131,10 +154,7 @@ try {
   console.warn('⚠️  Swagger YAML failed to parse — /api-docs disabled:', String(e.message).split('\n')[0]);
 }
 
-// Response time and other logger middlewares
 app.use(responseTimeLogger);
-
-// Body parsers (after logging but before route handlers)
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
@@ -147,7 +167,12 @@ app.get('/api/ai/stats', (req, res) => {
   const aiMonitor = require('./services/aiServiceMonitor');
   res.json({ success: true, data: aiMonitor.getStats() });
 });
-app.get('/api', (req, res) => {
+
+app.get('/api/health', (_req, res) => {
+  res.json({ status: 'ok', tls: '1.3 enforced' });
+});
+
+app.get('/api', (_req, res) => {
   res.json({
     status: 'ok',
     message: 'NutriHelp API is running',
@@ -156,9 +181,9 @@ app.get('/api', (req, res) => {
     docs: '/api-docs',
   });
 });
-app.get('/', (req, res) => res.redirect('/api'));
 
-// System routes (early in the chain, but after essential middleware)
+app.get('/', (_req, res) => res.redirect('/api'));
+
 app.use('/api/system', systemRoutes);
 
 // Main routes registrar (single entry)
@@ -171,13 +196,10 @@ app.use('/uploads', express.static('uploads'));
 app.use('/api/sms', require('./routes/sms'));
 app.use('/security', require('./routes/securityEvents'));
 
-// Error logging middleware (structured)
 app.use(errorLogger);
-
-// Structured error handler (translates errors to consistent responses)
 app.use(structuredErrorHandler);
 
-// Final fallback error handler (last resort)
+// Final fallback error handler
 app.use((err, req, res, next) => {
   const status = err.status || 500;
   const message = process.env.NODE_ENV === 'production' ? 'Internal Server Error' : err.message;
@@ -188,21 +210,62 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Global process handlers
 process.on('uncaughtException', uncaughtExceptionHandler);
 process.on('unhandledRejection', unhandledRejectionHandler);
 
-// Start server
-app.listen(port, async () => {
+function createHttpsServer() {
+  try {
+    const tlsOptions = {
+      key: fs.readFileSync(tlsKeyPath),
+      cert: fs.readFileSync(tlsCertPath),
+      minVersion: 'TLSv1.3',
+      maxVersion: 'TLSv1.3',
+    };
+
+    return https.createServer(tlsOptions, app);
+  } catch (error) {
+    console.error('Failed to start HTTPS server with TLS 1.3 enforcement.');
+    console.error(`Expected TLS key at: ${tlsKeyPath}`);
+    console.error(`Expected TLS cert at: ${tlsCertPath}`);
+    console.error(error.message);
+    process.exit(1);
+  }
+}
+
+function createRedirectServer() {
+  return http.createServer((req, res) => {
+    const host = (req.headers.host || 'localhost').replace(/:\d+$/, `:${HTTPS_PORT}`);
+    const redirectUrl = `https://${host}${req.url || '/'}`;
+    res.writeHead(301, { Location: redirectUrl });
+    res.end();
+  });
+}
+
+const httpsServer = createHttpsServer();
+const redirectServer = createRedirectServer();
+
+httpsServer.listen(HTTPS_PORT, async () => {
   console.log('\n🎉 NutriHelp API launched successfully!');
   console.log('='.repeat(50));
-  console.log(`Server is running on port ${port}`);
-  console.log(`📚 Swagger UI: http://localhost:${port}/api-docs`);
+  console.log(`🔒 HTTPS server running on port ${HTTPS_PORT} (TLS 1.3 only)`);
+  console.log(`🔁 HTTP redirect server running on port ${HTTP_PORT}`);
+  console.log(`📚 Swagger UI: https://localhost:${HTTPS_PORT}/api-docs`);
   console.log('='.repeat(50));
   console.log('💡 Press Ctrl+C to stop the server \n');
 
-  // Open Swagger on Windows only
   if (process.platform === 'win32') {
-    exec(`start http://localhost:${port}/api-docs`);
+    exec(`start https://localhost:${HTTPS_PORT}/api-docs`);
   }
 });
+
+redirectServer.on('error', (err) => {
+  if (err.code === 'EACCES' || err.code === 'EADDRINUSE') {
+    console.warn(`⚠️ HTTP redirect server could not start on port ${HTTP_PORT} (${err.code}).`);
+    console.warn(`⚠️ HTTPS API is still running. For local testing, use https://localhost:${HTTPS_PORT} directly.`);
+    console.warn('⚠️ Optionally set HTTP_PORT=8081 in .env to test redirect without admin permissions.');
+    return;
+  }
+  throw err;
+});
+
+redirectServer.listen(HTTP_PORT);
