@@ -71,7 +71,7 @@ const uncaughtExceptionHandler = (error) => {
     category: "critical",
     type: "system",
     additionalContext: {
-      request_id: req.requestId,
+      request_id: null,
       uncaught_exception: true,
       process_uptime: process.uptime(),
     },
