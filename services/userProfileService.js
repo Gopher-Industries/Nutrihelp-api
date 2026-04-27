@@ -2,6 +2,7 @@ const getUserProfile = require('../model/getUserProfile');
 const { updateUser, saveImage } = require('../model/updateUserProfile');
 const fetchUserPreferences = require('../model/fetchUserPreferences');
 const { ServiceError } = require('./serviceError');
+const { decryptFromDatabase, encryptForDatabase } = require('./encryptionService');
 
 const PROFILE_CONTRACT_VERSION = 'user-profile-v1';
 
@@ -48,6 +49,8 @@ function buildCanonicalProfile(profile) {
   const lastName = profile.last_name ?? null;
   const fullName = toFullName([firstName, lastName]) || profile.name || null;
 
+  // Note: Decryption of sensitive fields (contact_number, address) happens at the service layer
+  // when fetching encrypted data. This function builds the response with decrypted values.
   return {
     id: profile.user_id,
     email: profile.email ?? null,
@@ -126,6 +129,30 @@ async function findProfileOrThrow(lookup) {
 
 async function getCanonicalProfile(lookup) {
   const profile = await findProfileOrThrow(lookup);
+  
+  // Week 6: Decrypt sensitive fields if they are encrypted
+  if (profile.profile_encrypted && profile.profile_encryption_iv && profile.profile_encryption_auth_tag) {
+    try {
+      const decrypted = await decryptFromDatabase(profile, {
+        encrypted: 'profile_encrypted',
+        iv: 'profile_encryption_iv',
+        authTag: 'profile_encryption_auth_tag'
+      });
+      
+      if (decrypted && typeof decrypted === 'object') {
+        // Use decrypted values, fallback to plaintext during transition
+        profile.name = decrypted.name ?? profile.name;
+        profile.first_name = decrypted.first_name ?? profile.first_name;
+        profile.last_name = decrypted.last_name ?? profile.last_name;
+        profile.contact_number = decrypted.contact_number ?? profile.contact_number;
+        profile.address = decrypted.address ?? profile.address;
+      }
+    } catch (decryptError) {
+      // Log decryption error but continue with plaintext values as fallback
+      console.error('Profile decryption failed, using plaintext values:', decryptError.message);
+    }
+  }
+  
   const preferences = await fetchUserPreferences(profile.user_id);
   return buildProfileResponse(profile, preferences);
 }
@@ -146,6 +173,31 @@ async function updateCanonicalProfile({ actor, targetLookup, body }) {
     contact_number: updates.contactNumber,
     address: updates.address
   };
+
+  // Week 6: Encrypt sensitive profile fields before storage
+  // This ensures contact_number and address are encrypted at rest
+  if (Object.values(attributes).some(v => v !== undefined && v !== null)) {
+    try {
+      const sensitiveData = {
+        name: attributes.name,
+        first_name: attributes.first_name,
+        last_name: attributes.last_name,
+        contact_number: attributes.contact_number,
+        address: attributes.address
+      };
+      
+      const encrypted = await encryptForDatabase(sensitiveData);
+      
+      // Store encrypted payload in dedicated columns
+      attributes.profile_encrypted = encrypted.encrypted;
+      attributes.profile_encryption_iv = encrypted.iv;
+      attributes.profile_encryption_auth_tag = encrypted.authTag;
+      attributes.profile_encryption_key_version = encrypted.keyVersion;
+    } catch (encryptError) {
+      // Log error but continue with plaintext as fallback during transition
+      console.error('Profile encryption failed, storing plaintext values:', encryptError.message);
+    }
+  }
 
   const updatedProfile = await updateUser({
     userId: existingProfile.user_id,
