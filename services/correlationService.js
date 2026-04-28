@@ -1,4 +1,5 @@
 const supabase = require("../dbConnection");
+const { handleAlert } = require("./incidentResponseService");
 
 async function processEvent(event) {
   if (!event) return;
@@ -37,8 +38,10 @@ async function detectBruteForce(event) {
     return;
   }
 
-  if (data && data.length >= 5) {
-    await supabase.from("security_alerts").insert([{
+  if (data && data.length >= 10) {
+  const { data: alertData, error: alertError } = await supabase
+    .from("security_alerts")
+    .insert([{
       pattern_type: "BRUTE_FORCE_SUSPECTED",
       severity: "high",
       user_id: event.user_id || null,
@@ -50,8 +53,17 @@ async function detectBruteForce(event) {
         matched_event_count: data.length,
         ip_address: event.ip_address || null
       }
-    }]);
+    }])
+    .select()
+    .single();
+
+  if (alertError) {
+    console.error("Failed to create brute force alert:", alertError.message);
+    return;
   }
+
+  await handleAlert(alertData);
+}
 }
 
 async function detectSuspiciousLoginSuccess(event) {
@@ -77,7 +89,9 @@ async function detectSuspiciousLoginSuccess(event) {
   }
 
   if (data && data.length >= 3) {
-    await supabase.from("security_alerts").insert([{
+  const { data: alertData, error: alertError } = await supabase
+    .from("security_alerts")
+    .insert([{
       pattern_type: "ACCOUNT_TAKEOVER_RISK",
       severity: "high",
       user_id: event.user_id || null,
@@ -89,7 +103,16 @@ async function detectSuspiciousLoginSuccess(event) {
         preceding_failed_logins: data.length,
         ip_address: event.ip_address || null
       }
-    }]);
+    }])
+    .select()
+    .single();
+
+  if (alertError) {
+    console.error("Failed to create account takeover alert:", alertError.message);
+    return;
+  }
+
+  await handleAlert(alertData);
   }
 }
 
