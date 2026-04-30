@@ -61,6 +61,12 @@ const routeGroups = [
       ['/api/security', './securityEvents'],
     ],
   },
+  {
+    name: 'health-checks',
+    routes: [
+      ['/api/health/encryption', './encryptionHealth'],
+    ],
+  },
 ];
 
 function registerRouteGroups(app) {
