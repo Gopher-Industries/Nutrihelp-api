@@ -38,4 +38,5 @@ module.exports = app => {
     app.use('/api/security', require('./securityEvents'));
     app.use('/api/recommendations', require('./recommendations'));
     app.use('/api/meal-plan', require('./mealPlanAIRoutes'));
+    app.use('/api/health/encryption', require('./encryptionHealth'));
 };

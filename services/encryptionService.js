@@ -1,16 +1,19 @@
+'use strict';
+
 const crypto = require('crypto');
 
 // Key source strategy:
-// 1) Supabase Vault path (preferred): provide an RPC that returns a base64/hex key string.
-// 2) Environment fallback: ENCRYPTION_KEY (required if no Vault RPC is configured).
+// 1) Supabase Vault (preferred): RPC returns a base64/hex key string.
+// 2) Environment fallback: ENCRYPTION_KEY (required if no Vault RPC configured).
 //
-// Key rotation readiness:
-// - Add ENCRYPTION_KEY_VERSION and persist it alongside encrypted rows in Week 6.
-// - Keep old keys in secure storage during rotation and re-encrypt in batches.
+// Key rotation: bump ENCRYPTION_KEY_VERSION and keep the old key available
+// under ENCRYPTION_KEY_PREV during rotation. The rotate-encryption-key.js
+// script handles re-encrypting all existing rows.
 
 const ALGORITHM = 'aes-256-gcm';
-const IV_LENGTH = 12; // 96-bit nonce recommended for GCM
+const IV_LENGTH = 12;       // 96-bit nonce — recommended for GCM
 const AUTH_TAG_LENGTH = 16;
+const BATCH_SIZE = 50;      // default batch size for bulk operations
 
 const KEY_SOURCE = String(process.env.ENCRYPTION_KEY_SOURCE || 'env').toLowerCase();
 const KEY_ENV_NAME = process.env.ENCRYPTION_KEY_ENV_NAME || 'ENCRYPTION_KEY';
@@ -19,12 +22,38 @@ const KEY_VERSION = process.env.ENCRYPTION_KEY_VERSION || 'v1';
 let cachedKey = null;
 let cachedKeyVersion = null;
 
+// ---------------------------------------------------------------------------
+// Runtime guard
+// ---------------------------------------------------------------------------
+
 function assertBackendRuntime() {
-  // Defensive guard: this file must never be shipped to frontend bundles.
   if (typeof window !== 'undefined') {
     throw new Error('encryptionService is backend-only and cannot run in a browser runtime.');
   }
 }
+
+// ---------------------------------------------------------------------------
+// Failure logging (lightweight — no circular imports)
+// Writes a structured entry to stderr so the crypto_logs service or any
+// external log aggregator can pick it up.  This feeds Alert A12.
+// ---------------------------------------------------------------------------
+
+function logEncryptionFailure(operation, error, context = {}) {
+  const entry = {
+    level: 'ERROR',
+    service: 'encryptionService',
+    operation,
+    error: error?.message || String(error),
+    key_version: cachedKeyVersion || KEY_VERSION,
+    ...context,
+    timestamp: new Date().toISOString()
+  };
+  process.stderr.write(JSON.stringify(entry) + '\n');
+}
+
+// ---------------------------------------------------------------------------
+// Key management
+// ---------------------------------------------------------------------------
 
 function normalizeKey(rawKey) {
   if (!rawKey) {
@@ -33,7 +62,6 @@ function normalizeKey(rawKey) {
 
   const trimmed = String(rawKey).trim();
 
-  // Try base64 first (recommended storage format).
   try {
     const base64Key = Buffer.from(trimmed, 'base64');
     if (base64Key.length === 32) return base64Key;
@@ -41,20 +69,15 @@ function normalizeKey(rawKey) {
     // fall through
   }
 
-  // Try hex.
   if (/^[0-9a-fA-F]{64}$/.test(trimmed)) {
     return Buffer.from(trimmed, 'hex');
   }
 
-  // Last resort: plain UTF-8 passphrase -> SHA-256 derived key.
-  // Keep compatibility but prefer explicit 32-byte base64 keys.
+  // Last resort: UTF-8 passphrase → SHA-256 derived key.
   return crypto.createHash('sha256').update(trimmed, 'utf8').digest();
 }
 
 async function loadKeyFromVault() {
-  // This expects a secure Postgres RPC (example name: get_encryption_key)
-  // that only service-role calls can execute and returns:
-  // { key: '<base64-or-hex-key>', version: 'v1' }
   let supabase;
   try {
     supabase = require('../database/supabaseClient');
@@ -69,7 +92,6 @@ async function loadKeyFromVault() {
     throw new Error(`Failed to load encryption key from Vault RPC '${rpcName}': ${error.message || error}`);
   }
 
-  // RPC may return a plain string, an object, or an array of rows.
   let keyValue = null;
   const version = KEY_VERSION;
 
@@ -110,15 +132,22 @@ async function loadEncryptionKey() {
   return { key, version: KEY_VERSION };
 }
 
+function clearCachedKeyForRotation() {
+  cachedKey = null;
+  cachedKeyVersion = null;
+}
+
+// ---------------------------------------------------------------------------
+// Payload envelope
+// ---------------------------------------------------------------------------
+
 function toPayload(data) {
   if (typeof data === 'string') {
     return JSON.stringify({ v: 1, t: 'string', d: data });
   }
-
   if (data !== null && typeof data === 'object') {
     return JSON.stringify({ v: 1, t: 'json', d: data });
   }
-
   throw new TypeError('encrypt(data) expects a string or object.');
 }
 
@@ -127,15 +156,17 @@ function fromPayload(payload) {
   try {
     parsed = JSON.parse(payload);
   } catch (_error) {
-    // Backward compatibility fallback for unexpected plaintext payloads.
     return payload;
   }
-
   if (!parsed || typeof parsed !== 'object') return payload;
   if (parsed.t === 'json') return parsed.d;
   if (parsed.t === 'string') return String(parsed.d || '');
   return payload;
 }
+
+// ---------------------------------------------------------------------------
+// Core encrypt / decrypt
+// ---------------------------------------------------------------------------
 
 async function encrypt(data) {
   assertBackendRuntime();
@@ -147,9 +178,8 @@ async function encrypt(data) {
   const plaintext = toPayload(data);
   const encryptedBuffer = Buffer.concat([
     cipher.update(plaintext, 'utf8'),
-    cipher.final(),
+    cipher.final()
   ]);
-
   const authTag = cipher.getAuthTag();
 
   return {
@@ -157,7 +187,7 @@ async function encrypt(data) {
     iv: iv.toString('base64'),
     authTag: authTag.toString('base64'),
     keyVersion: version,
-    algorithm: ALGORITHM,
+    algorithm: ALGORITHM
   };
 }
 
@@ -177,12 +207,11 @@ async function decrypt(encryptedData, iv, authTag) {
       Buffer.from(String(iv), 'base64'),
       { authTagLength: AUTH_TAG_LENGTH }
     );
-
     decipher.setAuthTag(Buffer.from(String(authTag), 'base64'));
 
     const decrypted = Buffer.concat([
       decipher.update(Buffer.from(String(encryptedData), 'base64')),
-      decipher.final(),
+      decipher.final()
     ]).toString('utf8');
 
     return fromPayload(decrypted);
@@ -191,8 +220,193 @@ async function decrypt(encryptedData, iv, authTag) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Database helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Encrypt `data` and return the four columns needed for DB storage.
+ * On failure, logs via logEncryptionFailure and re-throws — callers must
+ * not fall back to plaintext.
+ */
+async function encryptForDatabase(data) {
+  try {
+    const result = await encrypt(data);
+    return {
+      encrypted: result.encrypted,
+      iv: result.iv,
+      authTag: result.authTag,
+      keyVersion: result.keyVersion,
+      algorithm: result.algorithm
+    };
+  } catch (err) {
+    logEncryptionFailure('encryptForDatabase', err);
+    throw err;
+  }
+}
+
+/**
+ * Read encrypted columns from `record` using `fieldMap` and decrypt.
+ *
+ * fieldMap defaults: { encrypted: 'encrypted', iv: 'iv', authTag: 'authTag' }
+ * Returns null when the record has no encrypted payload.
+ */
+async function decryptFromDatabase(record, fieldMap = {}) {
+  if (!record || typeof record !== 'object') return null;
+
+  const encryptedField = fieldMap.encrypted || 'encrypted';
+  const ivField = fieldMap.iv || 'iv';
+  const authTagField = fieldMap.authTag || 'authTag';
+
+  const encryptedValue = record[encryptedField];
+  const ivValue = record[ivField];
+  const authTagValue = record[authTagField];
+
+  if (!encryptedValue || !ivValue || !authTagValue) return null;
+
+  try {
+    return await decrypt(encryptedValue, ivValue, authTagValue);
+  } catch (err) {
+    logEncryptionFailure('decryptFromDatabase', err, { field: encryptedField });
+    throw err;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Post-write verification
+// ---------------------------------------------------------------------------
+
+/**
+ * Verify that the encrypted blob stored in `encryptedResult` faithfully
+ * represents `originalData`.  Throws if verification fails.
+ *
+ * Usage:
+ *   const enc = await encryptForDatabase(sensitiveData);
+ *   await verifyEncryption(sensitiveData, enc);
+ */
+async function verifyEncryption(originalData, encryptedResult) {
+  let decrypted;
+  try {
+    decrypted = await decrypt(encryptedResult.encrypted, encryptedResult.iv, encryptedResult.authTag);
+  } catch (err) {
+    logEncryptionFailure('verifyEncryption', err);
+    throw new Error(`Post-write verification failed — decryption error: ${err.message}`);
+  }
+
+  const originalStr = typeof originalData === 'string'
+    ? originalData
+    : JSON.stringify(originalData);
+  const decryptedStr = typeof decrypted === 'string'
+    ? decrypted
+    : JSON.stringify(decrypted);
+
+  if (originalStr !== decryptedStr) {
+    const err = new Error('Post-write verification failed — decrypted value does not match original.');
+    logEncryptionFailure('verifyEncryption', err);
+    throw err;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Batch helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Encrypt an array of records in batches.
+ *
+ * `buildSensitiveData(record)` must return the object/string to encrypt for
+ * that record.  Returns an array of `{ id, encrypted, iv, authTag, keyVersion }`
+ * objects ready to be written back to the DB.
+ *
+ * Failures on individual records are collected and returned in `errors` so
+ * a single bad row does not abort the entire batch.
+ */
+async function encryptBatch(records, buildSensitiveData, { batchSize = BATCH_SIZE } = {}) {
+  assertBackendRuntime();
+
+  const results = [];
+  const errors = [];
+
+  for (let i = 0; i < records.length; i += batchSize) {
+    const chunk = records.slice(i, i + batchSize);
+
+    await Promise.all(
+      chunk.map(async (record) => {
+        try {
+          const sensitiveData = buildSensitiveData(record);
+          const enc = await encryptForDatabase(sensitiveData);
+          results.push({ id: record.id, ...enc });
+        } catch (err) {
+          logEncryptionFailure('encryptBatch', err, { record_id: record.id });
+          errors.push({ id: record.id, error: err.message });
+        }
+      })
+    );
+  }
+
+  return { results, errors };
+}
+
+/**
+ * Re-encrypt records that carry an old key version.
+ * Used by the key rotation script.
+ *
+ * `oldDecrypt(record)` must return the plaintext for that record.
+ * Returns `{ reencrypted, skipped, errors }`.
+ */
+async function reencryptBatch(records, oldDecrypt, { batchSize = BATCH_SIZE, targetVersion } = {}) {
+  assertBackendRuntime();
+
+  const reencrypted = [];
+  const skipped = [];
+  const errors = [];
+
+  for (let i = 0; i < records.length; i += batchSize) {
+    const chunk = records.slice(i, i + batchSize);
+
+    await Promise.all(
+      chunk.map(async (record) => {
+        if (targetVersion && record.encryption_key_version === targetVersion) {
+          skipped.push(record.id);
+          return;
+        }
+        try {
+          const plaintext = await oldDecrypt(record);
+          const enc = await encryptForDatabase(plaintext);
+          reencrypted.push({ id: record.id, ...enc });
+        } catch (err) {
+          logEncryptionFailure('reencryptBatch', err, { record_id: record.id });
+          errors.push({ id: record.id, error: err.message });
+        }
+      })
+    );
+  }
+
+  return { reencrypted, skipped, errors };
+}
+
+// ---------------------------------------------------------------------------
+// Exports
+// ---------------------------------------------------------------------------
+
 module.exports = {
+  // Core — backward-compatible
   encrypt,
   decrypt,
   loadEncryptionKey,
+  clearCachedKeyForRotation,
+
+  // Database helpers
+  encryptForDatabase,
+  decryptFromDatabase,
+
+  // Verification
+  verifyEncryption,
+
+  // Batch
+  encryptBatch,
+  reencryptBatch,
+
+  // Internal (used by verification service)
+  logEncryptionFailure
 };
