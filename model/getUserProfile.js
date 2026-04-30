@@ -70,14 +70,35 @@ async function getImageUrl(image_id) {
 			.select("*")
 			.eq("id", image_id);
 		if (data[0] != null) {
-			let x = `${process.env.SUPABASE_STORAGE_URL}${data[0].file_name}`;
-			return x;
+			return await resolveImageUrl(data[0].file_name);
 		}
 		return data;
 	} catch (error) {
 		console.log(error);
 		throw error;
 	}
+}
+
+async function resolveImageUrl(file_name) {
+	if (!file_name) return null;
+
+	// Signed URL works for both public and private buckets.
+	const { data: signedData, error: signedError } = await supabase
+		.storage
+		.from("images")
+		.createSignedUrl(file_name, 60 * 60 * 24);
+
+	if (!signedError && signedData?.signedUrl) {
+		return signedData.signedUrl;
+	}
+
+	// Fallback to public URL if signing fails for any reason.
+	const { data: publicData } = supabase
+		.storage
+		.from("images")
+		.getPublicUrl(file_name);
+
+	return publicData?.publicUrl || null;
 }
 
 module.exports = getUserProfile;
