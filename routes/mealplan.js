@@ -1,6 +1,6 @@
 const express = require("express");
 const router  = express.Router();
-const controller = require('../controller/mealplanController.js');
+const { coreApp } = require('../controller');
 const { 
     addMealPlanValidation, 
     getMealPlanValidation, 
@@ -11,6 +11,8 @@ const validate = require('../middleware/validateRequest.js');
 // 🔑 Import authentication + RBAC
 const { authenticateToken } = require('../middleware/authenticateToken.js');
 const authorizeRoles = require('../middleware/authorizeRoles.js');
+
+const { mealplan: controller } = coreApp;
 
 // Route to add a meal plan (Nutritionist + Admin)
 router.route('/')

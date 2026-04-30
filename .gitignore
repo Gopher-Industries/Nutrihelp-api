@@ -21,3 +21,4 @@ certs/
 # Runtime log artifacts
 *.jsonl
 logs/
+certs/*.pem
