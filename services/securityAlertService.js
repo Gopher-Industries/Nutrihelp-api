@@ -1,20 +1,19 @@
 const https = require('https');
 const nodemailer = require('nodemailer');
 
-let supabaseService = null;
-try {
-  const { createClient } = require('@supabase/supabase-js');
-  if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    supabaseService = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
-  } else {
-    console.warn('[securityAlertService] Supabase env vars are missing. Alert checks will return empty datasets until configured.');
-  }
-} catch (error) {
-  console.warn('[securityAlertService] Failed to initialize Supabase client:', error.message || error);
-}
+const { getSupabaseServiceClient } = require('./supabaseClient');
+const supabaseService = getSupabaseServiceClient();
 
 const ALERT_DEDUP_WINDOW_MS = 5 * 60 * 1000;
 const HEARTBEAT_WINDOW_MS = 5 * 60 * 1000;
+
+// DISTRIBUTED DEPLOYMENT NOTE:
+// alertDedupCache and inMemoryWindows are process-local (in-memory). In a
+// multi-instance deployment each instance maintains its own state, so the same
+// alert can be emitted by more than one process within the dedup window. A
+// shared store (e.g. Redis) is required to enforce deduplication across
+// instances. Until then, duplicate suppression is best-effort and single-
+// process only.
 
 const SENSITIVE_ENDPOINT_PATTERNS = [
   /^\/api\/login/i,
@@ -1227,17 +1226,33 @@ function createAlertCheckerMiddleware() {
   };
 }
 
+let consecutiveJobFailures = 0;
+const MAX_CONSECUTIVE_FAILURES = 3;
+
 async function runAlertCheckJob() {
   console.log('[securityAlertService] Running scheduled alert check...');
-  const result = await checkAlerts();
 
-  console.log(`[securityAlertService] Alert check complete: ${result.alerts.length} alerts generated, ${result.dispatch_results.length} notifications sent`);
+  try {
+    const result = await checkAlerts();
+    consecutiveJobFailures = 0;
 
-  if (result.alerts.length > 0) {
-    console.log('[securityAlertService] Generated alerts:', result.alerts.map((a) => a.alert_id));
+    console.log(`[securityAlertService] Alert check complete: ${result.alerts.length} alerts generated, ${result.dispatch_results.length} notifications sent`);
+    if (result.alerts.length > 0) {
+      console.log('[securityAlertService] Generated alerts:', result.alerts.map((a) => a.alert_id));
+    }
+
+    await archiveOldAlerts();
+    return result;
+  } catch (err) {
+    consecutiveJobFailures++;
+    console.error(`[securityAlertService] runAlertCheckJob failed (consecutive failures: ${consecutiveJobFailures}):`, err.message || err);
+
+    if (consecutiveJobFailures >= MAX_CONSECUTIVE_FAILURES) {
+      console.error(`[securityAlertService] CRITICAL: Alert job has failed ${consecutiveJobFailures} times in a row. Manual intervention may be required.`);
+    }
+
+    return { alerts: [], dispatch_results: [] };
   }
-
-  return result;
 }
 
 module.exports = {
@@ -1246,5 +1261,18 @@ module.exports = {
   persistAlertHistory,
   archiveOldAlerts,
   createAlertCheckerMiddleware,
-  runAlertCheckJob
+  runAlertCheckJob,
+  // Exported for unit testing only
+  evaluateA1,
+  evaluateA2,
+  evaluateA3,
+  evaluateA4,
+  evaluateA5,
+  evaluateA6,
+  evaluateA7,
+  evaluateA8,
+  evaluateA9,
+  evaluateA10,
+  evaluateA11,
+  evaluateA12
 };

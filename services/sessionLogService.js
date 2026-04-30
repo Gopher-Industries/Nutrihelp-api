@@ -28,20 +28,8 @@
  * loginController (on LOGIN_SUCCESS) and any token-refresh handler.
  */
 
-let supabaseService = null;
-try {
-  const { createClient } = require('@supabase/supabase-js');
-  if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    supabaseService = createClient(
-      process.env.SUPABASE_URL,
-      process.env.SUPABASE_SERVICE_ROLE_KEY
-    );
-  } else {
-    console.warn('[sessionLogService] Supabase env vars missing. Session events will not be persisted.');
-  }
-} catch (err) {
-  console.warn('[sessionLogService] Failed to init Supabase client:', err.message);
-}
+const { getSupabaseServiceClient } = require('./supabaseClient');
+const supabaseService = getSupabaseServiceClient();
 
 // ---------------------------------------------------------------------------
 // Core writer

@@ -29,20 +29,8 @@
  * your crypto utility functions or JWT handlers.
  */
 
-let supabaseService = null;
-try {
-  const { createClient } = require('@supabase/supabase-js');
-  if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    supabaseService = createClient(
-      process.env.SUPABASE_URL,
-      process.env.SUPABASE_SERVICE_ROLE_KEY
-    );
-  } else {
-    console.warn('[cryptoLogService] Supabase env vars missing. Crypto events will not be persisted.');
-  }
-} catch (err) {
-  console.warn('[cryptoLogService] Failed to init Supabase client:', err.message);
-}
+const { getSupabaseServiceClient } = require('./supabaseClient');
+const supabaseService = getSupabaseServiceClient();
 
 // ---------------------------------------------------------------------------
 // Core writer

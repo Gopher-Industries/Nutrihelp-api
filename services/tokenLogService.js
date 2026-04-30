@@ -28,20 +28,8 @@
  * authController (on token issue/refresh/revoke).
  */
 
-let supabaseService = null;
-try {
-  const { createClient } = require('@supabase/supabase-js');
-  if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    supabaseService = createClient(
-      process.env.SUPABASE_URL,
-      process.env.SUPABASE_SERVICE_ROLE_KEY
-    );
-  } else {
-    console.warn('[tokenLogService] Supabase env vars missing. Token events will not be persisted.');
-  }
-} catch (err) {
-  console.warn('[tokenLogService] Failed to init Supabase client:', err.message);
-}
+const { getSupabaseServiceClient } = require('./supabaseClient');
+const supabaseService = getSupabaseServiceClient();
 
 // ---------------------------------------------------------------------------
 // Core writer

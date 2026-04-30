@@ -81,8 +81,8 @@ exports.refreshToken = async (req, res) => {
     
     // CT-004 Week 6: Log token refresh for alert A7 (token abuse patterns)
     try {
-      if (result && result.accessToken) {
-        await tokenHookOnRefresh(req, result.userId, result.refreshToken);
+      if (result && result.accessToken && result.userId) {
+        await tokenHookOnRefresh(req, { user_id: result.userId }, result.refreshToken);
       }
     } catch (hookErr) {
       logger.warn('[authController.refreshToken] tokenHookOnRefresh failed:', hookErr.message);

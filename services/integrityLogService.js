@@ -29,20 +29,8 @@
  * your file integrity scanner or deployment scripts.
  */
 
-let supabaseService = null;
-try {
-  const { createClient } = require('@supabase/supabase-js');
-  if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    supabaseService = createClient(
-      process.env.SUPABASE_URL,
-      process.env.SUPABASE_SERVICE_ROLE_KEY
-    );
-  } else {
-    console.warn('[integrityLogService] Supabase env vars missing. Integrity events will not be persisted.');
-  }
-} catch (err) {
-  console.warn('[integrityLogService] Failed to init Supabase client:', err.message);
-}
+const { getSupabaseServiceClient } = require('./supabaseClient');
+const supabaseService = getSupabaseServiceClient();
 
 // ---------------------------------------------------------------------------
 // Core writer

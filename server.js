@@ -84,15 +84,7 @@ function cleanupOldFiles() {
 cleanupOldFiles();
 setInterval(cleanupOldFiles, 3 * 60 * 60 * 1000);
 
-// CT-004 Week 6: Schedule real-time alert checks every 5 minutes
-// This continuously evaluates 12 security alert conditions (A1-A12)
-try {
-  runAlertCheckJob();
-  setInterval(runAlertCheckJob, 5 * 60 * 1000); // Every 5 minutes
-  console.log('[server] CT-004 Alert checking job initialized (5-minute interval)');
-} catch (err) {
-  console.warn('[server] Failed to initialize alert checking job:', err.message);
-}
+let alertIntervalId = null;
 
 // --- Trusted early middlewares ---
 app.use(requestLoggingMiddleware);
@@ -224,6 +216,19 @@ app.use((err, req, res, next) => {
 process.on('uncaughtException', uncaughtExceptionHandler);
 process.on('unhandledRejection', unhandledRejectionHandler);
 
+function gracefulShutdown(signal) {
+  console.log(`\n[server] ${signal} received — shutting down gracefully`);
+  if (alertIntervalId) {
+    clearInterval(alertIntervalId);
+    alertIntervalId = null;
+    console.log('[server] CT-004 Alert checking job stopped');
+  }
+  httpsServer.close(() => process.exit(0));
+  setTimeout(() => process.exit(1), 10000).unref();
+}
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
 function createHttpsServer() {
   try {
     const tlsOptions = {
@@ -263,6 +268,23 @@ httpsServer.listen(HTTPS_PORT, async () => {
   console.log(`📚 Swagger UI: https://localhost:${HTTPS_PORT}/api-docs`);
   console.log('='.repeat(50));
   console.log('💡 Press Ctrl+C to stop the server \n');
+
+  // CT-004: Start alert job only after the server is fully bound and ready.
+  // The interval callback is wrapped so a single failing run never stops
+  // future runs (runAlertCheckJob already has an internal try/catch).
+  try {
+    await runAlertCheckJob();
+    alertIntervalId = setInterval(async () => {
+      try {
+        await runAlertCheckJob();
+      } catch (err) {
+        console.error('[server] Alert check job failed unexpectedly:', err.message);
+      }
+    }, 5 * 60 * 1000);
+    console.log('[server] CT-004 Alert checking job initialized (5-minute interval)');
+  } catch (err) {
+    console.warn('[server] Failed to run initial alert check:', err.message);
+  }
 
   if (process.platform === 'win32') {
     exec(`start https://localhost:${HTTPS_PORT}/api-docs`);
