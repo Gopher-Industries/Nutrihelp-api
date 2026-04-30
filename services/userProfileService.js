@@ -129,30 +129,28 @@ async function findProfileOrThrow(lookup) {
 
 async function getCanonicalProfile(lookup) {
   const profile = await findProfileOrThrow(lookup);
-  
-  // Week 6: Decrypt sensitive fields if they are encrypted
+
   if (profile.profile_encrypted && profile.profile_encryption_iv && profile.profile_encryption_auth_tag) {
-    try {
-      const decrypted = await decryptFromDatabase(profile, {
-        encrypted: 'profile_encrypted',
-        iv: 'profile_encryption_iv',
-        authTag: 'profile_encryption_auth_tag'
-      });
-      
-      if (decrypted && typeof decrypted === 'object') {
-        // Use decrypted values, fallback to plaintext during transition
-        profile.name = decrypted.name ?? profile.name;
-        profile.first_name = decrypted.first_name ?? profile.first_name;
-        profile.last_name = decrypted.last_name ?? profile.last_name;
-        profile.contact_number = decrypted.contact_number ?? profile.contact_number;
-        profile.address = decrypted.address ?? profile.address;
-      }
-    } catch (decryptError) {
-      // Log decryption error but continue with plaintext values as fallback
-      console.error('Profile decryption failed, using plaintext values:', decryptError.message);
+    // Decryption failure is a hard error — falling back to plaintext would silently
+    // serve stale or wrong data and would mask key-mismatch or corruption issues.
+    const decrypted = await decryptFromDatabase(profile, {
+      encrypted: 'profile_encrypted',
+      iv: 'profile_encryption_iv',
+      authTag: 'profile_encryption_auth_tag'
+    });
+
+    if (!decrypted || typeof decrypted !== 'object') {
+      throw new ServiceError(500, 'Profile decryption produced an invalid result. Contact support.');
     }
+
+    profile.name = decrypted.name ?? profile.name;
+    profile.first_name = decrypted.first_name ?? profile.first_name;
+    profile.last_name = decrypted.last_name ?? profile.last_name;
+    // Sensitive fields must come exclusively from the encrypted source once stored encrypted.
+    profile.contact_number = decrypted.contact_number ?? null;
+    profile.address = decrypted.address ?? null;
   }
-  
+
   const preferences = await fetchUserPreferences(profile.user_id);
   return buildProfileResponse(profile, preferences);
 }
@@ -174,29 +172,33 @@ async function updateCanonicalProfile({ actor, targetLookup, body }) {
     address: updates.address
   };
 
-  // Week 6: Encrypt sensitive profile fields before storage
-  // This ensures contact_number and address are encrypted at rest
+  // Week 6: Encrypt sensitive profile fields before storage.
+  // Encryption is mandatory — if it fails the update is rejected so sensitive
+  // data is never written in plaintext. After a successful encrypt the plaintext
+  // columns for contact_number and address are explicitly nulled so the same
+  // data is not persisted in both the encrypted blob and the old columns.
   if (Object.values(attributes).some(v => v !== undefined && v !== null)) {
-    try {
-      const sensitiveData = {
-        name: attributes.name,
-        first_name: attributes.first_name,
-        last_name: attributes.last_name,
-        contact_number: attributes.contact_number,
-        address: attributes.address
-      };
-      
-      const encrypted = await encryptForDatabase(sensitiveData);
-      
-      // Store encrypted payload in dedicated columns
-      attributes.profile_encrypted = encrypted.encrypted;
-      attributes.profile_encryption_iv = encrypted.iv;
-      attributes.profile_encryption_auth_tag = encrypted.authTag;
-      attributes.profile_encryption_key_version = encrypted.keyVersion;
-    } catch (encryptError) {
-      // Log error but continue with plaintext as fallback during transition
-      console.error('Profile encryption failed, storing plaintext values:', encryptError.message);
-    }
+    const sensitiveData = {
+      name: attributes.name,
+      first_name: attributes.first_name,
+      last_name: attributes.last_name,
+      contact_number: attributes.contact_number,
+      address: attributes.address
+    };
+
+    // Throws on key-load or cipher failure — deliberately not caught here.
+    const encrypted = await encryptForDatabase(sensitiveData);
+
+    attributes.profile_encrypted = encrypted.encrypted;
+    attributes.profile_encryption_iv = encrypted.iv;
+    attributes.profile_encryption_auth_tag = encrypted.authTag;
+    attributes.profile_encryption_key_version = encrypted.keyVersion;
+
+    // Clear the plaintext-column values so they are not stored alongside
+    // the encrypted blob. Rows that pre-date encryption will retain their
+    // existing column values until a migration nulls them out.
+    attributes.contact_number = null;
+    attributes.address = null;
   }
 
   const updatedProfile = await updateUser({
