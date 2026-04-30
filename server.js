@@ -224,13 +224,6 @@ function createHttpsServer() {
 
     return https.createServer(tlsOptions, app);
   } catch (error) {
-<<<<<<< HEAD
-    console.error('Failed to start HTTPS server with TLS 1.3 enforcement.');
-    console.error(`Expected TLS key at: ${tlsKeyPath}`);
-    console.error(`Expected TLS cert at: ${tlsCertPath}`);
-    console.error(error.message);
-    process.exit(1);
-=======
     if (process.env.NODE_ENV === 'production') {
       console.error('Failed to start HTTPS server with TLS 1.3 enforcement.');
       console.error(`Expected TLS key at: ${tlsKeyPath}`);
@@ -241,7 +234,6 @@ function createHttpsServer() {
     console.warn('⚠️  TLS certs not found — falling back to HTTP for local development.');
     console.warn(`   Generate certs with: openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout certs/local-key.pem -out certs/local-cert.pem -subj "//CN=localhost"`);
     return null;
->>>>>>> 5b61aa0fd2727249e3a3faf0c92e45b58057de5e
   }
 }
 
@@ -255,16 +247,6 @@ function createRedirectServer() {
 }
 
 const httpsServer = createHttpsServer();
-<<<<<<< HEAD
-const redirectServer = createRedirectServer();
-
-httpsServer.listen(HTTPS_PORT, async () => {
-  console.log('\n🎉 NutriHelp API launched successfully!');
-  console.log('='.repeat(50));
-  console.log(`🔒 HTTPS server running on port ${HTTPS_PORT} (TLS 1.3 only)`);
-  console.log(`🔁 HTTP redirect server running on port ${HTTP_PORT}`);
-  console.log(`📚 Swagger UI: https://localhost:${HTTPS_PORT}/api-docs`);
-=======
 const useHttpFallback = httpsServer === null;
 const activePort = useHttpFallback ? HTTP_PORT : HTTPS_PORT;
 const activeServer = useHttpFallback ? http.createServer(app) : httpsServer;
@@ -284,6 +266,7 @@ if (!useHttpFallback) {
 activeServer.listen(activePort, async () => {
   console.log('\n🎉 NutriHelp API launched successfully!');
   console.log('='.repeat(50));
+  const proto = useHttpFallback ? 'http' : 'https';
   if (useHttpFallback) {
     console.log(`🔓 HTTP server running on port ${activePort} (dev mode — no TLS)`);
     console.log(`📚 Swagger UI: http://localhost:${activePort}/api-docs`);
@@ -292,31 +275,11 @@ activeServer.listen(activePort, async () => {
     console.log(`🔁 HTTP redirect server running on port ${HTTP_PORT}`);
     console.log(`📚 Swagger UI: https://localhost:${activePort}/api-docs`);
   }
->>>>>>> 5b61aa0fd2727249e3a3faf0c92e45b58057de5e
   console.log('='.repeat(50));
   console.log('💡 Press Ctrl+C to stop the server \n');
 
   if (process.platform === 'win32') {
-<<<<<<< HEAD
-    exec(`start https://localhost:${HTTPS_PORT}/api-docs`);
-  }
-});
-
-redirectServer.on('error', (err) => {
-  if (err.code === 'EACCES' || err.code === 'EADDRINUSE') {
-    console.warn(`⚠️ HTTP redirect server could not start on port ${HTTP_PORT} (${err.code}).`);
-    console.warn(`⚠️ HTTPS API is still running. For local testing, use https://localhost:${HTTPS_PORT} directly.`);
-    console.warn('⚠️ Optionally set HTTP_PORT=8081 in .env to test redirect without admin permissions.');
-    return;
-  }
-  throw err;
-});
-
-redirectServer.listen(HTTP_PORT);
-=======
-    const proto = useHttpFallback ? 'http' : 'https';
     exec(`start ${proto}://localhost:${activePort}/api-docs`);
   }
 });
 
->>>>>>> 5b61aa0fd2727249e3a3faf0c92e45b58057de5e
