@@ -1,4 +1,7 @@
-const { generateRecommendations } = require('../services/recommendationService');
+const { coreApp, shared } = require('../services');
+
+const { recommendationService } = coreApp;
+const { createErrorResponse } = shared.apiResponse;
 
 function isPlainObject(value) {
   return value != null && typeof value === 'object' && !Array.isArray(value);
@@ -36,7 +39,7 @@ async function getRecommendations(req, res) {
   try {
     validateRecommendationRequest(req.body || {});
 
-    const result = await generateRecommendations({
+    const result = await recommendationService.generateRecommendations({
       userId: req.user?.userId || req.body?.userId,
       email: req.user?.email || req.body?.email,
       healthGoals: req.body?.healthGoals || {},
@@ -56,10 +59,10 @@ async function getRecommendations(req, res) {
       ? 'Failed to generate recommendations'
       : (error.message || 'Invalid recommendation request');
 
-    return res.status(statusCode).json({
-      success: false,
-      error: clientMessage
-    });
+    return res.status(statusCode).json(createErrorResponse(
+      clientMessage,
+      statusCode >= 500 ? 'RECOMMENDATION_FAILED' : 'VALIDATION_ERROR'
+    ));
   }
 }
 

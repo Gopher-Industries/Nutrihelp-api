@@ -29,82 +29,96 @@ describe('AI Controllers', () => {
     sinon.restore();
   });
 
-  it('maps wrapper success into a normalized image classification response', async () => {
-    const executePythonScript = sinon.stub().resolves({
-      success: true,
-      prediction: 'banana',
-      confidence: 0.87,
-      error: null
+  // NOTE: the image-classification controller now speaks the normalised
+  // response contract (see services/imageClassificationContract.js).  The
+  // three tests below were rewritten to assert the new envelope shape —
+  // the richer gateway-level coverage lives in imageClassificationGateway.test.js
+  // and imageClassificationController.test.js.
+  it('wraps gateway success in the normalised response envelope', async () => {
+    const classify = sinon.stub().resolves({
+      ok: true,
+      httpStatus: 200,
+      data: {
+        classification: {
+          label: 'Banana',
+          rawLabel: 'Banana:~89 calories per 100 grams',
+          calories: { value: 89, unit: 'kcal/100g' },
+          confidence: 0.87,
+          uncertain: false,
+          source: 'ai',
+          fallbackUsed: false,
+          alternatives: []
+        },
+        explainability: {
+          service: 'image_classification',
+          source: 'ai',
+          fallbackUsed: false,
+          timedOut: false,
+          circuitOpen: false,
+          durationMs: 10,
+          confidence: 0.87,
+          confidenceThreshold: 0.6,
+          warnings: [],
+          generatedAt: new Date().toISOString(),
+          contractVersion: 'v1'
+        }
+      }
     });
 
     const readFileStub = sinon.stub(fs.promises, 'readFile').resolves(Buffer.from('image-data'));
     stubFileCleanup();
 
     const controller = proxyquire('../controller/imageClassificationController', {
-      '../services/aiExecutionService': { executePythonScript }
+      '../services/imageClassificationGateway': { classify }
     });
 
-    const req = {
-      file: { path: 'uploads/test.png' }
-    };
+    const req = { file: { path: 'uploads/test.png' } };
     const res = createResponseMock();
 
     await controller.predictImage(req, res);
 
     expect(readFileStub.calledOnce).to.equal(true);
-    expect(executePythonScript.calledOnce).to.equal(true);
-    expect(executePythonScript.firstCall.args[0].scriptPath).to.match(/model\/imageClassification\.py$/);
-    expect(executePythonScript.firstCall.args[0].stdin).to.deep.equal(Buffer.from('image-data'));
+    expect(classify.calledOnce).to.equal(true);
     expect(res.statusCode).to.equal(200);
-    expect(res.payload).to.deep.equal({
-      success: true,
-      prediction: 'banana',
-      confidence: 0.87,
-      error: null
-    });
+    expect(res.payload.success).to.equal(true);
+    expect(res.payload.data.classification.label).to.equal('Banana');
+    expect(res.payload.data.classification.source).to.equal('ai');
+    expect(res.payload.data.classification.uncertain).to.equal(false);
   });
 
-  it('maps wrapper failures into a stable image classification error response', async () => {
-    const executePythonScript = sinon.stub().resolves({
-      success: false,
-      prediction: null,
-      confidence: null,
-      error: 'model failure',
-      timedOut: false
+  it('wraps gateway failures in the normalised error envelope', async () => {
+    const classify = sinon.stub().resolves({
+      ok: false,
+      httpStatus: 503,
+      code: 'AI_SERVICE_UNAVAILABLE',
+      error: 'Image classification is temporarily unavailable. Please try again.'
     });
 
     sinon.stub(fs.promises, 'readFile').resolves(Buffer.from('image-data'));
     stubFileCleanup();
 
     const controller = proxyquire('../controller/imageClassificationController', {
-      '../services/aiExecutionService': { executePythonScript }
+      '../services/imageClassificationGateway': { classify }
     });
 
-    const req = {
-      file: { path: 'uploads/test.png' }
-    };
+    const req = { file: { path: 'uploads/test.png' } };
     const res = createResponseMock();
 
     await controller.predictImage(req, res);
 
-    expect(executePythonScript.calledOnce).to.equal(true);
-    expect(executePythonScript.firstCall.args[0].scriptPath).to.match(/model\/imageClassification\.py$/);
-    expect(executePythonScript.firstCall.args[0].stdin).to.deep.equal(Buffer.from('image-data'));
-    expect(res.statusCode).to.equal(500);
-    expect(res.payload).to.deep.equal({
-      success: false,
-      prediction: null,
-      confidence: null,
-      error: 'model failure'
-    });
+    expect(classify.calledOnce).to.equal(true);
+    expect(res.statusCode).to.equal(503);
+    expect(res.payload.success).to.equal(false);
+    expect(res.payload.code).to.equal('AI_SERVICE_UNAVAILABLE');
+    expect(res.payload.error).to.be.a('string');
   });
 
-  it('returns 400 when no image file is uploaded for image classification', async () => {
-    const executePythonScript = sinon.stub();
+  it('returns 400 IMAGE_MISSING when no image file is uploaded', async () => {
+    const classify = sinon.stub();
     stubFileCleanup();
 
     const controller = proxyquire('../controller/imageClassificationController', {
-      '../services/aiExecutionService': { executePythonScript }
+      '../services/imageClassificationGateway': { classify }
     });
 
     const req = {};
@@ -112,14 +126,10 @@ describe('AI Controllers', () => {
 
     await controller.predictImage(req, res);
 
-    expect(executePythonScript.called).to.equal(false);
+    expect(classify.called).to.equal(false);
     expect(res.statusCode).to.equal(400);
-    expect(res.payload).to.deep.equal({
-      success: false,
-      prediction: null,
-      confidence: null,
-      error: 'No image uploaded. Please upload a JPEG or PNG image.'
-    });
+    expect(res.payload.success).to.equal(false);
+    expect(res.payload.code).to.equal('IMAGE_MISSING');
   });
 
   it('maps wrapper timeout into a backend-friendly timeout response', async () => {

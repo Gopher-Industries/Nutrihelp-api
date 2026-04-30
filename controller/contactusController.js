@@ -1,6 +1,9 @@
 let addContactUsMsg = require("../model/addContactUsMsg.js");
 const { validationResult } = require('express-validator');
-const { contactusValidator } = require('../validators/contactusValidator.js');
+const { shared } = require('../services');
+const logger = require('../utils/logger');
+
+const { createErrorResponse, createSuccessResponse } = shared.apiResponse;
 
 const contactus = async (req, res) => {
     // Check for validation errors
@@ -14,10 +17,15 @@ const contactus = async (req, res) => {
     try {
         await addContactUsMsg(name, email, subject, message);
 
-        return res.status(201).json({ message: 'Data received successfully!' });
+        return res.status(201).json(createSuccessResponse(null, {
+            message: 'Data received successfully!'
+        }));
     } catch (error) {
-        console.error(error);
-        return res.status(500).json({ error: 'Internal server error' });
+        logger.error('Error saving contact us message', {
+            error: error.message,
+            email
+        });
+        return res.status(500).json(createErrorResponse('Internal server error', 'CONTACT_REQUEST_FAILED'));
     }
 };
 
