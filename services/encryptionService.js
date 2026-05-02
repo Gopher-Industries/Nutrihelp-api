@@ -14,6 +14,7 @@ const ALGORITHM = 'aes-256-gcm';
 const IV_LENGTH = 12;       // 96-bit nonce — recommended for GCM
 const AUTH_TAG_LENGTH = 16;
 const BATCH_SIZE = 50;      // default batch size for bulk operations
+const MAX_CONCURRENT = 5;   // max parallel encrypt/DB operations within a batch
 
 const KEY_SOURCE = String(process.env.ENCRYPTION_KEY_SOURCE || 'env').toLowerCase();
 const KEY_ENV_NAME = process.env.ENCRYPTION_KEY_ENV_NAME || 'ENCRYPTION_KEY';
@@ -73,8 +74,10 @@ function normalizeKey(rawKey) {
     return Buffer.from(trimmed, 'hex');
   }
 
-  // Last resort: UTF-8 passphrase → SHA-256 derived key.
-  return crypto.createHash('sha256').update(trimmed, 'utf8').digest();
+  throw new Error(
+    'Invalid encryption key format. Key must be a 32-byte base64 string (44 chars) or a 64-char hex string. ' +
+    'Generate a valid key with: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'base64\'))"'
+  );
 }
 
 async function loadKeyFromVault() {
@@ -262,12 +265,27 @@ async function decryptFromDatabase(record, fieldMap = {}) {
   const ivValue = record[ivField];
   const authTagValue = record[authTagField];
 
-  if (!encryptedValue || !ivValue || !authTagValue) return null;
+  // All three absent — unencrypted row, expected during migration window.
+  if (!encryptedValue && !ivValue && !authTagValue) return null;
+
+  // Partial presence means data corruption — log and throw rather than silently return null.
+  if (!encryptedValue || !ivValue || !authTagValue) {
+    const missing = [
+      !encryptedValue && encryptedField,
+      !ivValue && ivField,
+      !authTagValue && authTagField
+    ].filter(Boolean).join(', ');
+    const err = new Error(
+      `Incomplete encrypted payload on record ${record.id ?? '(unknown id)'}: missing fields [${missing}]`
+    );
+    logEncryptionFailure('decryptFromDatabase', err, { record_id: record.id, missing_fields: missing });
+    throw err;
+  }
 
   try {
     return await decrypt(encryptedValue, ivValue, authTagValue);
   } catch (err) {
-    logEncryptionFailure('decryptFromDatabase', err, { field: encryptedField });
+    logEncryptionFailure('decryptFromDatabase', err, { field: encryptedField, record_id: record.id });
     throw err;
   }
 }
@@ -321,7 +339,7 @@ async function verifyEncryption(originalData, encryptedResult) {
  * Failures on individual records are collected and returned in `errors` so
  * a single bad row does not abort the entire batch.
  */
-async function encryptBatch(records, buildSensitiveData, { batchSize = BATCH_SIZE } = {}) {
+async function encryptBatch(records, buildSensitiveData, { batchSize = BATCH_SIZE, concurrency = MAX_CONCURRENT } = {}) {
   assertBackendRuntime();
 
   const results = [];
@@ -330,18 +348,23 @@ async function encryptBatch(records, buildSensitiveData, { batchSize = BATCH_SIZ
   for (let i = 0; i < records.length; i += batchSize) {
     const chunk = records.slice(i, i + batchSize);
 
-    await Promise.all(
-      chunk.map(async (record) => {
-        try {
-          const sensitiveData = buildSensitiveData(record);
-          const enc = await encryptForDatabase(sensitiveData);
-          results.push({ id: record.id, ...enc });
-        } catch (err) {
-          logEncryptionFailure('encryptBatch', err, { record_id: record.id });
-          errors.push({ id: record.id, error: err.message });
-        }
-      })
-    );
+    // Process the chunk in concurrency-limited sub-batches to avoid
+    // overwhelming the DB or exhausting memory on large datasets.
+    for (let j = 0; j < chunk.length; j += concurrency) {
+      const sub = chunk.slice(j, j + concurrency);
+      await Promise.all(
+        sub.map(async (record) => {
+          try {
+            const sensitiveData = buildSensitiveData(record);
+            const enc = await encryptForDatabase(sensitiveData);
+            results.push({ id: record.id, ...enc });
+          } catch (err) {
+            logEncryptionFailure('encryptBatch', err, { record_id: record.id });
+            errors.push({ id: record.id, error: err.message });
+          }
+        })
+      );
+    }
   }
 
   return { results, errors };
@@ -354,7 +377,7 @@ async function encryptBatch(records, buildSensitiveData, { batchSize = BATCH_SIZ
  * `oldDecrypt(record)` must return the plaintext for that record.
  * Returns `{ reencrypted, skipped, errors }`.
  */
-async function reencryptBatch(records, oldDecrypt, { batchSize = BATCH_SIZE, targetVersion } = {}) {
+async function reencryptBatch(records, oldDecrypt, { batchSize = BATCH_SIZE, concurrency = MAX_CONCURRENT, targetVersion } = {}) {
   assertBackendRuntime();
 
   const reencrypted = [];
@@ -364,22 +387,25 @@ async function reencryptBatch(records, oldDecrypt, { batchSize = BATCH_SIZE, tar
   for (let i = 0; i < records.length; i += batchSize) {
     const chunk = records.slice(i, i + batchSize);
 
-    await Promise.all(
-      chunk.map(async (record) => {
-        if (targetVersion && record.encryption_key_version === targetVersion) {
-          skipped.push(record.id);
-          return;
-        }
-        try {
-          const plaintext = await oldDecrypt(record);
-          const enc = await encryptForDatabase(plaintext);
-          reencrypted.push({ id: record.id, ...enc });
-        } catch (err) {
-          logEncryptionFailure('reencryptBatch', err, { record_id: record.id });
-          errors.push({ id: record.id, error: err.message });
-        }
-      })
-    );
+    for (let j = 0; j < chunk.length; j += concurrency) {
+      const sub = chunk.slice(j, j + concurrency);
+      await Promise.all(
+        sub.map(async (record) => {
+          if (targetVersion && record.encryption_key_version === targetVersion) {
+            skipped.push(record.id);
+            return;
+          }
+          try {
+            const plaintext = await oldDecrypt(record);
+            const enc = await encryptForDatabase(plaintext);
+            reencrypted.push({ id: record.id, ...enc });
+          } catch (err) {
+            logEncryptionFailure('reencryptBatch', err, { record_id: record.id });
+            errors.push({ id: record.id, error: err.message });
+          }
+        })
+      );
+    }
   }
 
   return { reencrypted, skipped, errors };

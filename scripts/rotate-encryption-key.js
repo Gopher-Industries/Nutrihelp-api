@@ -103,7 +103,10 @@ function normalizeKey(rawKey) {
     if (b.length === 32) return b;
   } catch (_) { /* fall through */ }
   if (/^[0-9a-fA-F]{64}$/.test(trimmed)) return Buffer.from(trimmed, 'hex');
-  return crypto.createHash('sha256').update(trimmed, 'utf8').digest();
+  throw new Error(
+    'Invalid key format. Key must be a 32-byte base64 string (44 chars) or a 64-char hex string. ' +
+    'Generate one with: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'base64\'))"'
+  );
 }
 
 function decryptWithKey(encryptedData, iv, authTag, key) {
@@ -197,7 +200,18 @@ async function rotateTable(supabase, tableConfig, oldKey, newKey, newVersion, fr
       const authTag = record[authTagColumn];
 
       if (!enc || !iv || !authTag) {
-        skipped++;
+        // Partial state means corruption — log as error, not a silent skip.
+        const hasAny = enc || iv || authTag;
+        if (hasAny) {
+          console.error(
+            `   ❌ Corrupted record id=${record.id}: partial encryption state ` +
+            `(encrypted=${!!enc}, iv=${!!iv}, authTag=${!!authTag}) — skipping to avoid data loss`
+          );
+          errors++;
+        } else {
+          // Completely unencrypted row — skip silently (pre-migration row).
+          skipped++;
+        }
         continue;
       }
 
@@ -317,8 +331,10 @@ async function main() {
   }
 
   if (!DRY_RUN && totals.rotated > 0) {
-    console.log(`\n✅ Rotation complete. Set ENCRYPTION_KEY=${newKeyRaw} and remove ENCRYPTION_KEY_V2.`);
-    console.log('   Revoke the old key from Vault once all tables confirm ${newVersion}.');
+    console.log(`\n✅ Rotation complete.`);
+    console.log('   Update ENCRYPTION_KEY in your secrets manager to the new v2 key value.');
+    console.log('   Remove ENCRYPTION_KEY_V2 from your environment once verified.');
+    console.log(`   Revoke the old key from Vault once all tables confirm ${newVersion}.`);
   } else if (DRY_RUN) {
     console.log('\n✅ Dry run complete. Re-run without --dry-run to apply changes.');
   } else {
