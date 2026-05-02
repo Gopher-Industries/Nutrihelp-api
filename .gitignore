@@ -10,3 +10,15 @@ test-results/
 server.pid
 server.log
 *.bak
+
+# TLS certificates and private keys — generate locally, never commit
+*.pem
+*.key
+*.crt
+*.p12
+certs/
+
+# Runtime log artifacts
+*.jsonl
+logs/
+certs/*.pem

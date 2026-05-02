@@ -40,6 +40,30 @@ function toFullName(parts) {
   return parts.filter(Boolean).join(' ').trim() || null;
 }
 
+function toEmailLocalPart(value) {
+  const normalized = value != null ? String(value).trim().toLowerCase() : '';
+  if (!normalized) return null;
+  const atIndex = normalized.indexOf('@');
+  if (atIndex <= 0) return null;
+  return normalized.slice(0, atIndex);
+}
+
+function deriveUsername(profile, fullName) {
+  const explicitUsername = profile.username != null ? String(profile.username).trim() : '';
+  if (explicitUsername) return explicitUsername;
+
+  const legacyName = profile.name != null ? String(profile.name).trim() : '';
+  const normalizedFullName = fullName != null ? String(fullName).trim() : '';
+
+  // Legacy records often store display name in `name` (e.g. "First Last").
+  // Keep short slug-like values as username, otherwise fallback to email local-part.
+  if (legacyName && legacyName !== normalizedFullName && !/\s/.test(legacyName)) {
+    return legacyName;
+  }
+
+  return toEmailLocalPart(profile.email) || legacyName || null;
+}
+
 function buildCanonicalProfile(profile) {
   if (!profile) {
     return null;
@@ -54,7 +78,7 @@ function buildCanonicalProfile(profile) {
   return {
     id: profile.user_id,
     email: profile.email ?? null,
-    username: profile.name ?? null,
+    username: deriveUsername(profile, fullName),
     firstName,
     lastName,
     fullName,
@@ -94,6 +118,7 @@ function buildProfileResponse(profile, preferences) {
 
   return {
     success: true,
+    message: 'Profile retrieved successfully',
     contractVersion: PROFILE_CONTRACT_VERSION,
     profile: canonicalProfile,
     preferenceSummary
@@ -216,6 +241,7 @@ async function updateCanonicalProfile({ actor, targetLookup, body }) {
 
   return {
     ...buildProfileResponse(mergedProfile, preferences),
+    message: 'Profile updated successfully',
     meta: {
       updatedBy: actor?.userId || null
     }
