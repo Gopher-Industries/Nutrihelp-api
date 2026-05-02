@@ -192,6 +192,33 @@ app.use((err, req, res, next) => {
 process.on('uncaughtException', uncaughtExceptionHandler);
 process.on('unhandledRejection', unhandledRejectionHandler);
 
+async function checkEncryptionMigrationStatus() {
+  try {
+    const { createClient } = require('@supabase/supabase-js');
+    if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) return;
+
+    const sb = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+
+    // Count users with plaintext contact_number or address but no encrypted payload.
+    const { count, error } = await sb
+      .from('users')
+      .select('user_id', { count: 'exact', head: true })
+      .or('contact_number.neq.null,address.neq.null')
+      .is('profile_encrypted', null);
+
+    if (error) return; // Table might not exist yet — skip silently.
+
+    if (count > 0) {
+      console.warn(`\n⚠️  ENCRYPTION MIGRATION REQUIRED`);
+      console.warn(`   ${count} user record(s) still contain unencrypted sensitive data.`);
+      console.warn('   Run: node scripts/migrate-encrypt-user-profiles.js');
+      console.warn('   Then apply: database/migrations/001_enforce_encryption_constraints.sql\n');
+    }
+  } catch (_err) {
+    // Non-fatal — startup check must never block the server.
+  }
+}
+
 // Start server
 app.listen(port, async () => {
   console.log('\n🎉 NutriHelp API launched successfully!');
@@ -200,6 +227,9 @@ app.listen(port, async () => {
   console.log(`📚 Swagger UI: http://localhost:${port}/api-docs`);
   console.log('='.repeat(50));
   console.log('💡 Press Ctrl+C to stop the server \n');
+
+  // Warn if encryption back-fill migration has not been run.
+  await checkEncryptionMigrationStatus();
 
   // Open Swagger on Windows only
   if (process.platform === 'win32') {

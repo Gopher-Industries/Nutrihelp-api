@@ -3,6 +3,7 @@ const { updateUser, saveImage } = require('../model/updateUserProfile');
 const fetchUserPreferences = require('../model/fetchUserPreferences');
 const { ServiceError } = require('./serviceError');
 const { decryptFromDatabase, encryptForDatabase } = require('./encryptionService');
+const logger = require('../utils/logger');
 
 const PROFILE_CONTRACT_VERSION = 'user-profile-v1';
 
@@ -149,6 +150,24 @@ async function getCanonicalProfile(lookup) {
     // Sensitive fields must come exclusively from the encrypted source once stored encrypted.
     profile.contact_number = decrypted.contact_number ?? null;
     profile.address = decrypted.address ?? null;
+
+    // Dual-storage check: warn if plaintext columns were not cleared by a prior write.
+    // This indicates the record pre-dates the encryption rollout and must be migrated.
+    if (decrypted.contact_number && profile.contact_number) {
+      logger.warn('[userProfileService] Dual-storage detected on user ' + profile.user_id +
+        ': contact_number exists in both encrypted blob and plaintext column. ' +
+        'Run scripts/migrate-encrypt-user-profiles.js to back-fill and clear plaintext.');
+    }
+    if (decrypted.address && profile.address) {
+      logger.warn('[userProfileService] Dual-storage detected on user ' + profile.user_id +
+        ': address exists in both encrypted blob and plaintext column. ' +
+        'Run scripts/migrate-encrypt-user-profiles.js to back-fill and clear plaintext.');
+    }
+  } else if (profile.contact_number || profile.address) {
+    // Row has no encrypted payload but has plaintext sensitive data — pre-migration record.
+    logger.warn('[userProfileService] Unencrypted sensitive data on user ' + profile.user_id +
+      ': profile has not been migrated to encrypted storage. ' +
+      'Run scripts/migrate-encrypt-user-profiles.js to encrypt this record.');
   }
 
   const preferences = await fetchUserPreferences(profile.user_id);

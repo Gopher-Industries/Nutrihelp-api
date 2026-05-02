@@ -10,3 +10,10 @@ test-results/
 server.pid
 server.log
 *.bak
+
+# TLS certificates and private keys — never commit
+*.pem
+*.key
+*.crt
+*.p12
+certs/
