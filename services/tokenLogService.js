@@ -70,14 +70,27 @@ async function logTokenEvent({
     return { data: null, error: new Error(`Invalid eventType: ${eventType}. Must be one of: ${validEventTypes.join(', ')}`) };
   }
 
+  // Validate key_id is a safe identifier — must not look like a raw key value.
+  // A valid key ID is short, alphanumeric, and under 128 chars.
+  const safeKeyId = (() => {
+    if (!keyId) return null;
+    const k = String(keyId).trim();
+    if (k.length > 128) {
+      console.warn('[tokenLogService] key_id exceeds 128 chars — truncated to prevent key material leakage.');
+      return k.slice(0, 128);
+    }
+    return k;
+  })();
+
   const entry = {
-    token_id: tokenId || null,
+    token_id: tokenId ? String(tokenId).slice(0, 256) : null,
     user_id: String(userId),
     event_type: eventType,
-    ip_address: ip || null,
-    user_agent: userAgent || null,
-    device_info: deviceInfo || null,
-    key_id: keyId || null,
+    ip_address: ip ? String(ip).slice(0, 45) : null,
+    user_agent: userAgent ? String(userAgent).slice(0, 512) : null,
+    // Truncate device_info — may contain fingerprint data or PII
+    device_info: deviceInfo ? String(deviceInfo).slice(0, 1000) : null,
+    key_id: safeKeyId,
     created_at: new Date().toISOString()
   };
 

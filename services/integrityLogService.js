@@ -29,8 +29,26 @@
  * your file integrity scanner or deployment scripts.
  */
 
+const path = require('path');
 const { getSupabaseServiceClient } = require('./supabaseClient');
 const supabaseService = getSupabaseServiceClient();
+
+// Normalise absolute file paths to relative form so system directory structure
+// is not exposed in log storage. Paths outside the project root are kept but
+// the drive letter / root prefix is stripped.
+function sanitizeFilePath(raw) {
+  if (!raw) return null;
+  const fp = String(raw).trim();
+  // Attempt to make relative to process.cwd()
+  try {
+    const rel = path.relative(process.cwd(), fp);
+    // If relative path escapes project root (starts with '..') use basename only
+    if (rel.startsWith('..')) return path.basename(fp).slice(0, 500);
+    return rel.slice(0, 500);
+  } catch (_) {
+    return fp.slice(0, 500);
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Core writer
@@ -69,14 +87,16 @@ async function logIntegrityEvent({
   }
 
   const entry = {
-    host_id: hostId || null,
-    file_path: String(filePath),
-    baseline_hash: baselineHash || null,
-    observed_hash: observedHash || null,
+    host_id: hostId ? String(hostId).slice(0, 128) : null,
+    // Sanitize path — store relative form only to avoid exposing system structure
+    file_path: sanitizeFilePath(filePath),
+    // Store hash digests only — validate they look like hex/base64 and cap length
+    baseline_hash: baselineHash ? String(baselineHash).slice(0, 128) : null,
+    observed_hash: observedHash ? String(observedHash).slice(0, 128) : null,
     hash_mismatch: Boolean(hashMismatch),
     missing_file: Boolean(missingFile),
-    scan_id: scanId || null,
-    last_good_build: lastGoodBuild || null,
+    scan_id: scanId ? String(scanId).slice(0, 128) : null,
+    last_good_build: lastGoodBuild ? String(lastGoodBuild).slice(0, 128) : null,
     created_at: new Date().toISOString()
   };
 

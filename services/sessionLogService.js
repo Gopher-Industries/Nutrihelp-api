@@ -31,6 +31,22 @@
 const { getSupabaseServiceClient } = require('./supabaseClient');
 const supabaseService = getSupabaseServiceClient();
 
+// Truncate the host-identifying portion of an IP for storage.
+// IPv4: zero last octet (192.168.1.5 → 192.168.1.0)
+// IPv6: keep first 4 groups only
+function sanitizeIp(raw) {
+  const ip = String(raw).trim().split(',')[0].trim(); // handle x-forwarded-for lists
+  if (ip.includes(':')) {
+    // IPv6 — keep first 4 groups
+    const parts = ip.split(':');
+    return parts.slice(0, 4).join(':') + '::/64';
+  }
+  // IPv4 — zero last octet
+  const parts = ip.split('.');
+  if (parts.length === 4) return `${parts[0]}.${parts[1]}.${parts[2]}.0`;
+  return ip.slice(0, 45);
+}
+
 // ---------------------------------------------------------------------------
 // Core writer
 // ---------------------------------------------------------------------------
@@ -66,12 +82,14 @@ async function logSessionEvent({
   }
 
   const entry = {
-    session_id: sessionId || null,
+    session_id: sessionId ? String(sessionId).slice(0, 128) : null,
     user_id: String(userId),
-    ip_address: ip || null,
-    country,
-    region,
-    user_agent: userAgent || null,
+    // Truncate last IPv4 octet / last IPv6 group for privacy (keeps routing info for geo, removes host identity)
+    ip_address: ip ? sanitizeIp(ip) : null,
+    country: country ? String(country).slice(0, 64) : null,
+    region: region ? String(region).slice(0, 64) : null,
+    // Truncate UA — raw UA strings can be hundreds of chars and may contain injected data
+    user_agent: userAgent ? String(userAgent).slice(0, 512) : null,
     impossible_travel: Boolean(impossibleTravel),
     created_at: new Date().toISOString()
   };

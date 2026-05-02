@@ -1,0 +1,13 @@
+node_modules/
+coverage/
+.env
+.DS_Store
+*.log
+dist/
+build/
+test-results/
+/data
+server.pid
+server.log
+*.bak
+certs/*.pem

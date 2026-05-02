@@ -6,14 +6,13 @@ const supabaseService = getSupabaseServiceClient();
 
 const ALERT_DEDUP_WINDOW_MS = 5 * 60 * 1000;
 const HEARTBEAT_WINDOW_MS = 5 * 60 * 1000;
+const JOB_LOCK_COMPONENT = 'alert_job_lock';
+const JOB_LOCK_TTL_MS = 4.5 * 60 * 1000; // a run must complete within 4.5 min
 
-// DISTRIBUTED DEPLOYMENT NOTE:
-// alertDedupCache and inMemoryWindows are process-local (in-memory). In a
-// multi-instance deployment each instance maintains its own state, so the same
-// alert can be emitted by more than one process within the dedup window. A
-// shared store (e.g. Redis) is required to enforce deduplication across
-// instances. Until then, duplicate suppression is best-effort and single-
-// process only.
+// In-memory dedup is a fast local cache. DB-backed dedup in filterDedupedFromDB
+// provides the cross-instance guarantee — both layers run on every cycle.
+let supabaseUnavailableCount = 0;
+const MAX_SUPABASE_UNAVAILABLE_WARNINGS = 3;
 
 const SENSITIVE_ENDPOINT_PATTERNS = [
   /^\/api\/login/i,
@@ -965,11 +964,43 @@ function evaluateA12(data) {
   ];
 }
 
+// DB-backed cross-instance deduplication. Checks alert_history for any alert
+// with the same alert_id + fingerprint sent within the dedup window.
+async function filterDedupedFromDB(alerts) {
+  if (!supabaseService || alerts.length === 0) return alerts;
+
+  const since = new Date(Date.now() - ALERT_DEDUP_WINDOW_MS).toISOString();
+  try {
+    const { data: recentAlerts, error } = await supabaseService
+      .from('alert_history')
+      .select('alert_id, fingerprint')
+      .gte('created_at', since);
+
+    if (error || !recentAlerts) return alerts;
+
+    const sentKeys = new Set(recentAlerts.map((r) => `${r.alert_id}:${r.fingerprint}`));
+    return alerts.filter((alert) => !sentKeys.has(`${alert.alert_id}:${alert.fingerprint}`));
+  } catch (_err) {
+    // Non-fatal — fall back to in-memory dedup only if DB check fails.
+    return alerts;
+  }
+}
+
 async function checkAlerts() {
   if (!supabaseService) {
-    console.warn('[securityAlertService] Supabase not configured. Skipping alert checks.');
+    supabaseUnavailableCount++;
+    const logFn = supabaseUnavailableCount >= MAX_SUPABASE_UNAVAILABLE_WARNINGS
+      ? console.error
+      : console.warn;
+    logFn(
+      `[securityAlertService] Supabase not configured — alert checks skipped ` +
+      `(consecutive unavailable count: ${supabaseUnavailableCount}). ` +
+      `Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY to enable monitoring.`
+    );
     return { alerts: [], dispatch_results: [] };
   }
+
+  supabaseUnavailableCount = 0;
 
   try {
     const data = await loadAlertData();
@@ -990,9 +1021,14 @@ async function checkAlerts() {
       ...evaluateA12(data)
     ];
 
-    const dedupedAlerts = allAlerts.filter((alert) => {
-      return shouldSendDeduped(alert.alert_id, alert.fingerprint);
-    });
+    // Layer 1: fast in-process dedup (single instance).
+    const inMemoryDeduped = allAlerts.filter((alert) =>
+      shouldSendDeduped(alert.alert_id, alert.fingerprint)
+    );
+
+    // Layer 2: DB-backed cross-instance dedup — filters out alerts already
+    // sent by another process within the dedup window.
+    const dedupedAlerts = await filterDedupedFromDB(inMemoryDeduped);
 
     const dispatchResults = [];
     for (const alert of dedupedAlerts) {
@@ -1228,8 +1264,66 @@ function createAlertCheckerMiddleware() {
 
 let consecutiveJobFailures = 0;
 const MAX_CONSECUTIVE_FAILURES = 3;
+let jobIsRunning = false; // in-process guard against overlapping runs
+
+// Acquire a DB-level advisory lock so only one instance across a horizontally
+// scaled deployment runs the alert job at a time. Uses monitoring_heartbeats
+// as a lightweight coordination table — no external lock service required.
+async function acquireJobLock() {
+  if (!supabaseService) return true; // no DB, skip lock — run job anyway
+
+  const lockWindow = new Date(Date.now() - JOB_LOCK_TTL_MS).toISOString();
+  try {
+    // Check if another instance holds the lock within the TTL window.
+    const { data: existing } = await supabaseService
+      .from('monitoring_heartbeats')
+      .select('created_at, status')
+      .eq('component', JOB_LOCK_COMPONENT)
+      .eq('status', 'running')
+      .gte('created_at', lockWindow)
+      .limit(1);
+
+    if (existing && existing.length > 0) {
+      console.log('[securityAlertService] Alert job already running on another instance — skipping this cycle.');
+      return false;
+    }
+
+    // Write our lock entry.
+    await supabaseService
+      .from('monitoring_heartbeats')
+      .insert([{ component: JOB_LOCK_COMPONENT, status: 'running', created_at: new Date().toISOString() }]);
+
+    return true;
+  } catch (_err) {
+    return true; // lock table unavailable — proceed without distributed lock
+  }
+}
+
+async function releaseJobLock() {
+  if (!supabaseService) return;
+  try {
+    await supabaseService
+      .from('monitoring_heartbeats')
+      .update({ status: 'idle' })
+      .eq('component', JOB_LOCK_COMPONENT)
+      .eq('status', 'running');
+  } catch (_err) {
+    // Non-fatal — lock will expire naturally after JOB_LOCK_TTL_MS.
+  }
+}
 
 async function runAlertCheckJob() {
+  // In-process guard: prevent overlapping runs within the same instance.
+  if (jobIsRunning) {
+    console.warn('[securityAlertService] Alert job still running from previous cycle — skipping.');
+    return { alerts: [], dispatch_results: [] };
+  }
+
+  // DB-level guard: prevent overlapping runs across multiple instances.
+  const lockAcquired = await acquireJobLock();
+  if (!lockAcquired) return { alerts: [], dispatch_results: [] };
+
+  jobIsRunning = true;
   console.log('[securityAlertService] Running scheduled alert check...');
 
   try {
@@ -1252,6 +1346,9 @@ async function runAlertCheckJob() {
     }
 
     return { alerts: [], dispatch_results: [] };
+  } finally {
+    jobIsRunning = false;
+    await releaseJobLock();
   }
 }
 

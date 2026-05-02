@@ -73,15 +73,32 @@ async function logCryptoEvent({
     return { data: null, error: new Error(`Invalid operation: ${operation}. Must be one of: ${validOperations.join(', ')}`) };
   }
 
+  // Guard against accidentally logging raw key material as a key_id.
+  // A safe key ID is a short identifier (e.g. 'v1', 'key-prod-2024').
+  // A 44-char base64 string is a 32-byte key — reject it.
+  const safeKeyId = (() => {
+    const k = String(keyId).trim();
+    if (k.length > 128) {
+      console.error('[cryptoLogService] key_id exceeds 128 chars — possible key material. Redacted.');
+      return '[REDACTED]';
+    }
+    // Reject values that look like raw AES-256 keys (44-char base64 or 64-char hex)
+    if (/^[A-Za-z0-9+/]{43}=$/.test(k) || /^[0-9a-fA-F]{64}$/.test(k)) {
+      console.error('[cryptoLogService] key_id matches raw key format — logging [REDACTED] to prevent key exposure.');
+      return '[REDACTED]';
+    }
+    return k;
+  })();
+
   const entry = {
     operation,
-    key_id: keyId,
-    key_version: keyVersion || null,
+    key_id: safeKeyId,
+    key_version: keyVersion ? String(keyVersion).slice(0, 32) : null,
     success: Boolean(success),
-    error_type: errorType || null,
-    endpoint: endpoint || null,
-    ip_address: ip || null,
-    user_id: userId || null,
+    error_type: errorType ? String(errorType).slice(0, 256) : null,
+    endpoint: endpoint ? String(endpoint).slice(0, 512) : null,
+    ip_address: ip ? String(ip).slice(0, 45) : null,
+    user_id: userId ? String(userId).slice(0, 256) : null,
     created_at: new Date().toISOString()
   };
 
