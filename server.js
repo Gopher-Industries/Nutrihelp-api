@@ -240,8 +240,6 @@ async function checkEncryptionMigrationStatus() {
   }
 }
 
-// Start server
-app.listen(port, async () => {
 function createHttpsServer() {
   try {
     const tlsOptions = {
