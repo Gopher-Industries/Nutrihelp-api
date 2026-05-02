@@ -1,36 +1,39 @@
-module.exports = app => {
-    // home
-    app.use("/api/home/services", require('./homeService'));
-    app.use('/api/home/subscribe', require('./homeSubscribe'));
-    app.use("/api/login", require('./login'));
-    app.use("/api/signup", require('./signup'));
-    app.use("/api/contactus", require('./contactus'));
-    app.use("/api/userfeedback", require('./userfeedback'));
-    app.use("/api/recipe", require('./recipe'));
-    app.use("/api/appointments", require('./appointment'));
-    app.use("/api/imageClassification", require('./imageClassification'));
-    app.use("/api/recipeImageClassification", require('./recipeImageClassification'));
-    app.use("/api/userprofile", require('./userprofile'));
-    app.use("/api/userpassword", require('./userpassword'));
-    app.use("/api/fooddata", require('./fooddata'));
-    app.use("/api/user/preferences", require('./userPreferences'));
-    app.use("/api/mealplan", require('./mealplan'));
-    app.use("/api/account", require('./account'));
-    app.use('/api/notifications', require('./notifications'));
-    app.use('/api/filter', require('./filter'));
-    app.use('/api/substitution', require('./ingredientSubstitution'));
-    app.use('/api/auth', require('./auth'));
-    app.use('/api/recipe/cost', require('./costEstimation'));
-    app.use('/api/chatbot', require('./chatbot'));
-    // app.use('/api/obesity', require('./obesityPrediction'));
-    app.use("/api/articles", require('./articles'));
-    app.use('/api/medical-report', require('./medicalPrediction'));
-    app.use('/api/recipe/nutritionlog', require('./recipeNutritionlog'));
-    app.use('/api/recipe/scale', require('./recipeScaling'));
-    app.use('/api/water-intake', require('./waterIntake'));
-    app.use('/api/health-news', require('./healthNews'));
-    app.use('/api/health-tools', require('./healthTools'));
-    app.use('/api/shopping-list', require('./shoppingList'));
-    app.use('/api/barcode', require('./barcodeScanning'));
-    app.use('/api/security', require('./securityEvents'));
+module.exports = (app) => {
+  // Core mounts
+  app.use("/api/appointments", require("./appointment"));
+  app.use("/api/health-news", require("./healthNews"));
+  app.use("/api/food", require("./fooddata"));
+  app.use("/api/shopping-list", require("./shoppingList"));
+  app.use("/api/water", require("./waterIntake"));
+  app.use("/api/barcode", require("./barcodeScanning"));
+  app.use("/api/recipes", require("./recipe"));
+
+  // Articles
+  try {
+    app.use("/api/articles", require("./articles"));
+    console.log('Mounted route: /api/articles');
+  } catch (e) {
+    console.warn('Could not mount /api/articles:', e.message || e);
+  }
+
+  // Backwards-compatible recipe mounts and utility subroutes
+  try {
+    app.use("/api/recipe", require("./recipe")); // keeps both '/api/recipes' and '/api/recipe' working
+  } catch (e) {
+    console.warn('Could not mount /api/recipe:', e.message || e);
+  }
+
+  try {
+    app.use("/api/recipe/nutrition", require("./recipeNutritionlog"));
+    console.log('Mounted route: /api/recipe/nutrition');
+  } catch (e) {
+    console.warn('Could not mount /api/recipe/nutrition:', e.message || e);
+  }
+
+  try {
+    app.use("/api/recipe/scale", require("./recipeScaling"));
+    console.log('Mounted route: /api/recipe/scale');
+  } catch (e) {
+    console.warn('Could not mount /api/recipe/scale:', e.message || e);
+  }
 };

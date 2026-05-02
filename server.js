@@ -1,172 +1,91 @@
-require('dotenv').config();
-
-// Debug environment variables
-console.log('🔧 Environment Variables Check:');
-console.log('   SUPABASE_URL:', process.env.SUPABASE_URL ? '✓ Set' : '✗ Missing');
-console.log('   SUPABASE_ANON_KEY:', process.env.SUPABASE_ANON_KEY ? '✓ Set' : '✗ Missing');
-console.log('   PORT:', process.env.PORT || '80 (default)');
-console.log('');
-
-const express = require("express");
-const { errorLogger, responseTimeLogger } = require('./middleware/errorLogger');
-const FRONTEND_ORIGIN =  "http://localhost:3000";
-
-const helmet = require('helmet');
-const cors = require("cors");
-const swaggerUi = require("swagger-ui-express");
-const yaml = require("yamljs");
-const { exec } = require("child_process");
-const rateLimit = require('express-rate-limit');
-const uploadRoutes = require('./routes/uploadRoutes');
-const fs = require("fs");
-const path = require("path");
-const systemRoutes = require('./routes/systemRoutes');
-
-
-// Ensure uploads directory exists
-const uploadsDir = path.join(__dirname, 'uploads');
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
-  console.log("Created uploads directory");
-}
-
-// Create temp directory for uploads
-const tempDir = path.join(__dirname, 'uploads', 'temp');
-if (!fs.existsSync(tempDir)) {
-  fs.mkdirSync(tempDir, { recursive: true });
-  console.log("Created temp uploads directory");
-}
-
-// Cleanup temp files
-function cleanupOldFiles() {
-  const now = Date.now();
-  const ONE_DAY = 24 * 60 * 60 * 1000;
-  try {
-    for (const file of fs.readdirSync(tempDir)) {
-      const filePath = path.join(tempDir, file);
-      const stats = fs.statSync(filePath);
-      if (now - stats.mtimeMs > ONE_DAY) fs.unlinkSync(filePath);
-    }
-  } catch (err) {
-    console.error("Error during file cleanup:", err);
-  }
-}
-cleanupOldFiles();
-setInterval(cleanupOldFiles, 3 * 60 * 60 * 1000);
-
-// ✅ Create the app BEFORE using it
+const express = require('express');
 const app = express();
-const port = process.env.PORT || 80;
+const swaggerUi = require('swagger-ui-express');
+const YAML = require('yamljs');
+const logger = require('./utils/logger');
 
-// DB
-let db = require("./dbConnection");
-
-// System routes
-app.use('/api/system', systemRoutes);
-
-// CORS
-app.use(cors({
-  origin: (origin, callback) => {
-    if (!origin) return callback(null, true);
-
-    if (
-      origin.startsWith("http://localhost") ||
-      origin.startsWith("http://127.0.0.1") ||
-      origin.startsWith("http://localhost") ||
-      origin.startsWith("chrome-extension://eggdlmopfankeonchoflhfoglaakobma") ||
-      origin.startsWith("https://apifox.cn-hangzhou.log.aliyuncs.com")
-
-    ) {
-      callback(null, true);
-    } else {
-      callback(new Error(`CORS blocked: ${origin}`));
-    }
-  },
-  credentials: true
-}));
-app.options("*", cors({ origin: FRONTEND_ORIGIN, credentials: true }));
-app.use((req, res, next) => { res.header("Access-Control-Allow-Credentials","true"); next(); });
-app.set("trust proxy", 1);
-
-// Security
-app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      scriptSrc: ["'self'","'unsafe-inline'","https://cdn.jsdelivr.net"],
-      styleSrc: ["'self'","'unsafe-inline'","https://cdn.jsdelivr.net"],
-      objectSrc: ["'none'"],
-    },
-  },
-  crossOriginEmbedderPolicy: true,
-  referrerPolicy: { policy: "strict-origin-when-cross-origin" },
-}));
-
-// Rate Limiter
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 1000,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { status: 429, error: "Too many requests, please try again later." },
-});
-app.use(limiter);
-
-// Swagger
-let swaggerDocument;
+// load swagger safely (if present)
+let swaggerDocument = {};
 try {
-  swaggerDocument = yaml.load("./index.yaml");
-  app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
-  console.log("📚 Swagger loaded successfully");
+  swaggerDocument = YAML.load('./swagger.yaml');
 } catch (e) {
-  console.warn("⚠️  Swagger YAML failed to parse — /api-docs disabled:", String(e.message).split('\n')[0]);
+  logger.warn('swagger.yaml not loaded:', e.message || e);
 }
-// Response time monitoring
-app.use(responseTimeLogger);
-// JSON & URL parser
-app.use(express.json({ limit: "50mb" }));
-app.use(express.urlencoded({ limit: "50mb", extended: true }));
-app.use('/api/sms', require('./routes/sms'));
 
-// Main routes registrar
-const routes = require("./routes");
-routes(app);
+// built-in middlewares
+app.use(express.json());
 
-// File uploads & static
-app.use("/api", uploadRoutes);
-app.use("/uploads", express.static("uploads"));
+// === BE26 PHASE 2: MIDDLEWARES ===
+app.use(require("./middleware/requestLogger"));
+app.use(require("./middleware/responseWrapper"));
+app.use(require("./middleware/errorHandler"));
+app.use(express.urlencoded({ extended: true }));
 
-// Error handler
-app.use(errorLogger);
+// standardized response envelope (middleware/responseWrapper.js)
+try {
+  app.use(require('./middleware/responseWrapper'));
+} catch (e) {
+  logger.warn('responseWrapper not available:', e.message || e);
+}
 
-// Final error handler
-app.use((err, req, res, next) => {
-    const status = err.status || 500;
-    const message = process.env.NODE_ENV === 'production' 
-        ? 'Internal Server Error' 
-        : err.message;
-        
-    res.status(status).json({
-        success: false,
-        error: message,
-        timestamp: new Date().toISOString()
-    });
+// normalize numeric ID strings to Numbers (middleware/normalizeIds.js)
+try {
+  app.use(require('./middleware/normalizeIds'));
+} catch (e) {
+  logger.warn('normalizeIds middleware not available:', e.message || e);
+}
+
+// Mount routes: support both function-style index (module.exports = function(app){...})
+// and router-style (module.exports = router)
+try {
+  const routesExport = require('./routes');
+  if (typeof routesExport === 'function') {
+    routesExport(app);
+  } else {
+    // if it's a router or object, mount at /api
+    app.use('/api', routesExport);
+  }
+} catch (e) {
+  logger.warn('Could not mount routes:', e.message || e);
+}
+
+// Mount alias for food data (safe to keep even if file is missing)
+try {
+  app.use('/api/fooddata', require('./routes/fooddata'));
+} catch (e) {
+  logger.warn('Could not mount /api/fooddata:', e.message || e);
+}
+
+// Swagger docs (if loaded)
+try {
+  app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+} catch (e) {
+  logger.warn('Swagger UI not registered:', e.message || e);
+}
+
+// Basic health check
+app.get('/health', (req, res) => res.json({ uptime: process.uptime(), status: 'ok' }));
+
+// fallback 404 as JSON
+app.use((req, res) => {
+  res.status(404).json({ success: false, error: 'Not Found' });
 });
 
-// Global error handler
-const { uncaughtExceptionHandler, unhandledRejectionHandler } = require('./middleware/errorLogger');
-process.on('uncaughtException', uncaughtExceptionHandler);
-process.on('unhandledRejection', unhandledRejectionHandler);
+// central error handler (middleware/errorHandler.js)
+try {
+  app.use(require('./middleware/errorHandler'));
+} catch (e) {
+  // last-resort fallback
+  app.use((err, req, res, next) => {
+    console.error('Unhandled error (fallback):', err);
+    if (res.headersSent) return next(err);
+    res.status(err.status || 500).json({ success: false, error: err.message || 'Internal Server Error' });
+  });
+}
 
-// Start
-app.listen(port, async () => {
-
-
-  console.log('\n🎉 NutriHelp API launched successfully!');
-  console.log('='.repeat(50));
-  console.log(`Server is running on port ${port}`);
-  console.log(`📚 Swagger UI: http://localhost/api-docs`);
-  console.log('='.repeat(50));
-  console.log('💡 Press Ctrl+C to stop the server \n');
-  if (process.platform === 'win32') exec(`start http://localhost:${port}/api-docs`);
-});
+// export app for testing
+if (require.main === module) {
+  const PORT = process.env.PORT || 3000;
+  app.listen(PORT, () => logger.info('Server running on ' + PORT));
+}
+module.exports = app;

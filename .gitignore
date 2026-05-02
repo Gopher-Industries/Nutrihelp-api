@@ -10,3 +10,5 @@ test-results/
 server.pid
 server.log
 *.bak
+.env
+node_modules
