@@ -36,4 +36,8 @@ module.exports = (app) => {
   } catch (e) {
     console.warn('Could not mount /api/recipe/scale:', e.message || e);
   }
+const { registerRouteGroups } = require('./routeGroups');
+
+module.exports = (app) => {
+  registerRouteGroups(app);
 };

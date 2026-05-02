@@ -2,6 +2,45 @@
 
 This is the backend API for the NutriHelp project. It exposes the REST endpoints used by the frontend, integrates with Supabase, serves OpenAPI documentation, and supports optional Python-based AI features used by some endpoints.
 
+## TLS 1.3 Configuration & Verification
+
+The root backend runtime now enforces TLS 1.3 only for HTTPS connections, adds HSTS headers, and redirects HTTP traffic to HTTPS.
+
+### TLS Configuration
+- **Protocol**: TLS 1.3 only (minVersion + maxVersion enforced)
+- **HSTS**: 2-year max-age with subdomains and preload
+- **Redirect**: HTTP requests automatically redirect to HTTPS
+- **Ports**: HTTPS on 443, HTTP redirect on 80
+- **Certificate Paths**: configurable via `TLS_KEY_PATH` and `TLS_CERT_PATH`
+
+### Verification Commands
+
+**Test TLS 1.3 Connection:**
+```bash
+openssl s_client -connect localhost:443 -tls1_3
+```
+
+**Test TLS 1.2 Block (should fail):**
+```bash
+openssl s_client -connect localhost:443 -tls1_2
+```
+
+**Check HSTS Header:**
+```bash
+curl -k -I https://localhost:443/api/system/health | grep -i strict-transport-security
+```
+
+**Test HTTP Redirect:**
+```bash
+curl -I http://localhost:80/api/system/health
+# Should return 301 redirect to https://localhost:443/api/system/health
+```
+
+**Certificate Verification:**
+```bash
+openssl x509 -in certs/local-cert.pem -text -noout
+```
+
 ## Quick Start
 
 If you want the fastest setup path for local development:
@@ -15,14 +54,26 @@ pip install -r requirements.txt
 
 Request the shared `.env` file from a project maintainer and place it in the project root, then start the backend:
 
+Generate a local TLS certificate first if you do not already have one:
+
+```bash
+mkdir -p certs
+openssl req -x509 -newkey rsa:2048 -nodes \
+  -keyout certs/local-key.pem \
+  -out certs/local-cert.pem \
+  -days 365 \
+  -subj "/CN=localhost"
+```
+
 ```bash
 npm start
 ```
 
 The backend will be available at:
 
-- `http://localhost:80`
-- `http://localhost:80/api-docs`
+- `https://localhost:443`
+- `https://localhost:443/api-docs`
+- `http://localhost:80` (redirects to HTTPS)
 
 If you prefer Docker, jump to [Docker Setup](#docker-setup).
 
