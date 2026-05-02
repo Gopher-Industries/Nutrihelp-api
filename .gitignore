@@ -11,7 +11,7 @@ server.pid
 server.log
 *.bak
 
-# TLS certificates and private keys — never commit
+# TLS certificates and private keys — generate locally, never commit
 *.pem
 *.key
 *.crt

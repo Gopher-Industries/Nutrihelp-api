@@ -69,37 +69,49 @@ describe('updateUserPreferences', () => {
     }
   });
 
-  it('returns a clear error when the RPC migration is missing', async () => {
+  it('falls back to join-table replacement when the RPC migration is missing', async () => {
     const rpc = sinon.stub().resolves({
       error: {
         code: 'PGRST202',
         message: 'Could not find function public.replace_user_preferences'
       }
     });
+    const from = sinon.stub().callsFake(() => ({
+      delete: sinon.stub().returns({
+        eq: sinon.stub().resolves({ error: null })
+      }),
+      insert: sinon.stub().resolves({ error: null })
+    }));
 
     const updateUserPreferences = proxyquire('../../model/updateUserPreferences', {
-      '../dbConnection.js': { rpc },
+      '../dbConnection.js': { rpc, from },
       './userPreferenceState': {
         EMPTY_HEALTH_CONTEXT: { allergies: [], chronic_conditions: [], medications: [] },
         saveUserPreferenceState: sinon.stub()
       }
     });
 
-    try {
-      await updateUserPreferences(42, {
-        dietary_requirements: [],
-        allergies: [],
-        cuisines: [],
-        dislikes: [],
-        health_conditions: [],
-        spice_levels: [],
-        cooking_methods: []
-      });
-      throw new Error('Expected updateUserPreferences to reject');
-    } catch (error) {
-      expect(error.statusCode).to.equal(500);
-      expect(error.message).to.include('replace_user_preferences');
-      expect(error.message).to.include('user-preferences-transaction.sql');
-    }
+    await updateUserPreferences(42, {
+      dietary_requirements: [1],
+      allergies: [2],
+      cuisines: [],
+      dislikes: [],
+      health_conditions: [],
+      spice_levels: [],
+      cooking_methods: []
+    });
+
+    expect(rpc.calledOnce).to.equal(true);
+    expect(from.called).to.equal(true);
+    const touchedTables = [...new Set(from.getCalls().map((call) => call.args[0]))];
+    expect(touchedTables).to.include.members([
+      'user_dietary_requirements',
+      'user_allergies',
+      'user_cuisines',
+      'user_dislikes',
+      'user_health_conditions',
+      'user_spice_levels',
+      'user_cooking_methods'
+    ]);
   });
 });
