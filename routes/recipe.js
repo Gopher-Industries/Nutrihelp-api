@@ -7,6 +7,7 @@ const validateRequest = require('../middleware/validateRequest.js');
 // Validate and create recipe
 router.post('/createRecipe', validateRecipe, validateRequest, recipeController.createAndSaveRecipe);
 
+router.get('/:id', recipeController.getRecipeById);
 router.post('/', recipeController.getRecipes);
 router.delete('/', recipeController.deleteRecipe);
 
