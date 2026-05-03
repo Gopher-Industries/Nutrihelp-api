@@ -5,6 +5,7 @@ const router = express.Router();
 const multer = require('multer');
 const fs = require('fs');
 const path = require('path');
+const { validationError, fail } = require('../utils/apiResponse');
 
 // Ensure uploads directory exists
 if (!fs.existsSync('./uploads')) {
@@ -55,11 +56,15 @@ router.post(
 router.use((err, req, res, next) => {
   if (err instanceof multer.MulterError) {
     if (err.code === 'LIMIT_FILE_SIZE') {
-      return res.status(400).json({ error: 'File size exceeds 5MB limit' });
+      return validationError(res, [
+        { field: 'image', message: 'File size exceeds 5MB limit' },
+      ]);
     }
-    return res.status(400).json({ error: `Upload error: ${err.message}` });
+    return fail(res, `Upload error: ${err.message}`, 400, 'UPLOAD_FAILED');
   } else if (err) {
-    return res.status(400).json({ error: err.message });
+    return validationError(res, [
+      { field: 'image', message: err.message },
+    ]);
   }
   next();
 });

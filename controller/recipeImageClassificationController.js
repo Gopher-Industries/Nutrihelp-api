@@ -5,18 +5,18 @@
 const fs = require("fs");
 const path = require("path");
 const { executePythonScript } = require("../services/aiExecutionService");
+const { ok, fail } = require('../utils/apiResponse');
+const {
+    buildImageScanPayload,
+    SCAN_CONTRACT_VERSION,
+} = require('../services/scanContractService');
 
 const unlinkAsync = fs.promises.unlink;
 
 const predictRecipeImage = async (req, res) => {
     try {
         if (!req.file || !req.file.path) {
-            return res.status(400).json({
-                success: false,
-                prediction: null,
-                confidence: null,
-                error: "No file uploaded"
-            });
+            return fail(res, 'No image uploaded', 400, 'IMAGE_MISSING');
         }
         
         const imagePath = req.file.path;
@@ -31,12 +31,7 @@ const predictRecipeImage = async (req, res) => {
             } catch (err) {
                 console.error("Error deleting invalid file:", err);
             }
-            return res.status(400).json({
-                success: false,
-                prediction: null,
-                confidence: null,
-                error: "Invalid file type. Only JPG/PNG files are allowed."
-            });
+            return fail(res, 'Invalid file type. Only JPG/PNG files are allowed.', 400, 'IMAGE_INVALID_TYPE');
         }
         
         const scriptPath = path.join(__dirname, '..', 'model', 'recipeImageClassification.py');
@@ -44,12 +39,7 @@ const predictRecipeImage = async (req, res) => {
         if (!fs.existsSync(scriptPath)) {
             console.error(`Python script not found at ${scriptPath}`);
             await cleanupFiles(imagePath);
-            return res.status(500).json({
-                success: false,
-                prediction: null,
-                confidence: null,
-                error: "Recipe classification script not found"
-            });
+            return fail(res, 'Recipe classification script not found', 500, 'SCAN_SERVICE_MISCONFIGURED');
         }
 
         const result = await executePythonScript({
@@ -67,31 +57,54 @@ const predictRecipeImage = async (req, res) => {
                     ? 400
                     : 500;
 
-            return res.status(statusCode).json({
-                success: false,
-                prediction: null,
-                confidence: null,
-                error: result.error || "Internal server error during image classification"
-            });
+            return fail(
+                res,
+                result.error || 'Internal server error during image classification',
+                statusCode,
+                result.timedOut ? 'SCAN_TIMEOUT' : 'SCAN_FAILED'
+            );
         }
 
-        return res.status(200).json({
-            success: true,
-            prediction: result.prediction,
-            confidence: result.confidence,
-            error: null,
-            metadata: result.metadata || null,
-            warnings: result.warnings || []
-        });
+        const classification = {
+            label: result.prediction || null,
+            rawLabel: result.prediction || null,
+            calories: null,
+            confidence: typeof result.confidence === 'number' ? result.confidence : null,
+            uncertain: typeof result.confidence === 'number' ? result.confidence < 0.6 : !result.prediction,
+            source: result.metadata?.source || 'recipe-image-script',
+            fallbackUsed: false,
+            alternatives: Array.isArray(result.metadata?.alternatives) ? result.metadata.alternatives : [],
+        };
+
+        const explainability = {
+            service: 'recipe_image_classification',
+            source: classification.source,
+            fallbackUsed: false,
+            timedOut: false,
+            circuitOpen: false,
+            durationMs: typeof result.metadata?.durationMs === 'number' ? result.metadata.durationMs : 0,
+            confidence: classification.confidence,
+            confidenceThreshold: 0.6,
+            warnings: Array.isArray(result.warnings) ? result.warnings : [],
+        };
+
+        return ok(
+            res,
+            buildImageScanPayload({
+                type: 'image',
+                entity: 'recipe',
+                query: { uploadField: 'image' },
+                item: { imageName: originalName || null },
+                classification,
+                explainability,
+            }),
+            200,
+            { contractVersion: SCAN_CONTRACT_VERSION }
+        );
     } catch (error) {
         console.error("Unexpected error in predictRecipeImage:", error);
         if (!res.headersSent) {
-            res.status(500).json({
-                success: false,
-                prediction: null,
-                confidence: null,
-                error: "Unexpected error during image processing"
-            });
+            fail(res, 'Unexpected error during image processing', 500, 'SCAN_FAILED');
         }
         if (req.file && req.file.path) {
             await cleanupFiles(req.file.path);
