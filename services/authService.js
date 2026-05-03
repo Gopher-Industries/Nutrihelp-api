@@ -1,34 +1,37 @@
+console.log("🟢 Loaded AuthService from:", __filename);
+console.log("URL:", process.env.SUPABASE_URL);
+console.log("LOGIN FUNCTION HIT");
+
 const { createClient } = require('@supabase/supabase-js');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
-const { logSecurityEvent: persistSecurityEvent } = require('./securityEventService');
+const { logSecurityEvent } = require('./securityEventService');
 const logLoginEvent = require('../Monitor_&_Logging/loginLogger');
 const { ServiceError } = require('./serviceError');
-const authRepository = require('../repositories/authRepository');
+const userProfileService = require('./userProfileService');
 
-function getAnonClient() {
-  return createClient(
-    process.env.SUPABASE_URL,
-    process.env.SUPABASE_ANON_KEY
-  );
-}
+const supabaseAnon = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_ANON_KEY
+);
 
-function getServiceClient() {
-  return createClient(
-    process.env.SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY
-  );
-}
+const supabaseService = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
 
 class AuthService {
   constructor() {
     this.accessTokenExpiry = '15m';
-    this.refreshTokenExpiry = 7 * 24 * 60 * 60 * 1000;
-    this.trustedDeviceExpiry = 30 * 24 * 60 * 60 * 1000;
+    this.refreshTokenExpiry = 7 * 24 * 60 * 60 * 1000; // 7 days
+    this.trustedDeviceExpiry = 30 * 24 * 60 * 60 * 1000; // 30 days
     this.trustedDeviceCookieName = 'trusted_device';
   }
 
+  /* =========================
+     Helper
+     ========================= */
   createLookupHash(token) {
     return crypto
       .createHash('sha256')
@@ -44,12 +47,106 @@ class AuthService {
       .digest('hex');
   }
 
-  async recordStructuredSecurityEvent(event) {
-    try {
-      await persistSecurityEvent(event);
-    } catch {
-      // silent by design
+  getDefaultRoleId() {
+    return Number(process.env.DEFAULT_USER_ROLE_ID || 7);
+  }
+
+  formatAuthResponse(user, tokens, meta = {}) {
+    const role = user.user_roles?.role_name || user.role || 'user';
+
+    return {
+      success: true,
+      user: {
+        id: user.user_id,
+        email: user.email,
+        name: user.name,
+        role,
+      },
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+      expiresIn: tokens.expiresIn,
+      tokenType: tokens.tokenType,
+      session: {
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
+        expiresIn: tokens.expiresIn,
+        tokenType: tokens.tokenType,
+      },
+      ...meta,
+    };
+  }
+
+  async findUserByEmail(email) {
+    const { data, error } = await supabaseAnon
+      .from('users')
+      .select(`
+        user_id, email, password, name, first_name, last_name, role_id,
+        account_status, email_verified,
+        user_roles!left(id, role_name)
+      `)
+      .eq('email', email)
+      .maybeSingle();
+
+    if (error) {
+      throw error;
     }
+
+    return data || null;
+  }
+
+  async createOAuthUser({ email, name, firstName, lastName, provider = 'google' }) {
+    const password = crypto.randomBytes(32).toString('hex');
+    const hashedPassword = await bcrypt.hash(password, 12);
+
+    const payload = {
+      name: name || email.split('@')[0],
+      email,
+      password: hashedPassword,
+      first_name: firstName || null,
+      last_name: lastName || null,
+      role_id: this.getDefaultRoleId(),
+      account_status: 'active',
+      email_verified: true,
+      mfa_enabled: false,
+      registration_date: new Date().toISOString(),
+    };
+
+    const { data, error } = await supabaseService
+      .from('users')
+      .insert(payload)
+      .select(`
+        user_id, email, password, name, first_name, last_name, role_id,
+        account_status, email_verified,
+        user_roles!left(id, role_name)
+      `)
+      .single();
+
+    if (error) {
+      throw error;
+    }
+
+    return data;
+  }
+
+  async ensureOAuthUser({ email, metadata = {}, provider = 'google' }) {
+    let existingUser = await this.findUserByEmail(email);
+    if (existingUser) {
+      return existingUser;
+    }
+
+    const displayName = metadata.full_name || metadata.name || email.split('@')[0];
+    const firstName = metadata.first_name || displayName.split(' ')[0] || null;
+    const lastName = metadata.last_name || (displayName.includes(' ')
+      ? displayName.split(' ').slice(1).join(' ')
+      : null);
+
+    return this.createOAuthUser({
+      email,
+      name: displayName,
+      firstName,
+      lastName,
+      provider,
+    });
   }
 
   async logSecurityEvent(userId, eventType, deviceInfo = {}, details = {}) {
@@ -66,6 +163,9 @@ class AuthService {
     }
   }
 
+  /* =========================
+     Register
+     ========================= */
   async register(userData) {
     const { name, email, password, first_name, last_name } = userData;
 
@@ -74,7 +174,7 @@ class AuthService {
         throw new ServiceError(400, 'Name, email, and password are required');
       }
 
-      const { data: existingUser } = await getAnonClient()
+      const { data: existingUser } = await supabaseAnon
         .from('users')
         .select('user_id')
         .eq('email', email)
@@ -86,7 +186,7 @@ class AuthService {
 
       const hashedPassword = await bcrypt.hash(password, 12);
 
-      const { data: newUser, error } = await getAnonClient()
+      const { data: newUser, error } = await supabaseAnon
         .from('users')
         .insert({
           name,
@@ -103,9 +203,7 @@ class AuthService {
         .select('user_id, email, name')
         .single();
 
-      if (error) {
-        throw error;
-      }
+      if (error) throw error;
 
       return {
         success: true,
@@ -121,7 +219,11 @@ class AuthService {
     }
   }
 
+  /* =========================
+     Login
+     ========================= */
   async login(loginData, deviceInfo = {}) {
+    console.log("LOGIN FUNCTION HIT");
     const { email, password } = loginData;
 
     try {
@@ -129,7 +231,7 @@ class AuthService {
         throw new ServiceError(400, 'Email and password are required');
       }
 
-      const { data: user, error } = await getAnonClient()
+      const { data: user, error } = await supabaseAnon
         .from('users')
         .select(`
           user_id, email, password, name, role_id,
@@ -140,73 +242,80 @@ class AuthService {
         .single();
 
       if (error || !user) {
-        await this.recordStructuredSecurityEvent({
-          event_type: 'LOGIN_FAILED',
-          severity: 'medium',
+        await logSecurityEvent({
+          event_type: "LOGIN_FAILED",
+          severity: "medium",
           user_id: null,
           ip_address: deviceInfo.ip || null,
           user_agent: deviceInfo.userAgent || null,
-          resource: '/api/auth/login',
-          metadata: { email, reason: 'user_not_found' }
+          resource: "/api/auth/login",
+          metadata: {
+            email,
+            reason: "user_not_found"
+          }
         });
-        throw new ServiceError(401, 'Invalid credentials');
+
+        throw new Error('Invalid credentials');
       }
 
       if (user.account_status !== 'active') {
-        await this.recordStructuredSecurityEvent({
-          event_type: 'LOGIN_FAILED',
-          severity: 'medium',
+        await logSecurityEvent({
+          event_type: "LOGIN_FAILED",
+          severity: "medium",
           user_id: user.user_id,
           ip_address: deviceInfo.ip || null,
           user_agent: deviceInfo.userAgent || null,
-          resource: '/api/auth/login',
-          metadata: { email, reason: 'account_inactive' }
+          resource: "/api/auth/login",
+          metadata: {
+            email,
+            reason: "account_inactive"
+          }
         });
-        throw new ServiceError(403, 'Account is not active');
+
+        throw new Error('Account is not active');
       }
 
       const validPassword = await bcrypt.compare(password, user.password);
+
       if (!validPassword) {
-        await this.recordStructuredSecurityEvent({
-          event_type: 'LOGIN_FAILED',
-          severity: 'medium',
+        console.log("LOGIN FAILED TRIGGERED");
+        await logSecurityEvent({
+          event_type: "LOGIN_FAILED",
+          severity: "medium",
           user_id: user.user_id,
           ip_address: deviceInfo.ip || null,
           user_agent: deviceInfo.userAgent || null,
-          resource: '/api/auth/login',
-          metadata: { email, reason: 'invalid_password' }
+          resource: "/api/auth/login",
+          metadata: {
+            email,
+            reason: "invalid_password"
+          }
         });
-        throw new ServiceError(401, 'Invalid credentials');
-      }
 
+        throw new Error('Invalid credentials');
+      }
       const tokens = await this.generateTokenPair(user, deviceInfo);
 
-      await getAnonClient()
+      await supabaseAnon
         .from('users')
         .update({ last_login: new Date().toISOString() })
         .eq('user_id', user.user_id);
 
       await this.logAuthAttempt(user.user_id, email, true, deviceInfo);
-      await this.recordStructuredSecurityEvent({
-        event_type: 'LOGIN_SUCCESS',
-        severity: 'low',
+
+      await logSecurityEvent({
+        event_type: "LOGIN_SUCCESS",
+        severity: "low",
         user_id: user.user_id,
         ip_address: deviceInfo.ip || null,
         user_agent: deviceInfo.userAgent || null,
-        resource: '/api/auth/login',
-        metadata: { email }
+        resource: "/api/auth/login",
+        metadata: {
+          email
+        }
       });
 
-      return {
-        success: true,
-        user: {
-          id: user.user_id,
-          email: user.email,
-          name: user.name,
-          role: user.user_roles?.role_name || 'user'
-        },
-        ...tokens
-      };
+      return this.formatAuthResponse(user, tokens);
     } catch (error) {
       await this.logAuthAttempt(null, email, false, deviceInfo);
       if (error instanceof ServiceError) {
@@ -217,12 +326,90 @@ class AuthService {
     }
   }
 
+  async exchangeSupabaseToken({ supabaseAccessToken, provider = 'google' }, deviceInfo = {}) {
+    let oauthEmail = null;
+
+    try {
+      if (!supabaseAccessToken) {
+        throw new ServiceError(400, 'Supabase access token is required');
+      }
+
+      const { data, error } = await supabaseAnon.auth.getUser(supabaseAccessToken);
+
+      if (error || !data?.user?.email) {
+        throw new ServiceError(401, 'Invalid Supabase session');
+      }
+
+      const supabaseUser = data.user;
+      oauthEmail = supabaseUser.email;
+      const metadata = supabaseUser.user_metadata || {};
+      const resolvedProvider = metadata.provider || supabaseUser.app_metadata?.provider || provider;
+
+      const user = await this.ensureOAuthUser({
+        email: supabaseUser.email,
+        metadata,
+        provider: resolvedProvider,
+      });
+
+      if (user.account_status !== 'active') {
+        throw new ServiceError(403, 'Account is not active');
+      }
+
+      const tokens = await this.generateTokenPair(user, {
+        ...deviceInfo,
+        provider: resolvedProvider,
+        authMethod: 'oauth',
+      });
+
+      await supabaseAnon
+        .from('users')
+        .update({
+          last_login: new Date().toISOString(),
+          email_verified: true,
+        })
+        .eq('user_id', user.user_id);
+
+      await this.logAuthAttempt(user.user_id, user.email, true, deviceInfo);
+
+      await logSecurityEvent({
+        event_type: 'LOGIN_SUCCESS',
+        severity: 'low',
+        user_id: user.user_id,
+        ip_address: deviceInfo.ip || null,
+        user_agent: deviceInfo.userAgent || null,
+        resource: '/api/auth/google/exchange',
+        metadata: {
+          email: user.email,
+          provider: resolvedProvider,
+        }
+      });
+
+      return this.formatAuthResponse(user, tokens, {
+        provider: resolvedProvider,
+        ssoSession: true,
+      });
+    } catch (error) {
+      if (oauthEmail) {
+        await this.logAuthAttempt(null, oauthEmail, false, deviceInfo);
+      }
+
+      if (error instanceof ServiceError) {
+        throw error;
+      }
+
+      throw new ServiceError(401, `OAuth exchange failed: ${error.message}`);
+    }
+  }
+
+  /* =========================
+     Generate Tokens
+     ========================= */
   async generateTokenPair(user, deviceInfo = {}) {
     try {
       const accessPayload = {
         userId: user.user_id,
         email: user.email,
-        role: user.user_roles?.role_name || user.role || 'user',
+        role: user.user_roles?.role_name || 'user',
         type: 'access'
       };
 
@@ -232,22 +419,31 @@ class AuthService {
         { expiresIn: this.accessTokenExpiry, algorithm: 'HS256' }
       );
 
+      await supabaseService
+        .from('user_sessiontoken')
+        .update({ is_active: false })
+        .eq('user_id', user.user_id);
+
       const rawRefreshToken = crypto.randomBytes(32).toString('hex');
       const hashedRefreshToken = await bcrypt.hash(rawRefreshToken, 12);
       const lookupHash = this.createLookupHash(rawRefreshToken);
       const expiresAt = new Date(Date.now() + this.refreshTokenExpiry);
 
-      await authRepository.createRefreshSession({
-        user_id: user.user_id,
-        refresh_token: hashedRefreshToken,
-        refresh_token_lookup: lookupHash,
-        token_type: 'refresh',
-        device_info: deviceInfo,
-        ip_address: deviceInfo.ip || null,
-        user_agent: deviceInfo.userAgent || null,
-        expires_at: expiresAt.toISOString(),
-        is_active: true
-      });
+      const { error } = await supabaseService
+        .from('user_sessiontoken')
+        .insert({
+          user_id: user.user_id,
+          refresh_token: hashedRefreshToken,
+          refresh_token_lookup: lookupHash,
+          token_type: 'refresh',
+          device_info: deviceInfo,
+          ip_address: deviceInfo.ip || null,
+          user_agent: deviceInfo.userAgent || null,
+          expires_at: expiresAt.toISOString(),
+          is_active: true
+        });
+
+      if (error) throw error;
 
       return {
         accessToken,
@@ -260,6 +456,9 @@ class AuthService {
     }
   }
 
+  /* =========================
+     Refresh Token
+     ========================= */
   async refreshAccessToken(refreshToken, deviceInfo = {}) {
     try {
       if (!refreshToken) {
@@ -267,28 +466,61 @@ class AuthService {
       }
 
       const lookupHash = this.createLookupHash(refreshToken);
-      const session = await authRepository.findActiveRefreshSessionByLookupHash(lookupHash);
 
-      if (!session) {
+      const { data: sessions, error } = await supabaseService
+        .from('user_sessiontoken')
+        .select(`
+          id,
+          user_id,
+          refresh_token,
+          refresh_token_lookup,
+          expires_at,
+          is_active
+        `)
+        .eq('refresh_token_lookup', lookupHash)
+        .eq('is_active', true)
+        .limit(1);
+
+      
+      if (error || !sessions || sessions.length === 0) {
         throw new ServiceError(401, 'Invalid refresh token');
       }
+
+      const session = sessions[0];
 
       const match = await bcrypt.compare(refreshToken, session.refresh_token);
-      if (!match) {
-        throw new ServiceError(401, 'Invalid refresh token');
-      }
+      if (!match) throw new ServiceError(401, 'Invalid refresh token');
 
       if (new Date(session.expires_at) < new Date()) {
         throw new ServiceError(401, 'Refresh token expired');
       }
 
-      const user = await authRepository.findUserByIdForSession(session.user_id);
+      const { data: user, error: userError } = await supabaseAnon
+        .from('users')
+        .select(`
+          user_id,
+          email,
+          name,
+          role_id,
+          account_status
+        `)
+        .eq('user_id', session.user_id)
+        .single();
+
+      if (userError || !user) {
+        throw new ServiceError(404, 'User not found');
+      }
+
       if (user.account_status !== 'active') {
         throw new ServiceError(403, 'Account is not active');
       }
 
       const newTokens = await this.generateTokenPair(user, deviceInfo);
-      await authRepository.deactivateSessionById(session.id);
+
+      await supabaseService
+        .from('user_sessiontoken')
+        .update({ is_active: false })
+        .eq('id', session.id);
 
       return {
         success: true,
@@ -303,6 +535,9 @@ class AuthService {
     }
   }
 
+  /* =========================
+     Logout
+     ========================= */
   async logout(refreshToken) {
     try {
       if (!refreshToken) {
@@ -310,7 +545,11 @@ class AuthService {
       }
 
       const lookupHash = this.createLookupHash(refreshToken);
-      await authRepository.deactivateSessionByLookupHash(lookupHash);
+
+      await supabaseService
+        .from('user_sessiontoken')
+        .update({ is_active: false })
+        .eq('refresh_token_lookup', lookupHash);
 
       return { success: true, message: 'Logout successful' };
     } catch (error) {
@@ -322,6 +561,9 @@ class AuthService {
     }
   }
 
+  /* =========================
+     Logout All
+     ========================= */
   async logoutAll(userId, options = {}) {
     try {
       if (!userId) {
@@ -330,14 +572,17 @@ class AuthService {
 
       const reason = options.reason || 'logout_all';
       const deviceInfo = options.deviceInfo || {};
-      const { data: trustedDevices } = await getServiceClient()
+      const { data: trustedDevices } = await supabaseService
         .from('user_sessiontoken')
         .select('id')
         .eq('user_id', userId)
         .eq('token_type', 'trusted_device')
         .eq('is_active', true);
 
-      await authRepository.deactivateSessionsByUserId(userId);
+      await supabaseService
+        .from('user_sessiontoken')
+        .update({ is_active: false })
+        .eq('user_id', userId);
 
       if ((trustedDevices || []).length > 0) {
         await this.logSecurityEvent(userId, 'TRUSTED_DEVICE_REVOKED', deviceInfo, {
@@ -364,7 +609,7 @@ class AuthService {
       const expiresAt = new Date(Date.now() + this.trustedDeviceExpiry);
       const deviceFingerprint = this.hashDeviceFingerprint(deviceInfo);
 
-      await getServiceClient()
+      await supabaseService
         .from('user_sessiontoken')
         .update({ is_active: false })
         .eq('user_id', userId)
@@ -372,7 +617,7 @@ class AuthService {
         .eq('is_active', true)
         .contains('device_info', { userAgentHash: deviceFingerprint });
 
-      const { error } = await getServiceClient()
+      const { error } = await supabaseService
         .from('user_sessiontoken')
         .insert({
           user_id: userId,
@@ -389,9 +634,7 @@ class AuthService {
           is_active: true,
         });
 
-      if (error) {
-        throw error;
-      }
+      if (error) throw error;
 
       await this.logSecurityEvent(userId, 'TRUSTED_DEVICE_CREATED', deviceInfo, {
         expires_at: expiresAt.toISOString(),
@@ -413,7 +656,7 @@ class AuthService {
       }
 
       const lookupHash = this.createLookupHash(rawToken);
-      const { data: sessions, error } = await getServiceClient()
+      const { data: sessions, error } = await supabaseService
         .from('user_sessiontoken')
         .select('id, refresh_token, expires_at, is_active, device_info')
         .eq('user_id', userId)
@@ -433,7 +676,7 @@ class AuthService {
       }
 
       if (new Date(trustedDevice.expires_at) < new Date()) {
-        await getServiceClient()
+        await supabaseService
           .from('user_sessiontoken')
           .update({ is_active: false })
           .eq('id', trustedDevice.id);
@@ -458,14 +701,14 @@ class AuthService {
 
   async revokeTrustedDevices(userId, reason = 'manual', deviceInfo = {}) {
     try {
-      const { data: trustedDevices } = await getServiceClient()
+      const { data: trustedDevices } = await supabaseService
         .from('user_sessiontoken')
         .select('id')
         .eq('user_id', userId)
         .eq('token_type', 'trusted_device')
         .eq('is_active', true);
 
-      await getServiceClient()
+      await supabaseService
         .from('user_sessiontoken')
         .update({ is_active: false })
         .eq('user_id', userId)
@@ -487,13 +730,19 @@ class AuthService {
     }
   }
 
+  /* =========================
+     Verify Access Token
+     ========================= */
   verifyAccessToken(token) {
     return jwt.verify(token, process.env.JWT_TOKEN);
   }
 
+  /* =========================
+     Auth Logs
+     ========================= */
   async logAuthAttempt(userId, email, success, deviceInfo) {
     try {
-      await getAnonClient()
+      await supabaseAnon
         .from('auth_logs')
         .insert({
           user_id: userId,
@@ -507,9 +756,12 @@ class AuthService {
     }
   }
 
+  /* =========================
+     Cleanup
+     ========================= */
   async cleanupExpiredSessions() {
     try {
-      await getServiceClient()
+      await supabaseService
         .from('user_sessiontoken')
         .update({ is_active: false })
         .lt('expires_at', new Date().toISOString());
@@ -523,24 +775,7 @@ class AuthService {
       throw new ServiceError(400, 'User ID is required');
     }
 
-    const { data: user, error } = await getAnonClient()
-      .from('users')
-      .select(`
-        user_id, email, name, first_name, last_name,
-        registration_date, last_login, account_status,
-        user_roles!inner(role_name)
-      `)
-      .eq('user_id', userId)
-      .single();
-
-    if (error || !user) {
-      throw new ServiceError(404, 'User not found');
-    }
-
-    return {
-      success: true,
-      user
-    };
+    return userProfileService.getCanonicalProfile({ userId });
   }
 
   async logLoginAttempt({ email, userId, success, ipAddress, createdAt }) {
@@ -548,7 +783,7 @@ class AuthService {
       throw new ServiceError(400, 'Missing required fields: email, success, ip_address, created_at');
     }
 
-    const { error } = await getAnonClient().from('auth_logs').insert([
+    const { error } = await supabaseAnon.from('auth_logs').insert([
       {
         email,
         user_id: userId || null,
@@ -570,7 +805,7 @@ class AuthService {
       throw new ServiceError(400, 'Email is required');
     }
 
-    const { data, error } = await getAnonClient()
+    const { data, error } = await supabaseAnon
       .from('users')
       .select('contact_number')
       .eq('email', email)

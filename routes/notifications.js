@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const notificationController = require('../controller/notificationController');
+const { authAndIdentity } = require('../controller');
 const {
   validateCreateNotification,
   validateUpdateNotification,
@@ -10,6 +10,8 @@ const {
 const validateResult = require('../middleware/validateRequest.js');
 const { authenticateToken } = require('../middleware/authenticateToken');
 const authorizeRoles = require('../middleware/authorizeRoles');
+
+const { notifications: notificationController } = authAndIdentity;
 
 // Create a new notification → Admin only
 router.post(

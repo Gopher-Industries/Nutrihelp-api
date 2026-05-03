@@ -1,15 +1,25 @@
 const supabase = require("../dbConnection.js");
-const { decrypt } = require("../utils/encryption");
+const { decrypt } = require("../services/encryptionService");
 
-function decryptSensitiveFields(profile) {
+async function decryptSensitiveFields(profile) {
 	if (!profile) {
 		return profile;
 	}
 
+	const decryptedContact = profile.contact_number ? await (async () => {
+		const encryptedObj = JSON.parse(profile.contact_number);
+		return await decrypt(encryptedObj.encrypted, encryptedObj.iv, encryptedObj.authTag);
+	})() : profile.contact_number;
+
+	const decryptedAddress = profile.address ? await (async () => {
+		const encryptedObj = JSON.parse(profile.address);
+		return await decrypt(encryptedObj.encrypted, encryptedObj.iv, encryptedObj.authTag);
+	})() : profile.address;
+
 	return {
 		...profile,
-		contact_number: profile.contact_number ? decrypt(profile.contact_number) : profile.contact_number,
-		address: profile.address ? decrypt(profile.address) : profile.address,
+		contact_number: decryptedContact,
+		address: decryptedAddress,
 	};
 }
 
@@ -38,7 +48,7 @@ async function getUserProfile(lookup = {}) {
 			return null;
 		}
 
-		const profile = decryptSensitiveFields(data);
+		const profile = await decryptSensitiveFields(data);
 
 		if (profile.image_id != null) {
 			profile.image_url = await getImageUrl(profile.image_id);
@@ -60,14 +70,35 @@ async function getImageUrl(image_id) {
 			.select("*")
 			.eq("id", image_id);
 		if (data[0] != null) {
-			let x = `${process.env.SUPABASE_STORAGE_URL}${data[0].file_name}`;
-			return x;
+			return await resolveImageUrl(data[0].file_name);
 		}
 		return data;
 	} catch (error) {
 		console.log(error);
 		throw error;
 	}
+}
+
+async function resolveImageUrl(file_name) {
+	if (!file_name) return null;
+
+	// Signed URL works for both public and private buckets.
+	const { data: signedData, error: signedError } = await supabase
+		.storage
+		.from("images")
+		.createSignedUrl(file_name, 60 * 60 * 24);
+
+	if (!signedError && signedData?.signedUrl) {
+		return signedData.signedUrl;
+	}
+
+	// Fallback to public URL if signing fails for any reason.
+	const { data: publicData } = supabase
+		.storage
+		.from("images")
+		.getPublicUrl(file_name);
+
+	return publicData?.publicUrl || null;
 }
 
 module.exports = getUserProfile;

@@ -122,6 +122,23 @@ exports.refreshToken = async (req, res) => {
   }
 };
 
+exports.googleExchange = async (req, res) => {
+  try {
+    const supabaseAccessToken = req.body.supabaseAccessToken || req.body.accessToken || req.body.token;
+    const provider = req.body.provider || 'google';
+
+    const result = await authService.exchangeSupabaseToken(
+      { supabaseAccessToken, provider },
+      getDeviceInfo(req)
+    );
+
+    return res.json(result);
+  } catch (error) {
+    logger.error('Google exchange error', { error: error.message });
+    return handleServiceError(res, error, 401, 'Google exchange error:');
+  }
+};
+
 exports.logout = async (req, res) => {
   try {
     const result = await authService.logout(req.body.refreshToken);

@@ -1,5 +1,5 @@
 const supabase = require('../dbConnection.js');
-const { decrypt } = require('../utils/encryption');
+const { decrypt } = require('../services/encryptionService');
 
 async function getUser(email) {
     try {
@@ -10,8 +10,14 @@ async function getUser(email) {
             
             if (data && data.length > 0) {
             data.forEach(user => {
-                if (user.contact_number) user.contact_number = decrypt(user.contact_number);
-                if (user.address) user.address = decrypt(user.address);
+                if (user.contact_number) {
+                    const encryptedObj = JSON.parse(user.contact_number);
+                    user.contact_number = decrypt(encryptedObj.encrypted, encryptedObj.iv, encryptedObj.authTag);
+                }
+                if (user.address) {
+                    const encryptedObj = JSON.parse(user.address);
+                    user.address = decrypt(encryptedObj.encrypted, encryptedObj.iv, encryptedObj.authTag);
+                }
             });
         }
         return data

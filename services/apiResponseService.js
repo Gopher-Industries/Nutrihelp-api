@@ -126,6 +126,7 @@ module.exports = {
   createSuccessResponse,
   createErrorResponse,
   formatMealPlans,
+  formatNotification,
   formatNotifications,
   formatProfile,
   formatRecommendations,

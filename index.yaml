@@ -1852,6 +1852,199 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /mealplan/ai-suggestion:
+    post:
+      summary: Save AI meal suggestion to daily plan
+      description: Saves a single AI-generated meal (from the /meal page) into the user's daily meal plan. Accessible by all authenticated users.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - meal_type
+                - name
+              properties:
+                meal_type:
+                  type: string
+                  enum: [breakfast, lunch, dinner, snack]
+                  example: breakfast
+                day:
+                  type: string
+                  example: Monday
+                name:
+                  type: string
+                  example: Oat Porridge with Berries
+                description:
+                  type: string
+                  example: High-fibre low-sodium breakfast
+                calories:
+                  type: number
+                  example: 320
+                proteins:
+                  type: number
+                  example: 12
+                fats:
+                  type: number
+                  example: 6
+                sodium:
+                  type: number
+                  example: 180
+                fiber:
+                  type: number
+                  example: 5
+                vitamins:
+                  type: string
+                  example: Vitamin D, Vitamin B12
+                ingredients:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      item:
+                        type: string
+                        example: oats
+                      amount:
+                        type: string
+                        example: 80g
+      responses:
+        '201':
+          description: AI meal suggestion saved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    get:
+      summary: Get saved AI meal suggestions
+      description: Returns all AI-generated meals the logged-in user has saved to their daily plan.
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: AI meal suggestions fetched successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                            user_id:
+                              type: integer
+                            meal_type:
+                              type: string
+                            day:
+                              type: string
+                            name:
+                              type: string
+                            description:
+                              type: string
+                            calories:
+                              type: number
+                            proteins:
+                              type: number
+                            fats:
+                              type: number
+                            sodium:
+                              type: number
+                            fiber:
+                              type: number
+                            vitamins:
+                              type: string
+                            ingredients:
+                              type: array
+                            created_at:
+                              type: string
+                              format: date-time
+                      count:
+                        type: integer
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      summary: Remove a saved AI meal suggestion
+      description: Deletes a specific AI meal suggestion from the user's daily plan by ID.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - id
+              properties:
+                id:
+                  type: integer
+                  example: 1
+      responses:
+        '200':
+          description: AI meal suggestion deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /recipe:
     post:
       summary: Get all recipes
