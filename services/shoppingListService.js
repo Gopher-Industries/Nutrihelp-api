@@ -5,6 +5,7 @@ function successResponse(statusCode, data) {
   return {
     statusCode,
     body: {
+      success: true,
       statusCode,
       message: 'success',
       data
