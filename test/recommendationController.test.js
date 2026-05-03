@@ -14,23 +14,11 @@ describe('Recommendation Controller', () => {
   it('returns the service payload to the client', async () => {
     const generateRecommendations = sinon.stub().resolves({
       success: true,
-      data: {
-        items: [{ rank: 1, recipeId: 10, title: 'Protein Bowl' }]
-      },
       recommendations: [{ rank: 1, recipeId: 10, title: 'Protein Bowl' }]
     });
 
     const controller = proxyquire('../controller/recommendationController', {
-      '../services': {
-        coreApp: { recommendationService: { generateRecommendations } },
-        shared: {
-          apiResponse: {
-            createErrorResponse(message, code) {
-              return { success: false, error: { message, code } };
-            }
-          }
-        }
-      }
+      '../services/recommendationService': { generateRecommendations }
     });
 
     const req = {
@@ -48,9 +36,6 @@ describe('Recommendation Controller', () => {
     expect(res.status.calledWith(200)).to.equal(true);
     expect(res.json.calledWith({
       success: true,
-      data: {
-        items: [{ rank: 1, recipeId: 10, title: 'Protein Bowl' }]
-      },
       recommendations: [{ rank: 1, recipeId: 10, title: 'Protein Bowl' }]
     })).to.equal(true);
   });
@@ -58,16 +43,7 @@ describe('Recommendation Controller', () => {
   it('returns 400 when dietaryConstraints is missing', async () => {
     const generateRecommendations = sinon.stub();
     const controller = proxyquire('../controller/recommendationController', {
-      '../services': {
-        coreApp: { recommendationService: { generateRecommendations } },
-        shared: {
-          apiResponse: {
-            createErrorResponse(message, code) {
-              return { success: false, error: { message, code } };
-            }
-          }
-        }
-      }
+      '../services/recommendationService': { generateRecommendations }
     });
 
     const req = {
@@ -85,26 +61,14 @@ describe('Recommendation Controller', () => {
     expect(res.status.calledWith(400)).to.equal(true);
     expect(res.json.calledWith({
       success: false,
-      error: {
-        message: 'dietaryConstraints is required and must be an object',
-        code: 'VALIDATION_ERROR'
-      }
+      error: 'dietaryConstraints is required and must be an object'
     })).to.equal(true);
   });
 
   it('returns 400 when maxResults is malformed', async () => {
     const generateRecommendations = sinon.stub();
     const controller = proxyquire('../controller/recommendationController', {
-      '../services': {
-        coreApp: { recommendationService: { generateRecommendations } },
-        shared: {
-          apiResponse: {
-            createErrorResponse(message, code) {
-              return { success: false, error: { message, code } };
-            }
-          }
-        }
-      }
+      '../services/recommendationService': { generateRecommendations }
     });
 
     const req = {
@@ -125,26 +89,14 @@ describe('Recommendation Controller', () => {
     expect(res.status.calledWith(400)).to.equal(true);
     expect(res.json.calledWith({
       success: false,
-      error: {
-        message: 'maxResults must be an integer between 1 and 20',
-        code: 'VALIDATION_ERROR'
-      }
+      error: 'maxResults must be an integer between 1 and 20'
     })).to.equal(true);
   });
 
   it('returns 400 when aiInsights is malformed', async () => {
     const generateRecommendations = sinon.stub();
     const controller = proxyquire('../controller/recommendationController', {
-      '../services': {
-        coreApp: { recommendationService: { generateRecommendations } },
-        shared: {
-          apiResponse: {
-            createErrorResponse(message, code) {
-              return { success: false, error: { message, code } };
-            }
-          }
-        }
-      }
+      '../services/recommendationService': { generateRecommendations }
     });
 
     const req = {
@@ -165,26 +117,14 @@ describe('Recommendation Controller', () => {
     expect(res.status.calledWith(400)).to.equal(true);
     expect(res.json.calledWith({
       success: false,
-      error: {
-        message: 'aiInsights must be an object when provided',
-        code: 'VALIDATION_ERROR'
-      }
+      error: 'aiInsights must be an object when provided'
     })).to.equal(true);
   });
 
   it('returns a generic 500 error when the service throws an unexpected internal error', async () => {
     const generateRecommendations = sinon.stub().rejects(new Error('database connection string leaked'));
     const controller = proxyquire('../controller/recommendationController', {
-      '../services': {
-        coreApp: { recommendationService: { generateRecommendations } },
-        shared: {
-          apiResponse: {
-            createErrorResponse(message, code) {
-              return { success: false, error: { message, code } };
-            }
-          }
-        }
-      }
+      '../services/recommendationService': { generateRecommendations }
     });
 
     const req = {
@@ -203,10 +143,7 @@ describe('Recommendation Controller', () => {
     expect(res.status.calledWith(500)).to.equal(true);
     expect(res.json.calledWith({
       success: false,
-      error: {
-        message: 'Failed to generate recommendations',
-        code: 'RECOMMENDATION_FAILED'
-      }
+      error: 'Failed to generate recommendations'
     })).to.equal(true);
   });
 });

@@ -39,49 +39,44 @@ async function saveMealRelation(user_id, plan, savedDataId) {
 }
 
 async function get(user_id) {
-    const recipeQuery = 'id,recipe_name,description,ingredients,image_id,total_servings,' +
-        '...cuisine_id(cuisine:name),' +
+    query = 'recipe_name,...cuisine_id(cuisine:name),total_servings,' +
         '...cooking_method_id(cooking_method:name),' +
         'preparation_time,calories,fat,carbohydrates,protein,fiber,' +
         'vitamin_a,vitamin_b,vitamin_c,vitamin_d,sodium,sugar,allergy,dislike'
     try {
-        let query = supabase
+        let { data, error } = await supabase
             .from('recipe_meal')
-            .select('mealplan_id(id,meal_type,created_at),recipe_id,' + recipeQuery)
-            .eq('user_id', user_id);
-
-        let { data, error } = await query;
+            .select('...mealplan_id(id,meal_type),recipe_id,...recipe_id(' + query + ')')
+            .eq('user_id', user_id)
         if (error) throw error;
 
         if (!data || !data.length) return null;
 
-        const plansById = new Map();
-
-        for (const row of data) {
-            const plan = row.mealplan_id || {};
-            if (!plan.id) {
-                continue;
+        let output = [];
+        let added = [];
+        for (let i = 0; i < data.length; i++) {
+            if (added.includes(data[i]['id'])) {
+                for (let j = 0; j < output.length; j++) {
+                    if (output[j]['id'] == data[i]['id']) {
+                        delete data[i]['id']
+                        delete data[i]['meal_type']
+                        output[j]['recipes'].push(data[i])
+                    }
+                }
             }
-
-            if (!plansById.has(plan.id)) {
-                plansById.set(plan.id, {
-                    id: plan.id,
-                    meal_type: plan.meal_type || null,
-                    created_at: plan.created_at || null,
-                    recipes: []
-                });
+            else {
+                let mealplan = {}
+                mealplan['recipes'] = [];
+                mealplan['id'] = data[i]['id']
+                mealplan['meal_type'] = data[i]['meal_type']
+                added.push(data[i]['id'])
+                delete data[i]['id']
+                delete data[i]['meal_type']
+                mealplan['recipes'].push(data[i])
+                output.push(mealplan)
             }
-
-            plansById.get(plan.id).recipes.push({
-                recipe_id: row.recipe_id
-            });
         }
-
-        return Array.from(plansById.values()).sort((a, b) => {
-            const left = a.created_at ? new Date(a.created_at).getTime() : 0;
-            const right = b.created_at ? new Date(b.created_at).getTime() : 0;
-            return right - left;
-        });
+        return output;
 
     } catch (error) {
         console.log(error);
