@@ -20,6 +20,10 @@ const logger = require('../utils/logger');
 const { ok, fail } = require('../utils/apiResponse');
 const { msg } = require('../utils/messages');
 const gateway = require('../services/imageClassificationGateway');
+const {
+  buildImageScanPayload,
+  SCAN_CONTRACT_VERSION,
+} = require('../services/scanContractService');
 
 function safeDelete(filePath) {
   if (!filePath) return;
@@ -61,7 +65,23 @@ const predictImage = async (req, res) => {
       durationMs: result.data.explainability.durationMs,
     });
 
-    return ok(res, result.data);
+    return ok(
+      res,
+      buildImageScanPayload({
+        type: 'image',
+        entity: 'food',
+        query: {
+          uploadField: 'image',
+        },
+        item: {
+          imageName: req.file.originalname || null,
+        },
+        classification: result.data.classification,
+        explainability: result.data.explainability,
+      }),
+      200,
+      { contractVersion: SCAN_CONTRACT_VERSION }
+    );
   } catch (error) {
     logger.error('Unexpected error in image classification controller', {
       error: error.message,

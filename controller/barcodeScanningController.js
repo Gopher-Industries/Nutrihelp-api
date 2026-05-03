@@ -1,4 +1,9 @@
 const getBarcodeAllergen = require('../model/getBarcodeAllergen');
+const { ok, fail } = require('../utils/apiResponse');
+const {
+  buildBarcodeScanPayload,
+  SCAN_CONTRACT_VERSION,
+} = require('../services/scanContractService');
 
 // Some example testable barcodes
 // 3017624010701
@@ -8,62 +13,75 @@ const checkAllergen = async (req, res) => {
   const code = req.query.code;
 
   try {
+    if (!code) {
+      return fail(res, 'Barcode is required', 400, 'BARCODE_REQUIRED');
+    }
+
     // Get ingredients from barcode
     const result = await getBarcodeAllergen.fetchBarcodeInformation(code);
     if (!result.success) {
-      return res.status(404).json({
-        error: `Error when fetching barcode information: Invalid barcode`
-      })
+      return fail(res, 'Barcode information not found', 404, 'SCAN_NOT_FOUND');
     }
     const barcode_info = result.data.product;
     if (!barcode_info) {
-      return res.status(404).json({
-        error: `Error when getting barcode information: Barcode information not found`
-      })
+      return fail(res, 'Barcode information not found', 404, 'SCAN_NOT_FOUND');
     }
     let barcode_ingredients = [];
-    if (barcode_info.allergens_from_ingredients.length > 0) {
-      barcode_ingredients = barcode_info.ingredients_text_en.split(",").map((item) => {
+    const allergenIngredients = Array.isArray(barcode_info.allergens_from_ingredients)
+      ? barcode_info.allergens_from_ingredients
+      : [];
+    const ingredientText = typeof barcode_info.ingredients_text_en === 'string'
+      ? barcode_info.ingredients_text_en
+      : '';
+
+    if (allergenIngredients.length > 0 && ingredientText) {
+      barcode_ingredients = ingredientText.split(",").map((item) => {
         return item.trim().toLowerCase().replace(".", "");
       });
     } 
 
     // If user_id is not provided, return barcode information only
     if (!user_id) {
-      return res.status(200).json({
-        product_name: barcode_info.product_name,
-        detection_result: {},
-        barcode_ingredients,
-        user_allergen_ingredients: []
-      });
+      return ok(
+        res,
+        buildBarcodeScanPayload({
+          barcode: code,
+          productName: barcode_info.product_name,
+          barcodeIngredients: barcode_ingredients,
+          userAllergenIngredients: [],
+          matchingAllergens: [],
+        }),
+        200,
+        { contractVersion: SCAN_CONTRACT_VERSION }
+      );
     }
 
     // Get the name of user allergen ingredients
     const user_allergen_ingredient_names = await getBarcodeAllergen.getUserAllergen(user_id);
 
     // Compare the result
-    barcode_ingredients_keys = barcode_ingredients.reduce((accumulatedIngredients, currentIngredient) => {
+    const barcode_ingredients_keys = barcode_ingredients.reduce((accumulatedIngredients, currentIngredient) => {
       return accumulatedIngredients.concat(currentIngredient.split(" "));
     }, []);
     const matchingAllergens = user_allergen_ingredient_names.filter((ingredient) => {
       return barcode_ingredients_keys.includes(ingredient);
     });
-    const hasUserAllergen = matchingAllergens.length > 0;
 
-    return res.status(200).json({
-      product_name: barcode_info.product_name,
-      detection_result: {
-        hasUserAllergen,
-        matchingAllergens
-      },
-      barcode_ingredients,
-      user_allergen_ingredients: user_allergen_ingredient_names
-    });
+    return ok(
+      res,
+      buildBarcodeScanPayload({
+        barcode: code,
+        productName: barcode_info.product_name,
+        barcodeIngredients: barcode_ingredients,
+        userAllergenIngredients: user_allergen_ingredient_names,
+        matchingAllergens,
+      }),
+      200,
+      { contractVersion: SCAN_CONTRACT_VERSION }
+    );
   } catch (error) {
     console.error("Error in getting barcode information: ", error);
-    return res.status(500).json({
-      error: "Internal server error: " + error
-    })
+    return fail(res, 'Internal server error during barcode scan', 500, 'SCAN_FAILED');
   }
 }
 

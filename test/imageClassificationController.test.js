@@ -85,9 +85,13 @@ describe('imageClassificationController', () => {
     expect(gateway.classify.calledOnce).to.equal(true);
     expect(res.statusCode).to.equal(200);
     expect(res.payload.success).to.equal(true);
+    expect(res.payload.meta.contractVersion).to.equal('v1');
+    expect(res.payload.data.scan.type).to.equal('image');
+    expect(res.payload.data.scan.entity).to.equal('food');
+    expect(res.payload.data.scan.classification.label).to.equal('Banana');
+    expect(res.payload.data.scan.classification.source).to.equal('ai');
+    expect(res.payload.data.scan.classification.uncertain).to.equal(false);
     expect(res.payload.data.classification.label).to.equal('Banana');
-    expect(res.payload.data.classification.source).to.equal('ai');
-    expect(res.payload.data.classification.uncertain).to.equal(false);
     expect(res.payload.data.explainability.contractVersion).to.equal('v1');
   });
 
