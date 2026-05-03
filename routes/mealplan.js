@@ -18,11 +18,11 @@ const authorizeRoles = require('../middleware/authorizeRoles.js');
 
 const { mealplan: controller } = coreApp;
 
-// Route to add a meal plan (Nutritionist + Admin)
+// Route to add a meal plan for the authenticated user (or managed users for staff roles)
 router.route('/')
     .post(
         authenticateToken,
-        authorizeRoles("nutritionist", "admin"),
+        authorizeRoles("user", "nutritionist", "admin"),
         addMealPlanValidation,
         validate,
         (req, res) => controller.addMealPlan(req, res)
@@ -37,10 +37,10 @@ router.route('/')
         (req, res) => controller.getMealPlan(req, res)
     )
 
-// Route to delete a meal plan (Admin only)
+// Route to delete a meal plan for the authenticated user (or managed users for staff roles)
     .delete(
         authenticateToken,
-        authorizeRoles("admin"),
+        authorizeRoles("user", "nutritionist", "admin"),
         deleteMealPlanValidation,
         validate,
         (req, res) => controller.deleteMealPlan(req, res)
