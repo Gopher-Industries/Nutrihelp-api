@@ -30,7 +30,7 @@ const rateLimit = require('express-rate-limit');
 const uploadRoutes = require('./routes/uploadRoutes');
 const systemRoutes = require('./routes/systemRoutes');
 const { metricsMiddleware, metricsEndpoint } = require('./Monitor_&_Logging/metrics');
-const { startScheduler: startLiveAuditScheduler } = require('./services/liveAuditService');
+const { runAlertCheckJob } = require('./services/securityAlertService');
 
 const FRONTEND_ORIGIN = 'http://localhost:3000';
 
@@ -84,6 +84,8 @@ function cleanupOldFiles() {
 }
 cleanupOldFiles();
 setInterval(cleanupOldFiles, 3 * 60 * 60 * 1000);
+
+let alertIntervalId = null;
 
 // --- Trusted early middlewares ---
 app.use(requestLoggingMiddleware);
@@ -215,32 +217,18 @@ app.use((err, req, res, next) => {
 process.on('uncaughtException', uncaughtExceptionHandler);
 process.on('unhandledRejection', unhandledRejectionHandler);
 
-async function checkEncryptionMigrationStatus() {
-  try {
-    const { createClient } = require('@supabase/supabase-js');
-    if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) return;
-
-    const sb = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
-
-    // Count users with plaintext contact_number or address but no encrypted payload.
-    const { count, error } = await sb
-      .from('users')
-      .select('user_id', { count: 'exact', head: true })
-      .or('contact_number.neq.null,address.neq.null')
-      .is('profile_encrypted', null);
-
-    if (error) return; // Table might not exist yet — skip silently.
-
-    if (count > 0) {
-      console.warn(`\n⚠️  ENCRYPTION MIGRATION REQUIRED`);
-      console.warn(`   ${count} user record(s) still contain unencrypted sensitive data.`);
-      console.warn('   Run: node scripts/migrate-encrypt-user-profiles.js');
-      console.warn('   Then apply: database/migrations/001_enforce_encryption_constraints.sql\n');
-    }
-  } catch (_err) {
-    // Non-fatal — startup check must never block the server.
+function gracefulShutdown(signal) {
+  console.log(`\n[server] ${signal} received — shutting down gracefully`);
+  if (alertIntervalId) {
+    clearInterval(alertIntervalId);
+    alertIntervalId = null;
+    console.log('[server] CT-004 Alert checking job stopped');
   }
+  httpsServer.close(() => process.exit(0));
+  setTimeout(() => process.exit(1), 10000).unref();
 }
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
 function createHttpsServer() {
   try {
@@ -306,8 +294,27 @@ activeServer.listen(activePort, async () => {
   console.log('='.repeat(50));
   console.log('💡 Press Ctrl+C to stop the server \n');
 
-  // Warn if encryption back-fill migration has not been run.
-  await checkEncryptionMigrationStatus();
+  // CT-004: Start alert job only after the server is fully bound and ready.
+  // The interval callback is wrapped so a single failing run never stops
+  // future runs (runAlertCheckJob already has an internal try/catch).
+  try {
+    await runAlertCheckJob();
+    alertIntervalId = setInterval(async () => {
+      try {
+        await runAlertCheckJob();
+      } catch (err) {
+        console.error('[server] Alert check job failed unexpectedly:', err.message);
+      }
+    }, 5 * 60 * 1000);
+    console.log('[server] CT-004 Alert checking job initialized (5-minute interval)');
+  } catch (err) {
+    console.warn('[server] Failed to run initial alert check:', err.message);
+  }
+
+  if (process.platform === 'win32') {
+    exec(`start https://localhost:${HTTPS_PORT}/api-docs`);
+  }
+});
 
   // Open Swagger on Windows only
   if (process.platform === 'win32') {
