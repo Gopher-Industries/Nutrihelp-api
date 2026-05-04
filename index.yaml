@@ -3,7 +3,10 @@ info:
   title: NutriHelp API
   version: 1.0.0
 servers:
-- url: http://localhost/api
+- url: https://localhost:443/api
+  description: Local development (TLS 1.3)
+- url: http://localhost:8080/api
+  description: Local development (HTTP fallback — no certs)
 tags:
 - name: System
   description: System and security monitoring endpoints

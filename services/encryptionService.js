@@ -1,3 +1,20 @@
+'use strict';
+
+const crypto = require('crypto');
+
+// Key source strategy:
+// 1) Supabase Vault (preferred): RPC returns a base64/hex key string.
+// 2) Environment fallback: ENCRYPTION_KEY (required if no Vault RPC configured).
+//
+// Key rotation: bump ENCRYPTION_KEY_VERSION and keep the old key available
+// under ENCRYPTION_KEY_PREV during rotation. The rotate-encryption-key.js
+// script handles re-encrypting all existing rows.
+
+const ALGORITHM = 'aes-256-gcm';
+const IV_LENGTH = 12;       // 96-bit nonce — recommended for GCM
+const AUTH_TAG_LENGTH = 16;
+const BATCH_SIZE = 50;      // default batch size for bulk operations
+const MAX_CONCURRENT = 5;   // max parallel encrypt/DB operations within a batch
 const crypto = require('crypto');
 
 // Key source strategy:
@@ -19,12 +36,40 @@ const KEY_VERSION = process.env.ENCRYPTION_KEY_VERSION || 'v1';
 let cachedKey = null;
 let cachedKeyVersion = null;
 
+// ---------------------------------------------------------------------------
+// Runtime guard
+// ---------------------------------------------------------------------------
+
+function assertBackendRuntime() {
 function assertBackendRuntime() {
   // Defensive guard: this file must never be shipped to frontend bundles.
   if (typeof window !== 'undefined') {
     throw new Error('encryptionService is backend-only and cannot run in a browser runtime.');
   }
 }
+
+// ---------------------------------------------------------------------------
+// Failure logging (lightweight — no circular imports)
+// Writes a structured entry to stderr so the crypto_logs service or any
+// external log aggregator can pick it up.  This feeds Alert A12.
+// ---------------------------------------------------------------------------
+
+function logEncryptionFailure(operation, error, context = {}) {
+  const entry = {
+    level: 'ERROR',
+    service: 'encryptionService',
+    operation,
+    error: error?.message || String(error),
+    key_version: cachedKeyVersion || KEY_VERSION,
+    ...context,
+    timestamp: new Date().toISOString()
+  };
+  process.stderr.write(JSON.stringify(entry) + '\n');
+}
+
+// ---------------------------------------------------------------------------
+// Key management
+// ---------------------------------------------------------------------------
 
 function normalizeKey(rawKey) {
   if (!rawKey) {
@@ -48,8 +93,14 @@ function normalizeKey(rawKey) {
 
   throw new Error(
     'Invalid encryption key format. Key must be a 32-byte base64 string (44 chars) or a 64-char hex string. ' +
-    'Generate one with: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'base64\'))"'
+    'Generate a valid key with: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'base64\'))"'
   );
+}
+
+async function loadKeyFromVault() {
+  // Last resort: plain UTF-8 passphrase -> SHA-256 derived key.
+  // Keep compatibility but prefer explicit 32-byte base64 keys.
+  return crypto.createHash('sha256').update(trimmed, 'utf8').digest();
 }
 
 async function loadKeyFromVault() {
@@ -111,9 +162,21 @@ async function loadEncryptionKey() {
   return { key, version: KEY_VERSION };
 }
 
+function clearCachedKeyForRotation() {
+  cachedKey = null;
+  cachedKeyVersion = null;
+}
+
+// ---------------------------------------------------------------------------
+// Payload envelope
+// ---------------------------------------------------------------------------
+
 function toPayload(data) {
   if (typeof data === 'string') {
     return JSON.stringify({ v: 1, t: 'string', d: data });
+  }
+  if (data !== null && typeof data === 'object') {
+    return JSON.stringify({ v: 1, t: 'json', d: data });
   }
 
   if (data !== null && typeof data === 'object') {
@@ -128,6 +191,8 @@ function fromPayload(payload) {
   try {
     parsed = JSON.parse(payload);
   } catch (_error) {
+    return payload;
+  }
     // Backward compatibility fallback for unexpected plaintext payloads.
     return payload;
   }
@@ -137,6 +202,10 @@ function fromPayload(payload) {
   if (parsed.t === 'string') return String(parsed.d || '');
   return payload;
 }
+
+// ---------------------------------------------------------------------------
+// Core encrypt / decrypt
+// ---------------------------------------------------------------------------
 
 async function encrypt(data) {
   assertBackendRuntime();
@@ -192,18 +261,37 @@ async function decrypt(encryptedData, iv, authTag) {
   }
 }
 
-// Week 6: Database helper functions for encrypting on write and decrypting on read
+// ---------------------------------------------------------------------------
+// Database helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Encrypt `data` and return the four columns needed for DB storage.
+ * On failure, logs via logEncryptionFailure and re-throws — callers must
+ * not fall back to plaintext.
+ */
 async function encryptForDatabase(data) {
-  const result = await encrypt(data);
-  return {
-    encrypted: result.encrypted,
-    iv: result.iv,
-    authTag: result.authTag,
-    keyVersion: result.keyVersion,
-    algorithm: result.algorithm,
-  };
+  try {
+    const result = await encrypt(data);
+    return {
+      encrypted: result.encrypted,
+      iv: result.iv,
+      authTag: result.authTag,
+      keyVersion: result.keyVersion,
+      algorithm: result.algorithm
+    };
+  } catch (err) {
+    logEncryptionFailure('encryptForDatabase', err);
+    throw err;
+  }
 }
 
+/**
+ * Read encrypted columns from `record` using `fieldMap` and decrypt.
+ *
+ * fieldMap defaults: { encrypted: 'encrypted', iv: 'iv', authTag: 'authTag' }
+ * Returns null when the record has no encrypted payload.
+ */
 async function decryptFromDatabase(record, fieldMap = {}) {
   if (!record || typeof record !== 'object') return null;
 
@@ -218,7 +306,7 @@ async function decryptFromDatabase(record, fieldMap = {}) {
   // All three absent — unencrypted row, expected during migration window.
   if (!encryptedValue && !ivValue && !authTagValue) return null;
 
-  // Partial presence is data corruption — surface it immediately.
+  // Partial presence means data corruption — log and throw rather than silently return null.
   if (!encryptedValue || !ivValue || !authTagValue) {
     const missing = [
       !encryptedValue && encryptedField,
@@ -240,6 +328,7 @@ function clearCachedKeyForRotation() {
 }
 
 module.exports = {
+  // Core — backward-compatible
   encrypt,
   decrypt,
   encryptForDatabase,

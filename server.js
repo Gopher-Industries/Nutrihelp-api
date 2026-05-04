@@ -283,6 +283,7 @@ if (!useHttpFallback) {
 activeServer.listen(activePort, async () => {
   console.log('\n🎉 NutriHelp API launched successfully!');
   console.log('='.repeat(50));
+  const proto = useHttpFallback ? 'http' : 'https';
   if (useHttpFallback) {
     console.log(`🔓 HTTP server running on port ${activePort} (dev mode — no TLS)`);
     console.log(`📚 Swagger UI: http://localhost:${activePort}/api-docs`);
@@ -318,7 +319,6 @@ activeServer.listen(activePort, async () => {
 
   // Open Swagger on Windows only
   if (process.platform === 'win32') {
-    const proto = useHttpFallback ? 'http' : 'https';
     exec(`start ${proto}://localhost:${activePort}/api-docs`);
   }
 });
