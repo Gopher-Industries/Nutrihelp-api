@@ -22,6 +22,13 @@ async function login({ email, password } = {}) {
     body: {
       token: 'test-token',
       user: { id: 1, email },
+function buildJwt(user) {
+  return jwt.sign(
+    {
+      userId: user.user_id,
+      email: user.email,
+      role: user.user_roles?.role_name || 'unknown',
+      type: 'access'
     },
   };
 }

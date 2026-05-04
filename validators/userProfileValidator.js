@@ -1,5 +1,11 @@
 const { body } = require('express-validator');
 
+function sanitizeEmail(value) {
+  return String(value || '')
+    .trim()
+    .toLowerCase();
+}
+
 function optionalField(selector) {
   return body(selector)
     .optional({ nullable: true })
@@ -24,7 +30,7 @@ const updateUserProfileValidation = [
     .optional({ nullable: true })
     .isEmail()
     .withMessage('email must be a valid email address')
-    .normalizeEmail(),
+    .customSanitizer(sanitizeEmail),
   body('profile').optional().isObject().withMessage('profile must be an object'),
   body('profile.name').optional({ nullable: true }).isString().withMessage('profile.name must be a string').trim(),
   body('profile.username').optional({ nullable: true }).isString().withMessage('profile.username must be a string').trim(),
@@ -37,7 +43,7 @@ const updateUserProfileValidation = [
     .optional({ nullable: true })
     .isEmail()
     .withMessage('profile.email must be a valid email address')
-    .normalizeEmail()
+    .customSanitizer(sanitizeEmail)
 ];
 
 module.exports = {

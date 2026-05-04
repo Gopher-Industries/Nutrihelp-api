@@ -1,76 +1,76 @@
-const fs = require('fs');
-const path = require('path');
-const logger = require('../utils/logger');
-const { executePythonScript } = require('../services/aiExecutionService');
+/**
+ * imageClassificationController.js
+ *
+ * Thin controller — all orchestration lives in the classification gateway.
+ * This file is intentionally small and does three things:
+ *
+ *   1. Validate that an upload exists on `req.file`.
+ *   2. Hand the image bytes to the gateway.
+ *   3. Translate the gateway's normalised result into an HTTP response using
+ *      the shared { success, data, error, code } envelope.
+ *
+ * The gateway is responsible for AI-vs-fallback selection, uncertainty
+ * flagging, circuit-breaker coordination, and populating explainability
+ * metadata.  See services/imageClassificationGateway.js and
+ * services/imageClassificationContract.js.
+ */
 
-// Utility to delete the uploaded file
-const deleteFile = (filePath) => {
+const fs = require('fs');
+const logger = require('../utils/logger');
+const { ok, fail } = require('../utils/apiResponse');
+const { msg } = require('../utils/messages');
+const gateway = require('../services/imageClassificationGateway');
+
+function safeDelete(filePath) {
+  if (!filePath) return;
   fs.unlink(filePath, (err) => {
-    if (err) {
+    if (err && err.code !== 'ENOENT') {
       logger.error('Error deleting image file', { filePath, error: err.message });
     }
   });
-};
+}
 
-// Function to handle prediction logic
 const predictImage = async (req, res) => {
   if (!req.file || !req.file.path) {
-    return res.status(400).json({
-      success: false,
-      prediction: null,
-      confidence: null,
-      error: 'No image uploaded. Please upload a JPEG or PNG image.'
-    });
+    return fail(res, msg('image.no_file'), 400, 'IMAGE_MISSING');
   }
 
-  // Path to the uploaded image file
   const imagePath = req.file.path;
-
-  if (!imagePath) {
-    return res.status(400).json({
-      success: false,
-      prediction: null,
-      confidence: null,
-      error: 'Image path is missing.'
-    });
-  }
 
   try {
     const imageData = await fs.promises.readFile(imagePath);
-    const result = await executePythonScript({
-      scriptPath: path.join(__dirname, '..', 'model', 'imageClassification.py'),
-      stdin: imageData
-    });
+    const result = await gateway.classify(imageData);
 
-    if (!result.success) {
-      const statusCode = result.timedOut ? 504 : 500;
-      return res.status(statusCode).json({
-        success: false,
-        prediction: null,
-        confidence: null,
-        error: result.error || 'Model execution failed.'
+    if (!result.ok) {
+      logger.warn('Image classification returned error', {
+        code: result.code,
+        status: result.httpStatus,
       });
+      return fail(
+        res,
+        result.error || msg('image.classification_failed'),
+        result.httpStatus,
+        result.code,
+        result.meta
+      );
     }
 
-    return res.status(200).json({
-      success: true,
-      prediction: result.prediction,
-      confidence: result.confidence,
-      error: null
+    logger.info('Image classification succeeded', {
+      source: result.data.classification.source,
+      uncertain: result.data.classification.uncertain,
+      durationMs: result.data.explainability.durationMs,
     });
+
+    return ok(res, result.data);
   } catch (error) {
-    logger.error('Error reading image file', { error: error.message, filePath: imagePath });
-    return res.status(500).json({
-      success: false,
-      prediction: null,
-      confidence: null,
-      error: 'Internal server error'
+    logger.error('Unexpected error in image classification controller', {
+      error: error.message,
+      filePath: imagePath,
     });
+    return fail(res, msg('general.internal_error'), 500, 'INTERNAL_ERROR');
   } finally {
-    deleteFile(imagePath);
+    safeDelete(imagePath);
   }
 };
 
-module.exports = {
-  predictImage
-};
+module.exports = { predictImage };
