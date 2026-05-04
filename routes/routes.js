@@ -2,7 +2,9 @@ const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const router = express.Router();
-const recipeImageClassificationController = require('../controllers/recipeImageClassificationController');
+
+// require controller from singular 'controller' folder and call the named method
+const recipeImageClassificationController = require('../controller/recipeImageClassificationController');
 
 const storage = multer.diskStorage({
   destination: function(req, file, cb) {
@@ -28,16 +30,16 @@ const upload = multer({
   }
 });
 
-// Recipe Classification Route
-router.post('/classify', upload.single('photo'), recipeImageClassificationController);
+// Recipe Classification Route: use the named handler
+router.post('/classify', upload.single('photo'), recipeImageClassificationController.classifyImage);
 
 router.use('/classify', (err, req, res, next) => {
   console.error('Error in classification route:', err);
   res.status(500).json({ 
     success: false, 
     message: 'An error occurred during image classification',
-    error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error'
+    error: process.env.NODE_ENV === 'development' ? String(err.message || err) : 'Internal server error'
   });
 });
 
-module.exports = router; 
+module.exports = router;

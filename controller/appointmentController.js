@@ -1,8 +1,11 @@
-const {addAppointment, addAppointmentModelV2, updateAppointmentModel, deleteAppointmentById} = require('../model/appointmentModel.js');
-const {getAllAppointments, getAllAppointmentsV2 } = require('../model/getAppointments.js');
-const logger = require('../utils/logger');
-const { validationResult } = require('express-validator');
+const supabase = require('../dbConnection');
 
+const normalizeId = (id) => {
+    if (typeof id === 'string' && /^\d+$/.test(id)) return Number(id);
+    return id;
+};
+
+exports.getAppointments = async (req, res) => {
 function validationFailure(res, errors) {
   return res.status(400).json({ errors: errors.array() });
 }
@@ -99,23 +102,22 @@ const updateAppointment = async (req,res)=>{
   } = req.body;
 
     try {
-    const updatedAppointment = await updateAppointmentModel(id, {
-      title,
-      doctor,
-      type,
-      date,
-      time,
-      location,
-      address,
-      phone,
-      notes,
-      reminder,
-    });
+        let userId = req.query.user_id;
+        if (!userId) return res.status(400).json({ success: false, error: 'user_id required' });
 
-    if (!updatedAppointment) {
-      return res.status(404).json({ message: 'Appointment not found' });
+        userId = normalizeId(userId);
+
+        const { data, error } = await supabase
+            .from('appointments')
+            .select('*')
+            .eq('user_id', userId);
+
+        if (error) throw error;
+        res.status(200).json({ success: true, data: data || [] });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
     }
-
+};
     res.status(200).json({
       message: 'Appointment updated successfully',
       appointment: updatedAppointment,

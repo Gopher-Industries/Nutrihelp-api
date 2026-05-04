@@ -1,50 +1,20 @@
-/**
- * middleware/requestLogger.js
- * 
- * Structured request logging middleware
- * Logs all incoming requests and responses
- */
-
 const logger = require('../utils/logger');
 const { recordRequest } = require('../services/requestAuditService');
 
-/**
- * Generate unique request ID
- */
-const generateRequestId = () => {
-  return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-};
+module.exports = (req, res, next) => {
+  const start = Date.now();
 
-/**
- * Main request logging middleware
- */
-const requestLoggingMiddleware = (req, res, next) => {
-  // Generate and attach request ID
-  const requestId = req.headers['x-request-id'] || generateRequestId();
-  req.id = requestId;
-  
-  // Track request start time
-  const startTime = Date.now();
-
-  // Extract useful request info
-  const method = req.method;
-  const path = req.path;
-  const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip || req.connection.remoteAddress;
-  const userAgent = req.headers['user-agent'] || 'unknown';
-  const sessionId = req.sessionId || req.headers['x-session-id'];
-  
-  // Log incoming request
-  logger.info(`→ ${method} ${path}`, {
-    requestId,
-    method,
-    path,
-    ip,
-    userAgent,
-    ...(req.user ? { userId: req.user.userId } : {}),
-    ...(sessionId ? { sessionId } : {}),
-    query: Object.keys(req.query).length > 0 ? req.query : undefined
+  // Log request entry
+  logger.info(`→ ${req.method} ${req.originalUrl}`, {
+    query: req.query,
+    body: req.body
   });
 
+  // Hook into response finish to log exit
+  res.on('finish', () => {
+    const ms = Date.now() - start;
+    logger.info(`← ${req.method} ${req.originalUrl} ${res.statusCode} ${ms}ms`);
+  });
   // Capture response details
   const originalSend = res.send;
   res.send = function(data) {
@@ -91,5 +61,3 @@ const requestLoggingMiddleware = (req, res, next) => {
 
   next();
 };
-
-module.exports = { requestLoggingMiddleware, generateRequestId };

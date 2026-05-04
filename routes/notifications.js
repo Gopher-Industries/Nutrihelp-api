@@ -1,5 +1,8 @@
 const express = require('express');
 const router = express.Router();
+const controller = require('../controller/notificationController');
+const validate = require('../middleware/validate');
+const { notificationQuery } = require('../validators/utilitySchemas');
 const { authAndIdentity } = require('../controller');
 const {
   validateCreateNotification,
@@ -7,10 +10,11 @@ const {
   validateDeleteNotification
 } = require('../validators/notificationValidator');
 
-const validateResult = require('../middleware/validateRequest.js');
-const { authenticateToken } = require('../middleware/authenticateToken');
-const authorizeRoles = require('../middleware/authorizeRoles');
+// GET notifications with unread filter support
+router.get('/', validate(notificationQuery, 'query'), controller.getNotifications);
 
+// PATCH mark as read
+router.patch('/:id/read', controller.markRead);
 const { notifications: notificationController } = authAndIdentity;
 
 // Create a new notification → Admin only

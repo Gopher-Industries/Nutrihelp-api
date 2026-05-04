@@ -1,13 +1,13 @@
 const express = require('express');
 const router = express.Router();
-const recipeController = require('../controller/recipeController.js');
-const { validateRecipe } = require('../validators/recipeValidator.js');
-const validateRequest = require('../middleware/validateRequest.js');
+const controller = require('../controller/recipeController');
+const validate = require('../middleware/validate');
+const { recipeQuery } = require('../validators/schemas');
 
-// Validate and create recipe
-router.post('/createRecipe', validateRecipe, validateRequest, recipeController.createAndSaveRecipe);
-
-router.post('/', recipeController.getRecipes);
-router.delete('/', recipeController.deleteRecipe);
+router.get('/user/:user_id', (req, res, next) => {
+    // Move params to query temporarily for validation convenience or validate params
+    req.query.user_id = req.params.user_id;
+    next();
+}, validate(recipeQuery, 'query'), controller.getUserRecipes);
 
 module.exports = router;

@@ -1,4 +1,6 @@
 const express = require('express');
+const router = express.Router();
+
 const { coreApp } = require('../controller');
 const {
   appointmentValidator,
@@ -6,7 +8,6 @@ const {
 } = require('../validators/appointmentValidator.js');
 const validate = require('../middleware/validateRequest.js');
 
-const router = express.Router();
 const { appointments: appointmentController } = coreApp;
 
 // Legacy appointment routes

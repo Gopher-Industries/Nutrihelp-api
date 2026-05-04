@@ -1,17 +1,9 @@
-const express    = require("express");
-const router     = express.Router();
-const controller = require("../controller/foodDataController");
-const foodDatabase = require("../controller/foodDatabaseController");
+const express = require('express');
+const router = express.Router();
+const controller = require('../controller/foodDatabaseController');
+const validate = require('../middleware/validate');
+const { foodSearchQuery } = require('../validators/schemas');
 
-
-router.route("/dietaryrequirements").get(controller.getAllDietaryRequirements);
-router.route("/cuisines").get(controller.getAllCuisines);
-router.route("/allergies").get(controller.getAllAllergies);
-router.route("/ingredients").get(controller.getAllIngredients);
-router.route("/cookingmethods").get(controller.getAllCookingMethods);
-router.route("/spicelevels").get(controller.getAllSpiceLevels);
-router.route("/healthconditions").get(controller.getAllHealthConditions);
-
-router.route("/mealplan").get(foodDatabase.getFoodData);
+router.get('/search', validate(foodSearchQuery, 'query'), controller.searchFood);
 
 module.exports = router;
