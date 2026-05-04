@@ -2,32 +2,11 @@
 
 const crypto = require('crypto');
 
-// Key source strategy:
-// 1) Supabase Vault (preferred): RPC returns a base64/hex key string.
-// 2) Environment fallback: ENCRYPTION_KEY (required if no Vault RPC configured).
-//
-// Key rotation: bump ENCRYPTION_KEY_VERSION and keep the old key available
-// under ENCRYPTION_KEY_PREV during rotation. The rotate-encryption-key.js
-// script handles re-encrypting all existing rows.
-
 const ALGORITHM = 'aes-256-gcm';
 const IV_LENGTH = 12;       // 96-bit nonce — recommended for GCM
 const AUTH_TAG_LENGTH = 16;
 const BATCH_SIZE = 50;      // default batch size for bulk operations
 const MAX_CONCURRENT = 5;   // max parallel encrypt/DB operations within a batch
-const crypto = require('crypto');
-
-// Key source strategy:
-// 1) Supabase Vault path (preferred): provide an RPC that returns a base64/hex key string.
-// 2) Environment fallback: ENCRYPTION_KEY (required if no Vault RPC is configured).
-//
-// Key rotation readiness:
-// - Add ENCRYPTION_KEY_VERSION and persist it alongside encrypted rows in Week 6.
-// - Keep old keys in secure storage during rotation and re-encrypt in batches.
-
-const ALGORITHM = 'aes-256-gcm';
-const IV_LENGTH = 12; // 96-bit nonce recommended for GCM
-const AUTH_TAG_LENGTH = 16;
 
 const KEY_SOURCE = String(process.env.ENCRYPTION_KEY_SOURCE || 'env').toLowerCase();
 const KEY_ENV_NAME = process.env.ENCRYPTION_KEY_ENV_NAME || 'ENCRYPTION_KEY';
@@ -41,17 +20,13 @@ let cachedKeyVersion = null;
 // ---------------------------------------------------------------------------
 
 function assertBackendRuntime() {
-function assertBackendRuntime() {
-  // Defensive guard: this file must never be shipped to frontend bundles.
   if (typeof window !== 'undefined') {
     throw new Error('encryptionService is backend-only and cannot run in a browser runtime.');
   }
 }
 
 // ---------------------------------------------------------------------------
-// Failure logging (lightweight — no circular imports)
-// Writes a structured entry to stderr so the crypto_logs service or any
-// external log aggregator can pick it up.  This feeds Alert A12.
+// Failure logging
 // ---------------------------------------------------------------------------
 
 function logEncryptionFailure(operation, error, context = {}) {
@@ -91,22 +66,11 @@ function normalizeKey(rawKey) {
     return Buffer.from(trimmed, 'hex');
   }
 
-  throw new Error(
-    'Invalid encryption key format. Key must be a 32-byte base64 string (44 chars) or a 64-char hex string. ' +
-    'Generate a valid key with: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'base64\'))"'
-  );
-}
-
-async function loadKeyFromVault() {
   // Last resort: plain UTF-8 passphrase -> SHA-256 derived key.
-  // Keep compatibility but prefer explicit 32-byte base64 keys.
   return crypto.createHash('sha256').update(trimmed, 'utf8').digest();
 }
 
 async function loadKeyFromVault() {
-  // This expects a secure Postgres RPC (example name: get_encryption_key)
-  // that only service-role calls can execute and returns:
-  // { key: '<base64-or-hex-key>', version: 'v1' }
   let supabase;
   try {
     supabase = require('../database/supabaseClient');
@@ -121,7 +85,6 @@ async function loadKeyFromVault() {
     throw new Error(`Failed to load encryption key from Vault RPC '${rpcName}': ${error.message || error}`);
   }
 
-  // RPC may return a plain string, an object, or an array of rows.
   let keyValue = null;
   const version = KEY_VERSION;
 
@@ -178,11 +141,6 @@ function toPayload(data) {
   if (data !== null && typeof data === 'object') {
     return JSON.stringify({ v: 1, t: 'json', d: data });
   }
-
-  if (data !== null && typeof data === 'object') {
-    return JSON.stringify({ v: 1, t: 'json', d: data });
-  }
-
   throw new TypeError('encrypt(data) expects a string or object.');
 }
 
@@ -191,8 +149,6 @@ function fromPayload(payload) {
   try {
     parsed = JSON.parse(payload);
   } catch (_error) {
-    return payload;
-  }
     // Backward compatibility fallback for unexpected plaintext payloads.
     return payload;
   }
@@ -265,11 +221,6 @@ async function decrypt(encryptedData, iv, authTag) {
 // Database helpers
 // ---------------------------------------------------------------------------
 
-/**
- * Encrypt `data` and return the four columns needed for DB storage.
- * On failure, logs via logEncryptionFailure and re-throws — callers must
- * not fall back to plaintext.
- */
 async function encryptForDatabase(data) {
   try {
     const result = await encrypt(data);
@@ -286,12 +237,6 @@ async function encryptForDatabase(data) {
   }
 }
 
-/**
- * Read encrypted columns from `record` using `fieldMap` and decrypt.
- *
- * fieldMap defaults: { encrypted: 'encrypted', iv: 'iv', authTag: 'authTag' }
- * Returns null when the record has no encrypted payload.
- */
 async function decryptFromDatabase(record, fieldMap = {}) {
   if (!record || typeof record !== 'object') return null;
 
@@ -303,10 +248,8 @@ async function decryptFromDatabase(record, fieldMap = {}) {
   const ivValue = record[ivField];
   const authTagValue = record[authTagField];
 
-  // All three absent — unencrypted row, expected during migration window.
   if (!encryptedValue && !ivValue && !authTagValue) return null;
 
-  // Partial presence means data corruption — log and throw rather than silently return null.
   if (!encryptedValue || !ivValue || !authTagValue) {
     const missing = [
       !encryptedValue && encryptedField,
@@ -322,17 +265,13 @@ async function decryptFromDatabase(record, fieldMap = {}) {
   return decrypt(encryptedValue, ivValue, authTagValue);
 }
 
-function clearCachedKeyForRotation() {
-  cachedKey = null;
-  cachedKeyVersion = null;
-}
-
 module.exports = {
-  // Core — backward-compatible
   encrypt,
   decrypt,
   encryptForDatabase,
   decryptFromDatabase,
   loadEncryptionKey,
   clearCachedKeyForRotation,
+  BATCH_SIZE,
+  MAX_CONCURRENT,
 };
