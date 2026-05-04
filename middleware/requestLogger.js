@@ -1,37 +1,29 @@
 const logger = require('../utils/logger');
 const { recordRequest } = require('../services/requestAuditService');
+const { v4: uuidv4 } = require('uuid');
 
 module.exports = (req, res, next) => {
-  const start = Date.now();
+  const startTime = Date.now();
+  const requestId = uuidv4();
+  const method = req.method;
+  const path = req.originalUrl;
 
-  // Log request entry
-  logger.info(`→ ${req.method} ${req.originalUrl}`, {
-    query: req.query,
-    body: req.body
-  });
+  req.requestId = requestId;
+  req.logger = logger;
 
-  // Hook into response finish to log exit
-  res.on('finish', () => {
-    const ms = Date.now() - start;
-    logger.info(`← ${req.method} ${req.originalUrl} ${res.statusCode} ${ms}ms`);
-  });
-  // Capture response details
+  logger.info(`→ ${method} ${path}`, { query: req.query });
+
   const originalSend = res.send;
-  res.send = function(data) {
-    // Calculate duration
+  res.send = function (data) {
     const duration = Date.now() - startTime;
     const statusCode = res.statusCode;
 
-    // Determine log level based on status code
     let logLevel = 'info';
     if (statusCode >= 500) logLevel = 'error';
     else if (statusCode >= 400) logLevel = 'warn';
-    else if (duration > 5000) logLevel = 'warn'; // Slow request
+    else if (duration > 5000) logLevel = 'warn';
 
-    // Log response
-    const logMessage = `← ${method} ${path} ${statusCode} (${duration}ms)`;
-    
-    logger[logLevel](logMessage, {
+    logger[logLevel](`← ${method} ${path} ${statusCode} ${duration}ms`, {
       requestId,
       method,
       path,
@@ -39,7 +31,7 @@ module.exports = (req, res, next) => {
       duration,
       ...(req.user ? { userId: req.user.id } : {}),
       contentLength: res.get('content-length'),
-      ...(logLevel === 'error' ? { responseBody: data } : {})
+      ...(logLevel === 'error' ? { responseBody: data } : {}),
     });
 
     recordRequest({
@@ -51,13 +43,8 @@ module.exports = (req, res, next) => {
       userId: req.user?.userId || null,
     });
 
-    // Call original send
     return originalSend.call(this, data);
   };
-
-  // Attach logger to request for use in controllers
-  req.logger = logger;
-  req.requestId = requestId;
 
   next();
 };
