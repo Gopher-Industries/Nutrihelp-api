@@ -43,7 +43,6 @@ console.log('   HTTP_PORT:', process.env.HTTP_PORT || process.env.PORT || '80 (d
 console.log('');
 
 const app = express();
-startLiveAuditScheduler();
 const HTTPS_PORT = Number(process.env.HTTPS_PORT) || 443;
 const HTTP_PORT = Number(process.env.HTTP_PORT || process.env.PORT) || 80;
 const tlsKeyPath = process.env.TLS_KEY_PATH || path.join(__dirname, 'certs', 'local-key.pem');
@@ -314,11 +313,5 @@ activeServer.listen(activePort, async () => {
 
   if (process.platform === 'win32') {
     exec(`start https://localhost:${HTTPS_PORT}/api-docs`);
-  }
-});
-
-  // Open Swagger on Windows only
-  if (process.platform === 'win32') {
-    exec(`start ${proto}://localhost:${activePort}/api-docs`);
   }
 });
