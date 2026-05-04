@@ -10,4 +10,10 @@ test-results/
 server.pid
 server.log
 *.bak
-certs/*.pem
+
+# TLS certificates and private keys — generate locally, never commit
+*.pem
+*.key
+*.crt
+*.p12
+certs/

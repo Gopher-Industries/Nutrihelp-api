@@ -1,7 +1,9 @@
-const { coreApp, shared } = require('../services');
-
-const { recommendationService } = coreApp;
-const { createErrorResponse } = shared.apiResponse;
+const { generateRecommendations } = require('../services/recommendationService');
+const {
+  createErrorResponse,
+  createSuccessResponse,
+  formatRecommendations
+} = require('../services/apiResponseService');
 
 function isPlainObject(value) {
   return value != null && typeof value === 'object' && !Array.isArray(value);
@@ -39,7 +41,7 @@ async function getRecommendations(req, res) {
   try {
     validateRecommendationRequest(req.body || {});
 
-    const result = await recommendationService.generateRecommendations({
+    const result = await generateRecommendations({
       userId: req.user?.userId || req.body?.userId,
       email: req.user?.email || req.body?.email,
       healthGoals: req.body?.healthGoals || {},
@@ -51,7 +53,16 @@ async function getRecommendations(req, res) {
       refreshCache: req.body?.refreshCache === true
     });
 
-    return res.status(200).json(result);
+    return res.status(200).json(createSuccessResponse({
+      items: formatRecommendations(result.recommendations || [])
+    }, {
+      count: (result.recommendations || []).length,
+      generatedAt: result.generatedAt,
+      contractVersion: result.contractVersion,
+      source: result.source,
+      cache: result.cache,
+      input: result.input
+    }));
   } catch (error) {
     console.error('[recommendationController] error:', error);
     const statusCode = error.statusCode || 500;
