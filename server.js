@@ -30,6 +30,7 @@ const rateLimit = require('express-rate-limit');
 const uploadRoutes = require('./routes/uploadRoutes');
 const systemRoutes = require('./routes/systemRoutes');
 const { metricsMiddleware, metricsEndpoint } = require('./Monitor_&_Logging/metrics');
+const { startScheduler: startLiveAuditScheduler } = require('./services/liveAuditService');
 
 const FRONTEND_ORIGIN = 'http://localhost:3000';
 
@@ -42,6 +43,7 @@ console.log('   HTTP_PORT:', process.env.HTTP_PORT || process.env.PORT || '80 (d
 console.log('');
 
 const app = express();
+startLiveAuditScheduler();
 const HTTPS_PORT = Number(process.env.HTTPS_PORT) || 443;
 const HTTP_PORT = Number(process.env.HTTP_PORT || process.env.PORT) || 80;
 const tlsKeyPath = process.env.TLS_KEY_PATH || path.join(__dirname, 'certs', 'local-key.pem');
@@ -282,4 +284,3 @@ activeServer.listen(activePort, async () => {
     exec(`start ${proto}://localhost:${activePort}/api-docs`);
   }
 });
-

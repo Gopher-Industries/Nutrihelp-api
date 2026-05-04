@@ -6,6 +6,7 @@
  */
 
 const logger = require('../utils/logger');
+const { recordRequest } = require('../services/requestAuditService');
 
 /**
  * Generate unique request ID
@@ -69,6 +70,15 @@ const requestLoggingMiddleware = (req, res, next) => {
       ...(req.user ? { userId: req.user.id } : {}),
       contentLength: res.get('content-length'),
       ...(logLevel === 'error' ? { responseBody: data } : {})
+    });
+
+    recordRequest({
+      method,
+      path,
+      statusCode,
+      duration,
+      requestId,
+      userId: req.user?.userId || null,
     });
 
     // Call original send
