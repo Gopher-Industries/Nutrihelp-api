@@ -1,21 +1,14 @@
 const express = require('express');
 const router = express.Router();
 const controller = require('../controller/notificationController');
-const validate = require('../middleware/validate');
-const { notificationQuery } = require('../validators/utilitySchemas');
-const { authAndIdentity } = require('../controller');
+const { authenticateToken } = require('../middleware/authenticateToken');
+const authorizeRoles = require('../middleware/authorizeRoles');
 const {
   validateCreateNotification,
   validateUpdateNotification,
   validateDeleteNotification
 } = require('../validators/notificationValidator');
-
-// GET notifications with unread filter support
-router.get('/', validate(notificationQuery, 'query'), controller.getNotifications);
-
-// PATCH mark as read
-router.patch('/:id/read', controller.markRead);
-const { notifications: notificationController } = authAndIdentity;
+const validate = require('../middleware/validateRequest');
 
 // Create a new notification → Admin only
 router.post(
@@ -23,11 +16,11 @@ router.post(
   authenticateToken,
   authorizeRoles('admin'),
   validateCreateNotification,
-  validateResult,
-  notificationController.createNotification
+  validate,
+  controller.createNotification
 );
 
-// Get notifications by user_id → Any authenticated user (but can only view their own)
+// Get notifications by user_id → Any authenticated user (own only)
 router.get(
   '/:user_id?',
   authenticateToken,
@@ -36,15 +29,14 @@ router.get(
     if (req.user.role !== 'admin' && req.user.userId != requestedUserId) {
       return res.status(403).json({
         success: false,
-        error: "You can only view your own notifications",
-        code: "ACCESS_DENIED"
+        error: 'You can only view your own notifications',
+        code: 'ACCESS_DENIED',
       });
     }
-
     req.params.user_id = requestedUserId;
     next();
   },
-  notificationController.getNotificationsByUserId
+  controller.getNotificationsByUserId
 );
 
 // Update notification status by ID → Admin or Nutritionist
@@ -53,8 +45,8 @@ router.put(
   authenticateToken,
   authorizeRoles('admin', 'nutritionist'),
   validateUpdateNotification,
-  validateResult,
-  notificationController.updateNotificationStatusById
+  validate,
+  controller.updateNotificationStatusById
 );
 
 // Delete notification by ID → Admin only
@@ -63,8 +55,8 @@ router.delete(
   authenticateToken,
   authorizeRoles('admin'),
   validateDeleteNotification,
-  validateResult,
-  notificationController.deleteNotificationById
+  validate,
+  controller.deleteNotificationById
 );
 
 module.exports = router;

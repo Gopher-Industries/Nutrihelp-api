@@ -1,4 +1,5 @@
 const rateLimit = require('express-rate-limit');
+const { ipKeyGenerator } = require('express-rate-limit');
 
 // For login and MFA
 const loginLimiter = rateLimit({
@@ -75,7 +76,7 @@ const passwordChangeLimiter = rateLimit({
   max: 5,
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => req.user?.userId || req.ip,
+  keyGenerator: (req) => req.user?.userId || ipKeyGenerator(req),
   message: {
     status: 429,
     error: "Too many password verification attempts. Please try again later.",

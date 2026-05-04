@@ -1,4 +1,4 @@
-require('dotenv').config();
+require('dotenv').config({ override: true });
 
 const express = require('express');
 const fs = require('fs');
@@ -8,7 +8,7 @@ const https = require('https');
 const { exec } = require('child_process');
 
 const logger = require('./utils/logger');
-const { requestLoggingMiddleware } = require('./middleware/requestLogger');
+const requestLoggingMiddleware = require('./middleware/requestLogger');
 const { sessionMonitorMiddleware } = require('./middleware/sessionMonitor');
 const { structuredErrorHandler } = require('./middleware/structuredErrorHandler');
 const responseContractMiddleware = require('./middleware/responseContract');
