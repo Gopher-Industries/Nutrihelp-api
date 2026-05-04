@@ -29,16 +29,19 @@ router.post(
 
 // Get notifications by user_id → Any authenticated user (but can only view their own)
 router.get(
-  '/:user_id',
+  '/:user_id?',
   authenticateToken,
   (req, res, next) => {
-    if (req.user.role !== 'admin' && req.user.userId != req.params.user_id) {
+    const requestedUserId = req.params.user_id || req.user.userId;
+    if (req.user.role !== 'admin' && req.user.userId != requestedUserId) {
       return res.status(403).json({
         success: false,
         error: "You can only view your own notifications",
         code: "ACCESS_DENIED"
       });
     }
+
+    req.params.user_id = requestedUserId;
     next();
   },
   notificationController.getNotificationsByUserId
