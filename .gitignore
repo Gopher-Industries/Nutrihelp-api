@@ -19,8 +19,3 @@ node_modules
 *.crt
 *.p12
 certs/
-
-# Runtime log artifacts
-*.jsonl
-logs/
-certs/*.pem

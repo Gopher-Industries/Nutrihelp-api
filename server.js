@@ -30,7 +30,7 @@ const rateLimit = require('express-rate-limit');
 const uploadRoutes = require('./routes/uploadRoutes');
 const systemRoutes = require('./routes/systemRoutes');
 const { metricsMiddleware, metricsEndpoint } = require('./Monitor_&_Logging/metrics');
-const { startScheduler: startLiveAuditScheduler } = require('./services/liveAuditService');
+const { runAlertCheckJob } = require('./services/securityAlertService');
 
 const FRONTEND_ORIGIN = 'http://localhost:3000';
 
@@ -42,7 +42,6 @@ console.log('   HTTP_PORT:', process.env.HTTP_PORT || process.env.PORT || '80 (d
 console.log('');
 
 const app = express();
-startLiveAuditScheduler();
 const HTTPS_PORT = Number(process.env.HTTPS_PORT) || 443;
 const HTTP_PORT = Number(process.env.HTTP_PORT || process.env.PORT) || 80;
 const tlsKeyPath = process.env.TLS_KEY_PATH || path.join(__dirname, 'certs', 'local-key.pem');
@@ -79,6 +78,9 @@ function cleanupOldFiles() {
 cleanupOldFiles();
 setInterval(cleanupOldFiles, 3 * 60 * 60 * 1000);
 
+let alertIntervalId = null;
+
+// --- Trusted early middlewares ---
 app.use(requestLoggingMiddleware);
 app.use(sessionMonitorMiddleware);
 app.use(localeMiddleware);
@@ -192,6 +194,19 @@ app.use((err, req, res, next) => {
 process.on('uncaughtException', uncaughtExceptionHandler);
 process.on('unhandledRejection', unhandledRejectionHandler);
 
+function gracefulShutdown(signal) {
+  console.log(`\n[server] ${signal} received — shutting down gracefully`);
+  if (alertIntervalId) {
+    clearInterval(alertIntervalId);
+    alertIntervalId = null;
+    console.log('[server] CT-004 Alert checking job stopped');
+  }
+  httpsServer.close(() => process.exit(0));
+  setTimeout(() => process.exit(1), 10000).unref();
+}
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
 function createHttpsServer() {
   try {
     const tlsOptions = {
@@ -240,6 +255,7 @@ if (!useHttpFallback) {
 activeServer.listen(activePort, async () => {
   console.log('\n🎉 NutriHelp API launched successfully!');
   console.log('='.repeat(50));
+  const proto = useHttpFallback ? 'http' : 'https';
   if (useHttpFallback) {
     console.log(`🔓 HTTP server running on port ${activePort} (dev mode — no TLS)`);
     console.log(`📚 Swagger UI: http://localhost:${activePort}/api-docs`);
@@ -251,9 +267,25 @@ activeServer.listen(activePort, async () => {
   console.log('='.repeat(50));
   console.log('💡 Press Ctrl+C to stop the server \n');
 
+  // CT-004: Start alert job only after the server is fully bound and ready.
+  // The interval callback is wrapped so a single failing run never stops
+  // future runs (runAlertCheckJob already has an internal try/catch).
+  try {
+    await runAlertCheckJob();
+    alertIntervalId = setInterval(async () => {
+      try {
+        await runAlertCheckJob();
+      } catch (err) {
+        console.error('[server] Alert check job failed unexpectedly:', err.message);
+      }
+    }, 5 * 60 * 1000);
+    console.log('[server] CT-004 Alert checking job initialized (5-minute interval)');
+  } catch (err) {
+    console.warn('[server] Failed to run initial alert check:', err.message);
+  }
+
   if (process.platform === 'win32') {
-    const proto = useHttpFallback ? 'http' : 'https';
-    exec(`start ${proto}://localhost:${activePort}/api-docs`);
+    exec(`start https://localhost:${HTTPS_PORT}/api-docs`);
   }
 });
 

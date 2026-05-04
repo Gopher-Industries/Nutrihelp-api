@@ -59,6 +59,13 @@ const routeGroups = [
     routes: [
       ['/api/upload', './upload'],
       ['/api/security', './securityEvents'],
+      ['/api/security/alerts', './alerts'],
+    ],
+  },
+  {
+    name: 'health-checks',
+    routes: [
+      ['/api/health/encryption', './encryptionHealth'],
     ],
   },
 ];
