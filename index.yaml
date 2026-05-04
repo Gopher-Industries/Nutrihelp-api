@@ -20,10 +20,6 @@ tags:
   description: Home Service API
 - name: Auth
   description: Authentication and user session endpoints
-- name: Authentication
-  description: Login, MFA, and password management endpoints
-- name: MealPlanAI
-  description: AI-powered personalized 7-day meal plan generation
 paths:
   /account:
     get:
@@ -72,84 +68,76 @@ paths:
       tags:
       - Auth
       summary: Logout from all devices
+      description: Invalidates all refresh sessions for the authenticated user.
       security:
       - BearerAuth: []
       responses:
         '200':
           description: Logged out from all sessions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenericEnvelopeWithMessage'
+        '400':
+          description: Missing authenticated user context
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+        '500':
+          description: Logout all failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
   /auth/dashboard:
     get:
       tags:
       - Auth
       summary: Get auth dashboard data
+      description: Lightweight authenticated check that returns the current user's identity and role.
       security:
       - BearerAuth: []
       responses:
         '200':
           description: Dashboard data returned
-  /:
-    get:
-      tags:
-      - System
-      summary: API root health check
-      description: Returns the NutriHelp API health status and useful URLs.
-      responses:
-        '200':
-          description: API status returned
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    example: ok
-                  message:
-                    type: string
-                    example: NutriHelp API is running
-                  uptime:
-                    type: number
-                    example: 123.45
-                  metrics:
-                    type: string
-                    example: /api/metrics
-                  docs:
-                    type: string
-                    example: /api-docs
-  /metrics:
-    get:
-      tags:
-      - System
-      summary: Prometheus-compatible metrics endpoint
-      description: Returns Prometheus metrics for monitoring and alerting. This endpoint is exposed by the NutriHelp backend for Prometheus scraping.
-      responses:
-        '200':
-          description: Metrics text/plain output
-          content:
-            text/plain:
-              schema:
-                type: string
+                $ref: '#/components/schemas/AuthDashboardResponse'
+        '401':
+          description: Unauthorized
   /recipe/createRecipe:
     post:
       tags:
       - Recipe
       summary: Create a new recipe
+      description: Creates and saves a user-owned recipe. Returns a simple success payload on completion.
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                name:
-                  type: string
-                ingredients:
-                  type: array
-                  items:
-                    type: string
+              $ref: '#/components/schemas/CreateRecipeRequest'
       responses:
         '201':
           description: Recipe created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LegacyMutationResponse'
+        '400':
+          description: Validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExpressValidationErrorArray'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /recipe/scale/{recipe_id}/{desired_servings}:
     get:
       tags:
@@ -169,6 +157,22 @@ paths:
       responses:
         '200':
           description: Scaled recipe returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecipeScaleResponse'
+        '4XX':
+          description: Invalid recipe id or servings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /fooddata/mealplan:
     get:
       tags:
@@ -182,23 +186,38 @@ paths:
       tags:
       - Chatbot
       summary: Query the chatbot
+      description: Submit `user_id` and `user_input`, persist the exchange in chat history, and return the chatbot reply.
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                query:
-                  type: string
+              $ref: '#/components/schemas/ChatbotQueryRequest'
       responses:
         '200':
           description: Chatbot response returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatbotQueryResponse'
+        '400':
+          description: Missing or invalid chatbot input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /chatbot/add_urls:
     post:
       tags:
       - Chatbot
       summary: Add URLs to chatbot knowledge base
+      description: Sends one or more URLs to the AI chatbot ingestion endpoint.
       requestBody:
         required: true
         content:
@@ -213,34 +232,92 @@ paths:
       responses:
         '200':
           description: URLs added
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatbotMutationResponse'
+        '400':
+          description: Missing or invalid URL payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: AI server unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /chatbot/add_pdfs:
     post:
       tags:
       - Chatbot
       summary: Add PDFs to chatbot knowledge base
+      description: Placeholder endpoint that currently accepts a JSON `pdfs` payload and returns a dummy success response.
       requestBody:
         required: true
         content:
-          multipart/form-data:
+          application/json:
             schema:
               type: object
               properties:
-                files:
-                  type: array
-                  items:
-                    type: string
-                    format: binary
+                pdfs:
+                  oneOf:
+                  - type: string
+                  - type: array
+                    items:
+                      type: string
       responses:
         '200':
           description: PDFs added
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatbotMutationResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /articles:
     get:
       tags:
       - Articles
-      summary: Get all articles
+      summary: Search health articles
+      description: Returns health articles for the required `query` term.
+      parameters:
+      - name: query
+        in: query
+        required: true
+        description: Search keyword used by the article lookup model.
+        schema:
+          type: string
       responses:
         '200':
-          description: List of articles returned
+          description: Matching articles returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArticleSearchResponse'
+        '400':
+          description: Missing query parameter
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /shopping-list/items:
     post:
       tags:
@@ -263,7 +340,11 @@ paths:
   /login:
     post:
       summary: User login
-      description: Authenticates user and returns a JWT token
+      description: |
+        Legacy login endpoint for web clients.
+        On success it returns `{ user, token }`.
+        If MFA is enabled it returns `202` with a message.
+        Repeated failures may return `429`.
       requestBody:
         required: true
         content:
@@ -276,20 +357,33 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  token:
-                    $ref: '#/components/schemas/JWTResponse'
-                  user:
-                    $ref: '#/components/schemas/UserResponse'
+                $ref: '#/components/schemas/LegacyLoginSuccessResponse'
+        '202':
+          description: MFA token sent to the user's email
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenericSuccessResponse'
         '400':
           description: Email and password are required
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Account not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '401':
           description: Invalid email or password
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Too many login attempts or lockout warning
           content:
             application/json:
               schema:
@@ -303,7 +397,10 @@ paths:
   /signup:
     post:
       summary: User signup
-      description: Registers a new user with an email and password
+      description: |
+        Legacy signup endpoint for web clients.
+        Returns a simple success message on creation.
+        Validation middleware may also return an `errors` array.
       requestBody:
         required: true
         content:
@@ -318,12 +415,14 @@ paths:
               schema:
                 $ref: '#/components/schemas/SuccessResponse'
         '400':
-          description: Bad request - either missing email/password or user already
-            exists
+          description: Validation failed, weak password, or user already exists
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                oneOf:
+                - $ref: '#/components/schemas/ErrorResponse'
+                - $ref: '#/components/schemas/ValidationErrorsResponse'
+                - $ref: '#/components/schemas/SignupWeakPasswordResponse'
         '500':
           description: Internal server error
           content:
@@ -335,12 +434,16 @@ paths:
       tags:
       - Authentication
       summary: Get User Profile
-      description: Get current user information
+      description: Returns the authenticated user's profile in the shared response envelope used by web and mobile clients.
       security:
       - BearerAuth: []
       responses:
         '200':
           description: Profile retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfileEnvelope'
         '401':
           description: Unauthorized
         '404':
@@ -538,7 +641,7 @@ paths:
   /upload:
     post:
       summary: Upload a file
-      description: Upload JPG, PNG, or PDF (max 5MB, limited to 5 uploads per 10 minutes)
+      description: Upload JPG, PNG, or PDF (max 5MB). Requires bearer token, `user_id`, and a multipart `file` field.
       security:
       - BearerAuth: []
       requestBody:
@@ -551,13 +654,38 @@ paths:
                 file:
                   type: string
                   format: binary
+                user_id:
+                  type: integer
+              required:
+              - file
+              - user_id
       responses:
-        '200':
+        '201':
           description: File uploaded successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileUploadResponse'
         '400':
           description: Upload failed due to size/type restriction
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Missing authorization token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '429':
           description: Too many uploads from this IP (rate limit exceeded)
+        '500':
+          description: File upload failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /home/services:
     get:
       tags:
@@ -755,6 +883,24 @@ paths:
         '500':
           description: Internal server error
   /appointments:
+    get:
+      summary: Retrieve all appointment data
+      description: Returns a JSON array containing all appointments.
+      responses:
+        '200':
+          description: Appointments fetched successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Appointment'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
     post:
       tags:
       - Appointments
@@ -774,6 +920,14 @@ paths:
                 $ref: '#/components/schemas/SuccessResponse'
         '400':
           description: Bad request - missing required fields
+          content:
+            application/json:
+              schema:
+                oneOf:
+                - $ref: '#/components/schemas/ErrorResponse'
+                - $ref: '#/components/schemas/ExpressValidationErrorArray'
+        '500':
+          description: Internal server error
           content:
             application/json:
               schema:
@@ -798,6 +952,14 @@ paths:
                 $ref: '#/components/schemas/SuccessResponse'
         '400':
           description: Bad request - missing required fields
+          content:
+            application/json:
+              schema:
+                oneOf:
+                - $ref: '#/components/schemas/ErrorResponse'
+                - $ref: '#/components/schemas/ExpressValidationErrorArray'
+        '500':
+          description: Internal server error
           content:
             application/json:
               schema:
@@ -1271,17 +1433,6 @@ paths:
       responses:
         '204':
           description: Item deleted successfully
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  statusCode:
-                    type: integer
-                    example: 204
-                  message:
-                    type: string
-                    example: success
         '400':
           description: Bad request - invalid item ID
           content:
@@ -1294,28 +1445,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-    get:
-      summary: Retrieve all appointment data
-      description: Returns a JSON array containing all appointments
-      responses:
-        '200':
-          description: Appointments fetched successfully
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Appointment'
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
   /contactus:
     post:
       summary: Contact us
-      description: Receives a contact request
+      description: Receives a contact request after rate limiting and express-validator checks.
       requestBody:
         required: true
         content:
@@ -1330,11 +1463,11 @@ paths:
               schema:
                 $ref: '#/components/schemas/SuccessResponse'
         '400':
-          description: Bad request - missing required fields
+          description: Validation failed
           content:
-            text/plain:
+            application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '#/components/schemas/ExpressValidationErrorArray'
         '500':
           description: Internal server error
           content:
@@ -1351,7 +1484,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/IDNamePair'
+                type: array
+                items:
+                  $ref: '#/components/schemas/IDNamePair'
         '500':
           description: Internal server error
           content:
@@ -1368,7 +1503,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/IDNamePair'
+                type: array
+                items:
+                  $ref: '#/components/schemas/IDNamePair'
         '500':
           description: Internal server error
           content:
@@ -1385,7 +1522,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/IDNamePair'
+                type: array
+                items:
+                  $ref: '#/components/schemas/IDNamePair'
         '500':
           description: Internal server error
           content:
@@ -1402,7 +1541,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/IDNamePair'
+                type: array
+                items:
+                  $ref: '#/components/schemas/IDNamePair'
         '500':
           description: Internal server error
           content:
@@ -1419,7 +1560,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/IDNamePair'
+                type: array
+                items:
+                  $ref: '#/components/schemas/IDNamePair'
         '500':
           description: Internal server error
           content:
@@ -1475,7 +1618,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/IDNamePair'
+                type: array
+                items:
+                  $ref: '#/components/schemas/IDNamePair'
         '500':
           description: Internal server error
           content:
@@ -1492,7 +1637,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/IDNamePair'
+                type: array
+                items:
+                  $ref: '#/components/schemas/IDNamePair'
         '500':
           description: Internal server error
           content:
@@ -1576,7 +1723,7 @@ paths:
   /login/mfa:
     post:
       summary: Multi-factor authentication
-      description: Authenticates user with multi-factor authentication
+      description: Legacy login endpoint that verifies email, password, and MFA token, then returns `{ user, token }`.
       requestBody:
         required: true
         content:
@@ -1589,20 +1736,15 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  token:
-                    $ref: '#/components/schemas/JWTResponse'
-                  user:
-                    $ref: '#/components/schemas/UserResponse'
+                $ref: '#/components/schemas/LegacyLoginSuccessResponse'
         '400':
-          description: Email and password are required
+          description: Email, password, and token are required
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '401':
-          description: Invalid email or password
+          description: Invalid email, password, or MFA token
           content:
             application/json:
               schema:
@@ -1615,28 +1757,33 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
   /mealplan:
     get:
-      summary: Get meal plan
-      description: Retrieves a meal plan for the user
+      summary: Get meal plans
+      description: |
+        Returns meal plans in a mobile-friendly shared envelope.
+        Regular users get their own meal plans from the bearer token.
+        Admin and nutritionist clients may optionally provide `user_id` as a query parameter to fetch another user's meal plans.
       security:
       - BearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                id:
-                  type: integer
-                user_id:
-                  type: integer
+      parameters:
+      - in: query
+        name: user_id
+        required: false
+        description: Optional for admin/nutritionist clients. Ignored for regular users.
+        schema:
+          type: integer
       responses:
         '200':
-          description: Meal plan fetched successfully
+          description: Meal plans fetched successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CreateMealPlanRequest'
+                $ref: '#/components/schemas/MealPlanListEnvelope'
+        '400':
+          description: Missing or invalid user context
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
         '500':
           description: Internal server error
           content:
@@ -1660,7 +1807,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SuccessResponse'
+                $ref: '#/components/schemas/MealPlanMutationEnvelope'
         '400':
           description: Bad request - missing required fields
           content:
@@ -1690,12 +1837,12 @@ paths:
                 user_id:
                   type: integer
       responses:
-        '204':
+        '200':
           description: Meal plan deleted successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SuccessResponse'
+                $ref: '#/components/schemas/GenericEnvelopeWithMessage'
         '400':
           description: Bad request - missing required fields
           content:
@@ -1708,10 +1855,203 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /mealplan/ai-suggestion:
+    post:
+      summary: Save AI meal suggestion to daily plan
+      description: Saves a single AI-generated meal (from the /meal page) into the user's daily meal plan. Accessible by all authenticated users.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - meal_type
+                - name
+              properties:
+                meal_type:
+                  type: string
+                  enum: [breakfast, lunch, dinner, snack]
+                  example: breakfast
+                day:
+                  type: string
+                  example: Monday
+                name:
+                  type: string
+                  example: Oat Porridge with Berries
+                description:
+                  type: string
+                  example: High-fibre low-sodium breakfast
+                calories:
+                  type: number
+                  example: 320
+                proteins:
+                  type: number
+                  example: 12
+                fats:
+                  type: number
+                  example: 6
+                sodium:
+                  type: number
+                  example: 180
+                fiber:
+                  type: number
+                  example: 5
+                vitamins:
+                  type: string
+                  example: Vitamin D, Vitamin B12
+                ingredients:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      item:
+                        type: string
+                        example: oats
+                      amount:
+                        type: string
+                        example: 80g
+      responses:
+        '201':
+          description: AI meal suggestion saved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    get:
+      summary: Get saved AI meal suggestions
+      description: Returns all AI-generated meals the logged-in user has saved to their daily plan.
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: AI meal suggestions fetched successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                            user_id:
+                              type: integer
+                            meal_type:
+                              type: string
+                            day:
+                              type: string
+                            name:
+                              type: string
+                            description:
+                              type: string
+                            calories:
+                              type: number
+                            proteins:
+                              type: number
+                            fats:
+                              type: number
+                            sodium:
+                              type: number
+                            fiber:
+                              type: number
+                            vitamins:
+                              type: string
+                            ingredients:
+                              type: array
+                            created_at:
+                              type: string
+                              format: date-time
+                      count:
+                        type: integer
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      summary: Remove a saved AI meal suggestion
+      description: Deletes a specific AI meal suggestion from the user's daily plan by ID.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - id
+              properties:
+                id:
+                  type: integer
+                  example: 1
+      responses:
+        '200':
+          description: AI meal suggestion deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /recipe:
     post:
       summary: Get all recipes
-      description: Retrieves recipes for a given user ID
+      description: Retrieves recipes for a given user ID. Returns `404` when the user has no recipes or related data cannot be resolved.
       requestBody:
         required: true
         content:
@@ -1727,78 +2067,51 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  recipes:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        id:
-                          type: integer
-                        created_at:
-                          type: string
-                        recipe_name:
-                          type: string
-                        cuisine_id:
-                          type: integer
-                        total_servings:
-                          type: integer
-                        preparation_time:
-                          type: integer
-                        ingredients:
-                          type: object
-                          properties:
-                            id:
-                              type: array
-                              items:
-                                type: integer
-                            quantity:
-                              type: array
-                              items:
-                                type: integer
-                            category:
-                              type: array
-                              items:
-                                type: string
-                            name:
-                              type: array
-                              items:
-                                type: string
-                        instructions:
-                          type: string
-                        calories:
-                          type: number
-                        fat:
-                          type: number
-                        carbohydrates:
-                          type: number
-                        protein:
-                          type: number
-                        fiber:
-                          type: number
-                        vitamin_a:
-                          type: number
-                        vitamin_b:
-                          type: number
-                        vitamin_c:
-                          type: number
-                        vitamin_d:
-                          type: number
-                        sodium:
-                          type: number
-                        sugar:
-                          type: number
-                        cuisine_name:
-                          type: string
+                $ref: '#/components/schemas/RecipeListResponse'
         '400':
-          description: User ID is required
+          description: Missing user ID
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '404':
-          description: Recipes, ingredients, or cuisines not found
+          description: Recipes or related data not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      summary: Delete a recipe
+      description: Deletes a user-owned recipe by `user_id` and `recipe_id`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - user_id
+              - recipe_id
+              properties:
+                user_id:
+                  type: integer
+                recipe_id:
+                  type: integer
+      responses:
+        '200':
+          description: Recipe deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LegacyMutationResponse'
+        '400':
+          description: Missing user id or recipe id
           content:
             application/json:
               schema:
@@ -1812,7 +2125,7 @@ paths:
   /userfeedback:
     post:
       summary: User feedback
-      description: Receives user feedback
+      description: Receives user feedback after rate limiting and validator checks.
       requestBody:
         required: true
         content:
@@ -1827,11 +2140,11 @@ paths:
               schema:
                 $ref: '#/components/schemas/SuccessResponse'
         '400':
-          description: Bad request - missing required fields
+          description: Validation failed
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '#/components/schemas/ExpressValidationErrorArray'
         '500':
           description: Internal server error
           content:
@@ -2026,20 +2339,104 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UserProfileResponse'
+                $ref: '#/components/schemas/UserProfileEnvelope'
         '400':
           description: Email is required
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
         '500':
           description: Internal server error
           content:
             application/json:
               schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+    put:
+      summary: Update user profile
+      description: |
+        Updates the authenticated user's profile.
+        Admin clients may update another user by providing that user's email in the request body.
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserUpdateRequest'
+      responses:
+        '200':
+          description: User profile updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfileEnvelope'
+        '400':
+          description: Missing required profile data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
   /notifications:
+    get:
+      summary: Get notifications for the authenticated user
+      description: |
+        Returns the current user's notifications in the shared response envelope.
+        This is the preferred endpoint for frontend and mobile clients because it avoids having to pass the user ID in the URL.
+      security:
+      - BearerAuth: []
+      parameters:
+      - in: query
+        name: status
+        required: false
+        schema:
+          type: string
+          enum:
+          - read
+          - unread
+      - in: query
+        name: limit
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+      responses:
+        200:
+          description: Notification list returned successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationListEnvelope'
+        401:
+          description: Unauthorized
+        500:
+          description: Internal Server Error
     post:
       summary: Create a new notification
       description: Allows admin to create notifications
@@ -2101,8 +2498,10 @@ paths:
           description: Internal Server Error
   /notifications/{user_id}:
     get:
-      summary: Get all notifications for a specific user
-      description: Users can only view their own notifications. Admin can view any.
+      summary: Get notifications for a specific user
+      description: |
+        Admin clients can fetch another user's notifications with this route.
+        Regular users should prefer `GET /notifications`, which resolves the user from the access token.
       security:
       - BearerAuth: []
       parameters:
@@ -2112,31 +2511,28 @@ paths:
         schema:
           type: integer
         description: Unique identifier of the user.
+      - in: query
+        name: status
+        required: false
+        schema:
+          type: string
+          enum:
+          - read
+          - unread
+      - in: query
+        name: limit
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
       responses:
         200:
           description: List of notifications for the user
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  type: object
-                  properties:
-                    simple_id:
-                      type: integer
-                    user_id:
-                      type: integer
-                    type:
-                      type: string
-                    content:
-                      type: string
-                    status:
-                      type: string
-                    timestamp:
-                      type: string
-                      format: date-time
-        404:
-          description: No notifications found for the user
+                $ref: '#/components/schemas/NotificationListEnvelope'
         500:
           description: Internal Server Error
   /notifications/{simple_id}:
@@ -2223,6 +2619,72 @@ paths:
           description: Notification not found
         500:
           description: Internal Server Error
+  /recommendations:
+    post:
+      tags:
+      - Recommendations
+      summary: Generate meal recommendations
+      description: |
+        Reuses the existing recommendation engine and returns a frontend/mobile-friendly envelope.
+        The authenticated user context is taken from the bearer token.
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                healthGoals:
+                  type: object
+                  additionalProperties: true
+                dietaryConstraints:
+                  type: object
+                  additionalProperties: true
+                aiInsights:
+                  type: object
+                  additionalProperties: true
+                medicalReport:
+                  oneOf:
+                  - type: object
+                    additionalProperties: true
+                  - type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+                aiAdapterInput:
+                  type: object
+                  additionalProperties: true
+                maxResults:
+                  type: integer
+                  minimum: 1
+                  maximum: 20
+                refreshCache:
+                  type: boolean
+              required:
+              - dietaryConstraints
+      responses:
+        '200':
+          description: Recommendations generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecommendationListEnvelope'
+        '400':
+          description: Invalid recommendation request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+        '401':
+          description: Unauthorized
+        '500':
+          description: Recommendation generation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
   /substitution/ingredient/{ingredientId}:
     get:
       summary: Get ingredient substitutions
@@ -2439,13 +2901,12 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
   /health-news:
     get:
-      summary: Calculate estimated cost for a recipe
-      description: Returns JSON array containing total cost and corresponding ingredients
-        price
+      summary: Query health news and related reference data
+      description: |
+        Flexible health news endpoint.
+        By default it filters articles and returns `{ success, data, pagination }`.
+        Query parameters can switch behavior to fetch by id, category, author, tag, or list categories/authors/tags.
       parameters:
-      - in: path
-        name: recipe_id
-        required: true
       - name: action
         in: query
         required: false
@@ -2934,67 +3395,10 @@ paths:
           description: Recipe not found
         '500':
           description: Internal server error
-  /healthArticles:
-    get:
-      summary: Search health articles
-      description: 'Search for health articles based on query string. The search is
-        performed across article titles, tags, and content.
-
-        Results can be paginated, sorted, and filtered.
-
-        '
-      parameters:
-      - name: query
-        in: query
-        required: true
-        description: Search query string
-        schema:
-          type: string
-      - name: page
-        in: query
-        required: false
-        description: null
-        schema:
-          type: integer
-          minimum: 1
-          default: 1
-      - name: limit
-        in: query
-        required: false
-        description: null
-        schema:
-          type: integer
-          minimum: 1
-          default: 10
-      - name: sortBy
-        in: query
-        required: false
-        description: null
-        schema:
-          type: string
-          enum:
-          - created_at
-          - title
-          - views
-          default: created_at
-      - name: sortOrder
-        in: query
-        required: false
-        description: Sort order (asc or desc)
-        schema:
-          type: string
-          enum:
-          - asc
-          - desc
-          default: desc
-      responses:
-        '200':
-          description: Successful search
   /water-intake:
     post:
       summary: Update the number of glasses of water consumed
-      description: Updates the user's daily water intake by adding the number of glasses
-        consumed.
+      description: Upserts the current day's water intake for the supplied user.
       requestBody:
         required: true
         content:
@@ -3003,8 +3407,7 @@ paths:
               type: object
               properties:
                 user_id:
-                  type: string
-                  format: uuid
+                  type: integer
                   description: The unique ID of the user
                 glasses_consumed:
                   type: integer
@@ -3013,7 +3416,7 @@ paths:
               - user_id
               - glasses_consumed
             example:
-              user_id: '15'
+              user_id: 15
               glasses_consumed: 5
       responses:
         '200':
@@ -3021,28 +3424,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                    example: Water intake updated successfully
-                  data:
-                    type: object
-                    properties:
-                      user_id:
-                        type: string
-                        example: '15'
-                      date:
-                        type: string
-                        format: date
-                        example: '2025-05-10'
-                      glasses_consumed:
-                        type: integer
-                        example: 5
-                      updated_at:
-                        type: string
-                        format: date-time
-                        example: '2025-05-10T12:00:00Z'
+                $ref: '#/components/schemas/WaterIntakeUpdateResponse'
         '400':
           description: Bad request - missing or invalid fields
           content:
@@ -3071,6 +3453,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ChatHistoryResponse'
+        '400':
+          description: Missing required user id
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: No chat history found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '500':
           description: Internal server error
     delete:
@@ -3088,11 +3482,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/GenericSuccessResponse'
+        '400':
+          description: Missing required user id
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '500':
           description: Internal server error
   /medical-report/retrieve:
     post:
-      summary: Predict obesity level and diabetes risks
+      summary: Retrieve AI medical report
+      description: Normalizes survey-style input, forwards it to the AI retrieve service, and returns the generated `medical_report`.
       requestBody:
         required: true
         content:
@@ -3101,32 +3502,33 @@ paths:
               $ref: '#/components/schemas/MedicalReportRequest'
       responses:
         '200':
-          description: Obesity level and diabetes risk result
+          description: Medical report retrieved successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/MedicalReportResponse'
+                $ref: '#/components/schemas/MedicalReportRetrieveResponse'
         '400':
-          description: Bad Request - Invalid input data.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '401':
-          description: Unauthorized - Authentication credentials missing or invalid.
+          description: Bad request or AI returned no medical report
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '500':
-          description: Internal Server Error - Something went wrong on the server.
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        default:
+          description: Upstream AI retrieve error
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
   /medical-report/plan:
     post:
-      summary: Generate a 4-week health plan from a medical report
+      summary: Generate weekly health plan from a medical report
+      description: Builds a plan-generation payload from `medical_report` and `survey_data`, then returns the AI weekly plan without persisting it.
       requestBody:
         required: true
         content:
@@ -3187,25 +3589,25 @@ paths:
               schema:
                 $ref: '#/components/schemas/HealthPlanResponse'
         '400':
-          description: Bad Request – invalid or missing input fields
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '401':
-          description: Unauthorized – Authentication credentials missing or invalid.
+          description: Bad request - missing medical report, survey data, or invalid health goal fields
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '502':
-          description: AI server error – upstream FastAPI returned an error
+          description: AI returned no weekly plan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        default:
+          description: Upstream AI plan generation error
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '500':
-          description: Internal Server Error – Something went wrong on the server
+          description: Internal server error
           content:
             application/json:
               schema:
@@ -3215,7 +3617,7 @@ paths:
       tags:
       - Authentication
       summary: User Registration
-      description: Create a new user account
+      description: Create a new user account and return the shared response envelope used by all first-party clients.
       requestBody:
         required: true
         content:
@@ -3247,14 +3649,22 @@ paths:
       responses:
         '201':
           description: Registration successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthRegisterEnvelope'
         '400':
           description: Registration failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
   /auth/login:
     post:
       tags:
       - Authentication
       summary: User Login
-      description: Login user and get access/refresh tokens
+      description: Login user and get access/refresh tokens in a stable envelope for web and mobile clients.
       requestBody:
         required: true
         content:
@@ -3267,43 +3677,19 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                    example: true
-                  user:
-                    type: object
-                    properties:
-                      id:
-                        type: integer
-                        example: 677
-                      email:
-                        type: string
-                        example: john@nutrihelp.com
-                      name:
-                        type: string
-                        example: John Doe
-                      role:
-                        type: string
-                        example: user
-                  accessToken:
-                    type: string
-                    description: Access token (15 minutes validity)
-                    example: eyJhbGciOiJIUzI1NiIs...
-                  refreshToken:
-                    type: string
-                    description: Refresh token (7 days validity)
-                    example: b9b1f1235fb056bc4389...
-                  expiresIn:
-                    type: integer
-                    description: Token expiry time in seconds
-                    example: 900
-                  tokenType:
-                    type: string
-                    example: Bearer
+                $ref: '#/components/schemas/AuthSessionEnvelope'
+        '400':
+          description: Missing email or password
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
         '401':
           description: Login failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
   /auth/refresh:
     post:
       tags:
@@ -3325,8 +3711,22 @@ paths:
       responses:
         '200':
           description: Token refresh successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthRefreshEnvelope'
+        '400':
+          description: Missing refresh token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
         '401':
           description: Invalid or expired refresh token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
   /auth/logout:
     post:
       tags:
@@ -3345,6 +3745,22 @@ paths:
       responses:
         '200':
           description: Logout successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenericEnvelopeWithMessage'
+        '400':
+          description: Missing refresh token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+        '500':
+          description: Logout failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
   /auth/health:
     get:
       tags:
@@ -3372,8 +3788,9 @@ paths:
   /barcode:
     post:
       summary: Detect user allergen from a given barcode
-      description: Retrieve ingredients information from a given barcode and detect
-        user's allergen ingredients
+      description: |
+        Retrieves barcode product information and optionally compares parsed ingredients against the supplied user's allergen ingredients.
+        When `user_id` is omitted, the endpoint returns product information only.
       parameters:
       - name: code
         in: query
@@ -3400,6 +3817,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/BarcodeAllergenDetection'
+        '404':
+          description: Invalid barcode or product information not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '500':
           description: Internal server error
           content:
@@ -3445,340 +3868,17 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  range:
-                    type: object
-                    properties:
-                      from:
-                        type: string
-                        format: date-time
-                      to:
-                        type: string
-                        format: date-time
-                  count:
-                    type: integer
-                  events:
-                    type: array
-                    items:
-                      type: object
-              example:
-                range:
-                  from: '2025-12-04T00:00:00Z'
-                  to: '2025-12-11T00:00:00Z'
-                count: 3
-                events:
-                - id: brute_4092...
-                  type: BRUTE_FORCE_DETECTED
-                  source: public.brute_force_logs
-                - id: session_67879
-                  type: SESSION_CREATED
-                  source: public.user_session
+                $ref: '#/components/schemas/SecurityEventsExportResponse'
             text/csv:
               schema:
                 type: string
-              example: |-
-                id,occurredAt,type,userId,sessionId,ipAddress,userAgent,source,metadataJson
-                brute_4092...,2025-12-04T07:24:13.965+00:00,BRUTE_FORCE_DETECTED,,,,,public.brute_force_logs,"{""email"":""john@nutrihelp.com""}"
-
-  /userpassword/verify:
-    post:
-      tags:
-        - Authentication
-      summary: Verify the authenticated user's current password
-      description: Checks whether the supplied current password matches the authenticated account before continuing the password change flow.
-      security:
-        - BearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [password]
-              properties:
-                password:
-                  type: string
-                  example: CurrentPass123!
-                user_id:
-                  type: string
-                  description: Optional. If supplied, it must match the authenticated token userId.
-                  example: user-123
-      responses:
-        '200':
-          description: Current password verified successfully
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                    example: Current password verified
-                  verified:
-                    type: boolean
-                    example: true
-        '400':
-          description: Missing current password
-        '401':
-          description: Invalid access token or incorrect current password
-        '403':
-          description: Body user_id does not match the authenticated account
-        '404':
-          description: User not found
-        '429':
-          description: Too many password verification attempts
+              example: "event_id,event_type,source,timestamp\nbrute_4092,BRUTE_FORCE_DETECTED,public.brute_force_logs,2025-12-04T09:30:00.000Z"
         '500':
-          description: Internal server error
-
-  /userpassword/update:
-    put:
-      tags:
-        - Authentication
-      summary: Update the authenticated user's password
-      description: Updates the password for the authenticated user, invalidates active sessions, and returns the reauthentication flow the client should follow next.
-      security:
-        - BearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [password, new_password, confirm_password]
-              properties:
-                password:
-                  type: string
-                  description: Current password
-                  example: CurrentPass123!
-                new_password:
-                  type: string
-                  description: New password that satisfies the backend password policy
-                  example: NewPass123!
-                confirm_password:
-                  type: string
-                  description: Must exactly match new_password
-                  example: NewPass123!
-                user_id:
-                  type: string
-                  description: Optional. If supplied, it must match the authenticated token userId.
-                  example: user-123
-      responses:
-        '200':
-          description: Password updated successfully
+          description: Failed to export security events
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                    example: Password updated successfully
-                  code:
-                    type: string
-                    example: PASSWORD_UPDATED
-                  require_reauthentication:
-                    type: boolean
-                    example: true
-                  require_mfa:
-                    type: boolean
-                    example: true
-                  reauthentication_flow:
-                    type: string
-                    enum: [LOGIN, LOGIN_MFA]
-                    example: LOGIN_MFA
-        '400':
-          description: Missing current/new/confirm password, weak password, password mismatch, or password reuse
-        '401':
-          description: Invalid access token or incorrect current password
-        '403':
-          description: Body user_id does not match the authenticated account
-        '404':
-          description: User not found
-        '429':
-          description: Too many password verification or update attempts
-        '500':
-          description: Internal server error
-  /meal-plan/ai-generate:
-    post:
-      tags:
-        - MealPlanAI
-      summary: Generate a personalised 7-day elderly-focused AI meal plan
-      requestBody:
-        required: false
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                dietType:
-                  type: string
-                  example: balanced
-                  description: "Dietary pattern (e.g. balanced, vegetarian, vegan, Mediterranean, diabetic-friendly)"
-                goal:
-                  type: string
-                  example: maintain weight
-                  description: "Health goal (e.g. maintain weight, lose weight, build muscle, manage blood sugar)"
-                allergies:
-                  type: array
-                  items:
-                    type: string
-                  example: [nuts, shellfish]
-                  description: Allergens to strictly exclude from all meals
-                calorieTarget:
-                  type: number
-                  example: 1800
-                  description: Target daily calories (500-5000). Default 1800 for elderly.
-                cuisine:
-                  type: string
-                  example: Mediterranean
-                  description: Preferred cuisine style
-                healthConditions:
-                  type: array
-                  items:
-                    type: string
-                  example: [diabetes, hypertension]
-                  description: "Active health conditions (e.g. diabetes, hypertension, osteoporosis, kidney_disease, heart_disease, constipation, dysphagia)"
-                mealTexture:
-                  type: string
-                  enum: [regular, soft, pureed]
-                  example: soft
-                  description: Texture requirement for chewing or swallowing difficulties
-                mobilityLevel:
-                  type: string
-                  enum: [sedentary, lightly_active, moderately_active]
-                  example: sedentary
-                  description: Physical activity level, influences calorie and portion recommendations
-                cookingComplexity:
-                  type: string
-                  enum: [simple, moderate, complex]
-                  example: simple
-                  description: "Preferred recipe complexity — simple = under 30 min, few steps"
-                portionSize:
-                  type: string
-                  enum: [small, medium, large]
-                  example: medium
-                  description: Preferred portion size per meal
-                additionalNotes:
-                  type: string
-                  example: Patient is on warfarin, limit high Vitamin K foods
-                  description: Free-text notes for dietitian context (max 300 characters)
-      responses:
-        '200':
-          description: Successfully generated 7-day meal plan
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                    example: true
-                  data:
-                    type: object
-                    properties:
-                      plan:
-                        type: array
-                        items:
-                          type: object
-                          properties:
-                            day:
-                              type: string
-                              example: Monday
-                            breakfast:
-                              type: object
-                            lunch:
-                              type: object
-                            dinner:
-                              type: object
-        '400':
-          description: Validation error
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  error:
-                    type: string
-                    example: calorieTarget must be between 500 and 5000
-        '500':
-          description: AI service error
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  error:
-                    type: string
-                    example: AI generation failed, please try again
-  /meal-plan/feedback/{planId}:
-    post:
-      tags:
-        - MealPlanAI
-      summary: Submit rating and feedback for a generated meal plan
-      parameters:
-        - in: path
-          name: planId
-          required: true
-          schema:
-            type: string
-            format: uuid
-          description: The plan ID returned from ai-generate
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - rating
-              properties:
-                rating:
-                  type: integer
-                  minimum: 1
-                  maximum: 5
-                  example: 4
-                  description: Overall plan rating from 1 (poor) to 5 (excellent)
-                likedMeals:
-                  type: array
-                  items:
-                    type: string
-                  example: [Monday Breakfast, Wednesday Dinner]
-                  description: Meals the user liked
-                dislikedMeals:
-                  type: array
-                  items:
-                    type: string
-                  example: [Friday Lunch]
-                  description: Meals the user disliked
-                followedPlan:
-                  type: boolean
-                  example: true
-                  description: Whether the user actually followed this plan
-                notes:
-                  type: string
-                  example: Portions were a bit large for me
-                  description: Optional free-text feedback (max 500 characters)
-      responses:
-        '201':
-          description: Feedback saved successfully
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                    example: true
-                  feedbackId:
-                    type: string
-                    format: uuid
-        '400':
-          description: Validation error
-        '404':
-          description: Meal plan not found
-        '500':
-          description: Internal server error
+                $ref: '#/components/schemas/ErrorResponse'
 components:
   securitySchemes:
     BearerAuth:
@@ -4002,15 +4102,20 @@ components:
         email:
           type: string
           format: email
+        subject:
+          type: string
         message:
           type: string
       required:
       - name
       - email
+      - subject
       - message
     FeedbackRequest:
       type: object
       properties:
+        user_id:
+          type: integer
         name:
           type: string
         contact_number:
@@ -4494,18 +4599,34 @@ components:
           example: Weight Loss
     ChatbotQueryRequest:
       type: object
+      required:
+      - user_id
+      - user_input
       properties:
         user_id:
           type: integer
+          example: 42
         user_input:
           type: string
+          example: What should I eat after a workout?
     ChatbotQueryResponse:
       type: object
       properties:
-        response_text:
-          type: string
         message:
           type: string
+          example: Success
+        response_text:
+          type: string
+          example: I understand you're asking about "What should I eat after a workout?". How can I help you with that?
+    ChatbotMutationResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: Success
+        result:
+          nullable: true
+          description: Raw upstream response or placeholder result from the chatbot ingestion endpoint.
     ChatHistoryResponse:
       type: object
       properties:
@@ -4528,35 +4649,526 @@ components:
       properties:
         message:
           type: string
+    ArticleSearchResponse:
+      type: object
+      properties:
+        articles:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+    ValidationErrorsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+              message:
+                type: string
+    ExpressValidationErrorArray:
+      type: object
+      properties:
+        errors:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+    SignupWeakPasswordResponse:
+      type: object
+      properties:
+        code:
+          type: string
+          example: WEAK_PASSWORD
+        error:
+          type: string
+          example: Password must be at least 8 characters and include uppercase, lowercase, number, and special character.
+    ApiErrorEnvelope:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: object
+          properties:
+            message:
+              type: string
+              example: Invalid request
+            code:
+              type: string
+              example: VALIDATION_ERROR
+            details:
+              type: object
+              additionalProperties: true
+    GenericEnvelopeWithMessage:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          nullable: true
+        meta:
+          type: object
+          properties:
+            message:
+              type: string
+              example: Operation completed successfully
+    AuthUser:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 677
+        email:
+          type: string
+          format: email
+          example: john@nutrihelp.com
+        name:
+          type: string
+          example: John Doe
+        role:
+          type: string
+          example: user
+    SessionPayload:
+      type: object
+      properties:
+        accessToken:
+          type: string
+          example: eyJhbGciOiJIUzI1NiIs...
+        refreshToken:
+          type: string
+          example: b9b1f1235fb056bc4389...
+        tokenType:
+          type: string
+          example: Bearer
+        expiresIn:
+          type: integer
+          example: 900
+    AuthRegisterEnvelope:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            user:
+              type: object
+              properties:
+                id:
+                  type: integer
+                email:
+                  type: string
+                  format: email
+                name:
+                  type: string
+        meta:
+          type: object
+          properties:
+            message:
+              type: string
+              example: User registered successfully
+    AuthSessionEnvelope:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            user:
+              $ref: '#/components/schemas/AuthUser'
+            session:
+              $ref: '#/components/schemas/SessionPayload'
+    AuthRefreshEnvelope:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            session:
+              $ref: '#/components/schemas/SessionPayload'
+    UserProfileEnvelope:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            user:
+              type: object
+              properties:
+                id:
+                  type: integer
+                email:
+                  type: string
+                  format: email
+                name:
+                  type: string
+                firstName:
+                  type: string
+                lastName:
+                  type: string
+                contactNumber:
+                  type: string
+                address:
+                  type: string
+                imageUrl:
+                  type: string
+                mfaEnabled:
+                  type: boolean
+                role:
+                  type: string
+                registrationDate:
+                  type: string
+                  format: date-time
+                lastLogin:
+                  type: string
+                  format: date-time
+                accountStatus:
+                  type: string
+    NotificationItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        type:
+          type: string
+        content:
+          type: string
+        status:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+    NotificationListEnvelope:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/NotificationItem'
+        meta:
+          type: object
+          properties:
+            count:
+              type: integer
+            unreadCount:
+              type: integer
+    MealPlanItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        mealType:
+          type: string
+        recipeCount:
+          type: integer
+        recipes:
+          type: array
+          items:
+            type: object
+            properties:
+              recipeId:
+                type: integer
+              title:
+                type: string
+              cuisine:
+                type: string
+              cookingMethod:
+                type: string
+              preparationTime:
+                type: integer
+              totalServings:
+                type: integer
+              nutrition:
+                type: object
+                additionalProperties: true
+    MealPlanListEnvelope:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/MealPlanItem'
+        meta:
+          type: object
+          properties:
+            count:
+              type: integer
+    MealPlanMutationEnvelope:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            mealPlan:
+              type: array
+              items:
+                type: object
+                additionalProperties: true
+        meta:
+          type: object
+          properties:
+            message:
+              type: string
+    RecommendationItem:
+      type: object
+      properties:
+        rank:
+          type: integer
+        recipeId:
+          type: integer
+        title:
+          type: string
+        explanation:
+          type: string
+        nutrition:
+          type: object
+          additionalProperties: true
+        preparationTime:
+          type: integer
+          nullable: true
+        totalServings:
+          type: integer
+          nullable: true
+    RecommendationListEnvelope:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/RecommendationItem'
+        meta:
+          type: object
+          properties:
+            count:
+              type: integer
+            generatedAt:
+              type: string
+              format: date-time
+            contractVersion:
+              type: string
+            source:
+              type: object
+              additionalProperties: true
+            cache:
+              type: object
+              additionalProperties: true
+            input:
+              type: object
+              additionalProperties: true
+    AuthDashboardResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Welcome to NutriHelp, john@nutrihelp.com
+        user:
+          $ref: '#/components/schemas/AuthUser'
+    LegacyLoginSuccessResponse:
+      type: object
+      properties:
+        user:
+          type: object
+          additionalProperties: true
+        token:
+          type: string
+          example: eyJhbGciOiJIUzI1NiIs...
+    LegacyMutationResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: success
+        statusCode:
+          type: integer
+          example: 201
+    FileUploadResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: File uploaded successfully
+        fileUrl:
+          type: string
+          format: uri
+    WaterIntakeUpdateResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: Water intake updated successfully
+        data:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+    HealthNewsSuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          oneOf:
+          - type: array
+            items:
+              type: object
+              additionalProperties: true
+          - type: object
+            additionalProperties: true
+        pagination:
+          type: object
+          properties:
+            total:
+              type: integer
+            page:
+              type: integer
+            limit:
+              type: integer
+            total_pages:
+              type: integer
+    HealthNewsErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
+    CreateRecipeRequest:
+      type: object
+      required:
+      - user_id
+      - ingredient_id
+      - ingredient_quantity
+      - recipe_name
+      - cuisine_id
+      - total_servings
+      - preparation_time
+      - instructions
+      - cooking_method_id
+      properties:
+        user_id:
+          type: integer
+        ingredient_id:
+          type: array
+          items:
+            type: integer
+        ingredient_quantity:
+          type: array
+          items:
+            oneOf:
+            - type: integer
+            - type: number
+              format: float
+        recipe_name:
+          type: string
+        cuisine_id:
+          type: integer
+        total_servings:
+          type: integer
+        preparation_time:
+          type: integer
+        instructions:
+          type: string
+        recipe_image:
+          type: string
+        cooking_method_id:
+          type: integer
+    RecipeListResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: success
+        statusCode:
+          type: integer
+          example: 200
+        recipes:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+    RecipeScaleResponse:
+      type: object
+      properties:
+        scaled_ingredients:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        scaling_detail:
+          type: object
+          additionalProperties: true
     UserIdRequest:
       type: object
       properties:
         user_id:
           type: integer
     MedicalReportRequest:
-      MedicalReportRequest: null
       type: object
       required:
       - Gender
       - Age
       - Height
       - Weight
-      - Any family history of overweight (yes/no)
-      - Frequent High Calorie Food Consumption (yes/no)
-      - Consumption of vegetables in meals
-      - Consumption of Food Between Meals
-      - Number of Main Meals
-      - Daily Water Intake
-      - Do you Smoke?
-      - Do you monitor your daily calories?
-      - Physical Activity Frequency
-      - Time Using Technology Devices Daily
-      - Alcohol Consumption Rate
-      - Mode of Transportation you use
+      - family_history_with_overweight
+      - FAVC
+      - FCVC
+      - NCP
+      - CAEC
+      - SMOKE
+      - CH2O
+      - SCC
+      - FAF
+      - TUE
+      - CALC
+      - MTRANS
       properties:
         Gender:
           type: string
-          description: Gender of the individual.
+          description: Gender value accepted by the normalization helper.
           example: Male
         Age:
           type: number
@@ -4573,82 +5185,78 @@ components:
           format: float
           description: Weight in kilograms.
           example: 81.66995
-        Any family history of overweight (yes/no):
+        family_history_with_overweight:
           type: string
           enum:
           - 'yes'
           - 'no'
           description: Indicates if there is a family history of being overweight.
           example: 'yes'
-        Frequent High Calorie Food Consumption (yes/no):
-          type: string
-          enum:
-          - 'yes'
-          - 'no'
-          description: Indicates frequent consumption of high-calorie food.
-          example: 'yes'
-        Consumption of vegetables in meals:
+        FAVC:
+          oneOf:
+          - type: integer
+          - type: string
+          description: High-calorie food consumption flag accepted by `to01Int`.
+          example: 1
+        FCVC:
           type: number
           format: float
           description: Frequency of vegetable consumption in meals.
           example: 3
-        Consumption of Food Between Meals:
-          type: string
-          enum:
-          - 'no'
-          - Sometimes
-          - Frequently
-          - Always
-          description: Frequency of consuming food between meals.
-          example: Sometimes
-        Number of Main Meals:
+        NCP:
           type: number
           format: float
           description: Number of main meals per day.
           example: 3
-        Daily Water Intake:
+        CAEC:
+          type: integer
+          enum:
+          - 0
+          - 1
+          - 2
+          - 3
+          description: Encoded frequency of consuming food between meals.
+          example: 1
+        SMOKE:
+          oneOf:
+          - type: integer
+          - type: string
+          description: Smoking flag accepted by `to01Int`.
+          example: 0
+        CH2O:
           type: number
           format: float
           description: Daily water intake in liters.
           example: 2.763573
-        Do you Smoke?:
+        SCC:
           type: string
           enum:
           - 'yes'
           - 'no'
-          description: Indicates if the individual smokes.
+          description: Whether the user monitors daily calories.
           example: 'no'
-        Do you monitor your daily calories?:
-          type: string
-          enum:
-          - 'yes'
-          - 'no'
-          description: Indicates if the person monitors their daily calorie intake.
-          example: 'no'
-        Physical Activity Frequency:
+        FAF:
           type: number
           format: float
           description: Frequency of physical activity per week.
           example: 0
-        Time Using Technology Devices Daily:
+        TUE:
           type: number
           format: float
           description: Time spent using technological devices daily (in hours).
           example: 0.976473
-        Alcohol Consumption Rate:
+        CALC:
+          type: integer
+          enum:
+          - 0
+          - 1
+          - 2
+          description: Encoded alcohol consumption rate.
+          example: 1
+        MTRANS:
           type: string
           enum:
-          - 'no'
-          - never
-          - Sometimes
-          - Frequently
-          - Always
-          description: Frequency of alcohol consumption.
-          example: Sometimes
-        Mode of Transportation you use:
-          type: string
-          enum:
-          - Car
+          - Automobile
           - Motorbike
           - Bike
           - Public_Transportation
@@ -4681,10 +5289,98 @@ components:
                   format: float
                   description: Model confidence score for diabetes prediction.
                   example: 0.798
+    MedicalReportRetrieveResponse:
+      type: object
+      properties:
+        survey_id:
+          nullable: true
+          description: Persisted survey identifier. Currently null while DB writes are disabled.
+        medical_report:
+          type: object
+          additionalProperties: true
+    HealthPlanRequest:
+      type: object
+      required:
+      - medical_report
+      - survey_data
+      properties:
+        medical_report:
+          oneOf:
+          - type: object
+            additionalProperties: true
+          - type: array
+            items:
+              type: object
+              additionalProperties: true
+        survey_data:
+          type: object
+          additionalProperties: true
+        user_id:
+          oneOf:
+          - type: integer
+          - type: string
+        survey_id:
+          oneOf:
+          - type: integer
+          - type: string
+    WeeklyPlanItem:
+      type: object
+      additionalProperties: true
+    HealthPlanResponse:
+      type: object
+      properties:
+        plan_id:
+          nullable: true
+          description: Persisted plan identifier. Currently null while DB writes are disabled.
+        suggestion:
+          type: string
+        weekly_plan:
+          type: array
+          items:
+            $ref: '#/components/schemas/WeeklyPlanItem'
+        progress_analysis:
+          type: object
+          nullable: true
+          additionalProperties: true
+        goal:
+          nullable: true
+          type: string
+        length:
+          nullable: true
+          type: integer
+    SecurityEventsExportResponse:
+      type: object
+      properties:
+        range:
+          type: object
+          properties:
+            from:
+              type: string
+              format: date-time
+            to:
+              type: string
+              format: date-time
+        summary:
+          type: object
+          properties:
+            totalEvents:
+              type: integer
+            totalIncidents:
+              type: integer
+        events:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        incidents:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
     BarcodeAllergenDetection:
       type: object
       properties:
-        productName:
+        product_name:
           type: string
         detection_result:
           type: object

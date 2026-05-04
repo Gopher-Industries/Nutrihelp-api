@@ -313,164 +313,26 @@ async function decryptFromDatabase(record, fieldMap = {}) {
       !ivValue && ivField,
       !authTagValue && authTagField
     ].filter(Boolean).join(', ');
-    const err = new Error(
-      `Incomplete encrypted payload on record ${record.id ?? '(unknown id)'}: missing fields [${missing}]`
+    throw new Error(
+      `Incomplete encrypted payload on record ${record.id ?? '(unknown)'}: missing [${missing}]. ` +
+      'This indicates data corruption — do not fall back to plaintext.'
     );
-    logEncryptionFailure('decryptFromDatabase', err, { record_id: record.id, missing_fields: missing });
-    throw err;
   }
 
-  try {
-    return await decrypt(encryptedValue, ivValue, authTagValue);
-  } catch (err) {
-    logEncryptionFailure('decryptFromDatabase', err, { field: encryptedField, record_id: record.id });
-    throw err;
-  }
+  return decrypt(encryptedValue, ivValue, authTagValue);
 }
 
-// ---------------------------------------------------------------------------
-// Post-write verification
-// ---------------------------------------------------------------------------
-
-/**
- * Verify that the encrypted blob stored in `encryptedResult` faithfully
- * represents `originalData`.  Throws if verification fails.
- *
- * Usage:
- *   const enc = await encryptForDatabase(sensitiveData);
- *   await verifyEncryption(sensitiveData, enc);
- */
-async function verifyEncryption(originalData, encryptedResult) {
-  let decrypted;
-  try {
-    decrypted = await decrypt(encryptedResult.encrypted, encryptedResult.iv, encryptedResult.authTag);
-  } catch (err) {
-    logEncryptionFailure('verifyEncryption', err);
-    throw new Error(`Post-write verification failed — decryption error: ${err.message}`);
-  }
-
-  const originalStr = typeof originalData === 'string'
-    ? originalData
-    : JSON.stringify(originalData);
-  const decryptedStr = typeof decrypted === 'string'
-    ? decrypted
-    : JSON.stringify(decrypted);
-
-  if (originalStr !== decryptedStr) {
-    const err = new Error('Post-write verification failed — decrypted value does not match original.');
-    logEncryptionFailure('verifyEncryption', err);
-    throw err;
-  }
+function clearCachedKeyForRotation() {
+  cachedKey = null;
+  cachedKeyVersion = null;
 }
-
-// ---------------------------------------------------------------------------
-// Batch helpers
-// ---------------------------------------------------------------------------
-
-/**
- * Encrypt an array of records in batches.
- *
- * `buildSensitiveData(record)` must return the object/string to encrypt for
- * that record.  Returns an array of `{ id, encrypted, iv, authTag, keyVersion }`
- * objects ready to be written back to the DB.
- *
- * Failures on individual records are collected and returned in `errors` so
- * a single bad row does not abort the entire batch.
- */
-async function encryptBatch(records, buildSensitiveData, { batchSize = BATCH_SIZE, concurrency = MAX_CONCURRENT } = {}) {
-  assertBackendRuntime();
-
-  const results = [];
-  const errors = [];
-
-  for (let i = 0; i < records.length; i += batchSize) {
-    const chunk = records.slice(i, i + batchSize);
-
-    // Process the chunk in concurrency-limited sub-batches to avoid
-    // overwhelming the DB or exhausting memory on large datasets.
-    for (let j = 0; j < chunk.length; j += concurrency) {
-      const sub = chunk.slice(j, j + concurrency);
-      await Promise.all(
-        sub.map(async (record) => {
-          try {
-            const sensitiveData = buildSensitiveData(record);
-            const enc = await encryptForDatabase(sensitiveData);
-            results.push({ id: record.id, ...enc });
-          } catch (err) {
-            logEncryptionFailure('encryptBatch', err, { record_id: record.id });
-            errors.push({ id: record.id, error: err.message });
-          }
-        })
-      );
-    }
-  }
-
-  return { results, errors };
-}
-
-/**
- * Re-encrypt records that carry an old key version.
- * Used by the key rotation script.
- *
- * `oldDecrypt(record)` must return the plaintext for that record.
- * Returns `{ reencrypted, skipped, errors }`.
- */
-async function reencryptBatch(records, oldDecrypt, { batchSize = BATCH_SIZE, concurrency = MAX_CONCURRENT, targetVersion } = {}) {
-  assertBackendRuntime();
-
-  const reencrypted = [];
-  const skipped = [];
-  const errors = [];
-
-  for (let i = 0; i < records.length; i += batchSize) {
-    const chunk = records.slice(i, i + batchSize);
-
-    for (let j = 0; j < chunk.length; j += concurrency) {
-      const sub = chunk.slice(j, j + concurrency);
-      await Promise.all(
-        sub.map(async (record) => {
-          if (targetVersion && record.encryption_key_version === targetVersion) {
-            skipped.push(record.id);
-            return;
-          }
-          try {
-            const plaintext = await oldDecrypt(record);
-            const enc = await encryptForDatabase(plaintext);
-            reencrypted.push({ id: record.id, ...enc });
-          } catch (err) {
-            logEncryptionFailure('reencryptBatch', err, { record_id: record.id });
-            errors.push({ id: record.id, error: err.message });
-          }
-        })
-      );
-    }
-  }
-
-  return { reencrypted, skipped, errors };
-}
-
-// ---------------------------------------------------------------------------
-// Exports
-// ---------------------------------------------------------------------------
 
 module.exports = {
   // Core — backward-compatible
   encrypt,
   decrypt,
-  loadEncryptionKey,
-  clearCachedKeyForRotation,
-
-  // Database helpers
   encryptForDatabase,
   decryptFromDatabase,
-
-  // Verification
-  verifyEncryption,
-
-  // Batch
-  encryptBatch,
-  reencryptBatch,
-
-  // Internal (used by verification service)
-  logEncryptionFailure
+  loadEncryptionKey,
+  clearCachedKeyForRotation,
 };

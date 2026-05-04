@@ -25,6 +25,18 @@ const EVENT_CONFIG = {
 const eventBuckets = new Map();
 const blockedIps = new Map();
 
+const LOOPBACK_IPS = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1', 'localhost']);
+
+const isLocalhostRequest = (req) => {
+  if (process.env.NODE_ENV === 'production') return false;
+  const ip =
+    req?.headers?.['x-forwarded-for']?.split(',')[0]?.trim() ||
+    req?.ip ||
+    req?.connection?.remoteAddress ||
+    '';
+  return LOOPBACK_IPS.has(ip);
+};
+
 const getClientIp = (req) => {
   return (
     req?.headers?.['x-forwarded-for']?.split(',')[0]?.trim() ||
@@ -170,6 +182,8 @@ const getActiveBlock = (req) => {
 
 const createBlockMiddleware = () => {
   return (req, res, next) => {
+    if (isLocalhostRequest(req)) return next();
+
     const block = getActiveBlock(req);
     if (!block) {
       return next();

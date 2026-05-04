@@ -1,5 +1,6 @@
 const { validationResult } = require('express-validator');
 let { add, get, deletePlan, saveMealRelation } = require('../model/mealPlan.js');
+const { addAiMealItem, getAiMealItems, deleteAiMealItem } = require('../model/aiMealPlanItem.js');
 const {
   createErrorResponse,
   createSuccessResponse,
@@ -89,4 +90,78 @@ const deleteMealPlan = async (req, res) => {
   }
 };
 
-module.exports = { addMealPlan, getMealPlan, deleteMealPlan };
+const addAiMealSuggestion = async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return validationFailure(res, errors);
+    }
+
+    const userId = req.user?.userId;
+    if (!userId) {
+      return res.status(401).json(createErrorResponse('Unauthorized', 'UNAUTHORIZED'));
+    }
+
+    const item = await addAiMealItem(userId, req.body);
+
+    return res.status(201).json(createSuccessResponse(
+      { item },
+      { message: 'AI meal suggestion saved to your daily plan' }
+    ));
+  } catch (error) {
+    console.error('[mealplanController] addAiMealSuggestion error:', error);
+    return internalFailure(res, 'AI_MEAL_SAVE_FAILED');
+  }
+};
+
+const getAiMealSuggestions = async (req, res) => {
+  try {
+    const userId = req.user?.userId;
+    if (!userId) {
+      return res.status(401).json(createErrorResponse('Unauthorized', 'UNAUTHORIZED'));
+    }
+
+    const items = await getAiMealItems(userId);
+
+    return res.status(200).json(createSuccessResponse(
+      { items },
+      { count: items.length }
+    ));
+  } catch (error) {
+    console.error('[mealplanController] getAiMealSuggestions error:', error);
+    return internalFailure(res, 'AI_MEALS_LOAD_FAILED');
+  }
+};
+
+const deleteAiMealSuggestion = async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return validationFailure(res, errors);
+    }
+
+    const userId = req.user?.userId;
+    if (!userId) {
+      return res.status(401).json(createErrorResponse('Unauthorized', 'UNAUTHORIZED'));
+    }
+
+    await deleteAiMealItem(req.body.id, userId);
+
+    return res.status(200).json(createSuccessResponse(
+      null,
+      { message: 'AI meal suggestion removed from your daily plan' }
+    ));
+  } catch (error) {
+    console.error('[mealplanController] deleteAiMealSuggestion error:', error);
+    return internalFailure(res, 'AI_MEAL_DELETE_FAILED');
+  }
+};
+
+module.exports = {
+  addMealPlan,
+  getMealPlan,
+  deleteMealPlan,
+  addAiMealSuggestion,
+  getAiMealSuggestions,
+  deleteAiMealSuggestion,
+};

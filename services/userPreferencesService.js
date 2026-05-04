@@ -1,6 +1,7 @@
 const fetchUserPreferences = require('../model/fetchUserPreferences');
 const updateUserPreferences = require('../model/updateUserPreferences');
 const { ServiceError } = require('./serviceError');
+const { decryptFromDatabase, encryptForDatabase } = require('./encryptionService');
 
 const USER_PREFERENCES_CONTRACT_VERSION = 'user-preferences-v2';
 
@@ -69,6 +70,9 @@ function normalizeMedication(item = {}, index = 0) {
 }
 
 function buildStructuredHealthContext(rawPreferences = {}) {
+  // Week 6: Encryption of allergies and health conditions is handled at the migration
+  // and model level (fetchUserPreferences decrypts encrypted rows from user_allergies
+  // and user_health_conditions tables via the RPC/query layer)
   const storeHealthContext = rawPreferences.health_context || {};
 
   const allergiesById = new Map(
