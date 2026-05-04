@@ -46,9 +46,10 @@ function normalizeKey(rawKey) {
     return Buffer.from(trimmed, 'hex');
   }
 
-  // Last resort: plain UTF-8 passphrase -> SHA-256 derived key.
-  // Keep compatibility but prefer explicit 32-byte base64 keys.
-  return crypto.createHash('sha256').update(trimmed, 'utf8').digest();
+  throw new Error(
+    'Invalid encryption key format. Key must be a 32-byte base64 string (44 chars) or a 64-char hex string. ' +
+    'Generate one with: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'base64\'))"'
+  );
 }
 
 async function loadKeyFromVault() {
@@ -191,8 +192,58 @@ async function decrypt(encryptedData, iv, authTag) {
   }
 }
 
+// Week 6: Database helper functions for encrypting on write and decrypting on read
+async function encryptForDatabase(data) {
+  const result = await encrypt(data);
+  return {
+    encrypted: result.encrypted,
+    iv: result.iv,
+    authTag: result.authTag,
+    keyVersion: result.keyVersion,
+    algorithm: result.algorithm,
+  };
+}
+
+async function decryptFromDatabase(record, fieldMap = {}) {
+  if (!record || typeof record !== 'object') return null;
+
+  const encryptedField = fieldMap.encrypted || 'encrypted';
+  const ivField = fieldMap.iv || 'iv';
+  const authTagField = fieldMap.authTag || 'authTag';
+
+  const encryptedValue = record[encryptedField];
+  const ivValue = record[ivField];
+  const authTagValue = record[authTagField];
+
+  // All three absent — unencrypted row, expected during migration window.
+  if (!encryptedValue && !ivValue && !authTagValue) return null;
+
+  // Partial presence is data corruption — surface it immediately.
+  if (!encryptedValue || !ivValue || !authTagValue) {
+    const missing = [
+      !encryptedValue && encryptedField,
+      !ivValue && ivField,
+      !authTagValue && authTagField
+    ].filter(Boolean).join(', ');
+    throw new Error(
+      `Incomplete encrypted payload on record ${record.id ?? '(unknown)'}: missing [${missing}]. ` +
+      'This indicates data corruption — do not fall back to plaintext.'
+    );
+  }
+
+  return decrypt(encryptedValue, ivValue, authTagValue);
+}
+
+function clearCachedKeyForRotation() {
+  cachedKey = null;
+  cachedKeyVersion = null;
+}
+
 module.exports = {
   encrypt,
   decrypt,
+  encryptForDatabase,
+  decryptFromDatabase,
   loadEncryptionKey,
+  clearCachedKeyForRotation,
 };
