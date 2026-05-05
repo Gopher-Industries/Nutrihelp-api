@@ -8,18 +8,24 @@ const UI_LANGUAGES = ['en', 'zh', 'es', 'fr', 'de'];
 const isArrayOfIntegers = (value) =>
   Array.isArray(value) && value.every(Number.isInteger);
 
+function isPreferenceReference(value) {
+  if (Number.isInteger(value) && value > 0) return true;
+  if (value && typeof value === 'object') {
+    return Number.isInteger(value.id) || Number.isInteger(value.referenceId);
+  }
+  return false;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
-// Shared: flat food-preference ID arrays
+// Flat food-preference ID arrays (integers only)
 // ─────────────────────────────────────────────────────────────────────────────
 function buildIntegerArrayRule(field, required) {
   const chain = body(field);
-
   if (required) {
     chain.exists({ checkNull: true }).withMessage(`${field} is required`).bail();
   } else {
     chain.optional();
   }
-
   return chain.custom(isArrayOfIntegers).withMessage(`${field} must be an array of integers`);
 }
 
@@ -44,14 +50,42 @@ const optionalFoodPreferenceRules = [
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Shared: health_context structured object
+// Nested food_preferences object (canonical payload from GET /extended)
+// Accepts integers OR { id } OR { referenceId } objects
+// ─────────────────────────────────────────────────────────────────────────────
+function buildPreferenceReferenceArrayRule(field) {
+  return body(field)
+    .optional()
+    .custom((value) => {
+      if (!Array.isArray(value)) throw new Error(`${field} must be an array`);
+      if (!value.every(isPreferenceReference)) {
+        throw new Error(`${field} must be an array of integer IDs or objects with id/referenceId`);
+      }
+      return true;
+    });
+}
+
+const nestedFoodPreferenceRules = [
+  body('food_preferences')
+    .optional()
+    .isObject().withMessage('food_preferences must be an object'),
+  buildPreferenceReferenceArrayRule('food_preferences.dietary_requirements'),
+  buildPreferenceReferenceArrayRule('food_preferences.allergies'),
+  buildPreferenceReferenceArrayRule('food_preferences.cuisines'),
+  buildPreferenceReferenceArrayRule('food_preferences.dislikes'),
+  buildPreferenceReferenceArrayRule('food_preferences.health_conditions'),
+  buildPreferenceReferenceArrayRule('food_preferences.spice_levels'),
+  buildPreferenceReferenceArrayRule('food_preferences.cooking_methods'),
+];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// health_context structured object
 // ─────────────────────────────────────────────────────────────────────────────
 const healthContextRules = [
   body('health_context')
     .optional()
     .isObject().withMessage('health_context must be an object'),
 
-  // allergies[]
   body('health_context.allergies')
     .optional()
     .isArray().withMessage('health_context.allergies must be an array'),
@@ -71,7 +105,6 @@ const healthContextRules = [
     .isString().withMessage('allergy notes must be a string')
     .isLength({ max: 1000 }).withMessage('allergy notes must be 1000 characters or fewer'),
 
-  // chronic_conditions[]
   body('health_context.chronic_conditions')
     .optional()
     .isArray().withMessage('health_context.chronic_conditions must be an array'),
@@ -91,7 +124,6 @@ const healthContextRules = [
     .isString().withMessage('condition notes must be a string')
     .isLength({ max: 1000 }).withMessage('condition notes must be 1000 characters or fewer'),
 
-  // medications[]
   body('health_context.medications')
     .optional()
     .isArray().withMessage('health_context.medications must be an array'),
@@ -146,7 +178,7 @@ const healthContextRules = [
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Shared: ui_settings
+// ui_settings
 // ─────────────────────────────────────────────────────────────────────────────
 const uiSettingsRules = [
   body('ui_settings')
@@ -168,30 +200,11 @@ const uiSettingsRules = [
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
-// validateUserPreferences
-// POST /api/user/preferences — flat food-preference ID arrays + health_context
+// notification_preferences (optional fields)
 // ─────────────────────────────────────────────────────────────────────────────
-exports.validateUserPreferences = [
-  ...requiredFoodPreferenceRules,
-];
-
-// ─────────────────────────────────────────────────────────────────────────────
-// validateHealthContext
-// PUT /api/user/preferences/extended — full structured health-context update
-// ─────────────────────────────────────────────────────────────────────────────
-exports.validateHealthContext = [
-  ...healthContextRules,
-  ...optionalFoodPreferenceRules,
-  ...uiSettingsRules,
-];
-
-// ─────────────────────────────────────────────────────────────────────────────
-// validateNotificationPreferences
-// PUT /api/user/preferences/extended/notifications
-// ─────────────────────────────────────────────────────────────────────────────
-exports.validateNotificationPreferences = [
+const optionalNotificationRules = [
   body('notification_preferences')
-    .notEmpty().withMessage('notification_preferences object is required')
+    .optional()
     .isObject().withMessage('notification_preferences must be an object'),
   body('notification_preferences.mealReminders')
     .optional()
@@ -208,4 +221,90 @@ exports.validateNotificationPreferences = [
   body('notification_preferences.systemUpdates')
     .optional()
     .isBoolean().withMessage('systemUpdates must be a boolean'),
+];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Exports
+// ─────────────────────────────────────────────────────────────────────────────
+
+// POST /api/user/preferences — all flat food-preference arrays required
+exports.validateUserPreferences = [
+  ...requiredFoodPreferenceRules,
+];
+
+// PUT /api/user/preferences/extended — at least one supported field required
+// supports both canonical nested payload and legacy flat payload
+exports.validateExtendedUserPreferences = [
+  body().custom((payload) => {
+    const SUPPORTED_FIELDS = [
+      'food_preferences',
+      'health_context',
+      'notification_preferences',
+      'ui_settings',
+      'dietary_requirements',
+      'allergies',
+      'cuisines',
+      'dislikes',
+      'health_conditions',
+      'spice_levels',
+      'cooking_methods',
+    ];
+    const hasField = payload &&
+      typeof payload === 'object' &&
+      SUPPORTED_FIELDS.some((f) => Object.prototype.hasOwnProperty.call(payload, f));
+    if (!hasField) {
+      throw new Error('At least one supported preference field is required');
+    }
+    return true;
+  }),
+  ...nestedFoodPreferenceRules,
+  ...optionalFoodPreferenceRules,
+  ...healthContextRules,
+  ...optionalNotificationRules,
+  ...uiSettingsRules,
+];
+
+// Keep old name as alias so existing route imports don't break
+exports.validateHealthContext = exports.validateExtendedUserPreferences;
+
+// PUT /api/user/preferences/extended/notifications
+exports.validateNotificationPreferences = [
+  body('notification_preferences')
+    .exists({ checkNull: true }).withMessage('notification_preferences object is required')
+    .isObject().withMessage('notification_preferences must be an object'),
+  body('notification_preferences.mealReminders')
+    .optional()
+    .isBoolean().withMessage('mealReminders must be a boolean'),
+  body('notification_preferences.waterReminders')
+    .optional()
+    .isBoolean().withMessage('waterReminders must be a boolean'),
+  body('notification_preferences.healthTips')
+    .optional()
+    .isBoolean().withMessage('healthTips must be a boolean'),
+  body('notification_preferences.weeklyReports')
+    .optional()
+    .isBoolean().withMessage('weeklyReports must be a boolean'),
+  body('notification_preferences.systemUpdates')
+    .optional()
+    .isBoolean().withMessage('systemUpdates must be a boolean'),
+];
+
+// PUT /api/user/preferences/extended/ui-settings
+exports.validateUiSettings = [
+  body('ui_settings')
+    .exists({ checkNull: true }).withMessage('ui_settings object is required')
+    .isObject().withMessage('ui_settings must be an object'),
+  body('ui_settings.language')
+    .optional()
+    .isIn(UI_LANGUAGES)
+    .withMessage(`ui_settings.language must be one of: ${UI_LANGUAGES.join(', ')}`),
+  body('ui_settings.theme')
+    .optional()
+    .isIn(UI_THEMES)
+    .withMessage(`ui_settings.theme must be one of: ${UI_THEMES.join(', ')}`),
+  body('ui_settings.font_size')
+    .optional()
+    .isString().withMessage('ui_settings.font_size must be a string')
+    .matches(/^\d+(px|rem|em|%)$/)
+    .withMessage('ui_settings.font_size must be a valid CSS size (e.g. 16px, 1rem)'),
 ];

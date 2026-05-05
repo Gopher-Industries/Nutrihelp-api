@@ -1,9 +1,8 @@
 const fetchUserPreferences = require('../model/fetchUserPreferences');
 const updateUserPreferences = require('../model/updateUserPreferences');
 const { ServiceError } = require('./serviceError');
-const { decryptFromDatabase, encryptForDatabase } = require('./encryptionService');
 
-const USER_PREFERENCES_CONTRACT_VERSION = 'user-preferences-v2';
+const USER_PREFERENCES_CONTRACT_VERSION = 'user-preferences-v3';
 
 const DEFAULT_NOTIFICATION_PREFERENCES = {
   mealReminders: true,
@@ -33,18 +32,30 @@ function normalizeStringArray(items) {
 
 function normalizeStructuredAllergy(item = {}) {
   return {
-    referenceId: Number.isInteger(item.referenceId) ? item.referenceId : Number.isInteger(item.id) ? item.id : null,
+    referenceId: Number.isInteger(item.referenceId)
+      ? item.referenceId
+      : Number.isInteger(item.id)
+        ? item.id
+        : null,
     name: asTrimmedString(item.name),
-    severity: ['mild', 'moderate', 'severe', 'unknown'].includes(item.severity) ? item.severity : 'unknown',
+    severity: ['mild', 'moderate', 'severe', 'unknown'].includes(item.severity)
+      ? item.severity
+      : 'unknown',
     notes: asTrimmedString(item.notes)
   };
 }
 
 function normalizeStructuredCondition(item = {}) {
   return {
-    referenceId: Number.isInteger(item.referenceId) ? item.referenceId : Number.isInteger(item.id) ? item.id : null,
+    referenceId: Number.isInteger(item.referenceId)
+      ? item.referenceId
+      : Number.isInteger(item.id)
+        ? item.id
+        : null,
     name: asTrimmedString(item.name),
-    status: ['active', 'managed', 'resolved', 'unknown'].includes(item.status) ? item.status : 'active',
+    status: ['active', 'managed', 'resolved', 'unknown'].includes(item.status)
+      ? item.status
+      : 'active',
     notes: asTrimmedString(item.notes)
   };
 }
@@ -58,7 +69,9 @@ function normalizeMedication(item = {}, index = 0) {
       unit: asTrimmedString(item.dosage?.unit ?? item.unit)
     },
     frequency: {
-      timesPerDay: Number.isInteger(item.frequency?.timesPerDay) ? item.frequency.timesPerDay : null,
+      timesPerDay: Number.isInteger(item.frequency?.timesPerDay)
+        ? item.frequency.timesPerDay
+        : null,
       interval: asTrimmedString(item.frequency?.interval),
       schedule: normalizeStringArray(item.frequency?.schedule),
       asNeeded: Boolean(item.frequency?.asNeeded)
@@ -70,9 +83,6 @@ function normalizeMedication(item = {}, index = 0) {
 }
 
 function buildStructuredHealthContext(rawPreferences = {}) {
-  // Week 6: Encryption of allergies and health conditions is handled at the migration
-  // and model level (fetchUserPreferences decrypts encrypted rows from user_allergies
-  // and user_health_conditions tables via the RPC/query layer)
   const storeHealthContext = rawPreferences.health_context || {};
 
   const allergiesById = new Map(
@@ -105,17 +115,44 @@ function buildStructuredHealthContext(rawPreferences = {}) {
     });
   });
 
-  const extraAllergies = structuredAllergies.filter((entry) => entry.referenceId == null || !allergiesById.has(entry.referenceId));
-  const extraConditions = structuredConditions.filter((entry) => entry.referenceId == null || !conditionsById.has(entry.referenceId));
+  const extraAllergies = structuredAllergies.filter(
+    (entry) => entry.referenceId == null || !allergiesById.has(entry.referenceId)
+  );
+  const extraConditions = structuredConditions.filter(
+    (entry) => entry.referenceId == null || !conditionsById.has(entry.referenceId)
+  );
 
   return {
     allergies: [...mergedAllergies, ...extraAllergies],
     chronic_conditions: [...mergedConditions, ...extraConditions],
-    medications: (storeHealthContext.medications || []).map(normalizeMedication).filter((item) => item.name),
+    medications: (storeHealthContext.medications || [])
+      .map(normalizeMedication)
+      .filter((item) => item.name),
     normalized_summary: {
-      allergyNames: [...new Set([...mergedAllergies, ...extraAllergies].map((item) => item.name).filter(Boolean).map((item) => item.toLowerCase()))],
-      chronicConditionNames: [...new Set([...mergedConditions, ...extraConditions].map((item) => item.name).filter(Boolean).map((item) => item.toLowerCase()))],
-      activeMedicationNames: [...new Set((storeHealthContext.medications || []).map(normalizeMedication).filter((item) => item.name && item.active).map((item) => item.name.toLowerCase()))]
+      allergyNames: [
+        ...new Set(
+          [...mergedAllergies, ...extraAllergies]
+            .map((item) => item.name)
+            .filter(Boolean)
+            .map((item) => item.toLowerCase())
+        )
+      ],
+      chronicConditionNames: [
+        ...new Set(
+          [...mergedConditions, ...extraConditions]
+            .map((item) => item.name)
+            .filter(Boolean)
+            .map((item) => item.toLowerCase())
+        )
+      ],
+      activeMedicationNames: [
+        ...new Set(
+          (storeHealthContext.medications || [])
+            .map(normalizeMedication)
+            .filter((item) => item.name && item.active)
+            .map((item) => item.name.toLowerCase())
+        )
+      ]
     }
   };
 }
@@ -164,10 +201,17 @@ async function updateExtendedPreferences(userId, payload = {}) {
 }
 
 async function getNotificationPreferences(userId) {
+  if (!userId) {
+    throw new ServiceError(400, 'User ID is required');
+  }
+
   const response = await getExtendedPreferences(userId);
   return {
     success: true,
-    data: response.data.notification_preferences
+    contractVersion: USER_PREFERENCES_CONTRACT_VERSION,
+    data: {
+      notification_preferences: response.data.notification_preferences
+    }
   };
 }
 
@@ -183,6 +227,33 @@ async function updateNotificationPreferences(userId, notificationPreferences = {
   return getNotificationPreferences(userId);
 }
 
+async function getUiSettings(userId) {
+  if (!userId) {
+    throw new ServiceError(400, 'User ID is required');
+  }
+
+  const response = await getExtendedPreferences(userId);
+  return {
+    success: true,
+    contractVersion: USER_PREFERENCES_CONTRACT_VERSION,
+    data: {
+      ui_settings: response.data.ui_settings
+    }
+  };
+}
+
+async function updateUiSettings(userId, uiSettings = {}) {
+  if (!userId) {
+    throw new ServiceError(400, 'User ID is required');
+  }
+
+  await updateUserPreferences(userId, {
+    ui_settings: uiSettings
+  });
+
+  return getUiSettings(userId);
+}
+
 module.exports = {
   DEFAULT_NOTIFICATION_PREFERENCES,
   DEFAULT_UI_SETTINGS,
@@ -191,6 +262,8 @@ module.exports = {
   buildStructuredHealthContext,
   getExtendedPreferences,
   getNotificationPreferences,
+  getUiSettings,
   updateExtendedPreferences,
-  updateNotificationPreferences
+  updateNotificationPreferences,
+  updateUiSettings
 };
