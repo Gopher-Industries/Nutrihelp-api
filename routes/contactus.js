@@ -1,20 +1,17 @@
-const express = require("express");
+const express = require('express');
 const router = express.Router();
 const { contentAndSupport } = require('../controller');
 
-// Import the validation rule and middleware
 const { contactusValidator } = require('../validators/contactusValidator.js');
-const validate = require('../middleware/validateRequest.js');
-const { formLimiter } = require('../middleware/rateLimiter'); // rate limiter added
+const { formLimiter } = require('../middleware/rateLimiter');
 
 const { contact: controller } = contentAndSupport;
 
-// router.route('/').post(contactusValidator, validate, (req,res) => {
-//     controller.contactus(req, res);
-// });
-// Apply rate limiter and validation before the controller
-router.post('/', formLimiter, contactusValidator, validate, (req, res) => {
-    controller.contactus(req, res);
+// The controller runs validationResult() itself and emits the standardized
+// support envelope (utils/supportResponse). Skip the legacy validate
+// middleware here so we don't fork the response shape.
+router.post('/', formLimiter, contactusValidator, (req, res) => {
+  controller.contactus(req, res);
 });
 
 module.exports = router;
