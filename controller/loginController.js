@@ -14,7 +14,12 @@ const { logSecurityEvent } = require("../services/securityEventService");
 const { createLog, log } = require("../services/securityLogger");
 const logger = require("../utils/logger");
 const nodemailer = require("nodemailer");
-const { ok, fail, validationError } = require("../utils/apiResponse");
+const {
+  authOk,
+  authFail,
+  authValidationError,
+  AUTH_ERROR_CODES,
+} = require("../services/authResponse");
 const { msg } = require("../utils/messages");
 const { sessionHookOnLoginSuccess } = require("../services/sessionLogService");
 
@@ -49,7 +54,7 @@ function createAccessToken(user) {
 const login = async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
-    return validationError(res, errors.array());
+    return authValidationError(res, errors.array());
   }
 
   const email = req.body.email?.trim().toLowerCase();
@@ -74,12 +79,11 @@ const login = async (req, res) => {
       })
     );
 
-    return fail(
-      res,
-      msg("auth.login.failed_missing_fields"),
-      400,
-      "AUTH_MISSING_FIELDS"
-    );
+    return authFail(res, {
+      message: msg("auth.login.failed_missing_fields"),
+      code: AUTH_ERROR_CODES.MISSING_FIELDS,
+      status: 400,
+    });
   }
 
   const tenMinutesAgoISO = new Date(Date.now() - 10 * 60 * 1000).toISOString();
@@ -95,8 +99,11 @@ const login = async (req, res) => {
     const failureCount = failuresByEmail?.length || 0;
 
     if (failureCount >= 10) {
-      return res.status(429).json({
-        error: "❌ Too many failed login attempts. Please try again after 10 minutes.",
+      return authFail(res, {
+        message:
+          "Too many failed login attempts. Please try again after 10 minutes.",
+        code: AUTH_ERROR_CODES.RATE_LIMITED,
+        status: 429,
       });
     }
 
@@ -140,7 +147,13 @@ const login = async (req, res) => {
       );
 
       await sendFailedLoginAlert(email, clientIp);
-      return fail(res, msg("auth.login.failed_not_found"), 404, "AUTH_NOT_FOUND");
+      // Privacy-preserving: surface the same shape as invalid credentials so
+      // attackers can't enumerate accounts. Code stays distinct for ops/logs.
+      return authFail(res, {
+        message: msg("auth.login.failed_credentials"),
+        code: AUTH_ERROR_CODES.INVALID_CREDENTIALS,
+        status: 401,
+      });
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
@@ -183,19 +196,21 @@ const login = async (req, res) => {
       );
 
       if (failureCount === 4) {
-        return res.status(429).json({
-          warning:
-            "⚠ You have one attempt left before your account is temporarily locked.",
+        return authFail(res, {
+          message:
+            "You have one attempt left before your account is temporarily locked.",
+          code: AUTH_ERROR_CODES.RATE_LIMITED,
+          status: 429,
+          details: { attemptsRemaining: 1 },
         });
       }
 
       await sendFailedLoginAlert(email, clientIp);
-      return fail(
-        res,
-        msg("auth.login.failed_credentials"),
-        401,
-        "AUTH_INVALID_CREDENTIALS"
-      );
+      return authFail(res, {
+        message: msg("auth.login.failed_credentials"),
+        code: AUTH_ERROR_CODES.INVALID_CREDENTIALS,
+        status: 401,
+      });
     }
 
     await supabase.from("brute_force_logs").insert([
@@ -230,10 +245,14 @@ const login = async (req, res) => {
       const mfaToken = crypto.randomInt(100000, 999999);
       await addMfaToken(user.user_id, mfaToken);
       await sendOtpEmail(user.email, mfaToken);
-      return ok(
+      return authOk(
         res,
-        { message: "An MFA Token has been sent to your email address" },
-        202
+        { mfaRequired: true, mfaChannel: "email" },
+        {
+          status: 202,
+          message: "An MFA token has been sent to your email address.",
+          meta: { nextStep: "POST /api/login/mfa" },
+        }
       );
     }
 
@@ -265,7 +284,10 @@ const login = async (req, res) => {
       logger.warn('[loginController] sessionHookOnLoginSuccess failed:', hookErr.message);
       // Don't block login if hook fails
     }
-        return ok(res, { user: sanitizeUserForResponse(user), token });
+    return authOk(res, {
+      user: sanitizeUserForResponse(user),
+      session: { accessToken: token, tokenType: "Bearer" },
+    });
   } catch (err) {
     log(
       createLog({
@@ -282,14 +304,18 @@ const login = async (req, res) => {
     );
 
     logger.error("Login error", err);
-    return fail(res, msg("general.internal_error"), 500, "INTERNAL_ERROR");
+    return authFail(res, {
+      message: msg("general.internal_error"),
+      code: AUTH_ERROR_CODES.INTERNAL_ERROR,
+      status: 500,
+    });
   }
 };
 
 const loginMfa = async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
-    return validationError(res, errors.array());
+    return authValidationError(res, errors.array());
   }
 
   const email = req.body.email?.trim().toLowerCase();
@@ -297,32 +323,46 @@ const loginMfa = async (req, res) => {
   const mfa_token = req.body.mfa_token;
 
   if (!email || !password || !mfa_token) {
-    return fail(res, msg("auth.login.mfa_required"), 400, "AUTH_MFA_REQUIRED");
+    return authFail(res, {
+      message: msg("auth.login.mfa_required"),
+      code: AUTH_ERROR_CODES.MFA_REQUIRED,
+      status: 400,
+    });
   }
 
   try {
     const user = await getUserCredentials(email);
     if (!user) {
-      return fail(
-        res,
-        msg("auth.login.failed_credentials"),
-        401,
-        "AUTH_INVALID_CREDENTIALS"
-      );
+      return authFail(res, {
+        message: msg("auth.login.failed_credentials"),
+        code: AUTH_ERROR_CODES.INVALID_CREDENTIALS,
+        status: 401,
+      });
     }
 
     const validPassword = await bcrypt.compare(password, user.password);
     const validToken = await verifyMfaToken(user.user_id, mfa_token);
 
     if (!validPassword || !validToken) {
-      return fail(res, msg("auth.login.mfa_invalid"), 401, "AUTH_MFA_INVALID");
+      return authFail(res, {
+        message: msg("auth.login.mfa_invalid"),
+        code: AUTH_ERROR_CODES.MFA_INVALID,
+        status: 401,
+      });
     }
 
     const token = createAccessToken(user);
-    return ok(res, { user: sanitizeUserForResponse(user), token });
+    return authOk(res, {
+      user: sanitizeUserForResponse(user),
+      session: { accessToken: token, tokenType: "Bearer" },
+    });
   } catch (err) {
     logger.error("MFA error", err);
-    return fail(res, msg("general.internal_error"), 500, "INTERNAL_ERROR");
+    return authFail(res, {
+      message: msg("general.internal_error"),
+      code: AUTH_ERROR_CODES.INTERNAL_ERROR,
+      status: 500,
+    });
   }
 };
 
@@ -356,7 +396,7 @@ async function sendOtpEmail(email, token) {
 const resendMfa = async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
-    return validationError(res, errors.array());
+    return authValidationError(res, errors.array());
   }
 
   const email = req.body.email?.trim().toLowerCase();
@@ -365,7 +405,11 @@ const resendMfa = async (req, res) => {
     const user = await getUserCredentials(email);
 
     if (!user || !user.mfa_enabled) {
-      return fail(res, "MFA is not enabled for this account", 404, "AUTH_MFA_DISABLED");
+      return authFail(res, {
+        message: "MFA is not enabled for this account",
+        code: AUTH_ERROR_CODES.MFA_DISABLED,
+        status: 404,
+      });
     }
 
     await invalidateMfaTokens(user.user_id);
@@ -374,10 +418,18 @@ const resendMfa = async (req, res) => {
     await addMfaToken(user.user_id, token);
     await sendOtpEmail(user.email, token);
 
-    return ok(res, { message: "A new MFA token has been sent to your email address" });
+    return authOk(
+      res,
+      { mfaChannel: "email" },
+      { message: "A new MFA token has been sent to your email address." }
+    );
   } catch (err) {
     logger.error("MFA resend error", err);
-    return fail(res, "Unable to resend MFA token", 500, "AUTH_MFA_RESEND_FAILED");
+    return authFail(res, {
+      message: "Unable to resend MFA token",
+      code: AUTH_ERROR_CODES.MFA_RESEND_FAILED,
+      status: 500,
+    });
   }
 };
 

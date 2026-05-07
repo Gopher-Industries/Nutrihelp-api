@@ -1,0 +1,166 @@
+From 218b31ba503f7e942c40184bc96775cd0340091a Mon Sep 17 00:00:00 2001
+From: thoran <machagadu6@gmail.com>
+Date: Tue, 5 May 2026 20:04:44 +0000
+Subject: [PATCH 4/5] refactor(auth): refresh + OAuth + login-log + SMS use
+ canonical envelope
+
+refreshToken, googleExchange, logLoginAttempt, and sendSMSByEmail
+previously returned raw service payloads or { error: <string> }
+on failure. They now emit the canonical envelope via authOk/
+authFail and surface specific codes (AUTH_REFRESH_FAILED,
+AUTH_OAUTH_EXCHANGE_FAILED, AUTH_MFA_RESEND_FAILED, etc.).
+
+Refresh and logout now share the same session shape as login,
+so the client can hand the response object straight to its
+session store.
+---
+ controller/authController.js | 80 ++++++++++++++++++++++++++++--------
+ 1 file changed, 62 insertions(+), 18 deletions(-)
+
+diff --git a/controller/authController.js b/controller/authController.js
+index ccfbf26..f41b2f0 100644
+--- a/controller/authController.js
++++ b/controller/authController.js
+@@ -5,6 +5,12 @@ const {
+   formatProfile,
+   formatSession
+ } = require('../services/apiResponseService');
++const {
++  authOk,
++  authFail,
++  authFailFromError,
++  AUTH_ERROR_CODES,
++} = require('../services/authResponse');
+ const { isServiceError } = require('../services/serviceError');
+ const logger = require('../utils/logger');
+ const { tokenHookOnIssue, tokenHookOnRefresh, tokenHookOnRevoke } = require('../services/tokenLogService');
+@@ -46,6 +52,10 @@ function handleServiceError(res, error, fallbackStatus, fallbackCode, label, con
+   );
+ }
+ 
++// All raw service responses below are now funnelled through authOk/authFail
++// so refresh, OAuth exchange, and login-log endpoints share the same envelope
++// as login/MFA/logout. See services/authResponse.js for the contract.
++
+ exports.register = async (req, res) => {
+   try {
+     const { name, email, password, first_name, last_name } = req.body;
+@@ -105,8 +115,16 @@ exports.login = async (req, res) => {
+ 
+ exports.refreshToken = async (req, res) => {
+   try {
++    if (!req.body.refreshToken) {
++      return authFail(res, {
++        message: 'Refresh token is required',
++        code: AUTH_ERROR_CODES.MISSING_FIELDS,
++        status: 400,
++      });
++    }
++
+     const result = await authService.refreshAccessToken(req.body.refreshToken, getDeviceInfo(req));
+-    
++
+     // CT-004 Week 6: Log token refresh for alert A7 (token abuse patterns)
+     try {
+       if (result && result.accessToken && result.userId) {
+@@ -116,10 +134,13 @@ exports.refreshToken = async (req, res) => {
+       logger.warn('[authController.refreshToken] tokenHookOnRefresh failed:', hookErr.message);
+       // Don't block token refresh if hook fails
+     }
+-    
+-    return res.json(result);
++
++    return authOk(res, { session: formatSession(result) });
+   } catch (error) {
+-    return handleServiceError(res, error, 401, 'REFRESH_FAILED', 'Token refresh error');
++    return authFailFromError(res, error, {
++      code: AUTH_ERROR_CODES.REFRESH_FAILED,
++      message: 'Unable to refresh access token',
++    });
+   }
+ };
+ 
+@@ -128,15 +149,29 @@ exports.googleExchange = async (req, res) => {
+     const supabaseAccessToken = req.body.supabaseAccessToken || req.body.accessToken || req.body.token;
+     const provider = req.body.provider || 'google';
+ 
++    if (!supabaseAccessToken) {
++      return authFail(res, {
++        message: 'OAuth access token is required',
++        code: AUTH_ERROR_CODES.MISSING_FIELDS,
++        status: 400,
++      });
++    }
++
+     const result = await authService.exchangeSupabaseToken(
+       { supabaseAccessToken, provider },
+       getDeviceInfo(req)
+     );
+ 
+-    return res.json(result);
++    return authOk(res, {
++      user: result.user,
++      session: formatSession(result),
++    });
+   } catch (error) {
+     logger.error('Google exchange error', { error: error.message });
+-    return handleServiceError(res, error, 401, 'Google exchange error:');
++    return authFailFromError(res, error, {
++      code: AUTH_ERROR_CODES.OAUTH_EXCHANGE_FAILED,
++      message: 'Unable to exchange OAuth token',
++    });
+   }
+ };
+ 
+@@ -221,27 +256,36 @@ exports.logLoginAttempt = async (req, res) => {
+       createdAt: req.body.created_at
+     });
+ 
+-    return res.status(201).json(result);
++    return authOk(res, result || null, { status: 201 });
+   } catch (error) {
+-    if (isServiceError(error)) {
+-      return res.status(error.statusCode).json({ error: error.message });
+-    }
+-
+     logger.error('Failed to insert login log', { error: error.message, email: req.body.email });
+-    return res.status(500).json({ error: 'Failed to log login attempt' });
++    return authFailFromError(res, error, {
++      code: AUTH_ERROR_CODES.INTERNAL_ERROR,
++      message: 'Failed to log login attempt',
++    });
+   }
+ };
+ 
+ exports.sendSMSByEmail = async (req, res) => {
+   try {
++    if (!req.body.email) {
++      return authFail(res, {
++        message: 'Email is required',
++        code: AUTH_ERROR_CODES.MISSING_FIELDS,
++        status: 400,
++      });
++    }
+     const result = await authService.sendSmsCodeByEmail(req.body.email);
+-    return res.status(200).json(result);
++    return authOk(
++      res,
++      { mfaChannel: 'sms' },
++      { message: result?.message || 'SMS verification code sent.' }
++    );
+   } catch (error) {
+-    if (isServiceError(error)) {
+-      return res.status(error.statusCode).json({ error: error.message });
+-    }
+-
+     logger.error('Error sending SMS', { error: error.message, email: req.body.email });
+-    return res.status(500).json({ error: 'Internal server error' });
++    return authFailFromError(res, error, {
++      code: AUTH_ERROR_CODES.MFA_RESEND_FAILED,
++      message: 'Unable to send SMS verification code',
++    });
+   }
+ };
+-- 
+2.34.1
+
