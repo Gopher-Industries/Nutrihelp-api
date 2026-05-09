@@ -14,11 +14,23 @@ describe('Recommendation Controller', () => {
   it('returns the service payload to the client', async () => {
     const generateRecommendations = sinon.stub().resolves({
       success: true,
+      generatedAt: '2026-04-25T00:00:00.000Z',
+      contractVersion: 'recommendation-response-v1',
+      source: { strategy: 'hybrid_rule_based' },
       recommendations: [{ rank: 1, recipeId: 10, title: 'Protein Bowl' }]
     });
 
     const controller = proxyquire('../controller/recommendationController', {
-      '../services/recommendationService': { generateRecommendations }
+      '../services': {
+        coreApp: { recommendationService: { generateRecommendations } },
+        shared: {
+          apiResponse: {
+            createErrorResponse(message, code) {
+              return { success: false, error: { message, code } };
+            }
+          }
+        }
+      }
     });
 
     const req = {
@@ -34,16 +46,29 @@ describe('Recommendation Controller', () => {
 
     expect(generateRecommendations.calledOnce).to.equal(true);
     expect(res.status.calledWith(200)).to.equal(true);
-    expect(res.json.calledWith({
+    expect(res.json.calledOnce).to.equal(true);
+    expect(res.json.firstCall.args[0]).to.deep.equal({
       success: true,
+      generatedAt: '2026-04-25T00:00:00.000Z',
+      contractVersion: 'recommendation-response-v1',
+      source: { strategy: 'hybrid_rule_based' },
       recommendations: [{ rank: 1, recipeId: 10, title: 'Protein Bowl' }]
-    })).to.equal(true);
+    });
   });
 
   it('returns 400 when dietaryConstraints is missing', async () => {
     const generateRecommendations = sinon.stub();
     const controller = proxyquire('../controller/recommendationController', {
-      '../services/recommendationService': { generateRecommendations }
+      '../services': {
+        coreApp: { recommendationService: { generateRecommendations } },
+        shared: {
+          apiResponse: {
+            createErrorResponse(message, code) {
+              return { success: false, error: { message, code } };
+            }
+          }
+        }
+      }
     });
 
     const req = {
@@ -59,16 +84,28 @@ describe('Recommendation Controller', () => {
 
     expect(generateRecommendations.called).to.equal(false);
     expect(res.status.calledWith(400)).to.equal(true);
-    expect(res.json.calledWith({
+    expect(res.json.firstCall.args[0]).to.deep.equal({
       success: false,
-      error: 'dietaryConstraints is required and must be an object'
-    })).to.equal(true);
+      error: {
+        message: 'dietaryConstraints is required and must be an object',
+        code: 'VALIDATION_ERROR'
+      }
+    });
   });
 
   it('returns 400 when maxResults is malformed', async () => {
     const generateRecommendations = sinon.stub();
     const controller = proxyquire('../controller/recommendationController', {
-      '../services/recommendationService': { generateRecommendations }
+      '../services': {
+        coreApp: { recommendationService: { generateRecommendations } },
+        shared: {
+          apiResponse: {
+            createErrorResponse(message, code) {
+              return { success: false, error: { message, code } };
+            }
+          }
+        }
+      }
     });
 
     const req = {
@@ -87,16 +124,28 @@ describe('Recommendation Controller', () => {
 
     expect(generateRecommendations.called).to.equal(false);
     expect(res.status.calledWith(400)).to.equal(true);
-    expect(res.json.calledWith({
+    expect(res.json.firstCall.args[0]).to.deep.equal({
       success: false,
-      error: 'maxResults must be an integer between 1 and 20'
-    })).to.equal(true);
+      error: {
+        message: 'maxResults must be an integer between 1 and 20',
+        code: 'VALIDATION_ERROR'
+      }
+    });
   });
 
   it('returns 400 when aiInsights is malformed', async () => {
     const generateRecommendations = sinon.stub();
     const controller = proxyquire('../controller/recommendationController', {
-      '../services/recommendationService': { generateRecommendations }
+      '../services': {
+        coreApp: { recommendationService: { generateRecommendations } },
+        shared: {
+          apiResponse: {
+            createErrorResponse(message, code) {
+              return { success: false, error: { message, code } };
+            }
+          }
+        }
+      }
     });
 
     const req = {
@@ -115,16 +164,28 @@ describe('Recommendation Controller', () => {
 
     expect(generateRecommendations.called).to.equal(false);
     expect(res.status.calledWith(400)).to.equal(true);
-    expect(res.json.calledWith({
+    expect(res.json.firstCall.args[0]).to.deep.equal({
       success: false,
-      error: 'aiInsights must be an object when provided'
-    })).to.equal(true);
+      error: {
+        message: 'aiInsights must be an object when provided',
+        code: 'VALIDATION_ERROR'
+      }
+    });
   });
 
   it('returns a generic 500 error when the service throws an unexpected internal error', async () => {
     const generateRecommendations = sinon.stub().rejects(new Error('database connection string leaked'));
     const controller = proxyquire('../controller/recommendationController', {
-      '../services/recommendationService': { generateRecommendations }
+      '../services': {
+        coreApp: { recommendationService: { generateRecommendations } },
+        shared: {
+          apiResponse: {
+            createErrorResponse(message, code) {
+              return { success: false, error: { message, code } };
+            }
+          }
+        }
+      }
     });
 
     const req = {
@@ -141,9 +202,12 @@ describe('Recommendation Controller', () => {
     await controller.getRecommendations(req, res);
 
     expect(res.status.calledWith(500)).to.equal(true);
-    expect(res.json.calledWith({
+    expect(res.json.firstCall.args[0]).to.deep.equal({
       success: false,
-      error: 'Failed to generate recommendations'
-    })).to.equal(true);
+      error: {
+        message: 'Failed to generate recommendations',
+        code: 'RECOMMENDATION_FAILED'
+      }
+    });
   });
 });

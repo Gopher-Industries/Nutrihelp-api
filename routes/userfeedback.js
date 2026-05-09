@@ -1,12 +1,14 @@
-const express = require("express");
+const express = require('express');
 const router = express.Router();
-const controller = require('../controller/userFeedbackController');
+const { contentAndSupport } = require('../controller');
 const { feedbackValidation } = require('../validators/feedbackValidator.js');
-const validate = require('../middleware/validateRequest.js');
-const { formLimiter } = require('../middleware/rateLimiter'); // ✅ rate limiter added
+const { formLimiter } = require('../middleware/rateLimiter');
 
-router.post('/', formLimiter, feedbackValidation, validate, (req, res) => {
-    controller.userfeedback(req, res);
+const { feedback: controller } = contentAndSupport;
+
+// Controller emits the standardized support envelope; skip legacy validate.
+router.post('/', formLimiter, feedbackValidation, (req, res) => {
+  controller.userfeedback(req, res);
 });
 
 module.exports = router;

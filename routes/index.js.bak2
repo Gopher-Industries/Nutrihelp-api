@@ -1,0 +1,9 @@
+module.exports = (app) => {
+  app.use("/api/appointments", require("./appointment"));
+  app.use("/api/health-news", require("./healthNews"));
+  app.use("/api/food", require("./fooddata"));
+  app.use("/api/shopping-list", require("./shoppingList"));
+  app.use("/api/water", require("./waterIntake"));
+  app.use("/api/barcode", require("./barcodeScanning"));
+  app.use("/api/recipes", require("./recipe"));
+};

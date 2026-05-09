@@ -19,7 +19,8 @@ describe('Auth Profile Controller', () => {
 
     const controller = proxyquire('../controller/authController', {
       '../services/authService': { '@noCallThru': {} },
-      '../services/userProfileService': userProfileService
+      '../services/userProfileService': userProfileService,
+      '../utils/logger': { error: sinon.stub() }
     });
 
     const req = {

@@ -1,0 +1,86 @@
+const express = require('express');
+const app = express();
+const swaggerUi = require('swagger-ui-express');
+const YAML = require('yamljs');
+const logger = require('./utils/logger');
+
+// load swagger safely (if present)
+let swaggerDocument = {};
+try {
+  swaggerDocument = YAML.load('./swagger.yaml');
+} catch (e) {
+  logger.warn('swagger.yaml not loaded:', e.message || e);
+}
+
+// built-in middlewares
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// standardized response envelope (middleware/responseWrapper.js)
+try {
+  app.use(require('./middleware/responseWrapper'));
+} catch (e) {
+  logger.warn('responseWrapper not available:', e.message || e);
+}
+
+// normalize numeric ID strings to Numbers (middleware/normalizeIds.js)
+try {
+  app.use(require('./middleware/normalizeIds'));
+} catch (e) {
+  logger.warn('normalizeIds middleware not available:', e.message || e);
+}
+
+// Mount routes: support both function-style index (module.exports = function(app){...})
+// and router-style (module.exports = router)
+try {
+  const routesExport = require('./routes');
+  if (typeof routesExport === 'function') {
+    routesExport(app);
+  } else {
+    // if it's a router or object, mount at /api
+    app.use('/api', routesExport);
+  }
+} catch (e) {
+  logger.warn('Could not mount routes:', e.message || e);
+}
+
+// Mount alias for food data (safe to keep even if file is missing)
+try {
+  app.use('/api/fooddata', require('./routes/fooddata'));
+} catch (e) {
+  logger.warn('Could not mount /api/fooddata:', e.message || e);
+}
+
+// Swagger docs (if loaded)
+try {
+  app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+} catch (e) {
+  logger.warn('Swagger UI not registered:', e.message || e);
+}
+
+// Basic health check
+app.get('/health', (req, res) => res.json({ uptime: process.uptime(), status: 'ok' }));
+
+// fallback 404 as JSON
+app.use((req, res) => {
+  res.status(404).json({ success: false, error: 'Not Found' });
+});
+
+// central error handler (middleware/errorHandler.js)
+try {
+  app.use(require('./middleware/errorHandler'));
+} catch (e) {
+  // last-resort fallback
+  app.use((err, req, res, next) => {
+    console.error('Unhandled error (fallback):', err);
+    if (res.headersSent) return next(err);
+    res.status(err.status || 500).json({ success: false, error: err.message || 'Internal Server Error' });
+  });
+}
+
+// export app for testing
+if (require.main === module) {
+  const PORT = process.env.PORT || 3000;
+  app.listen(PORT, () => logger.info('Server running on ' + PORT));
+}
+module.exports = app;

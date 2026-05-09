@@ -2,6 +2,14 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const getUserCredentials = require("../model/getUserCredentials.js");
 const { addMfaToken, verifyMfaToken } = require("../model/addMfaToken.js");
+
+const logLoginEvent = require("../Monitor_&_Logging/loginLogger");
+const getUserCredentials = require("../model/getUserCredentials.js");
+const {
+  addMfaToken,
+  invalidateMfaTokens,
+  verifyMfaToken,
+} = require("../model/addMfaToken.js");
 const crypto = require("crypto");
 const { validationResult } = require("express-validator");
 const { logSecurityEvent } = require("../services/securityEventService");
@@ -17,15 +25,49 @@ function createAccessToken(user) {
     process.env.JWT_TOKEN,
     { expiresIn: "1h" }
   );
+
+const { createLog, log } = require("../services/securityLogger");
+const logger = require("../utils/logger");
+const nodemailer = require("nodemailer");
+const {
+  authOk,
+  authFail,
+  authValidationError,
+  AUTH_ERROR_CODES,
+} = require("../services/authResponse");
+const { msg } = require("../utils/messages");
+const { sessionHookOnLoginSuccess } = require("../services/sessionLogService");
+const authService = require("../services/authService");
+
+const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: process.env.GMAIL_USER,
+    pass: process.env.GMAIL_APP_PASSWORD,
+  },
+});
+
+function sanitizeUserForResponse(user) {
+  if (!user) return user;
+  const { password, ...safeUser } = user;
+  return safeUser;
 }
 
-// ================= LOGIN =================
+function getDeviceInfo(req) {
+  return {
+    ip: req.ip,
+    userAgent: req.get("User-Agent") || "Unknown",
+    deviceId: req.get("X-Device-Id") || null,
+    clientType: req.get("X-Client-Type") || "web",
+  };
+}
+
 const login = async (req, res) => {
   console.log("LOGIN CONTROLLER HIT");
 
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
-    return res.status(400).json({ errors: errors.array() });
+    return authValidationError(res, errors.array());
   }
 
   const email = req.body.email?.trim().toLowerCase();
@@ -37,13 +79,62 @@ const login = async (req, res) => {
 
   if (!email || !password) {
     return res.status(400).json({ error: "Email and password are required" });
+    log(
+      createLog({
+        event_type: "AUTH_LOGIN_FAILED",
+        severity_level: "MEDIUM",
+        user_id: null,
+        source_service: "login-controller",
+        ip_address: clientIp,
+        endpoint: req.originalUrl,
+        method: req.method,
+        status: "FAILED",
+        message: "Missing email or password",
+      })
+    );
+
+    return authFail(res, {
+      message: msg("auth.login.failed_missing_fields"),
+      code: AUTH_ERROR_CODES.MISSING_FIELDS,
+      status: 400,
+    });
   }
 
+  const tenMinutesAgoISO = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+
   try {
+    const { data: failuresByEmail } = await supabase
+      .from("brute_force_logs")
+      .select("id")
+      .eq("email", email)
+      .eq("success", false)
+      .gte("created_at", tenMinutesAgoISO);
+
+    const failureCount = failuresByEmail?.length || 0;
+
+    if (failureCount >= 10) {
+      return authFail(res, {
+        message:
+          "Too many failed login attempts. Please try again after 10 minutes.",
+        code: AUTH_ERROR_CODES.RATE_LIMITED,
+        status: 429,
+      });
+    }
+
     const user = await getUserCredentials(email);
 
     // User not found
     if (!user) {
+    if (!user) {
+      await supabase.from("brute_force_logs").insert([
+        {
+          email,
+          ip_address: clientIp,
+          success: false,
+          created_at: new Date().toISOString(),
+        },
+      ]);
+
       await logSecurityEvent({
         event_type: "LOGIN_FAILED",
         severity: "medium",
@@ -56,14 +147,48 @@ const login = async (req, res) => {
           reason: "user_not_found",
         },
       });
+          reason: "account_not_found",
+        },
+      });
 
-      return res.status(401).json({ error: "Invalid email" });
+      log(
+        createLog({
+          event_type: "AUTH_LOGIN_FAILED",
+          severity_level: "MEDIUM",
+          user_id: null,
+          source_service: "login-controller",
+          ip_address: clientIp,
+          endpoint: req.originalUrl,
+          method: req.method,
+          status: "FAILED",
+          message: "User not found",
+        })
+      );
+
+      await sendFailedLoginAlert(email, clientIp);
+      // Privacy-preserving: surface the same shape as invalid credentials so
+      // attackers can't enumerate accounts. Code stays distinct for ops/logs.
+      return authFail(res, {
+        message: msg("auth.login.failed_credentials"),
+        code: AUTH_ERROR_CODES.INVALID_CREDENTIALS,
+        status: 401,
+      });
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
 
     // Wrong password
     if (!isPasswordValid) {
+    if (!isPasswordValid) {
+      await supabase.from("brute_force_logs").insert([
+        {
+          email,
+          ip_address: clientIp,
+          success: false,
+          created_at: new Date().toISOString(),
+        },
+      ]);
+
       await logSecurityEvent({
         event_type: "LOGIN_FAILED",
         severity: "medium",
@@ -77,7 +202,36 @@ const login = async (req, res) => {
         },
       });
 
-      return res.status(401).json({ error: "Invalid password" });
+      log(
+        createLog({
+          event_type: "AUTH_LOGIN_FAILED",
+          severity_level: "MEDIUM",
+          user_id: user.user_id,
+          source_service: "login-controller",
+          ip_address: clientIp,
+          endpoint: req.originalUrl,
+          method: req.method,
+          status: "FAILED",
+          message: "Invalid password",
+        })
+      );
+
+      if (failureCount === 4) {
+        return authFail(res, {
+          message:
+            "You have one attempt left before your account is temporarily locked.",
+          code: AUTH_ERROR_CODES.RATE_LIMITED,
+          status: 429,
+          details: { attemptsRemaining: 1 },
+        });
+      }
+
+      await sendFailedLoginAlert(email, clientIp);
+      return authFail(res, {
+        message: msg("auth.login.failed_credentials"),
+        code: AUTH_ERROR_CODES.INVALID_CREDENTIALS,
+        status: 401,
+      });
     }
 
     // MFA enabled
@@ -89,6 +243,24 @@ const login = async (req, res) => {
       await logSecurityEvent({
         event_type: "MFA_CHALLENGE_ISSUED",
         severity: "low",
+    await supabase.from("brute_force_logs").insert([
+      {
+        email,
+        success: true,
+        created_at: new Date().toISOString(),
+      },
+    ]);
+
+    await supabase
+      .from("brute_force_logs")
+      .delete()
+      .eq("email", email)
+      .eq("success", false);
+
+    log(
+      createLog({
+        event_type: "AUTH_LOGIN_SUCCESS",
+        severity_level: "LOW",
         user_id: user.user_id,
         ip_address: clientIp,
         user_agent: req.headers["user-agent"],
@@ -114,11 +286,65 @@ const login = async (req, res) => {
       metadata: {
         email,
       },
+        endpoint: req.originalUrl,
+        method: req.method,
+        status: "SUCCESS",
+        message: "User logged in successfully",
+      })
+    );
+
+    if (user.mfa_enabled) {
+      const mfaToken = crypto.randomInt(100000, 999999);
+      await addMfaToken(user.user_id, mfaToken);
+      await sendOtpEmail(user.email, mfaToken);
+      return authOk(
+        res,
+        { mfaRequired: true, mfaChannel: "email" },
+        {
+          status: 202,
+          message: "An MFA token has been sent to your email address.",
+          meta: { nextStep: "POST /api/login/mfa" },
+        }
+      );
+    }
+
+    await logLoginEvent({
+      userId: user.user_id,
+      eventType: "LOGIN_SUCCESS",
+      ip: clientIp,
+      userAgent: req.headers["user-agent"],
     });
 
-    const token = createAccessToken(user);
+    await logSecurityEvent({
+      event_type: "LOGIN_SUCCESS",
+      severity: "low",
+      user_id: user.user_id,
+      session_id: null,
+      ip_address: clientIp,
+      user_agent: req.headers["user-agent"],
+      resource: "/api/auth/login",
+      metadata: {
+        email,
+      },
+    });
 
-    return res.status(200).json({ user, token });
+    const session = await authService.generateTokenPair(user, getDeviceInfo(req));
+    // CT-004 Week 6: Log session for alert A6 (geo-impossible travel detection)
+    try {
+      await sessionHookOnLoginSuccess(req, user);
+    } catch (hookErr) {
+      logger.warn('[loginController] sessionHookOnLoginSuccess failed:', hookErr.message);
+      // Don't block login if hook fails
+    }
+    return authOk(res, {
+      user: sanitizeUserForResponse(user),
+      token: session.accessToken,
+      accessToken: session.accessToken,
+      refreshToken: session.refreshToken,
+      expiresIn: session.expiresIn,
+      tokenType: session.tokenType,
+      session,
+    });
   } catch (err) {
     console.error("Login error:", err);
 
@@ -131,7 +357,36 @@ const login = async (req, res) => {
 };
 
 // ================= MFA LOGIN =================
+=======
+    log(
+      createLog({
+        event_type: "SYSTEM_ERROR",
+        severity_level: "HIGH",
+        user_id: null,
+        source_service: "login-controller",
+        ip_address: clientIp,
+        endpoint: req.originalUrl,
+        method: req.method,
+        status: "ERROR",
+        message: err.message,
+      })
+    );
+
+    logger.error("Login error", err);
+    return authFail(res, {
+      message: msg("general.internal_error"),
+      code: AUTH_ERROR_CODES.INTERNAL_ERROR,
+      status: 500,
+    });
+  }
+};
+
 const loginMfa = async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return authValidationError(res, errors.array());
+  }
+
   const email = req.body.email?.trim().toLowerCase();
   const password = req.body.password;
   const mfa_token = req.body.mfa_token;
@@ -143,6 +398,10 @@ const loginMfa = async (req, res) => {
   if (!email || !password || !mfa_token) {
     return res.status(400).json({
       error: "Email, password, and token are required",
+    return authFail(res, {
+      message: msg("auth.login.mfa_required"),
+      code: AUTH_ERROR_CODES.MFA_REQUIRED,
+      status: 400,
     });
   }
 
@@ -164,6 +423,11 @@ const loginMfa = async (req, res) => {
       });
 
       return res.status(401).json({ error: "Invalid credentials" });
+      return authFail(res, {
+        message: msg("auth.login.failed_credentials"),
+        code: AUTH_ERROR_CODES.INVALID_CREDENTIALS,
+        status: 401,
+      });
     }
 
     const validPassword = await bcrypt.compare(password, user.password);
@@ -209,7 +473,124 @@ const loginMfa = async (req, res) => {
     }
 
     return res.status(500).json({ error: "Internal server error" });
+      return authFail(res, {
+        message: msg("auth.login.mfa_invalid"),
+        code: AUTH_ERROR_CODES.MFA_INVALID,
+        status: 401,
+      });
+    }
+
+    const session = await authService.generateTokenPair(user, getDeviceInfo(req));
+    return authOk(res, {
+      user: sanitizeUserForResponse(user),
+      token: session.accessToken,
+      accessToken: session.accessToken,
+      refreshToken: session.refreshToken,
+      expiresIn: session.expiresIn,
+      tokenType: session.tokenType,
+      session,
+    });
+  } catch (err) {
+    logger.error("MFA error", err);
+    return authFail(res, {
+      message: msg("general.internal_error"),
+      code: AUTH_ERROR_CODES.INTERNAL_ERROR,
+      status: 500,
+    });
   }
 };
 
-module.exports = { login, loginMfa };
+async function sendOtpEmail(email, token) {
+  try {
+    if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
+      console.log(`📨 [DEV] MFA code for ${email}: ${token}`);
+      return;
+    }
+
+    await transporter.sendMail({
+      from: `"NutriHelp Security" <${process.env.GMAIL_USER}>`,
+      to: email,
+      subject: "NutriHelp Login Token",
+      text: `Your one-time login token is: ${token}\n\nThis token expires in 10 minutes.\n\nIf you did not request this, please ignore this email.\n\n- NutriHelp Security Team`,
+      html: `
+        <p>Your one-time login token is:</p>
+        <h2>${token}</h2>
+        <p>This token expires in <strong>10 minutes</strong>.</p>
+        <p>If you did not request this, please ignore this email.</p>
+        <br/>
+        <p>- NutriHelp Security Team</p>
+      `,
+    });
+    console.log("OTP email sent successfully to", email);
+  } catch (err) {
+    console.error("Error sending OTP email:", err.message);
+  }
+}
+
+const resendMfa = async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return authValidationError(res, errors.array());
+  }
+
+  const email = req.body.email?.trim().toLowerCase();
+
+  try {
+    const user = await getUserCredentials(email);
+
+    if (!user || !user.mfa_enabled) {
+      return authFail(res, {
+        message: "MFA is not enabled for this account",
+        code: AUTH_ERROR_CODES.MFA_DISABLED,
+        status: 404,
+      });
+    }
+
+    await invalidateMfaTokens(user.user_id);
+
+    const token = crypto.randomInt(100000, 999999);
+    await addMfaToken(user.user_id, token);
+    await sendOtpEmail(user.email, token);
+
+    return authOk(
+      res,
+      { mfaChannel: "email" },
+      { message: "A new MFA token has been sent to your email address." }
+    );
+  } catch (err) {
+    logger.error("MFA resend error", err);
+    return authFail(res, {
+      message: "Unable to resend MFA token",
+      code: AUTH_ERROR_CODES.MFA_RESEND_FAILED,
+      status: 500,
+    });
+  }
+};
+
+async function sendFailedLoginAlert(email, ip) {
+  try {
+    if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
+      console.log(`[DEV] Failed login alert for ${email} from IP ${ip}`);
+      return;
+    }
+
+    await transporter.sendMail({
+      from: `"NutriHelp Security" <${process.env.GMAIL_USER}>`,
+      to: email,
+      subject: "Failed Login Attempt on NutriHelp",
+      text: `Hi,\n\nSomeone tried to log in to NutriHelp using your email address from IP: ${ip}.\n\nIf this wasn't you, please ignore this message. If you're concerned, consider resetting your password or contacting support.\n\n- NutriHelp Security Team`,
+      html: `
+        <p>Hi,</p>
+        <p>Someone tried to log in to <strong>NutriHelp</strong> using your email address from IP: <code>${ip}</code>.</p>
+        <p>If this wasn't you, please ignore this message. If you're concerned, consider resetting your password or contacting support.</p>
+        <br/>
+        <p>- NutriHelp Security Team</p>
+      `,
+    });
+    console.log(`Failed login alert sent to ${email}`);
+  } catch (err) {
+    console.error("Failed to send alert email:", err.message);
+  }
+}
+
+module.exports = { login, loginMfa, resendMfa };

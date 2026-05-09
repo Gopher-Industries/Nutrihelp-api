@@ -1,18 +1,15 @@
 {
-  "root": true,
   "env": {
     "node": true,
     "commonjs": true,
     "es2021": true,
     "mocha": true
   },
-  "parserOptions": {
-    "ecmaVersion": 12
-  },
+  "extends": "eslint:recommended",
   "rules": {
     "no-console": "off",
-    "no-unused-vars": "warn",
-    "no-undef": "error"
-  },
-  "ignorePatterns": ["node_modules/", "dist/", "coverage/"]
+    "indent": ["error", 2],
+    "quotes": ["error", "single"],
+    "semi": ["error", "always"]
+  }
 }

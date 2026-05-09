@@ -1,92 +1,33 @@
-const { body } = require("express-validator");
+const Joi = require('joi');
 
-const appointmentValidator = [
-    body("userId")
-        .notEmpty()
-        .withMessage("User ID is required")
-        .isInt()
-        .withMessage("User ID must be an integer"),
+const idSchema = Joi.alternatives().try(
+  Joi.string().guid({ version: ['uuidv4', 'uuidv5'] }),
+  Joi.number().integer().positive(),
+  Joi.string().regex(/^\d+$/)
+);
 
-    body("date")
-        .notEmpty()
-        .withMessage("Date is required")
-        .isISO8601()
-        .withMessage("Date must be in a valid ISO 8601 format (e.g., YYYY-MM-DD)"),
+const createAppointmentBody = Joi.object({
+  user_id: idSchema.required(),
+  title: Joi.string().max(255).required(),
+  doctor: Joi.string().allow(null, '').optional(),
+  type: Joi.string().allow(null, '').optional(),
+  date: Joi.date().iso().required(),
+  time: Joi.string().pattern(/^([01]\d|2[0-3]):([0-5]\d)(:[0-5]\d)?$/).required(), // HH:MM or HH:MM:SS
+  location: Joi.string().allow(null, '').optional(),
+  address: Joi.string().allow(null, '').optional(),
+  phone: Joi.string().allow(null, '').optional(),
+  notes: Joi.string().allow(null, '').optional(),
+  reminder: Joi.string().allow(null, '').optional(),
+  description: Joi.string().allow(null, '').optional()
+});
 
-    body("time")
-        .notEmpty()
-        .withMessage("Time is required")
-        .matches(/^([01]\d|2[0-3]):([0-5]\d)$/)
-        .withMessage("Time must be in HH:mm format (24-hour)"),
+const getAppointmentsQuery = Joi.object({
+  user_id: idSchema.required(),
+  start_date: Joi.date().iso().optional(),
+  end_date: Joi.date().iso().optional()
+});
 
-    body("description")
-        .notEmpty()
-        .withMessage("Description is required")
-        .isLength({ max: 255 })
-        .withMessage("Description must not exceed 255 characters"),
-];
-
-
-const appointmentValidatorV2 = [
-  body("userId")
-    .notEmpty()
-    .withMessage("User ID is required")
-    .isInt()
-    .withMessage("User ID must be an integer"),
-
-  body("title")
-    .notEmpty()
-    .withMessage("Title is required")
-    .isLength({ max: 255 })
-    .withMessage("Title must not exceed 255 characters"),
-
-  body("doctor")
-    .notEmpty()
-    .withMessage("Doctor name is required")
-    .isLength({ max: 255 })
-    .withMessage("Doctor name must not exceed 255 characters"),
-
-  body("type")
-    .notEmpty()
-    .withMessage("Appointment type is required")
-    .isLength({ max: 100 })
-    .withMessage("Appointment type must not exceed 100 characters"),
-
-  body("date")
-    .notEmpty()
-    .withMessage("Date is required")
-    .isISO8601({ strict: true })
-    .withMessage("Date must be in YYYY-MM-DD format"),
-
-  body("time")
-    .optional({ nullable: true })
-    .matches(/^([01]\d|2[0-3]):([0-5]\d)$/)
-    .withMessage("Time must be in HH:mm format (24-hour)"),
-
-  body("location")
-    .optional()
-    .isLength({ max: 255 })
-    .withMessage("Location must not exceed 255 characters"),
-
-  body("address")
-    .optional()
-    .isLength({ max: 500 })
-    .withMessage("Address must not exceed 500 characters"),
-
-  body("phone")
-    .optional()
-    .isLength({ max: 50 })
-    .withMessage("Phone number must not exceed 50 characters"),
-
-  body("notes")
-    .optional()
-    .isLength({ max: 1000 })
-    .withMessage("Notes must not exceed 1000 characters"),
-
-  body("reminder")
-    .optional()
-    .matches(/^\d+-(minute|hour|day|days)$/)
-    .withMessage("Reminder must be like '1-day', '2-hours', or '30-minute'")
-];
-
-module.exports = { appointmentValidator, appointmentValidatorV2 };
+module.exports = {
+  createAppointmentBody,
+  getAppointmentsQuery
+};

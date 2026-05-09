@@ -1,6 +1,8 @@
-const userProfileService = require('../services/userProfileService');
-const { ServiceError } = require('../services/serviceError');
+const { authAndIdentity } = require('../services');
 const logger = require('../utils/logger');
+
+const { userProfileService, serviceError } = authAndIdentity;
+const { ServiceError } = serviceError;
 
 function resolveTargetLookup(req) {
   const isAdmin = req.user?.role === 'admin';
