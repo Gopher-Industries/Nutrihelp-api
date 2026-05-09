@@ -1,18 +1,11 @@
 const request = require("supertest");
 const app = require("../server.js");
 
-describe("Appointment V2 API - CRUD Tests (Jest)", () => {
-
+describe("Appointment V2 API - CRUD Tests", () => {
   let createdAppointmentId;
 
-  /**
-   * =========================
-   * CREATE
-   * =========================
-   */
   describe("POST /api/appointments/v2", () => {
-
-    test("should return 400 when required fields are missing", async () => {
+    it("should return 400 when required fields are missing", async () => {
       const res = await request(app)
         .post("/api/appointments/v2")
         .send({});
@@ -22,7 +15,7 @@ describe("Appointment V2 API - CRUD Tests (Jest)", () => {
       expect(Array.isArray(res.body.errors)).toBe(true);
     });
 
-    test("should create an appointment and return 201", async () => {
+    it("should create an appointment and return 201", async () => {
       const res = await request(app)
         .post("/api/appointments/v2")
         .send({
@@ -48,14 +41,8 @@ describe("Appointment V2 API - CRUD Tests (Jest)", () => {
     });
   });
 
-  /**
-   * =========================
-   * READ
-   * =========================
-   */
   describe("GET /api/appointments/v2", () => {
-
-    test("should return paginated appointments", async () => {
+    it("should return paginated appointments", async () => {
       const res = await request(app)
         .get("/api/appointments/v2?page=1&pageSize=5");
 
@@ -65,14 +52,8 @@ describe("Appointment V2 API - CRUD Tests (Jest)", () => {
     });
   });
 
-  /**
-   * =========================
-   * UPDATE
-   * =========================
-   */
   describe("PUT /api/appointments/v2/:id", () => {
-
-    test("should update an existing appointment", async () => {
+    it("should update an existing appointment", async () => {
       const res = await request(app)
         .put(`/api/appointments/v2/${createdAppointmentId}`)
         .send({
@@ -86,7 +67,7 @@ describe("Appointment V2 API - CRUD Tests (Jest)", () => {
       expect(res.body.appointment.title).toBe("Updated Checkup");
     });
 
-    test("should return 404 when appointment does not exist", async () => {
+    it("should return 404 when appointment does not exist", async () => {
       const res = await request(app)
         .put("/api/appointments/v2/999999")
         .send({ title: "Not exist" });
@@ -96,14 +77,8 @@ describe("Appointment V2 API - CRUD Tests (Jest)", () => {
     });
   });
 
-  /**
-   * =========================
-   * DELETE
-   * =========================
-   */
   describe("DELETE /api/appointments/v2/:id", () => {
-
-    test("should delete an existing appointment", async () => {
+    it("should delete an existing appointment", async () => {
       const res = await request(app)
         .delete(`/api/appointments/v2/${createdAppointmentId}`);
 
@@ -111,7 +86,7 @@ describe("Appointment V2 API - CRUD Tests (Jest)", () => {
       expect(res.body.message).toBe("Appointment deleted successfully");
     });
 
-    test("should return 404 when deleting non-existing appointment", async () => {
+    it("should return 404 when deleting non-existing appointment", async () => {
       const res = await request(app)
         .delete("/api/appointments/v2/999999");
 
@@ -119,5 +94,4 @@ describe("Appointment V2 API - CRUD Tests (Jest)", () => {
       expect(res.body.message).toBe("Appointment not found");
     });
   });
-
 });

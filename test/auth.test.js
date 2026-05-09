@@ -2,7 +2,7 @@ const request = require("supertest");
 const BASE_URL = "http://localhost:80";
 
 describe("Security Test", () => {
-  test("Login endpoint should respond", async () => {
+  it("Login endpoint should respond", async () => {
     const res = await request(BASE_URL)
       .post("/auth/login")
       .send({
@@ -14,7 +14,7 @@ describe("Security Test", () => {
     expect(res.statusCode).toBeLessThan(500);
   });
 
-  test("Protected route should reject request without token", async () => {
+  it("Protected route should reject request without token", async () => {
     const res = await request(BASE_URL).get("/user/profile");
 
     // ✅ Any of these is OK for an unauthenticated request
