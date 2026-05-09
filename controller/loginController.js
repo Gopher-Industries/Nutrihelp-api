@@ -1,26 +1,13 @@
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
-const logLoginEvent = require("../Monitor_&_Logging/loginLogger");
 const getUserCredentials = require("../model/getUserCredentials.js");
 const { addMfaToken, verifyMfaToken } = require("../model/addMfaToken.js");
-const sgMail = require("@sendgrid/mail");
 const crypto = require("crypto");
-const supabase = require("../dbConnection");
 const { validationResult } = require("express-validator");
 const { logSecurityEvent } = require("../services/securityEventService");
-
-// ✅ Your logging
-const { createLog, log } = require("../services/securityLogger");
-
-// ✅ Team modules
 const logger = require("../utils/logger");
-const authService = require("../services/authService");
-const nodemailer = require("nodemailer");
 
-// ✅ SendGrid setup
-sgMail.setApiKey(process.env.SENDGRID_KEY);
-
-// ✅ Access Token
+// Access token helper
 function createAccessToken(user) {
   return jwt.sign(
     {
@@ -35,6 +22,7 @@ function createAccessToken(user) {
 // ================= LOGIN =================
 const login = async (req, res) => {
   console.log("LOGIN CONTROLLER HIT");
+
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({ errors: errors.array() });
@@ -48,200 +36,133 @@ const login = async (req, res) => {
   clientIp = clientIp === "::1" ? "127.0.0.1" : clientIp;
 
   if (!email || !password) {
-    log(
-      createLog({
-        event_type: "AUTH_LOGIN_FAILED",
-        severity_level: "MEDIUM",
-        user_id: null,
-        source_service: "login-controller",
-        ip_address: clientIp,
-        endpoint: req.originalUrl,
-        method: req.method,
-        status: "FAILED",
-        message: "Missing email or password",
-      })
-    );
-
-    return res
-      .status(400)
-      .json({ error: "Email and password are required" });
+    return res.status(400).json({ error: "Email and password are required" });
   }
 
   try {
     const user = await getUserCredentials(email);
 
-if (!userExists) {
-  await supabase.from("brute_force_logs").insert([{
-    email,
-    ip_address: clientIp,
-    success: false,
-    created_at: new Date().toISOString()
-  }]);
-
-  await logSecurityEvent({
-    event_type: "LOGIN_FAILED",
-    severity: "medium",
-    user_id: null,
-    ip_address: clientIp,
-    user_agent: req.headers["user-agent"],
-    resource: "/api/auth/login",
-    metadata: {
-      email,
-      reason: "account_not_found"
+    // User not found
     if (!user) {
-      log(
-        createLog({
-          event_type: "AUTH_LOGIN_FAILED",
-          severity_level: "MEDIUM",
-          user_id: null,
-          source_service: "login-controller",
-          ip_address: clientIp,
-          endpoint: req.originalUrl,
-          method: req.method,
-          status: "FAILED",
-          message: "User not found",
-        })
-      );
+      await logSecurityEvent({
+        event_type: "LOGIN_FAILED",
+        severity: "medium",
+        user_id: null,
+        ip_address: clientIp,
+        user_agent: req.headers["user-agent"],
+        resource: "/api/auth/login",
+        metadata: {
+          email,
+          reason: "user_not_found",
+        },
+      });
 
       return res.status(401).json({ error: "Invalid email" });
     }
-  });
-
-  await sendFailedLoginAlert(email, clientIp);
-  return res.status(404).json({
-    error: "Account not found. Please create an account first."
-  });
-}
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
 
-   if (!isPasswordValid) {
-  await supabase.from("brute_force_logs").insert([{
-    email,
-    ip_address: clientIp,
-    success: false,
-    created_at: new Date().toISOString()
-  }]);
-
-  console.log("About to log LOGIN_FAILED event");
-
-  await logSecurityEvent({
-    event_type: "LOGIN_FAILED",
-    severity: "medium",
-    user_id: user.user_id,
-    ip_address: clientIp,
-    user_agent: req.headers["user-agent"],
-    resource: "/api/auth/login",
-    metadata: {
-      email,
-      reason: "invalid_password"
+    // Wrong password
     if (!isPasswordValid) {
-      log(
-        createLog({
-          event_type: "AUTH_LOGIN_FAILED",
-          severity_level: "MEDIUM",
-          user_id: user.user_id,
-          source_service: "login-controller",
-          ip_address: clientIp,
-          endpoint: req.originalUrl,
-          method: req.method,
-          status: "FAILED",
-          message: "Invalid password",
-        })
-      );
+      await logSecurityEvent({
+        event_type: "LOGIN_FAILED",
+        severity: "medium",
+        user_id: user.user_id,
+        ip_address: clientIp,
+        user_agent: req.headers["user-agent"],
+        resource: "/api/auth/login",
+        metadata: {
+          email,
+          reason: "invalid_password",
+        },
+      });
 
       return res.status(401).json({ error: "Invalid password" });
     }
-  });
 
-  if (failureCount === 4) {
-    return res.status(429).json({
-      warning: "⚠ You have one attempt left before your account is temporarily locked."
-    });
-  }
+    // MFA enabled
+    if (user.mfa_enabled) {
+      const token = crypto.randomInt(100000, 999999);
 
-  await sendFailedLoginAlert(email, clientIp);
-  return res.status(401).json({ error: "Invalid password" });
-}
+      await addMfaToken(user.user_id, token);
 
-    // ✅ SUCCESS LOG
-    log(
-      createLog({
-        event_type: "AUTH_LOGIN_SUCCESS",
-        severity_level: "LOW",
+      await logSecurityEvent({
+        event_type: "MFA_CHALLENGE_ISSUED",
+        severity: "low",
         user_id: user.user_id,
-        source_service: "login-controller",
         ip_address: clientIp,
-        endpoint: req.originalUrl,
-        method: req.method,
-        status: "SUCCESS",
-        message: "User logged in successfully",
-      })
-    );
+        user_agent: req.headers["user-agent"],
+        resource: "/api/auth/login",
+        metadata: {
+          email,
+        },
+      });
 
-    await logLoginEvent({
-  userId: user.user_id,
-  eventType: "LOGIN_SUCCESS",
-  ip: clientIp,
-  userAgent: req.headers["user-agent"]
-});
+      return res.status(202).json({
+        message: "An MFA Token has been generated for this login attempt",
+      });
+    }
 
-await logSecurityEvent({
-  event_type: "LOGIN_SUCCESS",
-  severity: "low",
-  user_id: user.user_id,
-  session_id: null,
-  ip_address: clientIp,
-  user_agent: req.headers["user-agent"],
-  resource: "/api/auth/login",
-  metadata: {
-    email
-  }
-});
-      userId: user.user_id,
-      eventType: "LOGIN_SUCCESS",
-      ip: clientIp,
-      userAgent: req.headers["user-agent"],
+    // Successful login
+    await logSecurityEvent({
+      event_type: "LOGIN_SUCCESS",
+      severity: "low",
+      user_id: user.user_id,
+      ip_address: clientIp,
+      user_agent: req.headers["user-agent"],
+      resource: "/api/auth/login",
+      metadata: {
+        email,
+      },
     });
 
     const token = createAccessToken(user);
 
     return res.status(200).json({ user, token });
   } catch (err) {
-    log(
-      createLog({
-        event_type: "SYSTEM_ERROR",
-        severity_level: "HIGH",
-        user_id: null,
-        source_service: "login-controller",
-        ip_address: clientIp,
-        endpoint: req.originalUrl,
-        method: req.method,
-        status: "ERROR",
-        message: err.message,
-      })
-    );
+    console.error("Login error:", err);
 
-    logger.error("Login error", err);
+    if (logger && logger.error) {
+      logger.error("Login error", err);
+    }
+
     return res.status(500).json({ error: "Internal server error" });
   }
 };
 
-// ================= MFA =================
+// ================= MFA LOGIN =================
 const loginMfa = async (req, res) => {
   const email = req.body.email?.trim().toLowerCase();
   const password = req.body.password;
   const mfa_token = req.body.mfa_token;
 
+  let clientIp =
+    req.headers["x-forwarded-for"] || req.socket.remoteAddress || req.ip;
+  clientIp = clientIp === "::1" ? "127.0.0.1" : clientIp;
+
   if (!email || !password || !mfa_token) {
-    return res
-      .status(400)
-      .json({ error: "Email, password, and token are required" });
+    return res.status(400).json({
+      error: "Email, password, and token are required",
+    });
   }
 
   try {
     const user = await getUserCredentials(email);
+
     if (!user) {
+      await logSecurityEvent({
+        event_type: "MFA_FAILED",
+        severity: "medium",
+        user_id: null,
+        ip_address: clientIp,
+        user_agent: req.headers["user-agent"],
+        resource: "/api/auth/login-mfa",
+        metadata: {
+          email,
+          reason: "user_not_found",
+        },
+      });
+
       return res.status(401).json({ error: "Invalid credentials" });
     }
 
@@ -249,14 +170,44 @@ const loginMfa = async (req, res) => {
     const validToken = await verifyMfaToken(user.user_id, mfa_token);
 
     if (!validPassword || !validToken) {
+      await logSecurityEvent({
+        event_type: "MFA_FAILED",
+        severity: "medium",
+        user_id: user.user_id,
+        ip_address: clientIp,
+        user_agent: req.headers["user-agent"],
+        resource: "/api/auth/login-mfa",
+        metadata: {
+          email,
+          reason: "invalid_password_or_mfa_token",
+        },
+      });
+
       return res.status(401).json({ error: "Invalid credentials" });
     }
+
+    await logSecurityEvent({
+      event_type: "MFA_SUCCESS",
+      severity: "low",
+      user_id: user.user_id,
+      ip_address: clientIp,
+      user_agent: req.headers["user-agent"],
+      resource: "/api/auth/login-mfa",
+      metadata: {
+        email,
+      },
+    });
 
     const token = createAccessToken(user);
 
     return res.status(200).json({ user, token });
   } catch (err) {
-    logger.error("MFA error", err);
+    console.error("MFA error:", err);
+
+    if (logger && logger.error) {
+      logger.error("MFA error", err);
+    }
+
     return res.status(500).json({ error: "Internal server error" });
   }
 };
