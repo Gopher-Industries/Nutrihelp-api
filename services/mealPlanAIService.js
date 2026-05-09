@@ -56,18 +56,39 @@ Portion size preference: ${filters.portionSize || 'medium'}
 Additional notes: ${filters.additionalNotes || 'none'}`;
 }
 
+const AI_TIMEOUT_MS = 30000;
+
+function withTimeout(promise, ms, label) {
+  const timer = new Promise((_, reject) =>
+    setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms)
+  );
+  return Promise.race([promise, timer]);
+}
+
 async function generateWithGemini(userMessage) {
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-  const model = genAI.getGenerativeModel({
-    model: 'gemini-2.5-flash',
-    systemInstruction: SYSTEM_PROMPT,
-  });
-  const result = await model.generateContent(userMessage);
-  return result.response.text();
+  // Try 2.5-flash first; fall back to 1.5-flash if it times out or errors
+  for (const modelName of ['gemini-2.5-flash', 'gemini-2.0-flash']) {
+    try {
+      const model = genAI.getGenerativeModel({
+        model: modelName,
+        systemInstruction: SYSTEM_PROMPT,
+      });
+      const result = await withTimeout(
+        model.generateContent(userMessage),
+        AI_TIMEOUT_MS,
+        `Gemini(${modelName})`
+      );
+      return result.response.text();
+    } catch (err) {
+      console.warn(`Gemini model ${modelName} failed:`, err.message);
+    }
+  }
+  throw new Error('All Gemini models failed');
 }
 
 async function generateWithGroq(userMessage) {
-  const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+  const groq = new Groq({ apiKey: process.env.GROQ_API_KEY, timeout: AI_TIMEOUT_MS });
   const response = await groq.chat.completions.create({
     model: 'llama-3.3-70b-versatile',
     messages: [
@@ -84,26 +105,29 @@ async function generateMealPlan(filters) {
   }
 
   const userMessage = buildUserMessage(filters);
-  let rawText;
-  let aiModelUsed;
 
+  const candidates = [];
   if (process.env.GEMINI_API_KEY) {
-    try {
-      rawText = await generateWithGemini(userMessage);
-      aiModelUsed = 'gemini-2.5-flash';
-    } catch (err) {
-      console.warn('Gemini generation failed, falling back to Groq:', err.message);
-    }
+    candidates.push(
+      generateWithGemini(userMessage).then(text => ({ text, model: 'gemini-2.5-flash' }))
+    );
+  }
+  if (process.env.GROQ_API_KEY) {
+    candidates.push(
+      generateWithGroq(userMessage).then(text => ({ text, model: 'llama-3.3-70b-versatile' }))
+    );
   }
 
-  if (!rawText && process.env.GROQ_API_KEY) {
-    try {
-      rawText = await generateWithGroq(userMessage);
-      aiModelUsed = 'llama-3.3-70b-versatile';
-    } catch (err) {
-      throw new Error('AI generation failed, please try again');
-    }
+  let winner;
+  try {
+    winner = await Promise.any(candidates);
+  } catch (err) {
+    const reasons = err.errors?.map(e => e.message).join(' | ') ?? err.message;
+    console.error('All AI providers failed:', reasons);
+    throw new Error('AI generation failed, please try again');
   }
+
+  const { text: rawText, model: aiModelUsed } = winner;
 
   if (!rawText) {
     throw new Error('AI generation failed, please try again');

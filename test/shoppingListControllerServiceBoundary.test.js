@@ -22,7 +22,10 @@ describe('Shopping list controller service boundaries', () => {
     };
 
     const controller = proxyquire('../controller/shoppingListController', {
-      '../services/shoppingListService': shoppingListService
+      '../services': {
+        coreApp: { shoppingListService },
+        authAndIdentity: { serviceError: require('../services/serviceError') }
+      }
     });
 
     const req = { query: { name: 'Milk' } };
@@ -48,7 +51,10 @@ describe('Shopping list controller service boundaries', () => {
     };
 
     const controller = proxyquire('../controller/shoppingListController', {
-      '../services/shoppingListService': shoppingListService
+      '../services': {
+        coreApp: { shoppingListService },
+        authAndIdentity: { serviceError: require('../services/serviceError') }
+      }
     });
 
     const req = { body: {} };

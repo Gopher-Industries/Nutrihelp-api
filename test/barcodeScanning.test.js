@@ -1,7 +1,6 @@
-// Skipped because this test file uses Jest-specific mocking syntax,
-// but the project test runner is Mocha.
-// TODO: Convert these tests to Mocha/Sinon if barcode API tests are required.
+// Skipped because this file uses Jest-specific syntax
+// while the project test runner uses Mocha.
 
 describe.skip("Barcode Scanning API", () => {
-  it("skipped Jest-based barcode tests", () => {});
+  it("skipped Jest-based tests", () => {});
 });

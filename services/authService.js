@@ -1,6 +1,5 @@
 console.log("🟢 Loaded AuthService from:", __filename);
 console.log("URL:", process.env.SUPABASE_URL);
-console.log("KEY:", process.env.SUPABASE_ANON_KEY);
 console.log("LOGIN FUNCTION HIT");
 
 const { createClient } = require('@supabase/supabase-js');
@@ -47,6 +46,108 @@ class AuthService {
       .createHash('sha256')
       .update(String(deviceInfo.userAgent || 'unknown-device'))
       .digest('hex');
+  }
+
+  getDefaultRoleId() {
+    return Number(process.env.DEFAULT_USER_ROLE_ID || 7);
+  }
+
+  formatAuthResponse(user, tokens, meta = {}) {
+    const role = user.user_roles?.role_name || user.role || 'user';
+
+    return {
+      success: true,
+      user: {
+        id: user.user_id,
+        email: user.email,
+        name: user.name,
+        role,
+      },
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+      expiresIn: tokens.expiresIn,
+      tokenType: tokens.tokenType,
+      session: {
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
+        expiresIn: tokens.expiresIn,
+        tokenType: tokens.tokenType,
+      },
+      ...meta,
+    };
+  }
+
+  async findUserByEmail(email) {
+    const { data, error } = await supabaseAnon
+      .from('users')
+      .select(`
+        user_id, email, password, name, first_name, last_name, role_id,
+        account_status, email_verified,
+        user_roles!left(id, role_name)
+      `)
+      .eq('email', email)
+      .maybeSingle();
+
+    if (error) {
+      throw error;
+    }
+
+    return data || null;
+  }
+
+  async createOAuthUser({ email, name, firstName, lastName, provider = 'google' }) {
+    const password = crypto.randomBytes(32).toString('hex');
+    const hashedPassword = await bcrypt.hash(password, 12);
+
+    const payload = {
+      name: name || email.split('@')[0],
+      email,
+      password: hashedPassword,
+      first_name: firstName || null,
+      last_name: lastName || null,
+      role_id: this.getDefaultRoleId(),
+      account_status: 'active',
+      email_verified: true,
+      mfa_enabled: false,
+      registration_date: new Date().toISOString(),
+    };
+
+    const { data, error } = await supabaseService
+      .from('users')
+      .insert(payload)
+      .select(`
+        user_id, email, password, name, first_name, last_name, role_id,
+        account_status, email_verified,
+        user_roles!left(id, role_name)
+      `)
+      .single();
+
+    if (error) {
+      throw error;
+    }
+
+    return data;
+  }
+
+  async ensureOAuthUser({ email, metadata = {}, provider = 'google' }) {
+    let existingUser = await this.findUserByEmail(email);
+    if (existingUser) {
+      return existingUser;
+    }
+
+    const displayName = metadata.full_name || metadata.name || email.split('@')[0];
+    const firstName = metadata.first_name || displayName.split(' ')[0] || null;
+    const lastName = metadata.last_name || (displayName.includes(' ')
+      ? displayName.split(' ').slice(1).join(' ')
+      : null);
+
+    return this.createOAuthUser({
+      email,
+      name: displayName,
+      firstName,
+      lastName,
+      provider,
+    });
   }
 
   async logSecurityEvent(userId, eventType, deviceInfo = {}, details = {}) {
@@ -194,6 +295,9 @@ async login(loginData, deviceInfo = {}) {
           reason: "account_inactive"
         }
       });
+        throw new Error('Invalid credentials');
+      }
+      const tokens = await this.generateTokenPair(user, deviceInfo);
 
       throw new ServiceError(403, "Account is not active");
     }
@@ -235,6 +339,11 @@ async login(loginData, deviceInfo = {}) {
       resource: "/api/auth/login",
       metadata: {
         email
+      return this.formatAuthResponse(user, tokens);
+    } catch (error) {
+      await this.logAuthAttempt(null, email, false, deviceInfo);
+      if (error instanceof ServiceError) {
+        throw error;
       }
     });
 
@@ -259,6 +368,81 @@ async login(loginData, deviceInfo = {}) {
     throw new ServiceError(401, error.message);
   }
 }
+
+  async exchangeSupabaseToken({ supabaseAccessToken, provider = 'google' }, deviceInfo = {}) {
+    let oauthEmail = null;
+
+    try {
+      if (!supabaseAccessToken) {
+        throw new ServiceError(400, 'Supabase access token is required');
+      }
+
+      const { data, error } = await supabaseAnon.auth.getUser(supabaseAccessToken);
+
+      if (error || !data?.user?.email) {
+        throw new ServiceError(401, 'Invalid Supabase session');
+      }
+
+      const supabaseUser = data.user;
+      oauthEmail = supabaseUser.email;
+      const metadata = supabaseUser.user_metadata || {};
+      const resolvedProvider = metadata.provider || supabaseUser.app_metadata?.provider || provider;
+
+      const user = await this.ensureOAuthUser({
+        email: supabaseUser.email,
+        metadata,
+        provider: resolvedProvider,
+      });
+
+      if (user.account_status !== 'active') {
+        throw new ServiceError(403, 'Account is not active');
+      }
+
+      const tokens = await this.generateTokenPair(user, {
+        ...deviceInfo,
+        provider: resolvedProvider,
+        authMethod: 'oauth',
+      });
+
+      await supabaseAnon
+        .from('users')
+        .update({
+          last_login: new Date().toISOString(),
+          email_verified: true,
+        })
+        .eq('user_id', user.user_id);
+
+      await this.logAuthAttempt(user.user_id, user.email, true, deviceInfo);
+
+      await logSecurityEvent({
+        event_type: 'LOGIN_SUCCESS',
+        severity: 'low',
+        user_id: user.user_id,
+        ip_address: deviceInfo.ip || null,
+        user_agent: deviceInfo.userAgent || null,
+        resource: '/api/auth/google/exchange',
+        metadata: {
+          email: user.email,
+          provider: resolvedProvider,
+        }
+      });
+
+      return this.formatAuthResponse(user, tokens, {
+        provider: resolvedProvider,
+        ssoSession: true,
+      });
+    } catch (error) {
+      if (oauthEmail) {
+        await this.logAuthAttempt(null, oauthEmail, false, deviceInfo);
+      }
+
+      if (error instanceof ServiceError) {
+        throw error;
+      }
+
+      throw new ServiceError(401, `OAuth exchange failed: ${error.message}`);
+    }
+  }
 
   /* =========================
      Generate Tokens

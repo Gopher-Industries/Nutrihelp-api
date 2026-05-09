@@ -1,64 +1,29 @@
-/**
- * middleware/requestLogger.js
- * 
- * Structured request logging middleware
- * Logs all incoming requests and responses
- */
-
 const logger = require('../utils/logger');
+const { recordRequest } = require('../services/requestAuditService');
+const { v4: uuidv4 } = require('uuid');
 
-/**
- * Generate unique request ID
- */
-const generateRequestId = () => {
-  return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-};
-
-/**
- * Main request logging middleware
- */
-const requestLoggingMiddleware = (req, res, next) => {
-  // Generate and attach request ID
-  const requestId = req.headers['x-request-id'] || generateRequestId();
-  req.id = requestId;
-  
-  // Track request start time
+module.exports = (req, res, next) => {
   const startTime = Date.now();
-
-  // Extract useful request info
+  const requestId = uuidv4();
   const method = req.method;
-  const path = req.path;
-  const ip = req.ip || req.connection.remoteAddress;
-  const userAgent = req.headers['user-agent'] || 'unknown';
-  
-  // Log incoming request
-  logger.info(`→ ${method} ${path}`, {
-    requestId,
-    method,
-    path,
-    ip,
-    userAgent,
-    ...(req.user ? { userId: req.user.id } : {}),
-    query: Object.keys(req.query).length > 0 ? req.query : undefined
-  });
+  const path = req.originalUrl;
 
-  // Capture response details
+  req.requestId = requestId;
+  req.logger = logger;
+
+  logger.info(`→ ${method} ${path}`, { query: req.query });
+
   const originalSend = res.send;
-  res.send = function(data) {
-    // Calculate duration
+  res.send = function (data) {
     const duration = Date.now() - startTime;
     const statusCode = res.statusCode;
 
-    // Determine log level based on status code
     let logLevel = 'info';
     if (statusCode >= 500) logLevel = 'error';
     else if (statusCode >= 400) logLevel = 'warn';
-    else if (duration > 5000) logLevel = 'warn'; // Slow request
+    else if (duration > 5000) logLevel = 'warn';
 
-    // Log response
-    const logMessage = `← ${method} ${path} ${statusCode} (${duration}ms)`;
-    
-    logger[logLevel](logMessage, {
+    logger[logLevel](`← ${method} ${path} ${statusCode} ${duration}ms`, {
       requestId,
       method,
       path,
@@ -66,18 +31,21 @@ const requestLoggingMiddleware = (req, res, next) => {
       duration,
       ...(req.user ? { userId: req.user.id } : {}),
       contentLength: res.get('content-length'),
-      ...(logLevel === 'error' ? { responseBody: data } : {})
+      ...(logLevel === 'error' ? { responseBody: data } : {}),
     });
 
-    // Call original send
+    recordRequest({
+      method,
+      path,
+      statusCode,
+      duration,
+      requestId,
+      userId: req.user?.userId || null,
+      responseBody: data,
+    });
+
     return originalSend.call(this, data);
   };
 
-  // Attach logger to request for use in controllers
-  req.logger = logger;
-  req.requestId = requestId;
-
   next();
 };
-
-module.exports = { requestLoggingMiddleware, generateRequestId };

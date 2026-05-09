@@ -1,5 +1,19 @@
 const supabase = require("../dbConnection.js");
 
+async function getAppointmentsByUserId(userId) {
+  try {
+    const { data, error } = await supabase
+      .from("appointments")
+      .select("*")
+      .eq("user_id", userId);
+
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    throw err;
+  }
+}
+
 async function addAppointment(userId, date, time, description) {
   try {
     let { data, error } = await supabase
@@ -108,6 +122,7 @@ async function deleteAppointmentById(id) {
 }
 
 module.exports = {
+  getAppointmentsByUserId,
   addAppointment,
   addAppointmentModelV2,
   updateAppointmentModel,

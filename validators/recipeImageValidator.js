@@ -1,11 +1,13 @@
-const { body, validationResult } = require('express-validator');
 const path = require('path');
+const { validationError } = require('../utils/apiResponse');
 
 // Middleware to validate uploaded image
 const validateRecipeImageUpload = (req, res, next) => {
   // Check if file is present
   if (!req.file) {
-    return res.status(400).json({ error: 'No image uploaded' });
+    return validationError(res, [
+      { field: 'image', message: 'No image uploaded' },
+    ]);
   }
 
   // Validate file extension
@@ -13,7 +15,9 @@ const validateRecipeImageUpload = (req, res, next) => {
   const fileExtension = path.extname(req.file.originalname).toLowerCase();
 
   if (!allowedExtensions.includes(fileExtension)) {
-    return res.status(400).json({ error: 'Invalid file type. Only JPG/PNG files are allowed.' });
+    return validationError(res, [
+      { field: 'image', message: 'Invalid file type. Only JPG/PNG files are allowed.' },
+    ]);
   }
 
   next();

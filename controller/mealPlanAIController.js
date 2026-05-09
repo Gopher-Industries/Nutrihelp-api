@@ -16,7 +16,7 @@ const generateAIMealPlan = async (req, res) => {
     const additionalNotes = typeof req.body.additionalNotes === 'string' ? req.body.additionalNotes.slice(0, 300) : '';
 
     if (calorieTarget < 500 || calorieTarget > 5000) {
-      return res.status(400).json({ error: 'calorieTarget must be between 500 and 5000' });
+      return res.status(400).json({ success: false, error: 'calorieTarget must be between 500 and 5000' });
     }
 
     const filters = {
@@ -43,17 +43,17 @@ const generateAIMealPlan = async (req, res) => {
 
     return res.status(200).json({ success: true, planId, data: parsed });
   } catch (error) {
-    console.error({ error: error.message });
+    console.error('AI meal plan generation error:', error.message);
 
     if (error.message === 'AI service not configured') {
-      return res.status(500).json({ error: 'AI service not configured' });
+      return res.status(503).json({ success: false, error: 'AI service not configured' });
     }
 
     if (error.message === 'AI generation failed, please try again') {
-      return res.status(500).json({ error: 'AI generation failed, please try again' });
+      return res.status(503).json({ success: false, error: 'AI generation failed, please try again' });
     }
 
-    return res.status(500).json({ error: 'Internal server error' });
+    return res.status(500).json({ success: false, error: 'Internal server error' });
   }
 };
 

@@ -1,7 +1,7 @@
 require("dotenv").config();
 const request = require('supertest');
 
-const BASE_URL = "http://localhost:80";
+const BASE_URL = "http://localhost:3001";
 
 let createdNewsId;
 let createdCategoryId;

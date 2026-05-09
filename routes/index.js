@@ -1,11 +1,16 @@
 module.exports = app => {
     // home
     app.use("/api/home/services", require('./homeService'));
-    app.use('/api/home/subscribe',require('./homeSubscribe'))
+    app.use('/api/home/subscribe', require('./homeSubscribe'));
     app.use("/api/login", require('./login'));
     app.use("/api/signup", require('./signup'));
+
+    // support surface
     app.use("/api/contactus", require('./contactus'));
     app.use("/api/userfeedback", require('./userfeedback'));
+    app.use("/api/faq", require('./faq'));
+    app.use('/api/health-tools', require('./healthTools'));
+
     app.use("/api/recipe", require('./recipe'));
     app.use("/api/appointments", require('./appointment'));
     app.use("/api/imageClassification", require('./imageClassification'));
@@ -26,15 +31,12 @@ module.exports = app => {
     app.use('/api/chatbot', require('./chatbot'));
     // app.use('/api/obesity', require('./obesityPrediction'));
     app.use('/api/upload', require('./upload'));
-    app.use('/api/upload', require('./upload'));
     app.use("/api/articles", require('./articles'));
-    app.use('/api/chatbot', require('./chatbot'));
     app.use('/api/medical-report', require('./medicalPrediction'));
     app.use('/api/recipe/nutritionlog', require('./recipeNutritionlog'));
     app.use('/api/recipe/scale', require('./recipeScaling'));
     app.use('/api/water-intake', require('./waterIntake'));
     app.use('/api/health-news', require('./healthNews'));
-    app.use('/api/health-tools', require('./healthTools'));
 
     // Add shopping list routes
     app.use('/api/shopping-list', require('./shoppingList'));
@@ -42,6 +44,4 @@ module.exports = app => {
     app.use('/api/security', require('./securityEvents'));
     app.use('/api/recommendations', require('./recommendations'));
     app.use('/api/meal-plan', require('./mealPlanAIRoutes'));
-
-
 };

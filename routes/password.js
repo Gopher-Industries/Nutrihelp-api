@@ -1,17 +1,41 @@
 const express = require("express");
-const router = express.Router();
+
 const controller = require("../controller/passwordController");
+const validate = require("../middleware/validateRequest");
+const {
+  passwordRecoveryLimiter,
+  passwordResetLimiter,
+} = require("../middleware/rateLimiter");
+const {
+  requestResetValidator,
+  resetPasswordValidator,
+  verifyResetCodeValidator,
+} = require("../validators/passwordValidator");
 
-router.post("/request-reset", (req, res) => {
-  controller.requestReset(req, res);
-});
+const router = express.Router();
 
-router.post("/verify-code", (req, res) => {
-  controller.verifyCode(req, res);
-});
+router.post(
+  "/request-reset",
+  passwordRecoveryLimiter,
+  requestResetValidator,
+  validate,
+  controller.requestReset,
+);
 
-router.post("/reset", (req, res) => {
-  controller.resetPassword(req, res);
-});
+router.post(
+  "/verify-code",
+  passwordRecoveryLimiter,
+  verifyResetCodeValidator,
+  validate,
+  controller.verifyCode,
+);
+
+router.post(
+  "/reset",
+  passwordResetLimiter,
+  resetPasswordValidator,
+  validate,
+  controller.resetPassword,
+);
 
 module.exports = router;
