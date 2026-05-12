@@ -1,13 +1,48 @@
 // controllers/healthPlanController.js
-
-// Node 18+ has global fetch; if you're on Node 16, uncomment:
-// const fetch = require("node-fetch");
+const Groq = require('groq-sdk');
 
 // [TEMP-DB-OFF] keep import for easy revert; safe to leave unused
 const supabase = require("../dbConnection.js");
 
-const AI_BASE =
-  process.env.AI_BASE_URL || "http://localhost:8000/ai-model/medical-report";
+const HEALTH_PLAN_PROMPT = `You are a certified fitness coach and clinical dietitian.
+Generate a personalised 4-week health and wellness plan based on the user's medical data and goals.
+Respond with ONLY valid JSON — no markdown, no backticks, no explanation.
+
+Return exactly this JSON shape:
+{
+  "weekly_plan": [
+    {
+      "week": 1,
+      "target_calories_per_day": 1800,
+      "focus": "Building baseline activity",
+      "workouts": ["20 min walk", "10 min stretching", "Light bodyweight squats x10"],
+      "meal_notes": "Prioritise lean protein and vegetables; avoid processed foods.",
+      "reminders": ["Drink 8 glasses of water", "Sleep 7–8 hours"]
+    }
+  ],
+  "suggestion": "One paragraph of personalised advice based on the medical profile.",
+  "progress_analysis": "Brief note on expected progress over 4 weeks."
+}`;
+
+function buildHealthPlanPrompt(medicalReport, healthGoal, healthSurvey) {
+  const report = Array.isArray(medicalReport) ? medicalReport[0] : medicalReport;
+  const obesity = report?.obesity_prediction?.obesity_level || "Unknown";
+  const diabetes = report?.diabetes_prediction?.diabetes ? "Yes" : "No";
+  const info = report?.health_info || healthSurvey || {};
+
+  return `User profile:
+- Gender: ${info.gender || "Not specified"}
+- Age: ${info.age || "Not specified"}
+- Height: ${info.height ? `${info.height}m` : "Not specified"}
+- Weight: ${info.weight ? `${info.weight}kg` : "Not specified"}
+- Obesity level: ${obesity}
+- Diabetes: ${diabetes}
+- Workout days per week: ${healthGoal.days_per_week}
+- Preferred workout place: ${healthGoal.workout_place || "any"}
+- Target weight: ${healthGoal.target_weight ? `${healthGoal.target_weight}kg` : "Not specified"}
+
+Generate a 4-week health plan for this person.`;
+}
 
 // ---------- helpers ----------
 const toNum = (x) => {
@@ -140,43 +175,36 @@ const generateWeeklyPlan = async (req, res) => {
     // survey (optional for AI payload)
     const health_survey = buildHealthSurvey(body.survey_data);
 
-    const payload = {
-      medical_report: Array.isArray(body.medical_report)
-        ? body.medical_report
-        : [body.medical_report],
-      survey_data: health_survey || undefined,
-      health_goal,
-      followup_qa: null,
-    };
-    Object.keys(payload).forEach((k) => payload[k] === undefined && delete payload[k]);
-
-    // call AI
-    const aiResponse = await fetch(`${AI_BASE}/plan/generate`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-
-    const text = await aiResponse.text();
-    let result;
-    try {
-      result = JSON.parse(text);
-    } catch {
-      result = text;
+    if (!process.env.GROQ_API_KEY) {
+      return res.status(503).json({ error: "AI service not configured" });
     }
 
-    if (!aiResponse.ok) {
-      return res.status(aiResponse.status).json({
-        error: "AI server error",
-        detail: typeof result === "string" ? result : result?.detail || result,
-      });
+    const userMessage = buildHealthPlanPrompt(body.medical_report, health_goal, health_survey);
+    const groq = new Groq({ apiKey: process.env.GROQ_API_KEY, timeout: 30000 });
+
+    const completion = await groq.chat.completions.create({
+      model: "llama-3.3-70b-versatile",
+      messages: [
+        { role: "system", content: HEALTH_PLAN_PROMPT },
+        { role: "user", content: userMessage },
+      ],
+      max_tokens: 2000,
+    });
+
+    const rawText = completion.choices[0]?.message?.content || "";
+    const cleaned = rawText.replace(/```json\s*/gi, "").replace(/```/g, "").trim();
+    const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+
+    let result;
+    try {
+      result = JSON.parse(jsonMatch ? jsonMatch[0] : cleaned);
+    } catch {
+      console.error("[healthPlanController] JSON parse failed:", rawText.slice(0, 300));
+      return res.status(502).json({ error: "AI returned invalid response, please try again" });
     }
 
     if (!result.weekly_plan) {
-      return res.status(502).json({
-        error: "AI server did not return weekly_plan",
-        message: result,
-      });
+      return res.status(502).json({ error: "AI did not return weekly_plan" });
     }
 
     // ---------------------- [TEMP-DB-OFF] begin ----------------------

@@ -4,6 +4,7 @@ const { aiAndMedical } = require('../controller');
 
 const { chatbot: chatbotController } = aiAndMedical;
 
+router.route('/').post(chatbotController.getChatResponse);
 router.route('/query').post(chatbotController.getChatResponse);
 
 // router.route('/chat').post(chatbotController.getChatResponse);

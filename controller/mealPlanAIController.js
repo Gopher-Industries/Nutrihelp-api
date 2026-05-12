@@ -3,10 +3,10 @@ const { saveMealPlan } = require('../model/aiMealPlanModel');
 
 const generateAIMealPlan = async (req, res) => {
   try {
-    const dietType = typeof req.body.dietType === 'string' ? req.body.dietType : 'balanced';
-    const goal = typeof req.body.goal === 'string' ? req.body.goal : 'maintain weight';
+    const dietType = req.body.dietType || req.body.dietary_preference || 'balanced';
+    const goal = req.body.goal || 'maintain weight';
     const allergies = Array.isArray(req.body.allergies) ? req.body.allergies : [];
-    const calorieTarget = typeof req.body.calorieTarget === 'number' ? req.body.calorieTarget : 1800;
+    const calorieTarget = Number(req.body.calorieTarget || req.body.calorie_target) || 1800;
     const cuisine = typeof req.body.cuisine === 'string' ? req.body.cuisine : 'any';
     const healthConditions = Array.isArray(req.body.healthConditions) ? req.body.healthConditions : [];
     const mealTexture = ['regular', 'soft', 'pureed'].includes(req.body.mealTexture) ? req.body.mealTexture : 'regular';
