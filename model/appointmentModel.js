@@ -66,6 +66,7 @@ async function addAppointmentModelV2({
 
 async function updateAppointmentModel(
   id,
+  userId,
   {
     title,
     doctor,
@@ -95,26 +96,28 @@ async function updateAppointmentModel(
         reminder,
       })
       .eq("id", id)
+      .eq("user_id", userId)
       .select()
       .single();
 
-    if (error) throw error;
+    if (error && error.code !== "PGRST116") throw error;
     return data;
   } catch (err) {
     throw err;
   }
 }
 
-async function deleteAppointmentById(id) {
+async function deleteAppointmentById(id, userId) {
   try {
     const { data, error } = await supabase
       .from("appointments")
       .delete()
       .eq("id", id)
+      .eq("user_id", userId)
       .select()
       .single();
 
-    if (error) throw error;
+    if (error && error.code !== "PGRST116") throw error;
     return data;
   } catch (err) {
     throw err;

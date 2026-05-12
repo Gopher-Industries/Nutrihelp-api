@@ -1,6 +1,6 @@
 /**
  * middleware/structuredErrorHandler.js
- * 
+ *
  * Centralized error handling with structured logging
  * Should be used as the last middleware in Express
  */
@@ -19,7 +19,7 @@ const structuredErrorHandler = (err, req, res, next) => {
 
   // Build error context
   const errorContext = {
-    requestId: req.id || req.requestId,
+    requestId: req.requestId,
     userId: req.user?.id,
     method: req.method,
     path: req.path,
@@ -28,7 +28,7 @@ const structuredErrorHandler = (err, req, res, next) => {
     errorType: err.constructor.name,
     errorCode: err.code,
     validation: err.validation, // For validation errors
-    details: err.details // Additional error details
+    details: err.details, // Additional error details
   };
 
   // Log the error with appropriate level
@@ -36,7 +36,7 @@ const structuredErrorHandler = (err, req, res, next) => {
     logger.error(`Server Error: ${err.message}`, {
       ...errorContext,
       stack: err.stack,
-      ...(err.originalError && { originalError: err.originalError })
+      ...(err.originalError && { originalError: err.originalError }),
     });
   } else if (isClientError) {
     logger.warn(`Client Error: ${err.message}`, {
@@ -53,10 +53,10 @@ const structuredErrorHandler = (err, req, res, next) => {
     error: {
       message: err.message,
       code: err.code || 'INTERNAL_ERROR',
-      ...(process.env.NODE_ENV !== 'production' && { stack: err.stack })
+      ...(process.env.NODE_ENV !== 'production' && { stack: err.stack }),
     },
-    requestId: req.id || req.requestId,
-    ...(process.env.NODE_ENV === 'development' && { details: err.details })
+    requestId: req.requestId,
+    ...(process.env.NODE_ENV === 'development' && { details: err.details }),
   });
 };
 
@@ -75,5 +75,5 @@ class AppError extends Error {
 
 module.exports = {
   structuredErrorHandler,
-  AppError
+  AppError,
 };

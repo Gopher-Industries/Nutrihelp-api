@@ -3,6 +3,7 @@ let getUserRecipes = require("../model/getUserRecipes.js");
 let deleteUserRecipes = require("../model/deleteUserRecipes.js");
 const supabase = require("../dbConnection.js");
 const { validationResult } = require('express-validator');
+const normalizeId = require('../utils/normalizeId');
 
 const RECIPE_COMMUNITY_TYPES = [
 	"recipe_community_request",
@@ -10,6 +11,18 @@ const RECIPE_COMMUNITY_TYPES = [
 	"recipe_community_private",
 	"recipe_community_rejected",
 ];
+
+const resolveRecipeUserId = (req) => {
+	const requestUserId = req.body?.user_id || req.query?.user_id || req.params?.user_id;
+	const currentUserId = req.user?.userId;
+	const role = String(req.user?.role || '').toLowerCase();
+
+	if ((role === 'admin' || role === 'nutritionist') && requestUserId) {
+		return normalizeId(requestUserId);
+	}
+
+	return normalizeId(currentUserId);
+};
 
 function normalizeVisibility(value) {
 	const normalized = String(value || "").trim().toLowerCase();
@@ -119,7 +132,6 @@ async function getDirectUserRecipes(userId) {
 
 const createAndSaveRecipe = async (req, res) => {
 	const {
-		user_id,
 		ingredient_id,
 		ingredient_quantity,
 		ingredient_cost,
@@ -143,23 +155,7 @@ const createAndSaveRecipe = async (req, res) => {
 					: [];
 
 	try {
-		// if (
-		// 	!user_id ||
-		// 	!ingredient_id ||
-		// 	!ingredient_quantity ||
-		// 	!recipe_name ||
-		// 	!cuisine_id ||
-		// 	!total_servings ||
-		// 	!preparation_time ||
-		// 	!instructions ||
-		// 	!cooking_method_id
-		// ) {
-		// 	return res.status(400).json({
-		// 		error: "Recipe parameters are missed",
-		// 		statusCode: 400,
-		// 	});
-		// }
-
+		const user_id = resolveRecipeUserId(req);
 		const errors = validationResult(req);
 		if (!errors.isEmpty()) {
 			return res.status(400).json({ errors: errors.array() });
@@ -190,7 +186,7 @@ const createAndSaveRecipe = async (req, res) => {
 		}
 
 		const recipeIngredients = await createRecipe.saveRecipeRelation(recipe, savedData[0].id);
-		
+
 		const allergies = recipeIngredients
 			.filter((r) => r.allergy)
 			.map((r) => r.recipe_id);
@@ -217,7 +213,7 @@ const createAndSaveRecipe = async (req, res) => {
 };
 
 const getRecipes = async (req, res) => {
-	const user_id = req.body.user_id;
+	const user_id = resolveRecipeUserId(req);
 
 	try {
 		if (!user_id) {
@@ -556,7 +552,8 @@ const updateRecipeCommunityVisibility = async (req, res) => {
 };
 
 const deleteRecipe = async (req, res) => {
-	const { user_id, recipe_id } = req.body;
+	const user_id = resolveRecipeUserId(req);
+	const { recipe_id } = req.body;
 
 	try {
 		if (!user_id || !recipe_id) {

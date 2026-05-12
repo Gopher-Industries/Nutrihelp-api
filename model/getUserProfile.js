@@ -1,6 +1,8 @@
 const supabase = require("../dbConnection.js");
 const { decrypt } = require("../services/encryptionService");
 
+const LEGACY_HEX_TRIPLET_REGEX = /^[0-9a-f]+:[0-9a-f]+:[0-9a-f]+$/i;
+
 function parseEncryptedPayload(rawValue) {
 	if (typeof rawValue !== "string") return null;
 	const trimmed = rawValue.trim();
@@ -23,6 +25,14 @@ function parseEncryptedPayload(rawValue) {
 	}
 }
 
+function looksLikeUndecryptedCiphertext(value) {
+	if (typeof value !== "string") return false;
+	const trimmed = value.trim();
+	if (!trimmed) return false;
+	if (LEGACY_HEX_TRIPLET_REGEX.test(trimmed)) return true;
+	return parseEncryptedPayload(trimmed) !== null;
+}
+
 async function maybeDecryptLegacyField(value) {
 	if (!value) return value;
 	const encryptedObj = parseEncryptedPayload(value);
@@ -31,8 +41,8 @@ async function maybeDecryptLegacyField(value) {
 	try {
 		return await decrypt(encryptedObj.encrypted, encryptedObj.iv, encryptedObj.authTag);
 	} catch (_error) {
-		// Keep profile fetch resilient for mixed plaintext/encrypted legacy rows.
-		return value;
+		// If decryption fails, do not leak encrypted payload text to clients.
+		return null;
 	}
 }
 
@@ -44,10 +54,23 @@ async function decryptSensitiveFields(profile) {
 	const decryptedContact = await maybeDecryptLegacyField(profile.contact_number);
 	const decryptedAddress = await maybeDecryptLegacyField(profile.address);
 
+	const normalizedContact =
+		decryptedContact == null
+			? null
+			: looksLikeUndecryptedCiphertext(decryptedContact)
+				? null
+				: decryptedContact;
+	const normalizedAddress =
+		decryptedAddress == null
+			? null
+			: looksLikeUndecryptedCiphertext(decryptedAddress)
+				? null
+				: decryptedAddress;
+
 	return {
 		...profile,
-		contact_number: decryptedContact,
-		address: decryptedAddress,
+		contact_number: normalizedContact,
+		address: normalizedAddress,
 	};
 }
 
@@ -56,7 +79,7 @@ async function getUserProfile(lookup = {}) {
 		const query = supabase
 			.from("users")
 			.select(
-				"user_id,name,first_name,last_name,email,contact_number,mfa_enabled,address,image_id,registration_date,last_login,account_status,user_roles!left(role_name)"
+				"user_id,name,first_name,last_name,email,contact_number,mfa_enabled,address,image_id,registration_date,last_login,account_status,profile_encrypted,profile_encryption_iv,profile_encryption_auth_tag,profile_encryption_key_version,user_roles!left(role_name)"
 			);
 
 		if (lookup.userId != null) {

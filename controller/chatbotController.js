@@ -25,10 +25,23 @@ function handleUnexpectedError(res, label, error, context = {}) {
   );
 }
 
+function resolveChatbotUserId(req) {
+  const requestUserId = req.body?.user_id || req.query?.user_id;
+  const currentUserId = req.user?.userId;
+  const role = String(req.user?.role || '').toLowerCase();
+
+  if ((role === 'admin' || role === 'nutritionist') && requestUserId) {
+    return requestUserId;
+  }
+
+  return currentUserId;
+}
+
 async function getChatResponse(req, res) {
   try {
+    const userId = resolveChatbotUserId(req);
     const result = await chatbotService.getChatResponse({
-      userId: req.body.user_id,
+      userId,
       userInput: req.body.user_input
     });
     return res.status(result.statusCode).json(result.body);
@@ -38,7 +51,7 @@ async function getChatResponse(req, res) {
     }
 
     return handleUnexpectedError(res, 'Error in chatbot response', error, {
-      userId: req.body.user_id
+      userId: resolveChatbotUserId(req)
     });
   }
 }
@@ -73,7 +86,8 @@ async function addPDF(req, res) {
 
 async function getChatHistory(req, res) {
   try {
-    const result = await chatbotService.getChatHistory(req.body.user_id);
+    const userId = resolveChatbotUserId(req);
+    const result = await chatbotService.getChatHistory(userId);
     return res.status(result.statusCode).json(result.body);
   } catch (error) {
     if (isServiceError(error)) {
@@ -81,14 +95,15 @@ async function getChatHistory(req, res) {
     }
 
     return handleUnexpectedError(res, 'Error retrieving chat history', error, {
-      userId: req.body.user_id
+      userId: resolveChatbotUserId(req)
     });
   }
 }
 
 async function clearChatHistory(req, res) {
   try {
-    const result = await chatbotService.clearChatHistory(req.body.user_id);
+    const userId = resolveChatbotUserId(req);
+    const result = await chatbotService.clearChatHistory(userId);
     return res.status(result.statusCode).json(result.body);
   } catch (error) {
     if (isServiceError(error)) {
@@ -96,7 +111,7 @@ async function clearChatHistory(req, res) {
     }
 
     return handleUnexpectedError(res, 'Error clearing chat history', error, {
-      userId: req.body.user_id
+      userId: resolveChatbotUserId(req)
     });
   }
 }

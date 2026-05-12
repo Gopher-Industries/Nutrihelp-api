@@ -12,8 +12,7 @@ const getIngredientOptionsValidation = [
 // Validation for generating shopping list from meal plan
 const generateFromMealPlanValidation = [
     body('user_id')
-        .notEmpty()
-        .withMessage('User ID cannot be empty')
+        .optional()
         .isInt({ min: 1 })
         .withMessage('User ID must be a positive integer'),
     body('meal_plan_ids')
@@ -28,8 +27,7 @@ const generateFromMealPlanValidation = [
 // Validation for creating shopping list
 const createShoppingListValidation = [
     body('user_id')
-        .notEmpty()
-        .withMessage('User ID cannot be empty')
+        .optional()
         .isInt({ min: 1 })
         .withMessage('User ID must be a positive integer'),
     body('name')
@@ -59,8 +57,7 @@ const createShoppingListValidation = [
 // Validation for getting shopping list
 const getShoppingListValidation = [
     query('user_id')
-        .notEmpty()
-        .withMessage('User ID cannot be empty')
+        .optional()
         .isInt({ min: 1 })
         .withMessage('User ID must be a positive integer')
 ];

@@ -145,6 +145,63 @@ function derivePlanGoal(weekly) {
   return allSame ? first : "Mixed";
 }
 
+function normalizeDiabetesValue(value) {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "number") return value > 0;
+  const normalized = String(value || "").trim().toLowerCase();
+  if (!normalized) return false;
+  return [
+    "true",
+    "yes",
+    "positive",
+    "risk",
+    "elevated risk",
+    "potential diabetes risk signal detected",
+    "detected"
+  ].includes(normalized);
+}
+
+function normalizeMedicalReportForPlan(report) {
+  if (!report || typeof report !== "object") return report;
+  const normalized = { ...report };
+  const diabetesPrediction = normalized.diabetes_prediction || normalized.diabetesPrediction;
+
+  if (diabetesPrediction && typeof diabetesPrediction === "object") {
+    normalized.diabetes_prediction = {
+      ...diabetesPrediction,
+      diabetes: normalizeDiabetesValue(diabetesPrediction.diabetes)
+    };
+  }
+
+  return normalized;
+}
+
+function buildFallbackWeeklyPlan({ medicalReport, healthGoal }) {
+  const bmi = Number(medicalReport?.bmi);
+  const targetCalories = Number.isFinite(bmi) && bmi >= 25 ? 1800 : 2100;
+  const focus = Number.isFinite(bmi) && bmi >= 25
+    ? "Weight management and sustainable activity"
+    : "Balanced fitness and nutrition maintenance";
+  const daysPerWeek = healthGoal?.days_per_week || 3;
+  const workoutPlace = healthGoal?.workout_place || "home";
+
+  return Array.from({ length: 4 }, (_, index) => ({
+    week: index + 1,
+    target_calories_per_day: targetCalories,
+    focus,
+    workouts: [
+      `${daysPerWeek} ${workoutPlace} sessions: moderate cardio and full-body strength`,
+      "Daily mobility or walking on rest days"
+    ],
+    meal_notes: "Prioritise lean protein, vegetables, whole grains, and consistent hydration.",
+    reminders: [
+      "Track energy level and recovery",
+      "Adjust intensity gradually",
+      "Seek professional advice for medical concerns"
+    ]
+  }));
+}
+
 /**
  * Body:
  * {
@@ -175,36 +232,48 @@ const generateWeeklyPlan = async (req, res) => {
     // survey (optional for AI payload)
     const health_survey = buildHealthSurvey(body.survey_data);
 
-    if (!process.env.GROQ_API_KEY) {
-      return res.status(503).json({ error: "AI service not configured" });
-    }
-
-    const userMessage = buildHealthPlanPrompt(body.medical_report, health_goal, health_survey);
-    const groq = new Groq({ apiKey: process.env.GROQ_API_KEY, timeout: 30000 });
-
-    const completion = await groq.chat.completions.create({
-      model: "llama-3.3-70b-versatile",
-      messages: [
-        { role: "system", content: HEALTH_PLAN_PROMPT },
-        { role: "user", content: userMessage },
-      ],
-      max_tokens: 2000,
-    });
-
-    const rawText = completion.choices[0]?.message?.content || "";
-    const cleaned = rawText.replace(/```json\s*/gi, "").replace(/```/g, "").trim();
-    const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+    const medicalReportNormalized = Array.isArray(body.medical_report)
+      ? body.medical_report.map(normalizeMedicalReportForPlan)
+      : [normalizeMedicalReportForPlan(body.medical_report)];
 
     let result;
-    try {
-      result = JSON.parse(jsonMatch ? jsonMatch[0] : cleaned);
-    } catch {
-      console.error("[healthPlanController] JSON parse failed:", rawText.slice(0, 300));
-      return res.status(502).json({ error: "AI returned invalid response, please try again" });
+
+    if (process.env.GROQ_API_KEY) {
+      const userMessage = buildHealthPlanPrompt(medicalReportNormalized, health_goal, health_survey);
+      const groq = new Groq({ apiKey: process.env.GROQ_API_KEY, timeout: 30000 });
+
+      try {
+        const completion = await groq.chat.completions.create({
+          model: "llama-3.3-70b-versatile",
+          messages: [
+            { role: "system", content: HEALTH_PLAN_PROMPT },
+            { role: "user", content: userMessage },
+          ],
+          max_tokens: 2000,
+        });
+
+        const rawText = completion.choices[0]?.message?.content || "";
+        const cleaned = rawText.replace(/```json\s*/gi, "").replace(/```/g, "").trim();
+        const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+        result = JSON.parse(jsonMatch ? jsonMatch[0] : cleaned);
+      } catch (groqErr) {
+        console.warn("[healthPlanController] Groq failed, using fallback:", groqErr.message);
+      }
     }
 
-    if (!result.weekly_plan) {
-      return res.status(502).json({ error: "AI did not return weekly_plan" });
+    if (!result?.weekly_plan) {
+      const weeklyPlan = buildFallbackWeeklyPlan({
+        medicalReport: medicalReportNormalized[0],
+        healthGoal: health_goal,
+      });
+      return res.status(200).json({
+        plan_id: null,
+        suggestion: "Generated a local roadmap based on your health profile.",
+        weekly_plan: weeklyPlan,
+        progress_analysis: null,
+        goal: derivePlanGoal(weeklyPlan) ?? null,
+        length: weeklyPlan.length,
+      });
     }
 
     // ---------------------- [TEMP-DB-OFF] begin ----------------------
@@ -255,7 +324,24 @@ const generateWeeklyPlan = async (req, res) => {
     });
   } catch (err) {
     console.error("[healthPlanController] Unexpected error:", err);
-    return res.status(500).json({ error: "Internal server error" });
+    const hgCheck = buildHealthGoalFromSurvey(body.survey_data || {});
+    const healthGoal = hgCheck.value || { days_per_week: 3, workout_place: "home" };
+    const medicalReport = Array.isArray(body.medical_report)
+      ? normalizeMedicalReportForPlan(body.medical_report[0])
+      : normalizeMedicalReportForPlan(body.medical_report);
+    const weeklyPlan = buildFallbackWeeklyPlan({
+      medicalReport,
+      healthGoal
+    });
+
+    return res.status(200).json({
+      plan_id: null,
+      suggestion: "Generated a local roadmap because the AI plan service is unavailable.",
+      weekly_plan: weeklyPlan,
+      progress_analysis: null,
+      goal: derivePlanGoal(weeklyPlan) ?? null,
+      length: weeklyPlan.length,
+    });
   }
 };
 
