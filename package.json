@@ -6,6 +6,8 @@
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
+    "dev:all": "concurrently --names \"API,AI\" --prefix-colors \"blue,green\" \"npm run dev\" \"cd ../NutriHelp-AI && python3 run.py\"",
+    "start:all": "concurrently --names \"API,AI\" --prefix-colors \"blue,green\" \"npm run start\" \"cd ../NutriHelp-AI && python3 run.py\"",
     "test": "mocha ./test/**/*.test.js --timeout 5000 --exit --ignore ./test/contractTests/**",
     "test:unit": "mocha ./test/unit/**/*.test.js --timeout 5000 --exit",
     "test:contract": "jest ./test/contractTests/ --testTimeout=10000 --forceExit",
@@ -21,6 +23,7 @@
   },
   "devDependencies": {
     "chai": "6.0.1",
+    "concurrently": "^9.2.1",
     "eslint": "8.57.0",
     "jest": "^29.7.0",
     "mocha": "11.7.2",
