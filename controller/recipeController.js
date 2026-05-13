@@ -346,21 +346,79 @@ const listAdminRecipes = async (req, res) => {
 	}
 };
 
+/**
+ * GET /api/recipe/community
+ *
+ * Refined to accept light discovery filters so the frontend does not need a
+ * parallel "community discovery" endpoint. Supported query parameters:
+ *   - search             partial match on recipe_name (ILIKE)
+ *   - cuisine_id         numeric cuisine filter
+ *   - cooking_method_id  numeric cooking method filter
+ *   - sort               "latest" (default) | "oldest" | "name"
+ *   - limit              page size (default 300, max 1000)
+ *   - offset             pagination offset (default 0)
+ *
+ * Anything beyond this (favourites, client-side reordering, etc.) stays in
+ * the frontend — see docs/RECIPES_SCOPE.md.
+ */
 const listCommunityRecipes = async (req, res) => {
 	try {
 		const limit = Math.max(1, Math.min(Number(req.query.limit) || 300, 1000));
-		const { data, error } = await supabase
+		const offset = Math.max(0, Number(req.query.offset) || 0);
+		const { search, cuisine_id, cooking_method_id, sort } = req.query;
+
+		let query = supabase
 			.from("recipes")
 			.select("*")
 			.eq("visibility", "community")
-			.eq("is_published", true)
-			.order("published_at", { ascending: false })
-			.limit(limit);
+			.eq("is_published", true);
 
+		if (search) {
+			const safeSearch = String(search).replace(/[%_]/g, (c) => `\\${c}`);
+			query = query.ilike("recipe_name", `%${safeSearch}%`);
+		}
+
+		if (cuisine_id) {
+			const cuisineIdNum = Number.parseInt(cuisine_id, 10);
+			if (!Number.isFinite(cuisineIdNum)) {
+				return res.status(400).json({ error: "cuisine_id must be numeric", statusCode: 400 });
+			}
+			query = query.eq("cuisine_id", cuisineIdNum);
+		}
+
+		if (cooking_method_id) {
+			const cookingMethodIdNum = Number.parseInt(cooking_method_id, 10);
+			if (!Number.isFinite(cookingMethodIdNum)) {
+				return res.status(400).json({ error: "cooking_method_id must be numeric", statusCode: 400 });
+			}
+			query = query.eq("cooking_method_id", cookingMethodIdNum);
+		}
+
+		switch (String(sort || "").toLowerCase()) {
+			case "oldest":
+				query = query.order("published_at", { ascending: true });
+				break;
+			case "name":
+				query = query.order("recipe_name", { ascending: true });
+				break;
+			case "latest":
+			default:
+				query = query.order("published_at", { ascending: false });
+				break;
+		}
+
+		query = query.range(offset, offset + limit - 1);
+
+		const { data, error } = await query;
 		if (error) throw error;
 
 		const recipes = await decorateRecipes(data || []);
-		return res.status(200).json({ message: "success", statusCode: 200, recipes });
+		return res.status(200).json({
+			message: "success",
+			statusCode: 200,
+			recipes,
+			pagination: { limit, offset, count: recipes.length },
+		});
 	} catch (error) {
 		console.error("Error loading community recipes:", error);
 		return res.status(500).json({ error: "Internal server error", statusCode: 500 });
@@ -369,11 +427,14 @@ const listCommunityRecipes = async (req, res) => {
 
 const shareRecipeToCommunity = async (req, res) => {
 	const recipeId = Number(req.params.id);
-	const userId = Number(req.body.user_id || req.body.userId || req.user?.userId);
+	// Ownership is derived from the authenticated session; we deliberately
+	// ignore any user_id supplied in the request body so a caller cannot
+	// submit someone else's recipe for community review.
+	const userId = Number(req.user?.userId);
 
 	try {
 		if (!recipeId || !userId) {
-			return res.status(400).json({ error: "Recipe ID and User ID are required", statusCode: 400 });
+			return res.status(400).json({ error: "Recipe ID and authenticated user are required", statusCode: 400 });
 		}
 
 		const { data: recipe, error: recipeError } = await supabase
@@ -418,11 +479,13 @@ const shareRecipeToCommunity = async (req, res) => {
 
 const unshareRecipeFromCommunity = async (req, res) => {
 	const recipeId = Number(req.params.id);
-	const userId = Number(req.body.user_id || req.body.userId || req.user?.userId);
+	// Ownership is derived from the authenticated session — see
+	// shareRecipeToCommunity for rationale.
+	const userId = Number(req.user?.userId);
 
 	try {
 		if (!recipeId || !userId) {
-			return res.status(400).json({ error: "Recipe ID and User ID are required", statusCode: 400 });
+			return res.status(400).json({ error: "Recipe ID and authenticated user are required", statusCode: 400 });
 		}
 
 		const { data: recipe, error: recipeError } = await supabase

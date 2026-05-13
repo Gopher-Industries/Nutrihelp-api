@@ -8,7 +8,7 @@
     "dev": "nodemon server.js",
     "dev:all": "concurrently --names \"API,AI\" --prefix-colors \"blue,green\" \"npm run dev\" \"cd ../NutriHelp-AI && python3 run.py\"",
     "start:all": "concurrently --names \"API,AI\" --prefix-colors \"blue,green\" \"npm run start\" \"cd ../NutriHelp-AI && python3 run.py\"",
-    "test": "mocha ./test/**/*.test.js --timeout 5000 --exit --ignore ./test/contractTests/**",
+    "test": "mocha 'test/**/*.test.js' --timeout 5000 --exit",
     "test:unit": "mocha ./test/unit/**/*.test.js --timeout 5000 --exit",
     "test:contract": "jest ./test/contractTests/ --testTimeout=10000 --forceExit",
     "lint": "eslint . --ext .js --max-warnings=0",
