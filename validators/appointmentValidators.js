@@ -5,8 +5,8 @@
 const { body, param, query } = require('express-validator');
 
 const createAppointment = [
-  body('user_id').exists().withMessage('user_id is required'),
-  body('user_id').isInt().withMessage('user_id must be numeric').toInt(),
+  body('user_id').optional().isInt().withMessage('user_id must be numeric').toInt(),
+  body('userId').optional().isInt().withMessage('userId must be numeric').toInt(),
   body('date').optional().isISO8601().withMessage('date must be ISO8601 (YYYY-MM-DD)'),
   body('time').optional().isString(),
   body('location').optional().isString(),

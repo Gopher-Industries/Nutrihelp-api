@@ -66,8 +66,9 @@ describe('POST /api/contactus', () => {
     expect(res.status).toBe(201);
     expect(res.body.success).toBe(true);
     expect(res.body.data.received).toBe(true);
-    expect(res.body.data.email.supportNotified).toBe(true);
-    expect(res.body.data.email.acknowledgementSent).toBe(true);
+    expect(res.body.data.email.supportNotificationQueued).toBe(true);
+    expect(res.body.data.email.acknowledgementQueued).toBe(true);
+    expect(res.body.meta.message).toBeTruthy();
 
     expect(addContactUsMsg).toHaveBeenCalledTimes(1);
     expect(emailService.sendSupportNotification).toHaveBeenCalledWith(
@@ -100,7 +101,7 @@ describe('POST /api/contactus', () => {
 
     expect(res.status).toBe(201);
     expect(res.body.success).toBe(true);
-    expect(res.body.data.email.supportNotified).toBe(false);
-    expect(res.body.data.email.acknowledgementSent).toBe(false);
+    expect(res.body.data.email.supportNotificationQueued).toBe(true);
+    expect(res.body.data.email.acknowledgementQueued).toBe(true);
   });
 });

@@ -122,6 +122,35 @@ const updateNotificationPreferences = async (req, res) => {
   }
 };
 
+
+
+const getUiSettings = async (req, res) => {
+  try {
+    const response = await userPreferencesService.getUiSettings(
+      req.user.userId
+    );
+    return res.status(200).json(response);
+  } catch (error) {
+    return handleError(res, error, "Error fetching UI settings", {
+      userId: req.user?.userId,
+    });
+  }
+};
+
+const updateUiSettings = async (req, res) => {
+  try {
+    const response = await userPreferencesService.updateUiSettings(
+      req.user.userId,
+      req.body.ui_settings || {}
+    );
+    return res.status(200).json(response);
+  } catch (error) {
+    return handleError(res, error, "Error updating UI settings", {
+      userId: req.user?.userId,
+    });
+  }
+};
+
 module.exports = {
   getUserPreferences,
   postUserPreferences,
@@ -129,4 +158,6 @@ module.exports = {
   updateExtendedUserPreferences,
   getNotificationPreferences,
   updateNotificationPreferences,
+  getUiSettings,
+  updateUiSettings,
 };

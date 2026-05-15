@@ -13,6 +13,22 @@ function validationFailure(res, errors) {
   return res.status(400).json({ errors: errors.array() });
 }
 
+function resolveAppointmentUserId(req) {
+  const requestUserId =
+    req.body?.userId ||
+    req.body?.user_id ||
+    req.query?.userId ||
+    req.query?.user_id;
+  const currentUserId = req.user?.userId;
+  const role = String(req.user?.role || '').toLowerCase();
+
+  if (role === 'admin' || role === 'nutritionist') {
+    return requestUserId || currentUserId;
+  }
+
+  return currentUserId;
+}
+
 function internalFailure(res, label, error, context = {}) {
   logger.error(label, { error: error.message, ...context });
   return res.status(500).json({ error: 'Internal server error' });
@@ -23,7 +39,8 @@ const saveAppointment = async (req, res) => {
   if (!errors.isEmpty()) {
     return validationFailure(res, errors);
   }
-  const { userId, date, time, description } = req.body;
+  const userId = resolveAppointmentUserId(req);
+  const { date, time, description } = req.body;
   try {
     await addAppointment(userId, date, time, description);
     res.status(201).json({ message: 'Appointment saved successfully' });
@@ -37,7 +54,8 @@ const saveAppointmentV2 = async (req, res) => {
   if (!errors.isEmpty()) {
     return validationFailure(res, errors);
   }
-  const { userId, title, doctor, type, date, time, location, address, phone, notes, reminder } = req.body;
+  const userId = resolveAppointmentUserId(req);
+  const { title, doctor, type, date, time, location, address, phone, notes, reminder } = req.body;
   try {
     const appointment = await addAppointmentModelV2({
       userId, title, doctor, type, date, time, location, address, phone, notes, reminder,
@@ -54,32 +72,37 @@ const updateAppointment = async (req, res) => {
     return validationFailure(res, errors);
   }
   const { id } = req.params;
+  const userId = resolveAppointmentUserId(req);
   const { title, doctor, type, date, time, location, address, phone, notes, reminder } = req.body;
   try {
-    const updatedAppointment = await updateAppointmentModel(id, {
+    const updatedAppointment = await updateAppointmentModel(id, userId, {
       title, doctor, type, date, time, location, address, phone, notes, reminder,
     });
+    if (!updatedAppointment) {
+      return res.status(404).json({ message: 'Appointment not found' });
+    }
     res.status(200).json({ message: 'Appointment updated successfully', appointment: updatedAppointment });
   } catch (error) {
-    return internalFailure(res, 'Error updating appointment', error, { appointmentId: id });
+    return internalFailure(res, 'Error updating appointment', error, { appointmentId: id, userId });
   }
 };
 
 const delAppointment = async (req, res) => {
   const { id } = req.params;
+  const userId = resolveAppointmentUserId(req);
   try {
-    const deleted = await deleteAppointmentById(id);
+    const deleted = await deleteAppointmentById(id, userId);
     if (!deleted) {
       return res.status(404).json({ message: 'Appointment not found' });
     }
     res.status(200).json({ message: 'Appointment deleted successfully' });
   } catch (error) {
-    return internalFailure(res, 'Error deleting appointment', error, { appointmentId: id });
+    return internalFailure(res, 'Error deleting appointment', error, { appointmentId: id, userId });
   }
 };
 
 const getAppointments = async (req, res) => {
-  const userId = req.query.userId || req.user?.id || req.user?.user_id;
+  const userId = resolveAppointmentUserId(req);
   try {
     const appointments = await getAppointmentsByUserId(userId);
     res.status(200).json(appointments);
@@ -93,7 +116,7 @@ const getAppointmentsV2 = async (req, res) => {
     const page = parseInt(req.query.page, 10) || 1;
     const pageSize = parseInt(req.query.pageSize, 10) || 10;
     const search = req.query.search || '';
-    const userId = req.query.userId || req.user?.id || req.user?.user_id;
+    const userId = resolveAppointmentUserId(req);
     const from = (page - 1) * pageSize;
     const to = from + pageSize - 1;
 

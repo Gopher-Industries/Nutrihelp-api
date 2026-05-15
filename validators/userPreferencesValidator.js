@@ -8,18 +8,33 @@ const UI_LANGUAGES = ['en', 'zh', 'es', 'fr', 'de'];
 const isArrayOfIntegers = (value) =>
   Array.isArray(value) && value.every(Number.isInteger);
 
+function isPositiveInteger(value) {
+  return Number.isInteger(value) && value > 0;
+}
+
+function isPreferenceReference(value) {
+  if (isPositiveInteger(value)) return true;
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    const hasId = Object.prototype.hasOwnProperty.call(value, 'id');
+    const hasReferenceId = Object.prototype.hasOwnProperty.call(value, 'referenceId');
+    if (!hasId && !hasReferenceId) return false;
+    if (hasId && !isPositiveInteger(value.id)) return false;
+    if (hasReferenceId && !isPositiveInteger(value.referenceId)) return false;
+    return true;
+  }
+  return false;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
-// Shared: flat food-preference ID arrays
+// Flat food-preference ID arrays (integers only)
 // ─────────────────────────────────────────────────────────────────────────────
 function buildIntegerArrayRule(field, required) {
   const chain = body(field);
-
   if (required) {
     chain.exists({ checkNull: true }).withMessage(`${field} is required`).bail();
   } else {
     chain.optional();
   }
-
   return chain.custom(isArrayOfIntegers).withMessage(`${field} must be an array of integers`);
 }
 
@@ -44,14 +59,44 @@ const optionalFoodPreferenceRules = [
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Shared: health_context structured object
+// Nested food_preferences object
+// Accepts positive integers OR { id: positiveInt } OR { referenceId: positiveInt }
+// ─────────────────────────────────────────────────────────────────────────────
+function buildPreferenceReferenceArrayRule(field) {
+  return body(field)
+    .optional()
+    .custom((value) => {
+      if (!Array.isArray(value)) throw new Error(`${field} must be an array`);
+      if (!value.every(isPreferenceReference)) {
+        throw new Error(
+          `${field} must be an array of positive integer IDs or objects with positive integer id/referenceId`
+        );
+      }
+      return true;
+    });
+}
+
+const nestedFoodPreferenceRules = [
+  body('food_preferences')
+    .optional()
+    .isObject().withMessage('food_preferences must be an object'),
+  buildPreferenceReferenceArrayRule('food_preferences.dietary_requirements'),
+  buildPreferenceReferenceArrayRule('food_preferences.allergies'),
+  buildPreferenceReferenceArrayRule('food_preferences.cuisines'),
+  buildPreferenceReferenceArrayRule('food_preferences.dislikes'),
+  buildPreferenceReferenceArrayRule('food_preferences.health_conditions'),
+  buildPreferenceReferenceArrayRule('food_preferences.spice_levels'),
+  buildPreferenceReferenceArrayRule('food_preferences.cooking_methods'),
+];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// health_context structured object
 // ─────────────────────────────────────────────────────────────────────────────
 const healthContextRules = [
   body('health_context')
     .optional()
     .isObject().withMessage('health_context must be an object'),
 
-  // allergies[]
   body('health_context.allergies')
     .optional()
     .isArray().withMessage('health_context.allergies must be an array'),
@@ -71,7 +116,6 @@ const healthContextRules = [
     .isString().withMessage('allergy notes must be a string')
     .isLength({ max: 1000 }).withMessage('allergy notes must be 1000 characters or fewer'),
 
-  // chronic_conditions[]
   body('health_context.chronic_conditions')
     .optional()
     .isArray().withMessage('health_context.chronic_conditions must be an array'),
@@ -91,47 +135,34 @@ const healthContextRules = [
     .isString().withMessage('condition notes must be a string')
     .isLength({ max: 1000 }).withMessage('condition notes must be 1000 characters or fewer'),
 
-  // medications[]
   body('health_context.medications')
     .optional()
     .isArray().withMessage('health_context.medications must be an array'),
   body('health_context.medications.*.name')
-    .if(body('health_context.medications').exists())
-    .notEmpty().withMessage('medication name is required')
-    .isString().withMessage('medication name must be a string')
+    .optional()
+    .isString().notEmpty().withMessage('medication name must be a non-empty string')
     .isLength({ max: 200 }).withMessage('medication name must be 200 characters or fewer'),
   body('health_context.medications.*.dosage')
-    .optional()
+    .optional({ nullable: true })
     .isObject().withMessage('medication dosage must be an object'),
   body('health_context.medications.*.dosage.amount')
     .optional({ nullable: true })
-    .isString().withMessage('dosage amount must be a string')
-    .isLength({ max: 50 }).withMessage('dosage amount must be 50 characters or fewer'),
+    .isString().withMessage('dosage amount must be a string'),
   body('health_context.medications.*.dosage.unit')
     .optional({ nullable: true })
-    .isString().withMessage('dosage unit must be a string')
-    .isLength({ max: 50 }).withMessage('dosage unit must be 50 characters or fewer'),
+    .isString().withMessage('dosage unit must be a string'),
   body('health_context.medications.*.frequency')
-    .optional()
+    .optional({ nullable: true })
     .isObject().withMessage('medication frequency must be an object'),
   body('health_context.medications.*.frequency.timesPerDay')
     .optional({ nullable: true })
-    .isInt({ min: 1, max: 24 })
-    .withMessage('frequency timesPerDay must be an integer between 1 and 24'),
-  body('health_context.medications.*.frequency.interval')
-    .optional({ nullable: true })
-    .isString().withMessage('frequency interval must be a string')
-    .isLength({ max: 100 }).withMessage('frequency interval must be 100 characters or fewer'),
+    .isInt({ min: 1, max: 24 }).withMessage('timesPerDay must be an integer between 1 and 24'),
   body('health_context.medications.*.frequency.schedule')
-    .optional()
+    .optional({ nullable: true })
     .isArray().withMessage('frequency schedule must be an array'),
-  body('health_context.medications.*.frequency.schedule.*')
-    .optional()
-    .isString().withMessage('each schedule entry must be a string')
-    .isLength({ max: 50 }).withMessage('each schedule entry must be 50 characters or fewer'),
   body('health_context.medications.*.frequency.asNeeded')
-    .optional()
-    .isBoolean().withMessage('frequency asNeeded must be a boolean'),
+    .optional({ nullable: true })
+    .isBoolean().withMessage('asNeeded must be a boolean'),
   body('health_context.medications.*.purpose')
     .optional({ nullable: true })
     .isString().withMessage('medication purpose must be a string')
@@ -141,57 +172,34 @@ const healthContextRules = [
     .isString().withMessage('medication notes must be a string')
     .isLength({ max: 1000 }).withMessage('medication notes must be 1000 characters or fewer'),
   body('health_context.medications.*.active')
-    .optional()
+    .optional({ nullable: true })
     .isBoolean().withMessage('medication active must be a boolean'),
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Shared: ui_settings
+// ui_settings
 // ─────────────────────────────────────────────────────────────────────────────
 const uiSettingsRules = [
   body('ui_settings')
     .optional()
     .isObject().withMessage('ui_settings must be an object'),
-  body('ui_settings.language')
-    .optional()
-    .isIn(UI_LANGUAGES)
-    .withMessage(`ui_settings.language must be one of: ${UI_LANGUAGES.join(', ')}`),
   body('ui_settings.theme')
     .optional()
-    .isIn(UI_THEMES)
-    .withMessage(`ui_settings.theme must be one of: ${UI_THEMES.join(', ')}`),
+    .isIn(UI_THEMES).withMessage(`ui_settings.theme must be one of: ${UI_THEMES.join(', ')}`),
+  body('ui_settings.language')
+    .optional()
+    .isIn(UI_LANGUAGES).withMessage(`ui_settings.language must be one of: ${UI_LANGUAGES.join(', ')}`),
   body('ui_settings.font_size')
     .optional()
-    .isString().withMessage('ui_settings.font_size must be a string')
-    .matches(/^\d+(px|rem|em|%)$/)
-    .withMessage('ui_settings.font_size must be a valid CSS size (e.g. 16px, 1rem)'),
+    .matches(/^\d+px$/).withMessage('ui_settings.font_size must be in the format "16px"'),
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
-// validateUserPreferences
-// POST /api/user/preferences — flat food-preference ID arrays + health_context
+// notification_preferences
 // ─────────────────────────────────────────────────────────────────────────────
-exports.validateUserPreferences = [
-  ...requiredFoodPreferenceRules,
-];
-
-// ─────────────────────────────────────────────────────────────────────────────
-// validateHealthContext
-// PUT /api/user/preferences/extended — full structured health-context update
-// ─────────────────────────────────────────────────────────────────────────────
-exports.validateHealthContext = [
-  ...healthContextRules,
-  ...optionalFoodPreferenceRules,
-  ...uiSettingsRules,
-];
-
-// ─────────────────────────────────────────────────────────────────────────────
-// validateNotificationPreferences
-// PUT /api/user/preferences/extended/notifications
-// ─────────────────────────────────────────────────────────────────────────────
-exports.validateNotificationPreferences = [
+const notificationPreferencesRules = [
   body('notification_preferences')
-    .notEmpty().withMessage('notification_preferences object is required')
+    .exists({ checkNull: true }).withMessage('notification_preferences is required')
     .isObject().withMessage('notification_preferences must be an object'),
   body('notification_preferences.mealReminders')
     .optional()
@@ -209,3 +217,59 @@ exports.validateNotificationPreferences = [
     .optional()
     .isBoolean().withMessage('systemUpdates must be a boolean'),
 ];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Extended preferences — at least one section required
+// ─────────────────────────────────────────────────────────────────────────────
+const EXTENDED_SECTIONS = [
+  'health_context',
+  'food_preferences',
+  'notification_preferences',
+  'ui_settings',
+  'dietary_requirements',
+  'allergies',
+  'cuisines',
+  'dislikes',
+  'health_conditions',
+  'spice_levels',
+  'cooking_methods',
+];
+
+function atLeastOneSectionRequired(req, res, next) {
+  const hasAny = EXTENDED_SECTIONS.some((key) =>
+    Object.prototype.hasOwnProperty.call(req.body, key)
+  );
+  if (!hasAny) {
+    return res.status(400).json({
+      success: false,
+      errors: [{ msg: 'At least one preference section must be provided' }],
+    });
+  }
+  return next();
+}
+
+const validateExtendedUserPreferences = [
+  atLeastOneSectionRequired,
+  ...healthContextRules,
+  ...nestedFoodPreferenceRules,
+  ...uiSettingsRules,
+];
+
+const validateUiSettings = [
+  ...uiSettingsRules,
+];
+
+const validateNotificationPreferences = [
+  ...notificationPreferencesRules,
+];
+
+const validateUserPreferences = requiredFoodPreferenceRules;
+const validateOptionalUserPreferences = optionalFoodPreferenceRules;
+
+module.exports = {
+  validateUserPreferences,
+  validateOptionalUserPreferences,
+  validateExtendedUserPreferences,
+  validateUiSettings,
+  validateNotificationPreferences,
+};

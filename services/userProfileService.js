@@ -157,36 +157,42 @@ async function getCanonicalProfile(lookup) {
   const profile = await findProfileOrThrow(lookup);
 
   if (profile.profile_encrypted && profile.profile_encryption_iv && profile.profile_encryption_auth_tag) {
-    // Decryption failure is a hard error — falling back to plaintext would silently
-    // serve stale or wrong data and would mask key-mismatch or corruption issues.
-    const decrypted = await decryptFromDatabase(profile, {
-      encrypted: 'profile_encrypted',
-      iv: 'profile_encryption_iv',
-      authTag: 'profile_encryption_auth_tag'
-    });
+    const plaintextContact = profile.contact_number;
+    const plaintextAddress = profile.address;
 
-    if (!decrypted || typeof decrypted !== 'object') {
-      throw new ServiceError(500, 'Profile decryption produced an invalid result. Contact support.');
-    }
+    try {
+      const decrypted = await decryptFromDatabase(profile, {
+        encrypted: 'profile_encrypted',
+        iv: 'profile_encryption_iv',
+        authTag: 'profile_encryption_auth_tag'
+      });
 
-    profile.name = decrypted.name ?? profile.name;
-    profile.first_name = decrypted.first_name ?? profile.first_name;
-    profile.last_name = decrypted.last_name ?? profile.last_name;
-    // Sensitive fields must come exclusively from the encrypted source once stored encrypted.
-    profile.contact_number = decrypted.contact_number ?? null;
-    profile.address = decrypted.address ?? null;
+      if (!decrypted || typeof decrypted !== 'object') {
+        throw new ServiceError(500, 'Profile decryption produced an invalid result. Contact support.');
+      }
 
-    // Dual-storage check: warn if plaintext columns were not cleared by a prior write.
-    // This indicates the record pre-dates the encryption rollout and must be migrated.
-    if (decrypted.contact_number && profile.contact_number) {
-      logger.warn('[userProfileService] Dual-storage detected on user ' + profile.user_id +
-        ': contact_number exists in both encrypted blob and plaintext column. ' +
-        'Run scripts/migrate-encrypt-user-profiles.js to back-fill and clear plaintext.');
-    }
-    if (decrypted.address && profile.address) {
-      logger.warn('[userProfileService] Dual-storage detected on user ' + profile.user_id +
-        ': address exists in both encrypted blob and plaintext column. ' +
-        'Run scripts/migrate-encrypt-user-profiles.js to back-fill and clear plaintext.');
+      profile.name = decrypted.name ?? profile.name;
+      profile.first_name = decrypted.first_name ?? profile.first_name;
+      profile.last_name = decrypted.last_name ?? profile.last_name;
+      profile.contact_number = decrypted.contact_number ?? null;
+      profile.address = decrypted.address ?? null;
+
+      if (decrypted.contact_number && plaintextContact) {
+        logger.warn('[userProfileService] Dual-storage detected on user ' + profile.user_id +
+          ': contact_number exists in both encrypted blob and plaintext column. ' +
+          'Run scripts/migrate-encrypt-user-profiles.js to back-fill and clear plaintext.');
+      }
+      if (decrypted.address && plaintextAddress) {
+        logger.warn('[userProfileService] Dual-storage detected on user ' + profile.user_id +
+          ': address exists in both encrypted blob and plaintext column. ' +
+          'Run scripts/migrate-encrypt-user-profiles.js to back-fill and clear plaintext.');
+      }
+    } catch (error) {
+      logger.warn('[userProfileService] Encrypted profile payload could not be decrypted for user ' + profile.user_id +
+        '. Falling back to plaintext columns for compatibility. ' +
+        'Run scripts/migrate-encrypt-user-profiles.js after verifying ENCRYPTION_KEY.', {
+        error: error.message
+      });
     }
   } else if (profile.contact_number || profile.address) {
     // Row has no encrypted payload but has plaintext sensitive data — pre-migration record.
@@ -245,21 +251,21 @@ async function updateCanonicalProfile({ actor, targetLookup, body }) {
     attributes.address = null;
   }
 
-  const updatedProfile = await updateUser({
+  await updateUser({
     userId: existingProfile.user_id,
     attributes
   });
 
-  const mergedProfile = updatedProfile || existingProfile;
-
   if (updates.userImage) {
-    mergedProfile.image_url = await saveImage(updates.userImage, existingProfile.user_id);
+    await saveImage(updates.userImage, existingProfile.user_id);
   }
 
-  const preferences = await fetchUserPreferences(existingProfile.user_id);
+  // Re-read canonical profile so the response always includes decrypted
+  // sensitive fields from profile_encrypted (contactNumber/address).
+  const refreshed = await getCanonicalProfile({ userId: existingProfile.user_id });
 
   return {
-    ...buildProfileResponse(mergedProfile, preferences),
+    ...refreshed,
     message: 'Profile updated successfully',
     meta: {
       updatedBy: actor?.userId || null

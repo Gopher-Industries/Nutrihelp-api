@@ -29,8 +29,15 @@ const { createSuccessResponse, createErrorResponse } = shared.apiResponse;
 const DEFAULT_VALIDATION_CODE = 'VALIDATION_ERROR';
 
 function sendSuccess(res, data, opts = {}) {
-  const { status = 200, meta } = opts;
-  return res.status(status).json(createSuccessResponse(data, meta));
+  const { status = 200, meta, message } = opts;
+  const responseMeta = {
+    ...(meta || {}),
+    ...(message ? { message } : {}),
+  };
+
+  return res.status(status).json(
+    createSuccessResponse(data, Object.keys(responseMeta).length > 0 ? responseMeta : undefined)
+  );
 }
 
 function sendCreated(res, data, opts = {}) {

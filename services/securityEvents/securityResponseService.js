@@ -25,20 +25,12 @@ const EVENT_CONFIG = {
 const eventBuckets = new Map();
 const blockedIps = new Map();
 
-const LOOPBACK_IPS = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1', 'localhost']);
-
-const isLocalhostRequest = (req) => {
-  if (process.env.NODE_ENV === 'production') return false;
-  const ip =
-    req?.headers?.['x-forwarded-for']?.split(',')[0]?.trim() ||
-    req?.ip ||
-    req?.connection?.remoteAddress ||
-    '';
-  return LOOPBACK_IPS.has(ip);
-};
+const normalizeIp = (value) => String(value || '').trim();
+const isIpBlockingEnabled = () =>
+  String(process.env.NODE_ENV || '').trim().toLowerCase() !== 'development';
 
 const getClientIp = (req) => {
-  return (
+  return normalizeIp(
     req?.headers?.['x-forwarded-for']?.split(',')[0]?.trim() ||
     req?.ip ||
     req?.connection?.remoteAddress ||
@@ -129,6 +121,10 @@ const triggerAccountProtection = async ({ req, eventType, metadata = {} }) => {
 };
 
 const registerEvent = async ({ eventType, req, subject, metadata = {} }) => {
+  if (!isIpBlockingEnabled()) {
+    return { triggered: false, disabled: true };
+  }
+
   const config = EVENT_CONFIG[eventType];
   if (!config) {
     return { triggered: false };
@@ -164,6 +160,10 @@ const registerEvent = async ({ eventType, req, subject, metadata = {} }) => {
 };
 
 const getActiveBlock = (req) => {
+  if (!isIpBlockingEnabled()) {
+    return null;
+  }
+
   pruneBlocks();
   const ip = getClientIp(req);
   const block = blockedIps.get(ip);
@@ -180,9 +180,58 @@ const getActiveBlock = (req) => {
   };
 };
 
+const getActiveBlocks = () => {
+  if (!isIpBlockingEnabled()) {
+    return [];
+  }
+
+  pruneBlocks();
+  return Array.from(blockedIps.entries()).map(([ip, block]) => ({
+    ip,
+    eventType: block.eventType,
+    expiresAt: new Date(block.expiresAt).toISOString(),
+    metadata: block.metadata,
+  }));
+};
+
+const unblockIp = (ip) => {
+  pruneBlocks();
+  const normalizedIp = normalizeIp(ip);
+  if (!normalizedIp) {
+    return {
+      unblocked: false,
+      reason: 'IP_REQUIRED',
+      ip: null,
+    };
+  }
+
+  const existing = blockedIps.get(normalizedIp);
+  if (!existing) {
+    return {
+      unblocked: false,
+      reason: 'NOT_BLOCKED',
+      ip: normalizedIp,
+    };
+  }
+
+  blockedIps.delete(normalizedIp);
+  return {
+    unblocked: true,
+    reason: 'UNBLOCKED',
+    ip: normalizedIp,
+    block: {
+      eventType: existing.eventType,
+      expiresAt: new Date(existing.expiresAt).toISOString(),
+      metadata: existing.metadata || {},
+    },
+  };
+};
+
 const createBlockMiddleware = () => {
   return (req, res, next) => {
-    if (isLocalhostRequest(req)) return next();
+    if (!isIpBlockingEnabled()) {
+      return next();
+    }
 
     const block = getActiveBlock(req);
     if (!block) {
@@ -208,7 +257,9 @@ module.exports = {
   __resetForTests: resetForTests,
   createBlockMiddleware,
   getActiveBlock,
+  getActiveBlocks,
   getClientIp,
+  unblockIp,
   registerAuthFailure: (req, metadata = {}) =>
     registerEvent({ eventType: 'auth_failure', req, metadata }),
   registerRbacViolation: (req, metadata = {}) =>

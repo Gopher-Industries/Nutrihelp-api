@@ -25,7 +25,7 @@ module.exports = {
   },
   aiAndMedical: {
     get chatbotService() {
-      return require('./chatbotService');
+      return require('./chatbotService').chatbotService;
     },
     get medicalPredictionService() {
       return require('./medicalPredictionService');

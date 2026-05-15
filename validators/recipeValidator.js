@@ -2,7 +2,7 @@ const Joi = require('joi');
 const { body } = require('express-validator');
 
 const recipeSchema = Joi.object({
-  user_id: Joi.alternatives().try(Joi.number(), Joi.string()).required(),
+  user_id: Joi.alternatives().try(Joi.number(), Joi.string()).optional(),
   recipe_name: Joi.string().required(),
   cuisine_id: Joi.number().optional(),
   total_servings: Joi.number().min(1).required(),
@@ -15,11 +15,11 @@ const recipeSchema = Joi.object({
 });
 
 const getRecipesSchema = Joi.object({
-  user_id: Joi.alternatives().try(Joi.number(), Joi.string()).required()
+  user_id: Joi.alternatives().try(Joi.number(), Joi.string()).optional()
 });
 
 const validateRecipe = [
-  body('user_id').notEmpty().withMessage('user_id is required'),
+  body('user_id').optional(),
   body('recipe_name').notEmpty().withMessage('recipe_name is required'),
   body('total_servings').isInt({ min: 1 }).withMessage('total_servings must be at least 1'),
   body('preparation_time').isInt({ min: 1 }).withMessage('preparation_time must be at least 1'),

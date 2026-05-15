@@ -29,6 +29,22 @@ function sendWrapped(res, statusCode, body) {
   });
 }
 
+function resolveShoppingListUserId(req) {
+  const requestUserId =
+    req.body?.user_id ||
+    req.body?.userId ||
+    req.query?.user_id ||
+    req.query?.userId;
+  const currentUserId = req.user?.userId;
+  const role = String(req.user?.role || '').toLowerCase();
+
+  if (role === 'admin' || role === 'nutritionist') {
+    return requestUserId ? normalizeId(requestUserId) : currentUserId;
+  }
+
+  return currentUserId;
+}
+
 async function getIngredientOptions(req, res) {
   try {
     const name = req.query?.name || '';
@@ -41,10 +57,7 @@ async function getIngredientOptions(req, res) {
 
 async function generateFromMealPlan(req, res) {
   try {
-    if (!req.body || !req.body.user_id) {
-      return res.status(400).json({ success: false, error: 'user_id required' });
-    }
-    const userId = normalizeId(req.body.user_id);
+    const userId = resolveShoppingListUserId(req);
     const mealPlanIds = Array.isArray(req.body.meal_plan_ids) ? req.body.meal_plan_ids : [];
     const result = await shoppingListService.generateFromMealPlan({ userId, mealPlanIds });
     return sendWrapped(res, result.statusCode || 200, result.body || result);
@@ -55,10 +68,7 @@ async function generateFromMealPlan(req, res) {
 
 async function createShoppingList(req, res) {
   try {
-    if (!req.body || !req.body.user_id) {
-      return res.status(400).json({ success: false, error: 'user_id required' });
-    }
-    const userId = normalizeId(req.body.user_id);
+    const userId = resolveShoppingListUserId(req);
     const result = await shoppingListService.createShoppingList({
       userId,
       name: req.body.name,
@@ -73,11 +83,7 @@ async function createShoppingList(req, res) {
 
 async function getShoppingList(req, res) {
   try {
-    const rawUserId = req.query?.user_id || req.query?.userId;
-    if (!rawUserId) {
-      return res.status(400).json({ success: false, error: 'user_id required' });
-    }
-    const userId = normalizeId(rawUserId);
+    const userId = resolveShoppingListUserId(req);
     const result = await shoppingListService.getShoppingList(userId);
     return sendWrapped(res, result.statusCode || 200, result.body || result);
   } catch (error) {
@@ -92,7 +98,7 @@ async function updateShoppingListItem(req, res) {
       return res.status(400).json({ success: false, error: 'id param required' });
     }
     const id = normalizeId(rawId);
-    const result = await shoppingListService.updateShoppingListItem(id, {
+    const result = await shoppingListService.updateShoppingListItem(id, req.user?.userId, {
       purchased: req.body?.purchased,
       quantity: req.body?.quantity,
       notes: req.body?.notes
@@ -106,6 +112,7 @@ async function updateShoppingListItem(req, res) {
 async function addShoppingListItem(req, res) {
   try {
     const result = await shoppingListService.addShoppingListItem({
+      userId: req.user?.userId,
       shoppingListId: req.body?.shopping_list_id ? normalizeId(req.body.shopping_list_id) : undefined,
       ingredientName: req.body?.ingredient_name,
       category: req.body?.category,
@@ -129,7 +136,7 @@ async function deleteShoppingListItem(req, res) {
       return res.status(400).json({ success: false, error: 'id param required' });
     }
     const id = normalizeId(rawId);
-    const result = await shoppingListService.deleteShoppingListItem(id);
+    const result = await shoppingListService.deleteShoppingListItem(id, req.user?.userId);
     return sendWrapped(res, result.statusCode || 200, result.body || result);
   } catch (error) {
     return handleError(res, error, 'deleteShoppingListItem');

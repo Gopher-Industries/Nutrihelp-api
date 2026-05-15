@@ -13,7 +13,8 @@ const emailService = require('../utils/emailService');
  * 3. Fire the support-inbox email and the user acknowledgement in parallel.
  *    Email failures are logged but do NOT fail the request — the user's
  *    submission has been captured and we'd rather degrade gracefully.
- * 4. Return a standardized envelope with delivery hints in `meta`.
+ * 4. Return immediately with a standardized envelope; email delivery continues
+ *    in the background so the request is not blocked on SMTP latency.
  */
 const contactus = async (req, res) => {
   const errors = validationResult(req);
@@ -39,35 +40,40 @@ const contactus = async (req, res) => {
   }
 
   // Email dispatch — never block the user response on transient SMTP issues.
-  const [supportResult, ackResult] = await Promise.allSettled([
+  Promise.allSettled([
     emailService.sendSupportNotification({ name, email, subject, message }),
     emailService.sendContactAcknowledgement({ name, email, subject }),
-  ]);
-
-  const emailMeta = {
-    supportNotified: supportResult.status === 'fulfilled' && !supportResult.value?.skipped,
-    acknowledgementSent: ackResult.status === 'fulfilled' && !ackResult.value?.skipped,
-    smtpConfigured: emailService.isSmtpConfigured(),
-  };
-
-  if (supportResult.status === 'rejected') {
-    logger.warn('contactus: support inbox email failed', {
-      error: supportResult.reason?.message,
-      email,
+  ])
+    .then(([supportResult, ackResult]) => {
+      if (supportResult.status === 'rejected') {
+        logger.warn('contactus: support inbox email failed', {
+          error: supportResult.reason?.message,
+          email,
+        });
+      }
+      if (ackResult.status === 'rejected') {
+        logger.warn('contactus: acknowledgement email failed', {
+          error: ackResult.reason?.message,
+          email,
+        });
+      }
+    })
+    .catch((error) => {
+      logger.warn('contactus: unexpected email dispatch failure', {
+        error: error.message,
+        email,
+      });
     });
-  }
-  if (ackResult.status === 'rejected') {
-    logger.warn('contactus: acknowledgement email failed', {
-      error: ackResult.reason?.message,
-      email,
-    });
-  }
 
   return support.sendCreated(
     res,
     {
       received: true,
-      email: emailMeta,
+      email: {
+        supportNotificationQueued: true,
+        acknowledgementQueued: true,
+        smtpConfigured: emailService.isSmtpConfigured(),
+      },
     },
     {
       message: 'Your message has been received. Our team will be in touch soon.',

@@ -39,6 +39,22 @@ router.get(
   controller.getNotificationsByUserId
 );
 
+router.post(
+  '/:user_id/read-all',
+  authenticateToken,
+  (req, res, next) => {
+    if (req.user.role !== 'admin' && req.user.userId != req.params.user_id) {
+      return res.status(403).json({
+        success: false,
+        error: "You can only update your own notifications",
+        code: "ACCESS_DENIED"
+      });
+    }
+    next();
+  },
+  controller.markAllUnreadNotificationsAsRead
+);
+
 // Update notification status by ID → Admin or Nutritionist
 router.put(
   '/:id',

@@ -109,7 +109,7 @@ function formatNotification(notification) {
     type: notification.type || "general",
     content: notification.content || "",
     status: notification.status || "unread",
-    createdAt: notification.created_at || null,
+    createdAt: notification.created_at || notification.timestamp || null,
   };
 }
 

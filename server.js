@@ -20,6 +20,7 @@ const {
   uncaughtExceptionHandler,
   unhandledRejectionHandler
 } = require('./middleware/errorLogger');
+const requestIdMiddleware = require("./middleware/requestId");
 
 const helmet = require('helmet');
 const cors = require('cors');
@@ -81,6 +82,7 @@ setInterval(cleanupOldFiles, 3 * 60 * 60 * 1000);
 let alertIntervalId = null;
 
 // --- Trusted early middlewares ---
+app.use(requestIdMiddleware);
 app.use(requestLoggingMiddleware);
 app.use(sessionMonitorMiddleware);
 app.use(localeMiddleware);
@@ -187,6 +189,7 @@ app.use((err, req, res, next) => {
   res.status(status).json({
     success: false,
     error: message,
+    requestId: req.requestId,
     timestamp: new Date().toISOString(),
   });
 });
