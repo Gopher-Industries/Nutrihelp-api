@@ -7,6 +7,7 @@ const { chatbot: chatbotController } = aiAndMedical;
 
 router.route('/query').post(authenticateToken, chatbotController.getChatResponse);
 router.route('/greeting').get(authenticateToken, chatbotController.getGreeting);
+router.route('/scan-verification').post(authenticateToken, chatbotController.verifyScanResult);
 
 // router.route('/chat').post(chatbotController.getChatResponse);
 router.route('/add_urls').post(chatbotController.addURL);
