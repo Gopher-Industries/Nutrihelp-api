@@ -183,6 +183,123 @@ function buildPersonalizedPrompt({ userInput, profileContext }) {
   ].join('\n');
 }
 
+function formatScanCandidate(candidate = {}) {
+  const label = normalizeText(candidate.label || candidate.class || candidate.name);
+  if (!label) return '';
+  const score = Number(candidate.score ?? candidate.confidence);
+  if (!Number.isFinite(score)) return label;
+  const normalizedScore = score > 1 ? score : score * 100;
+  return `${label} (${Math.round(normalizedScore)}%)`;
+}
+
+function summarizeScanResult(scanResult = {}) {
+  const topCandidates = uniqueList(
+    [
+      ...(Array.isArray(scanResult.topk) ? scanResult.topk : []),
+      ...(Array.isArray(scanResult.matches) ? scanResult.matches : []),
+      ...(Array.isArray(scanResult.top3_predictions) ? scanResult.top3_predictions : [])
+    ]
+      .map(formatScanCandidate)
+      .filter(Boolean)
+  );
+
+  const nutrition = scanResult.nutrition || {};
+  const quality = scanResult.quality || {};
+  return {
+    label: normalizeText(scanResult.selectedLabel || scanResult.label),
+    confidence: scanResult.confidence ?? scanResult.score ?? null,
+    confidenceTier: normalizeText(scanResult.confidence_tier),
+    retakeNeeded: Boolean(scanResult.retake_needed),
+    retakeReason: normalizeText(scanResult.retake_reason || scanResult.unclear_reason),
+    isUnclear: Boolean(scanResult.is_unclear),
+    foodProbability: scanResult.food_probability ?? scanResult.foodProbability ?? null,
+    topCandidates,
+    nutrition: {
+      displayName: normalizeText(nutrition.display_name || nutrition.name),
+      cuisine: normalizeText(nutrition.cuisine),
+      calories: nutrition.estimated_calories ?? nutrition.calories ?? null,
+      serving: normalizeText(nutrition.serving_description || nutrition.serving),
+      about: normalizeText(nutrition.about),
+      allergens: uniqueList(nutrition.allergens || nutrition.allergen_warnings || [])
+    },
+    quality: {
+      passed: quality.passed,
+      issues: uniqueList(quality.issues || [])
+    }
+  };
+}
+
+function buildPublicProfileSummary(profileContext = {}) {
+  const preferenceSummary = profileContext.preferenceSummary || {};
+  return {
+    name: profileContext.displayName || null,
+    dietaryRequirements: uniqueList(preferenceSummary.dietaryRequirements),
+    allergies: uniqueList(preferenceSummary.allergies),
+    preferredCuisines: uniqueList(preferenceSummary.cuisines),
+    dislikedIngredients: uniqueList(preferenceSummary.dislikes),
+    healthConditions: uniqueList(preferenceSummary.healthConditions),
+    spiceLevels: uniqueList(preferenceSummary.spiceLevels),
+    cookingMethods: uniqueList(preferenceSummary.cookingMethods),
+    missingFields: profileContext.missingFields || []
+  };
+}
+
+function buildScanVerificationPrompt({ scanResult, profileContext }) {
+  const scanSummary = summarizeScanResult(scanResult);
+  const preferenceSummary = profileContext.preferenceSummary || {};
+  const missingFields = profileContext.missingFields || [];
+  const candidateText = scanSummary.topCandidates.length
+    ? scanSummary.topCandidates.join(', ')
+    : 'not provided';
+  const nutrition = scanSummary.nutrition;
+
+  return [
+    'NutriHelp AI scan verification task.',
+    '',
+    'Image scan result:',
+    `Selected or top label: ${scanSummary.label || 'not provided'}`,
+    `Confidence: ${scanSummary.confidence ?? 'not provided'}`,
+    `Confidence tier: ${scanSummary.confidenceTier || 'not provided'}`,
+    `Food probability: ${scanSummary.foodProbability ?? 'not provided'}`,
+    `Needs retake: ${scanSummary.retakeNeeded ? 'yes' : 'no'}`,
+    `Unclear prediction: ${scanSummary.isUnclear ? 'yes' : 'no'}`,
+    `Retake or unclear reason: ${scanSummary.retakeReason || 'not provided'}`,
+    `Top candidate dishes: ${candidateText}`,
+    `Photo quality issues: ${listOrNone(scanSummary.quality.issues)}`,
+    '',
+    'Nutrition lookup attached to the selected dish:',
+    `Dish name: ${nutrition.displayName || scanSummary.label || 'not provided'}`,
+    `Cuisine: ${nutrition.cuisine || 'not provided'}`,
+    `Estimated calories: ${nutrition.calories ?? 'not provided'}`,
+    `Serving: ${nutrition.serving || 'not provided'}`,
+    `About: ${nutrition.about || 'not provided'}`,
+    `Known allergens from lookup: ${listOrNone(nutrition.allergens)}`,
+    '',
+    'Logged-in user profile context:',
+    `Name: ${profileContext.displayName || 'not provided'}`,
+    `Dietary requirements: ${listOrNone(preferenceSummary.dietaryRequirements)}`,
+    `Allergies and intolerances: ${listOrNone(preferenceSummary.allergies)}`,
+    `Preferred cuisines: ${listOrNone(preferenceSummary.cuisines)}`,
+    `Disliked ingredients: ${listOrNone(preferenceSummary.dislikes)}`,
+    `Health conditions: ${listOrNone(preferenceSummary.healthConditions)}`,
+    `Preferred spice levels: ${listOrNone(preferenceSummary.spiceLevels)}`,
+    `Preferred cooking methods: ${listOrNone(preferenceSummary.cookingMethods)}`,
+    `Missing profile fields: ${missingFields.length ? missingFields.join(', ') : 'none'}`,
+    '',
+    'Instructions:',
+    '- Do not re-identify the image from scratch. Use only the provided scan labels and top candidate dishes.',
+    '- If the scan is unclear or needs review, say the closest match is only a suggestion and ask the user to confirm.',
+    '- Compare the likely dish against the user profile, especially allergies, intolerances, disliked ingredients, dietary requirements, health conditions, and health goals.',
+    '- Address the logged-in user directly as "you". Do not refer to the user in the third person by name, he, she, or they.',
+    '- Mention possible hidden ingredients or sauces only as possibilities, not facts.',
+    '- If profile data is missing, ask the user to complete or confirm it before treating the advice as personalised.',
+    '- Include a short safety note if allergens, intolerances, diabetes, blood pressure, heart health, or other health risks are relevant.',
+    '- Start with one clear recommendation: "Accept", "Review first", or "Do not accept".',
+    '- Keep the answer concise: 2 to 4 short bullet points, written for a normal user rather than a developer.',
+    '- Do not dump all scan data. Summarise only what helps the user decide safely.'
+  ].join('\n');
+}
+
 async function callAiChat(userInput, fetchImpl = fetch) {
   let response;
   try {
@@ -296,6 +413,46 @@ class ChatbotService {
           profileName: name || null,
           missingFields: profileContext.missingFields || []
         }
+      }
+    };
+  }
+
+  async verifyScanResult({ userId, scanResult }, options = {}) {
+    if (!scanResult || typeof scanResult !== 'object') {
+      throw new ServiceError(400, 'Missing scan_result');
+    }
+
+    let profileContext = { found: false, displayName: '', preferenceSummary: {}, missingFields: ['profile'] };
+
+    if (userId) {
+      try {
+        const profileResponse = await userProfileService.getCanonicalProfile({ userId });
+        profileContext = summarizeProfile(profileResponse);
+      } catch (error) {
+        logger.warn('[chatbotService] Unable to load profile context for scan verification', {
+          userId,
+          error: error.message
+        });
+      }
+    }
+
+    const prompt = buildScanVerificationPrompt({ scanResult, profileContext });
+    const verification = await callAiChat(prompt, options.fetch);
+    const scanSummary = summarizeScanResult(scanResult);
+
+    return {
+      statusCode: 200,
+      body: {
+        success: true,
+        verification,
+        message: verification,
+        profileAware: Boolean(profileContext.found),
+        profileName: profileContext.displayName || null,
+        profileSummary: buildPublicProfileSummary(profileContext),
+        scanSummary,
+        missingFields: profileContext.missingFields || [],
+        safetyNote:
+          'This scan check is AI-supported guidance only. Confirm ingredients, allergens, and serving details before eating.'
       }
     };
   }

@@ -74,6 +74,25 @@ async function getGreeting(req, res) {
   }
 }
 
+async function verifyScanResult(req, res) {
+  try {
+    const userId = resolveChatbotUserId(req);
+    const result = await chatbotService.verifyScanResult({
+      userId,
+      scanResult: req.body.scan_result || req.body.scanResult
+    });
+    return res.status(result.statusCode).json(result.body);
+  } catch (error) {
+    if (isServiceError(error)) {
+      return res.status(error.statusCode).json(serviceErrorToPayload(error));
+    }
+
+    return handleUnexpectedError(res, 'Error in scan verification', error, {
+      userId: resolveChatbotUserId(req)
+    });
+  }
+}
+
 async function addURL(req, res) {
   try {
     const result = await chatbotService.addUrl(req.body.urls);
@@ -137,6 +156,7 @@ async function clearChatHistory(req, res) {
 module.exports = {
   getChatResponse,
   getGreeting,
+  verifyScanResult,
   addURL,
   addPDF,
   getChatHistory,
