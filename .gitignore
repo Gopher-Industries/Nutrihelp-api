@@ -6,6 +6,7 @@ coverage/
 dist/
 build/
 test-results/
+logs/
 /data
 server.pid
 server.log
@@ -19,3 +20,4 @@ node_modules
 *.crt
 *.p12
 certs/
+

@@ -7,6 +7,7 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
 const { logSecurityEvent } = require('./securityEventService');
+const { checkLoginRateLimit } = require("./rateLimitService");
 const logLoginEvent = require('../Monitor_&_Logging/loginLogger');
 const { ServiceError } = require('./serviceError');
 const userProfileService = require('./userProfileService');
@@ -222,109 +223,151 @@ class AuthService {
   /* =========================
      Login
      ========================= */
-  async login(loginData, deviceInfo = {}) {
-    console.log("LOGIN FUNCTION HIT");
-    const { email, password } = loginData;
+async login(loginData, deviceInfo = {}) {
+  const { email, password } = loginData;
 
-    try {
-      if (!email || !password) {
-        throw new ServiceError(400, 'Email and password are required');
-      }
+  try {
+    if (!email || !password) {
+      throw new ServiceError(400, "Email and password are required");
+    }
 
-      const { data: user, error } = await supabaseAnon
-        .from('users')
-        .select(`
-          user_id, email, password, name, role_id,
-          account_status, email_verified,
-          user_roles!inner(id, role_name)
-        `)
-        .eq('email', email)
-        .single();
+    // Rate limiting check
+    const rateLimitResult = checkLoginRateLimit(deviceInfo.ip);
 
-      if (error || !user) {
-        await logSecurityEvent({
-          event_type: "LOGIN_FAILED",
-          severity: "medium",
-          user_id: null,
-          ip_address: deviceInfo.ip || null,
-          user_agent: deviceInfo.userAgent || null,
-          resource: "/api/auth/login",
-          metadata: {
-            email,
-            reason: "user_not_found"
-          }
-        });
-
-        throw new Error('Invalid credentials');
-      }
-
-      if (user.account_status !== 'active') {
-        await logSecurityEvent({
-          event_type: "LOGIN_FAILED",
-          severity: "medium",
-          user_id: user.user_id,
-          ip_address: deviceInfo.ip || null,
-          user_agent: deviceInfo.userAgent || null,
-          resource: "/api/auth/login",
-          metadata: {
-            email,
-            reason: "account_inactive"
-          }
-        });
-
-        throw new Error('Account is not active');
-      }
-
-      const validPassword = await bcrypt.compare(password, user.password);
-
-      if (!validPassword) {
-        console.log("LOGIN FAILED TRIGGERED");
-        await logSecurityEvent({
-          event_type: "LOGIN_FAILED",
-          severity: "medium",
-          user_id: user.user_id,
-          ip_address: deviceInfo.ip || null,
-          user_agent: deviceInfo.userAgent || null,
-          resource: "/api/auth/login",
-          metadata: {
-            email,
-            reason: "invalid_password"
-          }
-        });
-
-        throw new Error('Invalid credentials');
-      }
-      const tokens = await this.generateTokenPair(user, deviceInfo);
-
-      await supabaseAnon
-        .from('users')
-        .update({ last_login: new Date().toISOString() })
-        .eq('user_id', user.user_id);
-
-      await this.logAuthAttempt(user.user_id, email, true, deviceInfo);
-
+    if (!rateLimitResult.allowed) {
       await logSecurityEvent({
-        event_type: "LOGIN_SUCCESS",
-        severity: "low",
+        event_type: "LOGIN_RATE_LIMITED",
+        severity: "high",
+        user_id: null,
+        ip_address: deviceInfo.ip || null,
+        user_agent: deviceInfo.userAgent || null,
+        resource: "/api/auth/login",
+        metadata: {
+          email,
+          reason: "too_many_login_attempts",
+          retry_after_seconds: rateLimitResult.retryAfterSeconds
+        }
+      });
+
+      throw new ServiceError(
+        429,
+        `Too many login attempts. Try again in ${rateLimitResult.retryAfterSeconds} seconds.`
+      );
+    }
+
+    const { data: user, error } = await supabaseAnon
+      .from("users")
+      .select(`
+        user_id, email, password, name, role_id,
+        account_status, email_verified,
+        user_roles!inner(id, role_name)
+      `)
+      .eq("email", email)
+      .single();
+
+    if (error || !user) {
+      await logSecurityEvent({
+        event_type: "LOGIN_FAILED",
+        severity: "medium",
+        user_id: null,
+        ip_address: deviceInfo.ip || null,
+        user_agent: deviceInfo.userAgent || null,
+        resource: "/api/auth/login",
+        metadata: {
+          email,
+          reason: "user_not_found"
+        }
+      });
+
+      throw new ServiceError(401, "Invalid credentials");
+    }
+
+    if (user.account_status !== "active") {
+      await logSecurityEvent({
+        event_type: "LOGIN_FAILED",
+        severity: "medium",
         user_id: user.user_id,
         ip_address: deviceInfo.ip || null,
         user_agent: deviceInfo.userAgent || null,
         resource: "/api/auth/login",
         metadata: {
-          email
+          email,
+          reason: "account_inactive"
+        }
+      });
+        throw new Error('Invalid credentials');
+      }
+      const tokens = await this.generateTokenPair(user, deviceInfo);
+
+      throw new ServiceError(403, "Account is not active");
+    }
+
+    const validPassword = await bcrypt.compare(password, user.password);
+
+    if (!validPassword) {
+      await logSecurityEvent({
+        event_type: "LOGIN_FAILED",
+        severity: "medium",
+        user_id: user.user_id,
+        ip_address: deviceInfo.ip || null,
+        user_agent: deviceInfo.userAgent || null,
+        resource: "/api/auth/login",
+        metadata: {
+          email,
+          reason: "invalid_password"
         }
       });
 
+      throw new ServiceError(401, "Invalid credentials");
+    }
+
+    const tokens = await this.generateTokenPair(user, deviceInfo);
+
+    await supabaseAnon
+      .from("users")
+      .update({ last_login: new Date().toISOString() })
+      .eq("user_id", user.user_id);
+
+    await this.logAuthAttempt(user.user_id, email, true, deviceInfo);
+
+    await logSecurityEvent({
+      event_type: "LOGIN_SUCCESS",
+      severity: "low",
+      user_id: user.user_id,
+      ip_address: deviceInfo.ip || null,
+      user_agent: deviceInfo.userAgent || null,
+      resource: "/api/auth/login",
+      metadata: {
+        email
       return this.formatAuthResponse(user, tokens);
     } catch (error) {
       await this.logAuthAttempt(null, email, false, deviceInfo);
       if (error instanceof ServiceError) {
         throw error;
       }
+    });
 
-      throw new ServiceError(401, error.message);
+    return {
+      success: true,
+      user: {
+        id: user.user_id,
+        email: user.email,
+        name: user.name,
+        role: user.user_roles?.role_name || "user"
+      },
+      ...tokens
+    };
+
+  } catch (error) {
+    await this.logAuthAttempt(null, email, false, deviceInfo);
+
+    if (error instanceof ServiceError) {
+      throw error;
     }
+
+    throw new ServiceError(401, error.message);
   }
+}
 
   async exchangeSupabaseToken({ supabaseAccessToken, provider = 'google' }, deviceInfo = {}) {
     let oauthEmail = null;
