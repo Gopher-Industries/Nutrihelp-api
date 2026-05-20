@@ -45,6 +45,7 @@
     "base64-arraybuffer": "^1.0.2",
     "bcrypt": "5.1.1",
     "bcryptjs": "2.4.3",
+    "chromadb": "^3.4.3",
     "cors": "2.8.5",
     "crypto": "1.0.1",
     "crypto-js": "^4.2.0",
