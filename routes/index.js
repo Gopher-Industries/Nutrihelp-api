@@ -51,4 +51,9 @@ module.exports = app => {
     // AI model routes (ported from NutriHelp-ai)
     app.use('/ai-model/chatbot', require('./ai/chatbot'));
     app.use('/ai-model/medical-report/plan', require('./ai/healthPlan'));
+    app.use('/ai-model/medical-report', require('./ai/medicalReport'));
+    app.use('/ai-model/image-analysis', require('./ai/imageAnalysis'));
+    app.use('/ai-model/meals', require('./ai/mealLog'));
+    app.use('/ai-model/meal-plan', require('./ai/mealPlan'));
+    app.use('/ai-model/chatbot-finetune', require('./ai/finetuneChat'));
 };
