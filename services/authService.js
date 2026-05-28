@@ -40,6 +40,29 @@ class AuthService {
       .slice(0, 16);
   }
 
+  createStoredTokenHash(token) {
+    return `sha256:${crypto
+      .createHash('sha256')
+      .update(token)
+      .digest('hex')}`;
+  }
+
+  async verifyStoredToken(token, storedHash) {
+    if (!token || !storedHash) return false;
+
+    if (String(storedHash).startsWith('sha256:')) {
+      const expected = this.createStoredTokenHash(token);
+      const expectedBuffer = Buffer.from(expected);
+      const storedBuffer = Buffer.from(String(storedHash));
+      return (
+        expectedBuffer.length === storedBuffer.length &&
+        crypto.timingSafeEqual(expectedBuffer, storedBuffer)
+      );
+    }
+
+    return bcrypt.compare(token, storedHash);
+  }
+
   hashDeviceFingerprint(deviceInfo = {}) {
     return crypto
       .createHash('sha256')
@@ -425,7 +448,7 @@ class AuthService {
         .eq('user_id', user.user_id);
 
       const rawRefreshToken = crypto.randomBytes(32).toString('hex');
-      const hashedRefreshToken = await bcrypt.hash(rawRefreshToken, 12);
+      const hashedRefreshToken = this.createStoredTokenHash(rawRefreshToken);
       const lookupHash = this.createLookupHash(rawRefreshToken);
       const expiresAt = new Date(Date.now() + this.refreshTokenExpiry);
 
@@ -488,7 +511,7 @@ class AuthService {
 
       const session = sessions[0];
 
-      const match = await bcrypt.compare(refreshToken, session.refresh_token);
+      const match = await this.verifyStoredToken(refreshToken, session.refresh_token);
       if (!match) throw new ServiceError(401, 'Invalid refresh token');
 
       if (new Date(session.expires_at) < new Date()) {
@@ -604,7 +627,7 @@ class AuthService {
   async issueTrustedDeviceToken(userId, deviceInfo = {}) {
     try {
       const rawTrustedToken = crypto.randomBytes(32).toString('hex');
-      const hashedTrustedToken = await bcrypt.hash(rawTrustedToken, 12);
+      const hashedTrustedToken = this.createStoredTokenHash(rawTrustedToken);
       const lookupHash = this.createLookupHash(rawTrustedToken);
       const expiresAt = new Date(Date.now() + this.trustedDeviceExpiry);
       const deviceFingerprint = this.hashDeviceFingerprint(deviceInfo);
@@ -670,7 +693,7 @@ class AuthService {
       }
 
       const trustedDevice = sessions[0];
-      const tokenMatches = await bcrypt.compare(rawToken, trustedDevice.refresh_token);
+      const tokenMatches = await this.verifyStoredToken(rawToken, trustedDevice.refresh_token);
       if (!tokenMatches) {
         return { valid: false, reason: 'invalid' };
       }

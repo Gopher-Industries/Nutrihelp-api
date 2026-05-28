@@ -141,7 +141,7 @@ const login = async (req, res) => {
         })
       );
 
-      await sendFailedLoginAlert(email, clientIp);
+      sendFailedLoginAlert(email, clientIp);
       // Privacy-preserving: surface the same shape as invalid credentials so
       // attackers can't enumerate accounts. Code stays distinct for ops/logs.
       return authFail(res, {
@@ -200,7 +200,7 @@ const login = async (req, res) => {
         });
       }
 
-      await sendFailedLoginAlert(email, clientIp);
+      sendFailedLoginAlert(email, clientIp);
       return authFail(res, {
         message: msg("auth.login.failed_credentials"),
         code: AUTH_ERROR_CODES.INVALID_CREDENTIALS,
@@ -439,6 +439,7 @@ const resendMfa = async (req, res) => {
 };
 
 async function sendFailedLoginAlert(email, ip) {
+  setImmediate(async () => {
   try {
     if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
       console.log(`[DEV] Failed login alert for ${email} from IP ${ip}`);
@@ -462,6 +463,7 @@ async function sendFailedLoginAlert(email, ip) {
   } catch (err) {
     console.error("Failed to send alert email:", err.message);
   }
+  });
 }
 
 module.exports = { login, loginMfa, resendMfa };
