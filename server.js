@@ -33,7 +33,25 @@ const systemRoutes = require('./routes/systemRoutes');
 const { metricsMiddleware, metricsEndpoint } = require('./Monitor_&_Logging/metrics');
 const { runAlertCheckJob } = require('./services/securityAlertService');
 
-const FRONTEND_ORIGIN = 'http://localhost:3000';
+const DEFAULT_CORS_ORIGINS = [
+  'http://localhost:3000',
+  'http://127.0.0.1:3000',
+];
+
+function parseCorsOrigins(value = '') {
+  return value
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+}
+
+const configuredCorsOrigins = parseCorsOrigins(
+  process.env.CORS_ORIGINS || process.env.CORS_ORIGIN || ''
+);
+const allowedCorsOrigins = new Set([
+  ...DEFAULT_CORS_ORIGINS,
+  ...configuredCorsOrigins,
+]);
 
 console.log('🔧 Environment Variables Check:');
 console.log('   SUPABASE_URL:', process.env.SUPABASE_URL ? '✓ Set' : '✗ Missing');
@@ -47,6 +65,11 @@ const HTTPS_PORT = Number(process.env.HTTPS_PORT) || 443;
 const HTTP_PORT = Number(process.env.HTTP_PORT || process.env.PORT) || 80;
 const tlsKeyPath = process.env.TLS_KEY_PATH || path.join(__dirname, 'certs', 'local-key.pem');
 const tlsCertPath = process.env.TLS_CERT_PATH || path.join(__dirname, 'certs', 'local-cert.pem');
+const appHttpsSetting = String(
+  process.env.APP_HTTPS_ENABLED || process.env.ENABLE_APP_HTTPS || 'auto'
+).trim().toLowerCase();
+const appHttpsExplicitlyEnabled = ['1', 'true', 'yes', 'on'].includes(appHttpsSetting);
+const appHttpsExplicitlyDisabled = ['0', 'false', 'no', 'off'].includes(appHttpsSetting);
 
 let db = require('./dbConnection');
 
@@ -88,23 +111,32 @@ app.use(sessionMonitorMiddleware);
 app.use(localeMiddleware);
 app.use(responseContractMiddleware);
 
-app.use(cors({
-  origin: (origin, callback) => {
-    if (!origin) return callback(null, true);
-    if (
+function isAllowedCorsOrigin(origin) {
+  if (!origin) return true;
+  if (allowedCorsOrigins.has('*') || allowedCorsOrigins.has(origin)) return true;
+
+  if (process.env.NODE_ENV !== 'production') {
+    return (
       origin.startsWith('http://localhost') ||
       origin.startsWith('http://127.0.0.1') ||
       origin.startsWith('chrome-extension://eggdlmopfankeonchoflhfoglaakobma') ||
       origin.startsWith('https://apifox.cn-hangzhou.log.aliyuncs.com')
-    ) {
-      callback(null, true);
-    } else {
-      callback(new Error(`CORS blocked: ${origin}`));
-    }
+    );
+  }
+
+  return false;
+}
+
+const corsOptions = {
+  origin: (origin, callback) => {
+    if (isAllowedCorsOrigin(origin)) return callback(null, true);
+    return callback(new Error(`CORS blocked: ${origin}`));
   },
   credentials: true,
-}));
-app.options('*', cors({ origin: FRONTEND_ORIGIN, credentials: true }));
+};
+
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Credentials', 'true');
   next();
@@ -204,13 +236,24 @@ function gracefulShutdown(signal) {
     alertIntervalId = null;
     console.log('[server] CT-004 Alert checking job stopped');
   }
-  httpsServer.close(() => process.exit(0));
+  activeServer.close(() => process.exit(0));
   setTimeout(() => process.exit(1), 10000).unref();
 }
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
 function createHttpsServer() {
+  if (appHttpsExplicitlyDisabled) {
+    return null;
+  }
+
+  if (
+    !appHttpsExplicitlyEnabled &&
+    (!fs.existsSync(tlsKeyPath) || !fs.existsSync(tlsCertPath))
+  ) {
+    return null;
+  }
+
   try {
     const tlsOptions = {
       key: fs.readFileSync(tlsKeyPath),
@@ -220,7 +263,7 @@ function createHttpsServer() {
     };
     return https.createServer(tlsOptions, app);
   } catch (error) {
-    if (process.env.NODE_ENV === 'production') {
+    if (appHttpsExplicitlyEnabled) {
       console.error('Failed to start HTTPS server with TLS 1.3 enforcement.');
       process.exit(1);
     }
