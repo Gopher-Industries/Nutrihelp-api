@@ -24,6 +24,7 @@ const { sessionHookOnLoginSuccess } = require("../services/sessionLogService");
 const authService = require("../services/authService");
 
 const EMAIL_TIMEOUT_MS = Number(process.env.EMAIL_TIMEOUT_MS) || 10000;
+const EMAIL_DNS_FAMILY = Number(process.env.EMAIL_DNS_FAMILY) || 4;
 
 function toBoolean(value, fallback = false) {
   if (value === undefined || value === null || value === "") return fallback;
@@ -47,6 +48,7 @@ function createMailTransporter() {
     connectionTimeout: EMAIL_TIMEOUT_MS,
     greetingTimeout: EMAIL_TIMEOUT_MS,
     socketTimeout: EMAIL_TIMEOUT_MS,
+    family: EMAIL_DNS_FAMILY,
   };
 
   if (hasSmtpConfig()) {
