@@ -23,13 +23,74 @@ const { msg } = require("../utils/messages");
 const { sessionHookOnLoginSuccess } = require("../services/sessionLogService");
 const authService = require("../services/authService");
 
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: process.env.GMAIL_USER,
-    pass: process.env.GMAIL_APP_PASSWORD,
-  },
-});
+const EMAIL_TIMEOUT_MS = Number(process.env.EMAIL_TIMEOUT_MS) || 10000;
+
+function toBoolean(value, fallback = false) {
+  if (value === undefined || value === null || value === "") return fallback;
+  return String(value).toLowerCase() === "true";
+}
+
+function hasSmtpConfig() {
+  return Boolean(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
+}
+
+function hasGmailConfig() {
+  return Boolean(process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD);
+}
+
+function isProductionRuntime() {
+  return process.env.NODE_ENV === "production" || process.env.RAILWAY_ENVIRONMENT === "production";
+}
+
+function createMailTransporter() {
+  const timeoutOptions = {
+    connectionTimeout: EMAIL_TIMEOUT_MS,
+    greetingTimeout: EMAIL_TIMEOUT_MS,
+    socketTimeout: EMAIL_TIMEOUT_MS,
+  };
+
+  if (hasSmtpConfig()) {
+    const port = Number(process.env.SMTP_PORT) || 587;
+    return nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port,
+      secure: toBoolean(process.env.SMTP_SECURE, port === 465),
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
+      },
+      ...timeoutOptions,
+    });
+  }
+
+  if (hasGmailConfig()) {
+    const port = Number(process.env.GMAIL_SMTP_PORT) || 587;
+    return nodemailer.createTransport({
+      host: process.env.GMAIL_SMTP_HOST || "smtp.gmail.com",
+      port,
+      secure: toBoolean(process.env.GMAIL_SMTP_SECURE, port === 465),
+      auth: {
+        user: process.env.GMAIL_USER,
+        pass: process.env.GMAIL_APP_PASSWORD,
+      },
+      ...timeoutOptions,
+    });
+  }
+
+  return null;
+}
+
+function getMailFromAddress() {
+  return (
+    process.env.MAIL_FROM ||
+    process.env.SMTP_FROM ||
+    process.env.SMTP_USER ||
+    process.env.GMAIL_USER ||
+    "no-reply@nutrihelp.local"
+  );
+}
+
+const transporter = createMailTransporter();
 
 function sanitizeUserForResponse(user) {
   if (!user) return user;
@@ -239,7 +300,21 @@ const login = async (req, res) => {
     if (user.mfa_enabled) {
       const mfaToken = crypto.randomInt(100000, 999999);
       await addMfaToken(user.user_id, mfaToken);
-      await sendOtpEmail(user.email, mfaToken);
+      try {
+        await sendOtpEmail(user.email, mfaToken);
+      } catch (emailErr) {
+        await invalidateMfaTokens(user.user_id).catch((invalidateErr) => {
+          logger.warn("Failed to invalidate MFA token after email error", {
+            error: invalidateErr.message,
+          });
+        });
+        logger.error("MFA email delivery failed", { error: emailErr.message });
+        return authFail(res, {
+          message: "Unable to send MFA token email. Please try again.",
+          code: AUTH_ERROR_CODES.MFA_RESEND_FAILED,
+          status: 503,
+        });
+      }
       return authOk(
         res,
         { mfaRequired: true, mfaChannel: "email" },
@@ -372,30 +447,30 @@ const loginMfa = async (req, res) => {
 };
 
 async function sendOtpEmail(email, token) {
-  try {
-    if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
+  if (!transporter) {
+    if (!isProductionRuntime()) {
       console.log(`📨 [DEV] MFA code for ${email}: ${token}`);
       return;
     }
 
-    await transporter.sendMail({
-      from: `"NutriHelp Security" <${process.env.GMAIL_USER}>`,
-      to: email,
-      subject: "NutriHelp Login Token",
-      text: `Your one-time login token is: ${token}\n\nThis token expires in 10 minutes.\n\nIf you did not request this, please ignore this email.\n\n- NutriHelp Security Team`,
-      html: `
-        <p>Your one-time login token is:</p>
-        <h2>${token}</h2>
-        <p>This token expires in <strong>10 minutes</strong>.</p>
-        <p>If you did not request this, please ignore this email.</p>
-        <br/>
-        <p>- NutriHelp Security Team</p>
-      `,
-    });
-    console.log("OTP email sent successfully to", email);
-  } catch (err) {
-    console.error("Error sending OTP email:", err.message);
+    throw new Error("Transactional email is not configured");
   }
+
+  await transporter.sendMail({
+    from: `"NutriHelp Security" <${getMailFromAddress()}>`,
+    to: email,
+    subject: "NutriHelp Login Token",
+    text: `Your one-time login token is: ${token}\n\nThis token expires in 10 minutes.\n\nIf you did not request this, please ignore this email.\n\n- NutriHelp Security Team`,
+    html: `
+      <p>Your one-time login token is:</p>
+      <h2>${token}</h2>
+      <p>This token expires in <strong>10 minutes</strong>.</p>
+      <p>If you did not request this, please ignore this email.</p>
+      <br/>
+      <p>- NutriHelp Security Team</p>
+    `,
+  });
+  console.log("OTP email sent successfully to", email);
 }
 
 const resendMfa = async (req, res) => {
@@ -421,7 +496,21 @@ const resendMfa = async (req, res) => {
 
     const token = crypto.randomInt(100000, 999999);
     await addMfaToken(user.user_id, token);
-    await sendOtpEmail(user.email, token);
+    try {
+      await sendOtpEmail(user.email, token);
+    } catch (emailErr) {
+      await invalidateMfaTokens(user.user_id).catch((invalidateErr) => {
+        logger.warn("Failed to invalidate resent MFA token after email error", {
+          error: invalidateErr.message,
+        });
+      });
+      logger.error("MFA resend email delivery failed", { error: emailErr.message });
+      return authFail(res, {
+        message: "Unable to send MFA token email. Please try again.",
+        code: AUTH_ERROR_CODES.MFA_RESEND_FAILED,
+        status: 503,
+      });
+    }
 
     return authOk(
       res,
@@ -440,29 +529,29 @@ const resendMfa = async (req, res) => {
 
 async function sendFailedLoginAlert(email, ip) {
   setImmediate(async () => {
-  try {
-    if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
-      console.log(`[DEV] Failed login alert for ${email} from IP ${ip}`);
-      return;
-    }
+    try {
+      if (!transporter) {
+        console.log(`[DEV] Failed login alert for ${email} from IP ${ip}`);
+        return;
+      }
 
-    await transporter.sendMail({
-      from: `"NutriHelp Security" <${process.env.GMAIL_USER}>`,
-      to: email,
-      subject: "Failed Login Attempt on NutriHelp",
-      text: `Hi,\n\nSomeone tried to log in to NutriHelp using your email address from IP: ${ip}.\n\nIf this wasn't you, please ignore this message. If you're concerned, consider resetting your password or contacting support.\n\n- NutriHelp Security Team`,
-      html: `
-        <p>Hi,</p>
-        <p>Someone tried to log in to <strong>NutriHelp</strong> using your email address from IP: <code>${ip}</code>.</p>
-        <p>If this wasn't you, please ignore this message. If you're concerned, consider resetting your password or contacting support.</p>
-        <br/>
-        <p>- NutriHelp Security Team</p>
-      `,
-    });
-    console.log(`Failed login alert sent to ${email}`);
-  } catch (err) {
-    console.error("Failed to send alert email:", err.message);
-  }
+      await transporter.sendMail({
+        from: `"NutriHelp Security" <${getMailFromAddress()}>`,
+        to: email,
+        subject: "Failed Login Attempt on NutriHelp",
+        text: `Hi,\n\nSomeone tried to log in to NutriHelp using your email address from IP: ${ip}.\n\nIf this wasn't you, please ignore this message. If you're concerned, consider resetting your password or contacting support.\n\n- NutriHelp Security Team`,
+        html: `
+          <p>Hi,</p>
+          <p>Someone tried to log in to <strong>NutriHelp</strong> using your email address from IP: <code>${ip}</code>.</p>
+          <p>If this wasn't you, please ignore this message. If you're concerned, consider resetting your password or contacting support.</p>
+          <br/>
+          <p>- NutriHelp Security Team</p>
+        `,
+      });
+      console.log(`Failed login alert sent to ${email}`);
+    } catch (err) {
+      console.error("Failed to send alert email:", err.message);
+    }
   });
 }
 

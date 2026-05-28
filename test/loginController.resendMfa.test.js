@@ -90,6 +90,6 @@ describe("loginController resendMfa", () => {
     await controller.resendMfa(req, res);
 
     expect(res.statusCode).to.equal(404);
-    expect(res.body.error).to.equal("MFA is not enabled for this account");
+    expect(res.body.error.message).to.equal("MFA is not enabled for this account");
   });
 });

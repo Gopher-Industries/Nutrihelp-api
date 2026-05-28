@@ -5,13 +5,74 @@ const nodemailer = require("nodemailer");
 const supabase = require("../dbConnection");
 const { ServiceError } = require("./serviceError");
 
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: process.env.GMAIL_USER,
-    pass: process.env.GMAIL_APP_PASSWORD,
-  },
-});
+const EMAIL_TIMEOUT_MS = Number(process.env.EMAIL_TIMEOUT_MS) || 10000;
+
+function toBoolean(value, fallback = false) {
+  if (value === undefined || value === null || value === "") return fallback;
+  return String(value).toLowerCase() === "true";
+}
+
+function hasSmtpConfig() {
+  return Boolean(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
+}
+
+function hasGmailConfig() {
+  return Boolean(process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD);
+}
+
+function isProductionRuntime() {
+  return process.env.NODE_ENV === "production" || process.env.RAILWAY_ENVIRONMENT === "production";
+}
+
+function createMailTransporter() {
+  const timeoutOptions = {
+    connectionTimeout: EMAIL_TIMEOUT_MS,
+    greetingTimeout: EMAIL_TIMEOUT_MS,
+    socketTimeout: EMAIL_TIMEOUT_MS,
+  };
+
+  if (hasSmtpConfig()) {
+    const port = Number(process.env.SMTP_PORT) || 587;
+    return nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port,
+      secure: toBoolean(process.env.SMTP_SECURE, port === 465),
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
+      },
+      ...timeoutOptions,
+    });
+  }
+
+  if (hasGmailConfig()) {
+    const port = Number(process.env.GMAIL_SMTP_PORT) || 587;
+    return nodemailer.createTransport({
+      host: process.env.GMAIL_SMTP_HOST || "smtp.gmail.com",
+      port,
+      secure: toBoolean(process.env.GMAIL_SMTP_SECURE, port === 465),
+      auth: {
+        user: process.env.GMAIL_USER,
+        pass: process.env.GMAIL_APP_PASSWORD,
+      },
+      ...timeoutOptions,
+    });
+  }
+
+  return null;
+}
+
+function getMailFromAddress() {
+  return (
+    process.env.MAIL_FROM ||
+    process.env.SMTP_FROM ||
+    process.env.SMTP_USER ||
+    process.env.GMAIL_USER ||
+    "no-reply@nutrihelp.local"
+  );
+}
+
+const transporter = createMailTransporter();
 
 const RESET_CODE_TTL_MS = 10 * 60 * 1000;
 const RESET_TOKEN_TTL_MS = 15 * 60 * 1000;
@@ -239,13 +300,16 @@ async function updatePassword(userId, hashedPassword) {
 }
 
 async function sendResetEmail(email, code) {
-  if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
-    console.log(`📨 [DEV] Password reset code for ${email}: ${code}`);
-    return;
+  if (!transporter) {
+    if (!isProductionRuntime()) {
+      console.log(`📨 [DEV] Password reset code for ${email}: ${code}`);
+      return;
+    }
+    throw new Error("Transactional email is not configured");
   }
 
   await transporter.sendMail({
-    from: `"NutriHelp Security" <${process.env.GMAIL_USER}>`,
+    from: `"NutriHelp Security" <${getMailFromAddress()}>`,
     to: email,
     subject: "NutriHelp password reset code",
     text:
