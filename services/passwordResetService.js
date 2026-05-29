@@ -1,6 +1,7 @@
 const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
 const nodemailer = require("nodemailer");
+const dns = require("dns").promises;
 
 const supabase = require("../dbConnection");
 const { ServiceError } = require("./serviceError");
@@ -25,43 +26,50 @@ function isProductionRuntime() {
   return process.env.NODE_ENV === "production" || process.env.RAILWAY_ENVIRONMENT === "production";
 }
 
-function createMailTransporter() {
-  const timeoutOptions = {
+function getTimeoutOptions() {
+  return {
     connectionTimeout: EMAIL_TIMEOUT_MS,
     greetingTimeout: EMAIL_TIMEOUT_MS,
     socketTimeout: EMAIL_TIMEOUT_MS,
     family: EMAIL_DNS_FAMILY,
   };
+}
 
+function getActiveEmailConfig() {
   if (hasSmtpConfig()) {
+    const host = process.env.SMTP_HOST;
     const port = Number(process.env.SMTP_PORT) || 587;
-    return nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
+    return {
+      host,
       port,
       secure: toBoolean(process.env.SMTP_SECURE, port === 465),
       auth: {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS,
       },
-      ...timeoutOptions,
-    });
+    };
   }
 
   if (hasGmailConfig()) {
+    const host = process.env.GMAIL_SMTP_HOST || "smtp.gmail.com";
     const port = Number(process.env.GMAIL_SMTP_PORT) || 587;
-    return nodemailer.createTransport({
-      host: process.env.GMAIL_SMTP_HOST || "smtp.gmail.com",
+    return {
+      host,
       port,
       secure: toBoolean(process.env.GMAIL_SMTP_SECURE, port === 465),
       auth: {
         user: process.env.GMAIL_USER,
         pass: process.env.GMAIL_APP_PASSWORD,
       },
-      ...timeoutOptions,
-    });
+    };
   }
 
   return null;
+}
+
+function createMailTransporter() {
+  const config = getActiveEmailConfig();
+  return config ? nodemailer.createTransport({ ...config, ...getTimeoutOptions() }) : null;
 }
 
 function getMailFromAddress() {
@@ -75,6 +83,61 @@ function getMailFromAddress() {
 }
 
 const transporter = createMailTransporter();
+
+function shouldRetryEmailWithIpv4(error) {
+  const message = String(error?.message || "");
+  return (
+    error?.code === "ENETUNREACH" ||
+    error?.code === "ETIMEDOUT" ||
+    message.includes("ENETUNREACH") ||
+    message.includes("Connection timeout")
+  );
+}
+
+async function sendMailWithIpv4Fallback(message) {
+  if (!transporter) {
+    throw new Error("Transactional email is not configured");
+  }
+
+  const config = getActiveEmailConfig();
+  if (toBoolean(process.env.EMAIL_FORCE_IPV4, false)) {
+    if (!config?.host) {
+      throw new Error("Transactional email is not configured");
+    }
+    const { address } = await dns.lookup(config.host, { family: 4 });
+    const ipv4Transporter = nodemailer.createTransport({
+      ...config,
+      host: address,
+      ...getTimeoutOptions(),
+      tls: {
+        ...(config.tls || {}),
+        servername: config.host,
+      },
+    });
+    return ipv4Transporter.sendMail(message);
+  }
+
+  try {
+    return await transporter.sendMail(message);
+  } catch (error) {
+    if (!config?.host || !shouldRetryEmailWithIpv4(error)) {
+      throw error;
+    }
+
+    const { address } = await dns.lookup(config.host, { family: 4 });
+    const ipv4Transporter = nodemailer.createTransport({
+      ...config,
+      host: address,
+      ...getTimeoutOptions(),
+      tls: {
+        ...(config.tls || {}),
+        servername: config.host,
+      },
+    });
+
+    return ipv4Transporter.sendMail(message);
+  }
+}
 
 const RESET_CODE_TTL_MS = 10 * 60 * 1000;
 const RESET_TOKEN_TTL_MS = 15 * 60 * 1000;
@@ -310,7 +373,7 @@ async function sendResetEmail(email, code) {
     throw new Error("Transactional email is not configured");
   }
 
-  await transporter.sendMail({
+  await sendMailWithIpv4Fallback({
     from: `"NutriHelp Security" <${getMailFromAddress()}>`,
     to: email,
     subject: "NutriHelp password reset code",
