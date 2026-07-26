@@ -3,11 +3,9 @@
  *
  * Covers:
  *   GET  /api/user/preferences/extended
- *   PUT  /api/user/preferences/extended        (health_context, ui_settings)
+ *   PUT  /api/user/preferences/extended
  *   GET  /api/user/preferences/extended/notifications
  *   PUT  /api/user/preferences/extended/notifications
- *
- * Valid and invalid payload variants are tested for each.
  */
 require('dotenv').config();
 const chai = require('chai');
@@ -19,22 +17,19 @@ chai.use(chaiHttp);
 
 const BASE = 'http://localhost:80';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Helpers
-// ─────────────────────────────────────────────────────────────────────────────
-
 async function getToken(testUser) {
   const res = await chai
     .request(BASE)
     .post('/api/login')
     .send({ email: testUser.email, password: 'testuser123' });
-  return res.body.token;
+
+  return res.body?.data?.token;
 }
 
 const VALID_HEALTH_CONTEXT = {
   allergies: [
     { referenceId: null, name: 'Peanuts', severity: 'severe', notes: 'Carries EpiPen' },
-    { referenceId: 1, name: 'Shellfish', severity: 'moderate', notes: null },
+    { referenceId: null, name: 'Shellfish', severity: 'moderate', notes: null },
   ],
   chronic_conditions: [
     { referenceId: null, name: 'Type 2 Diabetes', status: 'managed', notes: 'On metformin' },
@@ -43,7 +38,12 @@ const VALID_HEALTH_CONTEXT = {
     {
       name: 'Metformin',
       dosage: { amount: '500', unit: 'mg' },
-      frequency: { timesPerDay: 2, interval: null, schedule: ['morning', 'evening'], asNeeded: false },
+      frequency: {
+        timesPerDay: 2,
+        interval: null,
+        schedule: ['morning', 'evening'],
+        asNeeded: false,
+      },
       purpose: 'Blood sugar control',
       notes: null,
       active: true,
@@ -58,10 +58,6 @@ const VALID_NOTIFICATION_PREFS = {
   weeklyReports: true,
   systemUpdates: true,
 };
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Tests
-// ─────────────────────────────────────────────────────────────────────────────
 
 describe('GET /api/user/preferences/extended', () => {
   let testUser, token;
@@ -111,8 +107,6 @@ describe('GET /api/user/preferences/extended', () => {
       });
   });
 });
-
-// ─────────────────────────────────────────────────────────────────────────────
 
 describe('PUT /api/user/preferences/extended — valid payloads', () => {
   let testUser, token;
@@ -185,8 +179,6 @@ describe('PUT /api/user/preferences/extended — valid payloads', () => {
       });
   });
 });
-
-// ─────────────────────────────────────────────────────────────────────────────
 
 describe('PUT /api/user/preferences/extended — invalid payloads', () => {
   let testUser, token;
@@ -320,8 +312,6 @@ describe('PUT /api/user/preferences/extended — invalid payloads', () => {
   });
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
-
 describe('GET /api/user/preferences/extended/notifications', () => {
   let testUser, token;
 
@@ -342,7 +332,7 @@ describe('GET /api/user/preferences/extended/notifications', () => {
       .end((err, res) => {
         expect(res).to.have.status(200);
         expect(res.body).to.have.property('success', true);
-        const prefs = res.body.data;
+        const prefs = res.body.data.notification_preferences;
         ['mealReminders', 'waterReminders', 'healthTips', 'weeklyReports', 'systemUpdates'].forEach(
           (key) => expect(prefs).to.have.property(key)
         );
@@ -350,8 +340,6 @@ describe('GET /api/user/preferences/extended/notifications', () => {
       });
   });
 });
-
-// ─────────────────────────────────────────────────────────────────────────────
 
 describe('PUT /api/user/preferences/extended/notifications', () => {
   let testUser, token;
@@ -374,7 +362,7 @@ describe('PUT /api/user/preferences/extended/notifications', () => {
       .end((err, res) => {
         expect(res).to.have.status(200);
         expect(res.body).to.have.property('success', true);
-        const prefs = res.body.data;
+        const prefs = res.body.data.notification_preferences;
         expect(prefs.mealReminders).to.equal(false);
         expect(prefs.weeklyReports).to.equal(true);
         done();

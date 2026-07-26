@@ -10,7 +10,7 @@ const {
 // 0048151623426
 const checkAllergen = async (req, res) => {
   const { user_id } = req.body;
-  const code = req.query.code;
+  const code = req.body?.barcode || req.query.code;
 
   try {
     if (!code) {

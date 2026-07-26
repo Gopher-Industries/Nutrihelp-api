@@ -20,6 +20,8 @@ const routeGroups = [
       ['/api/home/services', './homeService'],
       ['/api/home/subscribe', './homeSubscribe'],
       ['/api/recipe', './recipe'],
+      ['/api/recipe-reviews', './recipeReviews'],
+      ['/api/recipe-library', './recipeLibrary'],
       ['/api/appointments', './appointment'],
       ['/api/mealplan', './mealplan'],
       ['/api/shopping-list', './shoppingList'],

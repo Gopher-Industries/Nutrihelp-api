@@ -33,7 +33,7 @@ async function createNotification(req, res) {
     const { data, error } = await supabase
       .from('notifications')
       .insert([{ user_id, type, content, status: 'unread' }])
-      .select('simple_id, type, content, status, created_at')
+      .select('simple_id, type, content, status, timestamp')
       .single();
 
     if (error) {
@@ -59,9 +59,9 @@ async function getNotificationsByUserId(req, res) {
 
     let query = supabase
       .from('notifications')
-      .select('simple_id, type, content, status, created_at')
+      .select('simple_id, type, content, status, timestamp')
       .eq('user_id', userId)
-      .order('created_at', { ascending: false });
+      .order('timestamp', { ascending: false });
 
     if (status) {
       query = query.eq('status', status);
@@ -115,7 +115,7 @@ async function updateNotificationStatusById(req, res) {
       .from('notifications')
       .update({ status })
       .eq('simple_id', id)
-      .select('simple_id, type, content, status, created_at')
+      .select('simple_id, type, content, status, timestamp')
       .single();
 
     if (error) {
@@ -153,7 +153,7 @@ async function deleteNotificationById(req, res) {
       .from('notifications')
       .delete()
       .eq('simple_id', id)
-      .select('simple_id, type, content, status, created_at')
+      .select('simple_id, type, content, status, timestamp')
       .single();
 
     if (error) {
@@ -192,7 +192,7 @@ async function markAllUnreadNotificationsAsRead(req, res) {
       .update({ status: 'read' })
       .eq('user_id', user_id)
       .eq('status', 'unread')
-      .select('simple_id, type, content, status, created_at');
+      .select('simple_id, type, content, status, timestamp');
 
     if (error) {
       throw error;

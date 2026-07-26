@@ -2,25 +2,76 @@ const supabase = require("../dbConnection.js");
 const { decode } = require("base64-arraybuffer");
 const { encrypt, decrypt } = require("../services/encryptionService");
 
+const LEGACY_HEX_TRIPLET_REGEX = /^[0-9a-f]+:[0-9a-f]+:[0-9a-f]+$/i;
+
+function parseEncryptedPayload(rawValue) {
+	if (typeof rawValue !== "string") return null;
+	const trimmed = rawValue.trim();
+	if (!trimmed.startsWith("{") || !trimmed.endsWith("}")) return null;
+
+	try {
+		const parsed = JSON.parse(trimmed);
+		if (
+			parsed &&
+			typeof parsed === "object" &&
+			typeof parsed.encrypted === "string" &&
+			typeof parsed.iv === "string" &&
+			typeof parsed.authTag === "string"
+		) {
+			return parsed;
+		}
+		return null;
+	} catch (_error) {
+		return null;
+	}
+}
+
+function looksLikeUndecryptedCiphertext(value) {
+	if (typeof value !== "string") return false;
+	const trimmed = value.trim();
+	if (!trimmed) return false;
+	if (LEGACY_HEX_TRIPLET_REGEX.test(trimmed)) return true;
+	return parseEncryptedPayload(trimmed) !== null;
+}
+
+async function maybeDecryptLegacyField(value) {
+	if (!value) return value;
+	const encryptedObj = parseEncryptedPayload(value);
+	if (!encryptedObj) return value;
+
+	try {
+		return await decrypt(encryptedObj.encrypted, encryptedObj.iv, encryptedObj.authTag);
+	} catch (_error) {
+		// If decryption fails, do not leak encrypted payload text to clients.
+		return null;
+	}
+}
+
 async function decryptSensitiveFields(profile) {
 	if (!profile) {
 		return profile;
 	}
 
-	const decryptedContact = profile.contact_number ? await (async () => {
-		const encryptedObj = JSON.parse(profile.contact_number);
-		return await decrypt(encryptedObj.encrypted, encryptedObj.iv, encryptedObj.authTag);
-	})() : profile.contact_number;
+	const decryptedContact = await maybeDecryptLegacyField(profile.contact_number);
+	const decryptedAddress = await maybeDecryptLegacyField(profile.address);
 
-	const decryptedAddress = profile.address ? await (async () => {
-		const encryptedObj = JSON.parse(profile.address);
-		return await decrypt(encryptedObj.encrypted, encryptedObj.iv, encryptedObj.authTag);
-	})() : profile.address;
+	const normalizedContact =
+		decryptedContact == null
+			? null
+			: looksLikeUndecryptedCiphertext(decryptedContact)
+				? null
+				: decryptedContact;
+	const normalizedAddress =
+		decryptedAddress == null
+			? null
+			: looksLikeUndecryptedCiphertext(decryptedAddress)
+				? null
+				: decryptedAddress;
 
 	return {
 		...profile,
-		contact_number: decryptedContact,
-		address: decryptedAddress,
+		contact_number: normalizedContact,
+		address: normalizedAddress,
 	};
 }
 
@@ -151,7 +202,7 @@ async function updateUser({ userId, attributes = {} }) {
 			const { data, error } = await supabase
 				.from("users")
 				.select(
-					"user_id,name,first_name,last_name,email,contact_number,mfa_enabled,address,image_id,registration_date,last_login,account_status,user_roles!left(role_name)"
+					"user_id,name,first_name,last_name,email,contact_number,mfa_enabled,address,image_id,registration_date,last_login,account_status,profile_encrypted,profile_encryption_iv,profile_encryption_auth_tag,profile_encryption_key_version,user_roles!left(role_name)"
 				)
 				.eq("user_id", userId)
 				.maybeSingle();
@@ -165,7 +216,7 @@ async function updateUser({ userId, attributes = {} }) {
 			.update(payload)
 			.eq("user_id", userId)
 			.select(
-				"user_id,name,first_name,last_name,email,contact_number,mfa_enabled,address,image_id,registration_date,last_login,account_status,user_roles!left(role_name)"
+				"user_id,name,first_name,last_name,email,contact_number,mfa_enabled,address,image_id,registration_date,last_login,account_status,profile_encrypted,profile_encryption_iv,profile_encryption_auth_tag,profile_encryption_key_version,user_roles!left(role_name)"
 			)
 			.maybeSingle();
 

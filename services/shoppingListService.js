@@ -14,6 +14,44 @@ function successResponse(statusCode, data) {
 }
 
 class ShoppingListService {
+  async assertShoppingListOwnership(shoppingListId, userId) {
+    const { data, error } = await supabase
+      .from('shopping_lists')
+      .select('id')
+      .eq('id', shoppingListId)
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (error) {
+      throw new ServiceError(500, 'Failed to verify shopping list ownership');
+    }
+
+    if (!data) {
+      throw new ServiceError(404, 'Shopping list not found');
+    }
+
+    return data;
+  }
+
+  async assertShoppingListItemOwnership(itemId, userId) {
+    const { data: item, error: itemError } = await supabase
+      .from('shopping_list_items')
+      .select('id, shopping_list_id')
+      .eq('id', itemId)
+      .maybeSingle();
+
+    if (itemError) {
+      throw new ServiceError(500, 'Failed to verify shopping list item ownership');
+    }
+
+    if (!item) {
+      throw new ServiceError(404, 'Shopping list item not found');
+    }
+
+    await this.assertShoppingListOwnership(item.shopping_list_id, userId);
+    return item;
+  }
+
   async getIngredientOptions(name) {
     if (!name) {
       throw new ServiceError(400, 'Ingredient name parameter is required');
@@ -248,7 +286,9 @@ class ShoppingListService {
     return successResponse(200, result);
   }
 
-  async updateShoppingListItem(id, updates) {
+  async updateShoppingListItem(id, userId, updates) {
+    await this.assertShoppingListItemOwnership(id, userId);
+
     const updateData = {};
     if (updates.purchased !== undefined) updateData.purchased = updates.purchased;
     if (updates.quantity !== undefined) updateData.quantity = updates.quantity;
@@ -269,9 +309,11 @@ class ShoppingListService {
   }
 
   async addShoppingListItem(item) {
-    if (!item.shoppingListId || !item.ingredientName) {
+    if (!item.userId || !item.shoppingListId || !item.ingredientName) {
       throw new ServiceError(400, 'Shopping list ID and ingredient name are required');
     }
+
+    await this.assertShoppingListOwnership(item.shoppingListId, item.userId);
 
     const itemData = {
       shopping_list_id: item.shoppingListId,
@@ -299,7 +341,9 @@ class ShoppingListService {
     return successResponse(201, data);
   }
 
-  async deleteShoppingListItem(id) {
+  async deleteShoppingListItem(id, userId) {
+    await this.assertShoppingListItemOwnership(id, userId);
+
     const { error } = await supabase
       .from('shopping_list_items')
       .delete()

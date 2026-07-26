@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { coreApp } = require('../controller');
+const { authenticateToken } = require('../middleware/authenticateToken');
 const {
   getIngredientOptionsValidation,
   generateFromMealPlanValidation,
@@ -15,19 +16,19 @@ const validate = require('../middleware/validateRequest.js');
 const controller = coreApp.shoppingList;
 
 // Planning helpers
-router.get('/ingredient-options', getIngredientOptionsValidation, validate, controller.getIngredientOptions);
-router.post('/from-meal-plan', generateFromMealPlanValidation, validate, controller.generateFromMealPlan);
+router.get('/ingredient-options', authenticateToken, getIngredientOptionsValidation, validate, controller.getIngredientOptions);
+router.post('/from-meal-plan', authenticateToken, generateFromMealPlanValidation, validate, controller.generateFromMealPlan);
 
 // Shopping list collection
 router.route('/')
-  .post(createShoppingListValidation, validate, controller.createShoppingList)
-  .get(getShoppingListValidation, validate, controller.getShoppingList);
+  .post(authenticateToken, createShoppingListValidation, validate, controller.createShoppingList)
+  .get(authenticateToken, getShoppingListValidation, validate, controller.getShoppingList);
 
 // Shopping list items
-router.post('/items', addShoppingListItemValidation, validate, controller.addShoppingListItem);
+router.post('/items', authenticateToken, addShoppingListItemValidation, validate, controller.addShoppingListItem);
 
 router.route('/items/:id')
-  .patch(updateShoppingListItemValidation, validate, controller.updateShoppingListItem)
-  .delete(deleteShoppingListItemValidation, validate, controller.deleteShoppingListItem);
+  .patch(authenticateToken, updateShoppingListItemValidation, validate, controller.updateShoppingListItem)
+  .delete(authenticateToken, deleteShoppingListItemValidation, validate, controller.deleteShoppingListItem);
 
 module.exports = router;

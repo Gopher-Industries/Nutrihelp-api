@@ -15,6 +15,9 @@ module.exports = app => {
     app.use('/api/community', require('./community'));
 
     app.use("/api/recipe", require('./recipe'));
+    app.use("/api/admin", require('./adminUserRole'));
+    app.use("/api/recipe-library", require('./recipeLibrary'));
+    app.use("/api/recipe-reviews", require('./recipeReviews'));
     app.use("/api/appointments", require('./appointment'));
     app.use("/api/imageClassification", require('./imageClassification'));
     app.use("/api/recipeImageClassification", require('./recipeImageClassification'));
@@ -47,4 +50,14 @@ module.exports = app => {
     app.use('/api/security', require('./securityEvents'));
     app.use('/api/recommendations', require('./recommendations'));
     app.use('/api/meal-plan', require('./mealPlanAIRoutes'));
+};
+
+    // AI model routes (ported from NutriHelp-ai)
+    app.use('/ai-model/chatbot', require('./ai/chatbot'));
+    app.use('/ai-model/medical-report/plan', require('./ai/healthPlan'));
+    app.use('/ai-model/medical-report', require('./ai/medicalReport'));
+    app.use('/ai-model/image-analysis', require('./ai/imageAnalysis'));
+    app.use('/ai-model/meals', require('./ai/mealLog'));
+    app.use('/ai-model/meal-plan', require('./ai/mealPlan'));
+    app.use('/ai-model/chatbot-finetune', require('./ai/finetuneChat'));
 };

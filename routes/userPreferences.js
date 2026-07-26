@@ -4,8 +4,9 @@ const controller = require("../controller/userPreferencesController");
 const { authenticateToken } = require("../middleware/authenticateToken");
 const {
   validateUserPreferences,
-  validateHealthContext,
+  validateExtendedUserPreferences,
   validateNotificationPreferences,
+  validateUiSettings,
 } = require("../validators/userPreferencesValidator");
 const ValidateRequest = require("../middleware/validateRequest");
 
@@ -24,11 +25,11 @@ router.post(
 // GET /api/user/preferences/extended — authenticated user reads full health-context + food prefs
 router.get("/extended", authenticateToken, controller.getExtendedUserPreferences);
 
-// PUT /api/user/preferences/extended — authenticated user updates health-context
+// PUT /api/user/preferences/extended — authenticated user updates canonical preferences payload
 router.put(
   "/extended",
   authenticateToken,
-  validateHealthContext,
+  validateExtendedUserPreferences,
   ValidateRequest,
   controller.updateExtendedUserPreferences
 );
@@ -47,6 +48,22 @@ router.put(
   validateNotificationPreferences,
   ValidateRequest,
   controller.updateNotificationPreferences
+);
+
+// GET /api/user/preferences/extended/ui-settings — authenticated user reads ui settings
+router.get(
+  "/extended/ui-settings",
+  authenticateToken,
+  controller.getUiSettings
+);
+
+// PUT /api/user/preferences/extended/ui-settings — authenticated user updates ui settings
+router.put(
+  "/extended/ui-settings",
+  authenticateToken,
+  validateUiSettings,
+  ValidateRequest,
+  controller.updateUiSettings
 );
 
 module.exports = router;

@@ -39,15 +39,11 @@ async function saveMealRelation(user_id, plan, savedDataId) {
 }
 
 async function get(user_id) {
-    const recipeQuery = 'id,recipe_name,description,ingredients,image_id,total_servings,' +
-        '...cuisine_id(cuisine:name),' +
-        '...cooking_method_id(cooking_method:name),' +
-        'preparation_time,calories,fat,carbohydrates,protein,fiber,' +
-        'vitamin_a,vitamin_b,vitamin_c,vitamin_d,sodium,sugar,allergy,dislike'
     try {
         let query = supabase
             .from('recipe_meal')
-            .select('mealplan_id(id,meal_type,created_at),recipe_id,' + recipeQuery)
+            // Keep query aligned with recipe_meal schema; recipe fields are fetched elsewhere.
+            .select('mealplan_id(id,meal_type,created_at),recipe_id')
             .eq('user_id', user_id);
 
         let { data, error } = await query;

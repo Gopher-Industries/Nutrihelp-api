@@ -2,32 +2,67 @@ const express = require('express');
 const router = express.Router();
 const { checkFileIntegrity, generateBaseline } = require('../tools/integrity/integrityService');
 const testErrorRouter = require('./testError');
+const authService = require('../services/authService');
 const { authenticateToken } = require('../middleware/authenticateToken');
 const authorizeRoles = require('../middleware/authorizeRoles');
 const {
   createBlockMiddleware,
+  getActiveBlocks,
+  getClientIp,
+  unblockIp,
 } = require('../services/securityEvents/securityResponseService');
-const { buildOverview } = require('../services/integrationAuditService');
-const {
-  getLiveOverview,
-  getLiveAuditState,
-} = require('../services/liveAuditService');
 
-function isLocalRequest(req) {
-  const ip = req.ip || req.connection?.remoteAddress || '';
-  const forwarded = req.headers['x-forwarded-for'] || '';
-  const candidates = [ip, forwarded]
-    .flatMap((value) => String(value || '').split(','))
-    .map((value) => value.trim())
-    .filter(Boolean);
+const ADMIN_RECOVERY_HEADER = 'x-system-recovery-key';
 
-  return candidates.some((value) =>
-    value === '127.0.0.1'
-    || value === '::1'
-    || value === '::ffff:127.0.0.1'
-    || value.startsWith('192.168.')
-    || value.startsWith('10.')
-  );
+function parseBearerToken(authHeader = '') {
+  const parts = String(authHeader).split(' ');
+  if (parts.length !== 2 || parts[0] !== 'Bearer') return null;
+  return parts[1];
+}
+
+function authorizeAdminOrRecovery(req, res, next) {
+  const expectedRecoveryKey = String(process.env.SYSTEM_RECOVERY_KEY || '').trim();
+  const providedRecoveryKey = String(req.headers[ADMIN_RECOVERY_HEADER] || '').trim();
+
+  if (expectedRecoveryKey && providedRecoveryKey && providedRecoveryKey === expectedRecoveryKey) {
+    req.systemAuthMode = 'recovery_key';
+    return next();
+  }
+
+  const token = parseBearerToken(req.headers.authorization);
+  if (!token) {
+    return res.status(401).json({
+      success: false,
+      error: 'Missing authentication token or recovery key',
+      code: 'AUTH_REQUIRED',
+    });
+  }
+
+  try {
+    const decoded = authService.verifyAccessToken(token);
+    const role = String(decoded?.role || '').trim().toLowerCase();
+    if (decoded?.type !== 'access' || role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        error: 'Admin privileges are required',
+        code: 'FORBIDDEN',
+      });
+    }
+
+    req.user = {
+      userId: decoded.userId,
+      email: decoded.email,
+      role: decoded.role,
+    };
+    req.systemAuthMode = 'admin_token';
+    return next();
+  } catch (_error) {
+    return res.status(401).json({
+      success: false,
+      error: 'Invalid or expired access token',
+      code: 'TOKEN_INVALID',
+    });
+  }
 }
 
 // Public health check (no auth required)
@@ -42,91 +77,57 @@ router.get('/health', (req, res) => {
   });
 });
 
-if (process.env.NODE_ENV !== 'production') {
-  router.get('/dev/live-audit/overview', async (req, res) => {
-    if (!isLocalRequest(req)) {
-      return res.status(403).json({
-        success: false,
-        error: 'This development endpoint is restricted to local requests.',
-        code: 'LOCAL_ONLY_ENDPOINT',
-      });
-    }
+/**
+ * @swagger
+ * /api/system/unblock-ip:
+ *   post:
+ *     summary: Remove temporary security IP block
+ *     tags: [System]
+ *     description: |
+ *       Accepts either admin Bearer token or x-system-recovery-key header.
+ *       If body.ip is not provided, the caller IP is used.
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               ip:
+ *                 type: string
+ *                 example: 203.0.113.1
+ *     responses:
+ *       200:
+ *         description: IP unblocked
+ *       404:
+ *         description: IP is not currently blocked
+ */
+router.post('/unblock-ip', authorizeAdminOrRecovery, (req, res) => {
+  const explicitIp = typeof req.body?.ip === 'string' ? req.body.ip.trim() : '';
+  const targetIp = explicitIp || getClientIp(req);
+  const result = unblockIp(targetIp);
 
-    try {
-      const overview = await getLiveOverview();
-      res.status(200).json({
-        success: true,
-        data: overview,
-        meta: {
-          mode: 'dev-live',
-        },
-      });
-    } catch (error) {
-      res.status(500).json({
-        success: false,
-        error: 'Failed to build live integration audit overview',
-        code: 'LIVE_AUDIT_FAILED',
-        details: error.message,
-      });
-    }
+  if (!result.unblocked) {
+    return res.status(404).json({
+      success: false,
+      code: result.reason,
+      message: `IP ${result.ip || targetIp} is not currently blocked`,
+      ip: result.ip || targetIp,
+      authMode: req.systemAuthMode,
+      activeBlocks: getActiveBlocks().length,
+    });
+  }
+
+  return res.status(200).json({
+    success: true,
+    code: result.reason,
+    message: `IP ${result.ip} has been unblocked`,
+    ip: result.ip,
+    releasedBlock: result.block,
+    authMode: req.systemAuthMode,
+    activeBlocks: getActiveBlocks().length,
   });
-
-  router.post('/dev/live-audit/run', async (req, res) => {
-    if (!isLocalRequest(req)) {
-      return res.status(403).json({
-        success: false,
-        error: 'This development endpoint is restricted to local requests.',
-        code: 'LOCAL_ONLY_ENDPOINT',
-      });
-    }
-
-    try {
-      const overview = await getLiveOverview({ force: true });
-      res.status(200).json({
-        success: true,
-        data: overview,
-        meta: {
-          mode: 'dev-live-refresh',
-        },
-      });
-    } catch (error) {
-      res.status(500).json({
-        success: false,
-        error: 'Failed to refresh live integration audit overview',
-        code: 'LIVE_AUDIT_REFRESH_FAILED',
-        details: error.message,
-      });
-    }
-  });
-
-  router.get('/dev/integration-audit/overview', async (req, res) => {
-    if (!isLocalRequest(req)) {
-      return res.status(403).json({
-        success: false,
-        error: 'This development endpoint is restricted to local requests.',
-        code: 'LOCAL_ONLY_ENDPOINT',
-      });
-    }
-
-    try {
-      const overview = await buildOverview();
-      res.status(200).json({
-        success: true,
-        data: overview,
-        meta: {
-          mode: 'dev-local',
-        },
-      });
-    } catch (error) {
-      res.status(500).json({
-        success: false,
-        error: 'Failed to build integration audit overview',
-        code: 'INTEGRATION_AUDIT_FAILED',
-        details: error.message,
-      });
-    }
-  });
-}
+});
 
 // All routes below require auth + admin role
 router.use(createBlockMiddleware());
@@ -200,112 +201,6 @@ router.get('/integrity-check', (req, res) => {
 if (process.env.NODE_ENV !== 'production') {
   router.use('/test-error', testErrorRouter);
 }
-
-router.get('/integration-audit/overview', async (req, res) => {
-  try {
-    const overview = await buildOverview();
-    res.status(200).json({
-      success: true,
-      data: overview,
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: 'Failed to build integration audit overview',
-      code: 'INTEGRATION_AUDIT_FAILED',
-      details: process.env.NODE_ENV === 'production' ? undefined : error.message,
-    });
-  }
-});
-
-router.get('/live-audit/overview', async (req, res) => {
-  try {
-    const overview = await getLiveOverview();
-    res.status(200).json({
-      success: true,
-      data: overview,
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: 'Failed to build live integration audit overview',
-      code: 'LIVE_AUDIT_FAILED',
-      details: process.env.NODE_ENV === 'production' ? undefined : error.message,
-    });
-  }
-});
-
-router.post('/live-audit/run', async (req, res) => {
-  try {
-    const overview = await getLiveOverview({ force: true });
-    res.status(200).json({
-      success: true,
-      data: overview,
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: 'Failed to refresh live integration audit overview',
-      code: 'LIVE_AUDIT_REFRESH_FAILED',
-      details: process.env.NODE_ENV === 'production' ? undefined : error.message,
-    });
-  }
-});
-
-router.get('/live-audit/state', async (req, res) => {
-  try {
-    res.status(200).json({
-      success: true,
-      data: getLiveAuditState(),
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: 'Failed to load live audit state',
-      code: 'LIVE_AUDIT_STATE_FAILED',
-      details: process.env.NODE_ENV === 'production' ? undefined : error.message,
-    });
-  }
-});
-
-router.get('/integration-audit/routes', async (req, res) => {
-  try {
-    const overview = await buildOverview();
-    res.status(200).json({
-      success: true,
-      data: {
-        routeAudit: overview.routeAudit,
-        unusedRoutes: overview.unusedRoutes,
-      },
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: 'Failed to load route audit data',
-      code: 'INTEGRATION_AUDIT_FAILED',
-      details: process.env.NODE_ENV === 'production' ? undefined : error.message,
-    });
-  }
-});
-
-router.get('/integration-audit/errors', async (req, res) => {
-  try {
-    const overview = await buildOverview();
-    res.status(200).json({
-      success: true,
-      data: {
-        recentErrors: overview.recentErrors,
-      },
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: 'Failed to load recent errors',
-      code: 'INTEGRATION_AUDIT_FAILED',
-      details: process.env.NODE_ENV === 'production' ? undefined : error.message,
-    });
-  }
-});
 
 
 module.exports = router;

@@ -66,4 +66,30 @@ describe('securityResponseService', () => {
     expect(logoutAllStub.firstCall.args[0]).to.equal('user-123');
     expect(securityResponseService.getActiveBlock(req)?.eventType).to.equal('rbac_violation');
   });
+
+  it('can manually unblock a blocked IP', async () => {
+    const req = {
+      path: '/api/system/integrity-check',
+      headers: {
+        'x-forwarded-for': '203.0.113.55',
+        'user-agent': 'mocha-test',
+      },
+    };
+
+    for (let i = 0; i < 8; i += 1) {
+      await securityResponseService.registerAuthFailure(req, {
+        reason: 'TOKEN_INVALID',
+      });
+    }
+
+    const before = securityResponseService.getActiveBlock(req);
+    expect(before).to.not.equal(null);
+
+    const unblocked = securityResponseService.unblockIp('203.0.113.55');
+    expect(unblocked.unblocked).to.equal(true);
+    expect(unblocked.reason).to.equal('UNBLOCKED');
+
+    const after = securityResponseService.getActiveBlock(req);
+    expect(after).to.equal(null);
+  });
 });
