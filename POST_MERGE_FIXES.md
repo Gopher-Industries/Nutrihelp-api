@@ -1,3 +1,4 @@
+# Post-merge fixes — review feedback round 1
 # Post-merge fixes — review feedback (round 1 + round 2)
 
 The reviewer flagged three classes of issue after merging `feat/support-consolidation` into a local copy of `master`. None of them were merge conflicts — they were latent issues in the merged code/test setup. All three are fixed in this update.
@@ -51,6 +52,13 @@ FAIL security/test.js — Your test suite must contain at least one test
 
 **Fix:** added `/security/` to `testPathIgnorePatterns` in `jest.config.js`. The script remains usable as a CLI tool (`node security/test.js`) but Jest no longer tries to run it.
 
+## Net diff this round
+
+```
+modified:  services/aiExecutionService.js   (-18 lines, removed duplicate stub)
+modified:  jest.config.js                   (+25 lines, ignore patterns + integration toggle)
+modified:  package.json                     (+1 line,  test:integration script)
+new:       POST_MERGE_FIXES.md              (this file)
 ---
 
 # Round 2 — additional reviewer feedback
