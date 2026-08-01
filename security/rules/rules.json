@@ -1,0 +1,57 @@
+[
+  {
+    "id": "NH001",
+    "name": "Weak Hashing Algorithm",
+    "description": "Detects the use of weak hashing algorithms.",
+    "pattern": "md5|sha1",
+    "severity": "High",
+    "confidence": "High",
+    "cwe": "CWE-327",
+    "owasp": "A02:2021",
+    "recommendation": "Use bcrypt or Argon2 instead."
+  },
+  {
+    "id": "NH002",
+    "name": "Hardcoded Password",
+    "description": "Detects hardcoded passwords within source code.",
+    "pattern": "password\\s*=\\s*['\\\"].+['\\\"]",
+    "severity": "High",
+    "confidence": "Medium",
+    "cwe": "CWE-798",
+    "owasp": "A07:2021",
+    "recommendation": "Store credentials securely using environment variables or a secrets manager."
+  },
+  {
+    "id": "NH003",
+    "name": "Potential SQL Injection",
+    "description": "Detects SQL queries built using string concatenation.",
+    "pattern": "SELECT.*\\+|INSERT.*\\+|UPDATE.*\\+|DELETE.*\\+",
+    "severity": "Critical",
+    "confidence": "Medium",
+    "cwe": "CWE-89",
+    "owasp": "A03:2021",
+    "recommendation": "Use parameterised queries or prepared statements."
+  },
+  {
+    "id": "NH004",
+    "name": "Use of eval()",
+    "description": "Detects the use of JavaScript eval().",
+    "pattern": "eval\\s*\\(",
+    "severity": "High",
+    "confidence": "High",
+    "cwe": "CWE-95",
+    "owasp": "A03:2021",
+    "recommendation": "Avoid eval() and use safer alternatives."
+  },
+  {
+    "id": "NH005",
+    "name": "Operating System Command Execution",
+    "description": "Detects the use of child_process functions that execute operating system commands.",
+    "pattern": "(?:\\bchild_process\\s*\\.\\s*(?:exec|execSync|spawn|spawnSync|execFile|execFileSync)|(?<![.\\w$])(?:exec|execSync|spawn|spawnSync|execFile|execFileSync))\\s*\\(",
+    "severity": "Critical",
+    "confidence": "High",
+    "cwe": "CWE-78",
+    "owasp": "A03:2021",
+    "recommendation": "Validate all user input and avoid executing operating system commands unless absolutely necessary."
+  }
+]
