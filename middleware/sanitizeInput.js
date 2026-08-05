@@ -29,6 +29,6 @@ function sanitizeInput(req, res, next) {
   if (req.params) req.params = clean(req.params);
   
   next();
-}
+}   
 
 module.exports = sanitizeInput;
