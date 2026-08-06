@@ -1,4 +1,5 @@
 const fs = require("fs");
+const path = require("path");
 
 class AnalysisEngine {
     constructor(rules) {
@@ -16,6 +17,12 @@ class AnalysisEngine {
         return findings;
     }
 
+    createSafeMatchedText(filePath, lineNumber) {
+        const fileName = path.basename(filePath);
+
+        return `Source content redacted. Review ${fileName} at line ${lineNumber}.`;
+    }
+
     analyseFile(filePath) {
         const findings = [];
 
@@ -27,11 +34,13 @@ class AnalysisEngine {
 
             lines.forEach((line, index) => {
                 const trimmedLine = line.trim();
+                const lineNumber = index + 1;
 
                 if (insideBlockComment) {
                     if (trimmedLine.includes("*/")) {
                         insideBlockComment = false;
                     }
+
                     return;
                 }
 
@@ -39,6 +48,7 @@ class AnalysisEngine {
                     if (!trimmedLine.includes("*/")) {
                         insideBlockComment = true;
                     }
+
                     return;
                 }
 
@@ -56,10 +66,13 @@ class AnalysisEngine {
                     if (pattern.test(line)) {
                         findings.push({
                             file: filePath,
-                            line: index + 1,
+                            line: lineNumber,
                             ruleId: rule.id,
                             ruleName: rule.name,
-                            matchedText: trimmedLine,
+                            matchedText: this.createSafeMatchedText(
+                                filePath,
+                                lineNumber
+                            ),
                             severity: rule.severity,
                             confidence: rule.confidence,
                             cwe: rule.cwe,
@@ -70,7 +83,9 @@ class AnalysisEngine {
                 });
             });
         } catch (error) {
-            console.error(`Unable to analyse ${filePath}: ${error.message}`);
+            console.error(
+                `Unable to analyse ${filePath}: ${error.message}`
+            );
         }
 
         return findings;
