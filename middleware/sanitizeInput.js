@@ -1,13 +1,10 @@
-// middleware/sanitizeInput.js
 const sanitizeHtml = require('sanitize-html');
 
 const SANITIZE_OPTIONS = {
-  allowedTags: [], // Strip all HTML tags
-  allowedAttributes: {}, // Strip all attributes
-  nonTextTags: ['script', 'style', 'textarea', 'noscript', 'iframe'] // Wipe script tags and their content
+  allowedTags: [],
+  allowedAttributes: {}
 };
 
-// Simple helper to clean strings, objects, or arrays
 function clean(data) {
   if (typeof data === 'string') {
     return sanitizeHtml(data, SANITIZE_OPTIONS);
@@ -24,11 +21,19 @@ function clean(data) {
 }
 
 function sanitizeInput(req, res, next) {
+  const before = JSON.stringify(req.body || {});
+
   if (req.body) req.body = clean(req.body);
   if (req.query) req.query = clean(req.query);
   if (req.params) req.params = clean(req.params);
-  
+
+  const after = JSON.stringify(req.body || {});
+
+  if (before !== after) {
+    console.log(`⚠️  Input sanitized on ${req.method} ${req.originalUrl} (IP: ${req.ip})`);
+  }
+
   next();
-}   
+}
 
 module.exports = sanitizeInput;
