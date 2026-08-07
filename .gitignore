@@ -20,3 +20,5 @@ node_modules
 *.crt
 *.p12
 certs/
+logs/
+security/output/
