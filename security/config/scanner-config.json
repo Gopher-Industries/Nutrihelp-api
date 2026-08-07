@@ -1,0 +1,26 @@
+{
+  "scanDirectories": [
+    "controller",
+    "middleware",
+    "repositories",
+    "routes",
+    "services",
+    "validators",
+    "utils",
+    "security",
+    "src"
+  ],
+  "excludedDirectories": [
+    "node_modules",
+    "logs",
+    "uploads",
+    "docs",
+    "technical_docs",
+    "tests",
+    "cypress",
+    "Vulnerability_Tool"
+  ],
+  "supportedExtensions": [
+    ".js"
+  ]
+}
