@@ -4,11 +4,12 @@ const monitor = require('./aiServiceMonitor');
 
 const DEFAULT_TIMEOUT_MS = 30000;
 const DEFAULT_PYTHON_COMMAND = process.env.PYTHON_BIN || 'python3';
-const DEFAULT_MAX_RETRIES = 1;        // 1 retry = 2 total attempts
+const DEFAULT_MAX_RETRIES = 1; // 1 retry = 2 total attempts
 const RETRY_DELAY_MS = 500;
 
 function tryParseJson(value) {
   if (!value) return null;
+
   try {
     return JSON.parse(value);
   } catch {
@@ -16,14 +17,24 @@ function tryParseJson(value) {
   }
 }
 
-function normalizeResult({ stdout, stderr, exitCode, timedOut, scriptPath, timeoutMs }) {
+function normalizeResult({
+  stdout,
+  stderr,
+  exitCode,
+  timedOut,
+  scriptPath,
+  timeoutMs,
+}) {
   const parsedStdout = tryParseJson(stdout.trim());
   const parsedStderr = tryParseJson(stderr.trim());
   const parsedPayload = parsedStdout || parsedStderr;
 
   if (parsedPayload) {
     return {
-      success: !timedOut && exitCode === 0 && parsedPayload.success !== false,
+      success:
+        !timedOut &&
+        exitCode === 0 &&
+        parsedPayload.success !== false,
       prediction: parsedPayload.prediction ?? null,
       confidence: parsedPayload.confidence ?? null,
       error: parsedPayload.error || null,
@@ -52,7 +63,12 @@ function normalizeResult({ stdout, stderr, exitCode, timedOut, scriptPath, timeo
       stderr,
       exitCode,
       timedOut,
-      data: { success: true, prediction: trimmedStdout, confidence: null, error: null },
+      data: {
+        success: true,
+        prediction: trimmedStdout,
+        confidence: null,
+        error: null,
+      },
     };
   }
 
@@ -62,7 +78,9 @@ function normalizeResult({ stdout, stderr, exitCode, timedOut, scriptPath, timeo
     confidence: null,
     error: timedOut
       ? `AI script timed out after ${timeoutMs}ms`
-      : trimmedStderr || trimmedStdout || `AI script failed: ${path.basename(scriptPath)}`,
+      : trimmedStderr ||
+        trimmedStdout ||
+        `AI script failed: ${path.basename(scriptPath)}`,
     metadata: null,
     warnings: [],
     stdout,
@@ -74,7 +92,8 @@ function normalizeResult({ stdout, stderr, exitCode, timedOut, scriptPath, timeo
 }
 
 /**
- * Execute a single Python script invocation. Returns a normalised result.
+ * Execute a single Python script invocation.
+ * Returns a normalised result and never throws.
  */
 function _spawnOnce({
   scriptPath,
@@ -87,15 +106,29 @@ function _spawnOnce({
 }) {
   return new Promise((resolve) => {
     let pythonProcess;
+    let stdout = '';
+    let stderr = '';
+    let timedOut = false;
+    let settled = false;
+
+    const resolveOnce = (result) => {
+      if (settled) return;
+      settled = true;
+      resolve(result);
+    };
 
     try {
-      pythonProcess = childProcess.spawn(pythonCommand, [scriptPath, ...args], {
-        cwd,
-        env,
-        stdio: ['pipe', 'pipe', 'pipe'],
-      });
+      pythonProcess = childProcess.spawn(
+        pythonCommand,
+        [scriptPath, ...args],
+        {
+          cwd,
+          env,
+          stdio: ['pipe', 'pipe', 'pipe'],
+        }
+      );
     } catch (spawnError) {
-      return resolve({
+      return resolveOnce({
         success: false,
         prediction: null,
         confidence: null,
@@ -110,21 +143,38 @@ function _spawnOnce({
       });
     }
 
-    let stdout = '';
-    let stderr = '';
-    let timedOut = false;
-
     const timeoutHandle = setTimeout(() => {
       timedOut = true;
-      try { pythonProcess.kill('SIGKILL'); } catch (_) {}
+
+      try {
+        pythonProcess.kill('SIGKILL');
+      } catch {
+        // Best-effort process termination.
+      }
     }, timeoutMs);
 
-    pythonProcess.stdout.on('data', (chunk) => { stdout += chunk.toString(); });
-    pythonProcess.stderr.on('data', (chunk) => { stderr += chunk.toString(); });
+    pythonProcess.stdout.on('data', (chunk) => {
+      stdout += chunk.toString();
+    });
+
+    pythonProcess.stderr.on('data', (chunk) => {
+      stderr += chunk.toString();
+    });
+
+    /*
+     * Prevent EPIPE/write EOF errors from crashing Node when the Python
+     * process exits before all input bytes have been written.
+     */
+    pythonProcess.stdin.on('error', (error) => {
+      stderr += stderr
+        ? `\nPython stdin error: ${error.message}`
+        : `Python stdin error: ${error.message}`;
+    });
 
     pythonProcess.on('error', (error) => {
       clearTimeout(timeoutHandle);
-      resolve({
+
+      resolveOnce({
         success: false,
         prediction: null,
         confidence: null,
@@ -132,7 +182,9 @@ function _spawnOnce({
         metadata: null,
         warnings: [],
         stdout,
-        stderr: stderr ? `${stderr}\n${error.message}` : error.message,
+        stderr: stderr
+          ? `${stderr}\n${error.message}`
+          : error.message,
         exitCode: null,
         timedOut: false,
         data: null,
@@ -141,26 +193,39 @@ function _spawnOnce({
 
     pythonProcess.on('close', (exitCode) => {
       clearTimeout(timeoutHandle);
-      const normalized = normalizeResult({ stdout, stderr, exitCode, timedOut, scriptPath, timeoutMs });
-      resolve(normalized);
+
+      resolveOnce(
+        normalizeResult({
+          stdout,
+          stderr,
+          exitCode,
+          timedOut,
+          scriptPath,
+          timeoutMs,
+        })
+      );
     });
 
-    if (stdin !== null && stdin !== undefined) {
-      try { pythonProcess.stdin.write(stdin); } catch (_) {}
+    /*
+     * end(stdin) writes the data and closes the stream in one operation.
+     * This is safer than calling write() followed by end().
+     */
+    try {
+      if (stdin !== null && stdin !== undefined) {
+        pythonProcess.stdin.end(stdin);
+      } else {
+        pythonProcess.stdin.end();
+      }
+    } catch (error) {
+      stderr += stderr
+        ? `\nPython stdin error: ${error.message}`
+        : `Python stdin error: ${error.message}`;
     }
-    try { pythonProcess.stdin.end(); } catch (_) {}
   });
 }
 
 /**
  * Execute a Python script with optional retry and circuit-breaker support.
- *
- * New options vs original API:
- *   maxRetries  {number}  — how many retries on non-timeout failure (default 1)
- *   serviceName {string}  — name used for monitoring/circuit-breaker (default: script basename)
- *   skipCircuit {boolean} — bypass circuit breaker check (default false)
- *
- * @returns {Promise<Object>} Normalised result object
  */
 async function executePythonScript({
   scriptPath,
@@ -174,7 +239,6 @@ async function executePythonScript({
   serviceName = path.basename(scriptPath, '.py'),
   skipCircuit = false,
 }) {
-  // Circuit breaker — refuse call if the service is in open state
   if (!skipCircuit && monitor.isCircuitOpen(serviceName)) {
     const circuitError = {
       success: false,
@@ -189,6 +253,7 @@ async function executePythonScript({
       timedOut: false,
       data: null,
     };
+
     monitor.record(serviceName, circuitError, 0);
     return circuitError;
   }
@@ -196,21 +261,38 @@ async function executePythonScript({
   const totalAttempts = 1 + Math.max(0, maxRetries);
   let lastResult;
 
-  for (let attempt = 1; attempt <= totalAttempts; attempt++) {
+  for (let attempt = 1; attempt <= totalAttempts; attempt += 1) {
     const start = Date.now();
-    const result = await _spawnOnce({ scriptPath, args, stdin, timeoutMs, cwd, env, pythonCommand });
+
+    const result = await _spawnOnce({
+      scriptPath,
+      args,
+      stdin,
+      timeoutMs,
+      cwd,
+      env,
+      pythonCommand,
+    });
+
     const durationMs = Date.now() - start;
 
-    monitor.record(serviceName, result, durationMs, { attempt, scriptPath });
+    monitor.record(serviceName, result, durationMs, {
+      attempt,
+      scriptPath,
+    });
+
     monitor.recordCircuit(serviceName, result.success);
 
     lastResult = result;
 
-    // Don't retry on success or timeout (timeout already waited the full budget)
-    if (result.success || result.timedOut) break;
+    if (result.success || result.timedOut) {
+      break;
+    }
 
     if (attempt < totalAttempts) {
-      await new Promise((r) => setTimeout(r, RETRY_DELAY_MS * attempt));
+      await new Promise((resolve) =>
+        setTimeout(resolve, RETRY_DELAY_MS * attempt)
+      );
     }
   }
 
