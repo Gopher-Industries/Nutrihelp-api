@@ -31,7 +31,7 @@ function resolveAppointmentUserId(req) {
 
 function internalFailure(res, label, error, context = {}) {
   logger.error(label, { error: error.message, ...context });
-  return res.status(500).json({ error: 'Internal server error' });
+  return res.status(500).json({ error: error.message });
 }
 
 const saveAppointment = async (req, res) => {
@@ -55,10 +55,10 @@ const saveAppointmentV2 = async (req, res) => {
     return validationFailure(res, errors);
   }
   const userId = resolveAppointmentUserId(req);
-  const { title, doctor, type, date, time, location, address, phone, notes, reminder } = req.body;
+  const { title, doctor, type, date, time, location, address, phone, notes, reminder, status, } = req.body;
   try {
     const appointment = await addAppointmentModelV2({
-      userId, title, doctor, type, date, time, location, address, phone, notes, reminder,
+      userId, title, doctor, type, date, time, location, address, phone, notes, reminder, status: status || "scheduled", 
     });
     res.status(201).json({ message: 'Appointment saved successfully', appointment });
   } catch (error) {
@@ -73,10 +73,10 @@ const updateAppointment = async (req, res) => {
   }
   const { id } = req.params;
   const userId = resolveAppointmentUserId(req);
-  const { title, doctor, type, date, time, location, address, phone, notes, reminder } = req.body;
+  const { title, doctor, type, date, time, location, address, phone, notes, reminder, status, } = req.body;
   try {
     const updatedAppointment = await updateAppointmentModel(id, userId, {
-      title, doctor, type, date, time, location, address, phone, notes, reminder,
+      title, doctor, type, date, time, location, address, phone, notes, reminder, status,
     });
     if (!updatedAppointment) {
       return res.status(404).json({ message: 'Appointment not found' });
