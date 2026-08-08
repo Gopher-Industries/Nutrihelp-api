@@ -24,6 +24,10 @@ const registerValidation = [
   body('address')
     .notEmpty().withMessage('Address is required')
     .isLength({ min: 10 }).withMessage('Address should be at least 10 characters long'),
+
+  body('privacy_consent')
+    .equals('true')
+    .withMessage('Privacy policy consent is required'),
 ];
 
 module.exports = { registerValidation };
