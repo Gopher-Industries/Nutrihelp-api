@@ -5,6 +5,7 @@
  * and listing it here — no route, controller or frontend change required.
  */
 const theMealDb = require('./adapters/theMealDb');
+const logger = require('../../utils/logger');
 
 const ADAPTERS = {
   [theMealDb.SOURCE_ID]: theMealDb,
@@ -24,18 +25,30 @@ function getAdapter(sourceId) {
  */
 async function searchAll(query) {
   const sourceIds = listSources();
+  const startedAt = Date.now();
+  logger.info('[recipeSources] fan-out search start', { query, sources: sourceIds });
+
   const settled = await Promise.allSettled(
     sourceIds.map((sourceId) => ADAPTERS[sourceId].search(query))
   );
 
-  return settled.flatMap((outcome, index) => {
+  const rows = settled.flatMap((outcome, index) => {
     if (outcome.status === 'fulfilled') return outcome.value;
-    console.warn(
-      `[recipeSources] adapter "${sourceIds[index]}" search failed:`,
-      outcome.reason?.message
-    );
+    logger.warn('[recipeSources] adapter search failed', {
+      source: sourceIds[index],
+      error: outcome.reason?.message,
+    });
     return [];
   });
+
+  logger.info('[recipeSources] fan-out search done', {
+    query,
+    results: rows.length,
+    failedSources: settled.filter((o) => o.status === 'rejected').length,
+    ms: Date.now() - startedAt,
+  });
+
+  return rows;
 }
 
 module.exports = { listSources, getAdapter, searchAll };

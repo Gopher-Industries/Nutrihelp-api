@@ -10,6 +10,7 @@
 const Joi = require('joi');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const { checkFidelity } = require('./fidelity');
+const logger = require('../../utils/logger');
 
 const DEFAULT_MODEL = 'gemini-flash-latest';
 const MAX_ATTEMPTS = 2;
@@ -211,49 +212,126 @@ async function mapRecipe(sourceRecipe, options = {}) {
   const generate = options.generate || defaultGenerate();
   const modelName = process.env.RECIPE_SOURCES_GEMINI_MODEL || DEFAULT_MODEL;
   const prompt = buildMapPrompt(sourceRecipe);
+  const mapStartedAt = Date.now();
+
+  const traceContext = {
+    source: sourceRecipe.source,
+    external_id: sourceRecipe.external_id,
+    title: sourceRecipe.title,
+  };
+
+  logger.info('[recipeSources][mapper] start', {
+    ...traceContext,
+    model: modelName,
+    promptChars: prompt.length,
+    sourceIngredients: (sourceRecipe.ingredients || []).length,
+  });
 
   let violations = [];
 
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
     let parsed = null;
+    const attemptStartedAt = Date.now();
+
     try {
-      parsed = extractJson(await generate(prompt));
+      const rawText = await generate(prompt);
+      const generateMs = Date.now() - attemptStartedAt;
+      parsed = extractJson(rawText);
+
+      logger.info('[recipeSources][mapper] llm responded', {
+        ...traceContext,
+        attempt,
+        ms: generateMs,
+        responseChars: typeof rawText === 'string' ? rawText.length : 0,
+        parsed: Boolean(parsed),
+      });
+      logger.debug('[recipeSources][mapper] raw llm output', {
+        ...traceContext,
+        attempt,
+        rawText: typeof rawText === 'string' ? rawText.slice(0, 2000) : rawText,
+      });
     } catch (error) {
       // Provider errors are usually transient (503 "high demand" is common on
       // the flash models), so spend the remaining attempt rather than dropping
       // straight to the deterministic mapping.
-      console.warn(`[recipeSources] mapper attempt ${attempt} failed:`, error.message);
+      logger.warn('[recipeSources][mapper] provider error', {
+        ...traceContext,
+        attempt,
+        ms: Date.now() - attemptStartedAt,
+        error: error.message,
+      });
       violations = [`provider error: ${error.message}`];
       continue;
     }
 
-    if (!parsed) continue;
+    if (!parsed) {
+      logger.warn('[recipeSources][mapper] output not parseable as JSON', {
+        ...traceContext,
+        attempt,
+      });
+      continue;
+    }
 
     const { error } = draftSchema.validate(parsed, { abortEarly: false });
     if (error) {
       violations = error.details.map((detail) => detail.message);
+      logger.warn('[recipeSources][mapper] schema validation failed', {
+        ...traceContext,
+        attempt,
+        violations: violations.slice(0, 5),
+      });
       continue;
     }
 
     const draft = normalizeDraft(parsed);
     const fidelity = checkFidelity(draft, sourceRecipe);
+
     if (!fidelity.ok) {
       violations = fidelity.violations;
+      logger.warn('[recipeSources][mapper] fidelity check rejected llm output', {
+        ...traceContext,
+        attempt,
+        violations: violations.slice(0, 5),
+      });
       continue;
     }
 
+    const unmapped = computeUnmappedFields(draft);
+    logger.info('[recipeSources][mapper] done', {
+      ...traceContext,
+      strategy: 'llm',
+      attempt,
+      ingredients: draft.ingredients.length,
+      instructions: draft.instructions.length,
+      unmappedCount: unmapped.length,
+      totalMs: Date.now() - mapStartedAt,
+    });
+
     return {
       draft,
-      unmapped_fields: computeUnmappedFields(draft),
+      unmapped_fields: unmapped,
       source_meta: buildSourceMeta(sourceRecipe),
       mapper: { strategy: 'llm', model: modelName, violations: [] },
     };
   }
 
   const draft = deterministicMap(sourceRecipe);
+  const unmapped = computeUnmappedFields(draft);
+
+  logger.warn('[recipeSources][mapper] done via deterministic fallback', {
+    ...traceContext,
+    strategy: 'fallback',
+    attempts: MAX_ATTEMPTS,
+    ingredients: draft.ingredients.length,
+    instructions: draft.instructions.length,
+    unmappedCount: unmapped.length,
+    violations: violations.slice(0, 5),
+    totalMs: Date.now() - mapStartedAt,
+  });
+
   return {
     draft,
-    unmapped_fields: computeUnmappedFields(draft),
+    unmapped_fields: unmapped,
     source_meta: buildSourceMeta(sourceRecipe),
     mapper: { strategy: 'fallback', model: modelName, violations },
   };
