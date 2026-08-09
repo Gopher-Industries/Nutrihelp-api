@@ -14,6 +14,7 @@ module.exports = app => {
     app.use("/api/recipe", require('./recipe'));
     app.use("/api/admin", require('./adminUserRole'));
     app.use("/api/recipe-library", require('./recipeLibrary'));
+    app.use("/api/recipe-sources", require('./recipeSources'));
     app.use("/api/recipe-reviews", require('./recipeReviews'));
     app.use("/api/appointments", require('./appointment'));
     app.use("/api/imageClassification", require('./imageClassification'));

@@ -14,6 +14,11 @@ const schemas = {
   // Food Search
   foodSearchQuery: Joi.object({
     query: Joi.string().min(2).max(50).required()
+  }),
+
+  // Recipe Sources (external recipe search + mapping)
+  recipeSourcesSearchQuery: Joi.object({
+    q: Joi.string().trim().min(3).max(80).required()
   })
 };
 
