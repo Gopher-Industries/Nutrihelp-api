@@ -10,6 +10,7 @@ test-results/
 !data/meal_library.json
 server.pid
 server.log
+logs/
 *.bak
 .env
 node_modules
