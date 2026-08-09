@@ -27,7 +27,7 @@ and saves through the existing, unchanged save path.
 |---|----------|--------|-----------|
 | D1 | Entry point | Both the user Create Recipe page and the admin library import form, backed by one shared API | One backend serves web, mobile and future integrations; both audiences benefit |
 | D2 | First source | TheMealDB (live API) | Zero data engineering, ~600 curated recipes **with images**, free for educational use with attribution; big datasets (Food.com 231K w/ nutrition, RecipeNLG 2.2M) deferred to future adapters — evaluated and documented in the ticket. Edamam/Spoonacular rejected: no instructions on free tier / storage forbidden by ToS |
-| D3 | Mapper | Pure LLM mapper (Groq `llama-3.3-70b`, temperature 0) | Single prompt maps the whole source recipe to our schema; guarded by validation + fidelity checks (below) |
+| D3 | Mapper | Pure LLM mapper (Gemini `gemini-flash-latest`, temperature 0) | Single prompt maps the whole source recipe to our schema; guarded by validation + fidelity checks (below). **Revised 2026-08-09** — originally Groq `llama-3.3-70b`; Groq's API returns `403 Access denied` from the developer's network, so the mapper could not be run or verified against it. Model id comes from `RECIPE_SOURCES_GEMINI_MODEL` and defaults to the floating `-latest` alias rather than a dated id, because Google retired `gemini-2.5-flash` mid-project and broke `recipeLibraryService.js` |
 | D4 | Persistence | Prefill-only; no DB schema changes | Zero risk to the shared Supabase; `recipe_library` saves already carry `source`/attribution columns; provenance columns on the user `recipes` table deferred (needs team schema coordination) |
 | D5 | Code location | New module inside Nutrihelp-api following existing route→controller→service pattern | Reusable by web/mobile/future MCP; familiar review surface for the team |
 
@@ -95,9 +95,28 @@ The existing save logic is untouched in both forms.
 
 ## 7. Testing
 
-- Unit: TheMealDB adapter (mocked HTTP); mapper validation + fidelity check (mocked Groq).
+- Unit: TheMealDB adapter (mocked HTTP); mapper validation + fidelity check (LLM injected as a stub).
 - Integration: search → map happy path.
 - Manual E2E on both forms: search → select → prefill → edit → save.
+
+## 7a. Measured behaviour (backend, 2026-08-09)
+
+First live runs against real TheMealDB and real Gemini, from the stage tracing in the module:
+
+| Stage | Time |
+|---|---|
+| `search.php` | ~0.9 s |
+| `lookup.php` | ~0.3 s |
+| LLM mapping call | **43–71 s** |
+
+The model call is ~99% of `/map`. `gemini-flash-latest` currently resolves to `gemini-3.6-flash`,
+which does extended thinking by default — wasted effort on a mechanical field-mapping task, and
+the likely fix is a zero thinking budget or a flash-lite model. **This is a blocker for the D4
+loading state and should be resolved before the frontend is built around it.**
+
+Fallback behaviour confirmed live: on a provider error both attempts are made, then the
+deterministic mapping returns a complete draft (8 ingredients with parsed quantities, 10 steps)
+in ~1 s. No invented content reached a draft in any run.
 
 ## 8. Out of scope (future tickets)
 
