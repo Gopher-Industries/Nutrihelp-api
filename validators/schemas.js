@@ -19,6 +19,11 @@ const schemas = {
   // Recipe Sources (external recipe search + mapping)
   recipeSourcesSearchQuery: Joi.object({
     q: Joi.string().trim().min(3).max(80).required()
+  }),
+
+  recipeSourcesMapBody: Joi.object({
+    source: Joi.string().trim().min(2).max(40).required(),
+    external_id: Joi.string().trim().min(1).max(64).required()
   })
 };
 
