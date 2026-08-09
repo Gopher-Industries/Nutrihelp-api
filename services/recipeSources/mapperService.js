@@ -219,8 +219,12 @@ async function mapRecipe(sourceRecipe, options = {}) {
     try {
       parsed = extractJson(await generate(prompt));
     } catch (error) {
+      // Provider errors are usually transient (503 "high demand" is common on
+      // the flash models), so spend the remaining attempt rather than dropping
+      // straight to the deterministic mapping.
       console.warn(`[recipeSources] mapper attempt ${attempt} failed:`, error.message);
-      break;
+      violations = [`provider error: ${error.message}`];
+      continue;
     }
 
     if (!parsed) continue;

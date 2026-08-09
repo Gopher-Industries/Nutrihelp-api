@@ -173,12 +173,26 @@ describe('mapRecipe', () => {
     assert.strictEqual(result.mapper.strategy, 'fallback');
   });
 
-  it('falls back when the LLM call throws', async () => {
+  it('falls back when the LLM call throws on every attempt', async () => {
     const generate = sinon.stub().rejects(new Error('provider down'));
 
     const result = await mapRecipe(SOURCE, { generate });
 
+    assert.strictEqual(generate.callCount, 2, 'a provider error should be retried');
     assert.strictEqual(result.mapper.strategy, 'fallback');
+    assert.strictEqual(result.draft.recipe_name, 'Spicy Arrabiata Penne');
+    assert.ok(result.mapper.violations.some((v) => v.includes('provider error')));
+  });
+
+  it('retries a transient provider error and succeeds on the second attempt', async () => {
+    const generate = sinon.stub();
+    generate.onFirstCall().rejects(new Error('[503 Service Unavailable] high demand'));
+    generate.onSecondCall().resolves(goodLlmPayload());
+
+    const result = await mapRecipe(SOURCE, { generate });
+
+    assert.strictEqual(generate.callCount, 2);
+    assert.strictEqual(result.mapper.strategy, 'llm');
     assert.strictEqual(result.draft.recipe_name, 'Spicy Arrabiata Penne');
   });
 
