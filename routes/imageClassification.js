@@ -3,7 +3,7 @@
  *
  * Single POST entry point for the image-classification gateway.
  * Pipeline:
- *   multer upload → validator → controller (which delegates to the gateway)
+ *   multer upload → EXIF sanitisation → validator → controller
  *
  * Multer is configured with tight limits and a MIME-type filter so bad
  * uploads are rejected before they ever hit the filesystem.  Any rejection
@@ -20,7 +20,7 @@ const { validateImageUpload, MAX_SIZE_BYTES, ALLOWED_MIME_TYPES } =
   require('../validators/imageValidator.js');
 const { validationError, fail } = require('../utils/apiResponse');
 const { msg } = require('../utils/messages');
-
+const sharp = require('sharp');
 const router = express.Router();
 
 const uploadsDir = path.join(__dirname, '..', 'uploads');
@@ -61,6 +61,58 @@ function handleUpload(req, res, next) {
   });
 }
 
-router.post('/', handleUpload, validateImageUpload, predictionController.predictImage);
 
+async function stripExifMetadata(req, res, next) {
+  if (!req.file) {
+    return next();
+  }
+
+  const originalPath = req.file.path;
+  const cleanPath = `${originalPath}-clean`;
+
+  try {
+    const image = sharp(originalPath).rotate();
+    const metadata = await image.metadata();
+
+    if (metadata.format === 'png') {
+      await image.png().toFile(cleanPath);
+    } else if (metadata.format === 'jpeg') {
+      await image.jpeg({ quality: 95 }).toFile(cleanPath);
+    } else {
+      throw new Error(`Unsupported image format: ${metadata.format}`);
+    }
+
+    await fs.promises.unlink(originalPath);
+    await fs.promises.rename(cleanPath, originalPath);
+
+    const stats = await fs.promises.stat(originalPath);
+    req.file.size = stats.size;
+
+    console.log(
+      `[EXIF] Metadata stripped successfully from ${req.file.originalname}`
+    );
+
+    return next();
+  } catch (error) {
+    await fs.promises.unlink(cleanPath).catch(() => {});
+    await fs.promises.unlink(originalPath).catch(() => {});
+
+    console.error('Failed to strip image metadata:', error);
+
+    return fail(
+      res,
+      'Unable to securely process the uploaded image.',
+      500,
+      'IMAGE_SANITISATION_FAILED'
+    );
+  }
+}
+
+router.post(
+  '/',
+  handleUpload,
+  stripExifMetadata,
+  validateImageUpload,
+  predictionController.predictImage
+);
 module.exports = router;
