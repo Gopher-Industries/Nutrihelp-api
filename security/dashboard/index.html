@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>NutriHelp Secure Code Analysis Dashboard</title>
+
+  <style>
+    :root {
+      --navy: #17324d;
+      --blue: #245b85;
+      --light-blue: #eaf2f8;
+      --background: #f4f6f8;
+      --surface: #ffffff;
+      --border: #d9e0e6;
+      --text: #1f2933;
+      --muted: #66788a;
+
+      --critical: #b91c1c;
+      --high: #ea580c;
+      --medium: #ca8a04;
+      --low: #15803d;
+      --info: #2563eb;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: var(--background);
+      color: var(--text);
+    }
+
+    header {
+      background: linear-gradient(135deg, var(--navy), var(--blue));
+      color: white;
+      padding: 28px 24px;
+    }
+
+    .header-content {
+      max-width: 1280px;
+      margin: 0 auto;
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: 30px;
+    }
+
+    header p {
+      margin: 8px 0 0;
+      opacity: 0.9;
+    }
+
+    main {
+      max-width: 1280px;
+      margin: 28px auto;
+      padding: 0 20px 40px;
+    }
+
+    .meta-panel {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 14px;
+      margin-bottom: 22px;
+    }
+
+    .meta-item {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+    }
+
+    .meta-label {
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
+    .meta-value {
+      font-size: 16px;
+      font-weight: 700;
+      word-break: break-word;
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+
+    .summary-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: 0 3px 10px rgba(15, 23, 42, 0.06);
+    }
+
+    .summary-card h2 {
+      margin: 0;
+      font-size: 30px;
+    }
+
+    .summary-card p {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .summary-card.critical {
+      border-top: 5px solid var(--critical);
+    }
+
+    .summary-card.high {
+      border-top: 5px solid var(--high);
+    }
+
+    .summary-card.medium {
+      border-top: 5px solid var(--medium);
+    }
+
+    .summary-card.low {
+      border-top: 5px solid var(--low);
+    }
+
+    .dashboard-section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: 0 3px 10px rgba(15, 23, 42, 0.06);
+    }
+
+    .section-header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+
+    .section-header h2 {
+      margin: 0;
+    }
+
+    .filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .filters input,
+    .filters select {
+      min-width: 180px;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      background: white;
+      color: var(--text);
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      min-width: 1100px;
+      border-collapse: collapse;
+    }
+
+    th,
+    td {
+      padding: 12px;
+      border-bottom: 1px solid var(--border);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      background: var(--light-blue);
+      font-size: 13px;
+      color: #34495e;
+      position: sticky;
+      top: 0;
+    }
+
+    td {
+      font-size: 14px;
+    }
+
+    .severity-badge,
+    .reference-badge {
+      display: inline-block;
+      border-radius: 999px;
+      padding: 4px 9px;
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .severity-critical {
+      background: #fee2e2;
+      color: var(--critical);
+    }
+
+    .severity-high {
+      background: #ffedd5;
+      color: var(--high);
+    }
+
+    .severity-medium {
+      background: #fef9c3;
+      color: #8a6500;
+    }
+
+    .severity-low {
+      background: #dcfce7;
+      color: var(--low);
+    }
+
+    .severity-informational {
+      background: #dbeafe;
+      color: var(--info);
+    }
+
+    .reference-badge {
+      background: #eef2f7;
+      color: #334155;
+      margin-right: 4px;
+    }
+
+    .file-path {
+      max-width: 320px;
+      word-break: break-word;
+      font-family: Consolas, monospace;
+      font-size: 12px;
+    }
+
+    .message {
+      padding: 20px;
+      border-radius: 8px;
+      background: #f8fafc;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    .error {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
+    @media (max-width: 700px) {
+      header h1 {
+        font-size: 24px;
+      }
+
+      .filters {
+        width: 100%;
+      }
+
+      .filters input,
+      .filters select {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <div class="header-content">
+      <h1>NutriHelp Secure Code Analysis Framework</h1>
+      <p>Static code analysis dashboard for the NutriHelp backend</p>
+    </div>
+  </header>
+
+  <main>
+    <section class="meta-panel">
+      <div class="meta-item">
+        <div class="meta-label">Framework Version</div>
+        <div class="meta-value" id="framework-version">-</div>
+      </div>
+
+      <div class="meta-item">
+        <div class="meta-label">Last Scan</div>
+        <div class="meta-value" id="scan-timestamp">-</div>
+      </div>
+
+      <div class="meta-item">
+        <div class="meta-label">Scan Duration</div>
+        <div class="meta-value" id="scan-duration">-</div>
+      </div>
+
+      <div class="meta-item">
+        <div class="meta-label">Rules Loaded</div>
+        <div class="meta-value" id="rules-loaded">0</div>
+      </div>
+    </section>
+
+    <section class="summary-grid">
+      <div class="summary-card">
+        <h2 id="files-scanned">0</h2>
+        <p>Files Scanned</p>
+      </div>
+
+      <div class="summary-card">
+        <h2 id="findings-detected">0</h2>
+        <p>Total Findings</p>
+      </div>
+
+      <div class="summary-card critical">
+        <h2 id="critical-count">0</h2>
+        <p>Critical</p>
+      </div>
+
+      <div class="summary-card high">
+        <h2 id="high-count">0</h2>
+        <p>High</p>
+      </div>
+
+      <div class="summary-card medium">
+        <h2 id="medium-count">0</h2>
+        <p>Medium</p>
+      </div>
+
+      <div class="summary-card low">
+        <h2 id="low-count">0</h2>
+        <p>Low</p>
+      </div>
+    </section>
+
+    <section class="dashboard-section">
+      <div class="section-header">
+        <h2>Security Findings</h2>
+
+        <div class="filters">
+          <input
+            id="search-input"
+            type="search"
+            placeholder="Search rule, file, CWE or OWASP"
+          >
+
+          <select id="severity-filter">
+            <option value="all">All severities</option>
+            <option value="Critical">Critical</option>
+            <option value="High">High</option>
+            <option value="Medium">Medium</option>
+            <option value="Low">Low</option>
+            <option value="Informational">Informational</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="status-message" class="message">
+        Loading scan results...
+      </div>
+
+      <div class="table-wrap">
+        <table id="findings-table" hidden>
+          <thead>
+            <tr>
+              <th>Rule</th>
+              <th>Severity</th>
+              <th>File</th>
+              <th>Line</th>
+              <th>Matched Code</th>
+              <th>References</th>
+              <th>Recommendation</th>
+            </tr>
+          </thead>
+
+          <tbody id="findings-body"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const apiUrl = '/api/security-scanner/results';
+
+    let allFindings = [];
+
+    const escapeHtml = (value) => {
+      return String(value ?? '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
+    };
+
+    const getSeverityClass = (severity) => {
+      return `severity-${String(severity).toLowerCase()}`;
+    };
+
+    const formatTimestamp = (timestamp) => {
+      if (!timestamp) {
+        return '-';
+      }
+
+      return new Date(timestamp).toLocaleString();
+    };
+
+    const displayMetadata = (data) => {
+      document.getElementById('framework-version').textContent =
+        data.framework?.version || '-';
+
+      document.getElementById('scan-timestamp').textContent =
+        formatTimestamp(data.scanInformation?.timestamp);
+
+      document.getElementById('scan-duration').textContent =
+        `${data.scanInformation?.scanDurationMs || 0} ms`;
+
+      document.getElementById('rules-loaded').textContent =
+        data.scanInformation?.rulesLoaded || 0;
+    };
+
+    const displaySummary = (data) => {
+      const severity = data.summary?.severity || {};
+
+      document.getElementById('files-scanned').textContent =
+        data.scanInformation?.filesScanned || 0;
+
+      document.getElementById('findings-detected').textContent =
+        data.scanInformation?.findingsDetected || 0;
+
+      document.getElementById('critical-count').textContent =
+        severity.Critical || 0;
+
+      document.getElementById('high-count').textContent =
+        severity.High || 0;
+
+      document.getElementById('medium-count').textContent =
+        severity.Medium || 0;
+
+      document.getElementById('low-count').textContent =
+        severity.Low || 0;
+    };
+
+    const renderFindings = (findings) => {
+      const table = document.getElementById('findings-table');
+      const tableBody = document.getElementById('findings-body');
+      const statusMessage = document.getElementById('status-message');
+
+      tableBody.innerHTML = '';
+
+      if (findings.length === 0) {
+        table.hidden = true;
+        statusMessage.hidden = false;
+        statusMessage.textContent = 'No security findings were detected in the current scan.';
+        return;
+      }
+
+      findings.forEach((finding) => {
+        const row = document.createElement('tr');
+
+        row.innerHTML = `
+          <td>
+            <strong>${escapeHtml(finding.ruleId)}</strong><br>
+            ${escapeHtml(finding.ruleName)}
+          </td>
+
+          <td>
+            <span class="severity-badge ${getSeverityClass(finding.severity)}">
+              ${escapeHtml(finding.severity)}
+            </span>
+          </td>
+
+          <td class="file-path">
+            ${escapeHtml(finding.file)}
+          </td>
+
+          <td>${escapeHtml(finding.line)}</td>
+
+          <td class="file-path">
+            ${escapeHtml(finding.matchedText)}
+          </td>
+
+          <td>
+            <span class="reference-badge">
+              ${escapeHtml(finding.cwe)}
+            </span>
+
+            <span class="reference-badge">
+              ${escapeHtml(finding.owasp)}
+            </span>
+          </td>
+
+          <td>${escapeHtml(finding.recommendation)}</td>
+        `;
+
+        tableBody.appendChild(row);
+      });
+
+      statusMessage.hidden = true;
+      table.hidden = false;
+    };
+
+    const applyFilters = () => {
+      const searchValue =
+        document.getElementById('search-input').value.toLowerCase();
+
+      const severityValue =
+        document.getElementById('severity-filter').value;
+
+      const filtered = allFindings.filter((finding) => {
+        const searchableText = [
+          finding.ruleId,
+          finding.ruleName,
+          finding.file,
+          finding.cwe,
+          finding.owasp,
+          finding.matchedText,
+          finding.recommendation
+        ]
+          .join(' ')
+          .toLowerCase();
+
+        const matchesSearch =
+          searchableText.includes(searchValue);
+
+        const matchesSeverity =
+          severityValue === 'all' ||
+          finding.severity === severityValue;
+
+        return matchesSearch && matchesSeverity;
+      });
+
+      renderFindings(filtered);
+    };
+
+    const loadScanResults = async () => {
+      const statusMessage = document.getElementById('status-message');
+
+      try {
+        const response = await fetch(apiUrl);
+        const responseBody = await response.json();
+
+        if (!response.ok || !responseBody.success) {
+          throw new Error(
+            responseBody.error || 'Unable to load scan results'
+          );
+        }
+
+        const data = responseBody.data;
+
+        allFindings = Array.isArray(data.findings)
+          ? data.findings
+          : [];
+
+        displayMetadata(data);
+        displaySummary(data);
+        renderFindings(allFindings);
+      } catch (error) {
+        statusMessage.classList.add('error');
+        statusMessage.textContent =
+          `Unable to load scan results: ${error.message}`;
+      }
+    };
+
+    document
+      .getElementById('search-input')
+      .addEventListener('input', applyFilters);
+
+    document
+      .getElementById('severity-filter')
+      .addEventListener('change', applyFilters);
+
+    loadScanResults();
+  </script>
+</body>
+</html>
