@@ -167,11 +167,30 @@ class AuthService {
      Register
      ========================= */
   async register(userData) {
-    const { name, email, password, first_name, last_name } = userData;
+    const {
+      name,
+      email,
+      password,
+      first_name,
+      last_name,
+      contact_number,
+      address,
+      privacy_consent
+    } = userData;
 
     try {
       if (!name || !email || !password) {
-        throw new ServiceError(400, 'Name, email, and password are required');
+        throw new ServiceError(
+          400,
+          'Name, email, and password are required'
+        );
+      }
+
+      if (privacy_consent !== true) {
+        throw new ServiceError(
+          400,
+          'Privacy policy consent is required'
+        );
       }
 
       const { data: existingUser } = await supabaseAnon
@@ -194,16 +213,22 @@ class AuthService {
           password: hashedPassword,
           first_name,
           last_name,
+          contact_number,
+          address,
           role_id: 7,
           account_status: 'active',
           email_verified: false,
           mfa_enabled: false,
-          registration_date: new Date().toISOString()
+          registration_date: new Date().toISOString(),
+          privacy_consent_at: new Date().toISOString(),
+          privacy_policy_version: '1.0'
         })
         .select('user_id, email, name')
         .single();
 
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
 
       return {
         success: true,
@@ -215,7 +240,10 @@ class AuthService {
         throw error;
       }
 
-      throw new ServiceError(400, `Registration failed: ${error.message}`);
+      throw new ServiceError(
+        400,
+        `Registration failed: ${error.message}`
+      );
     }
   }
 
@@ -481,7 +509,7 @@ class AuthService {
         .eq('is_active', true)
         .limit(1);
 
-      
+
       if (error || !sessions || sessions.length === 0) {
         throw new ServiceError(401, 'Invalid refresh token');
       }

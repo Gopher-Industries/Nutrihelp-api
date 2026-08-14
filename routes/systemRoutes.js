@@ -1,10 +1,16 @@
 const express = require('express');
 const router = express.Router();
-const { checkFileIntegrity, generateBaseline } = require('../tools/integrity/integrityService');
+
+const {
+  checkFileIntegrity,
+  generateBaseline,
+} = require('../tools/integrity/integrityService');
+
 const testErrorRouter = require('./testError');
 const authService = require('../services/authService');
 const { authenticateToken } = require('../middleware/authenticateToken');
 const authorizeRoles = require('../middleware/authorizeRoles');
+
 const {
   createBlockMiddleware,
   getActiveBlocks,
@@ -14,22 +20,44 @@ const {
 
 const ADMIN_RECOVERY_HEADER = 'x-system-recovery-key';
 
+/**
+ * Extract Bearer token from Authorization header.
+ */
 function parseBearerToken(authHeader = '') {
   const parts = String(authHeader).split(' ');
-  if (parts.length !== 2 || parts[0] !== 'Bearer') return null;
+
+  if (parts.length !== 2 || parts[0] !== 'Bearer') {
+    return null;
+  }
+
   return parts[1];
 }
 
+/**
+ * Allow access using either:
+ * 1. Admin Bearer token
+ * 2. System recovery key
+ */
 function authorizeAdminOrRecovery(req, res, next) {
-  const expectedRecoveryKey = String(process.env.SYSTEM_RECOVERY_KEY || '').trim();
-  const providedRecoveryKey = String(req.headers[ADMIN_RECOVERY_HEADER] || '').trim();
+  const expectedRecoveryKey = String(
+    process.env.SYSTEM_RECOVERY_KEY || ''
+  ).trim();
 
-  if (expectedRecoveryKey && providedRecoveryKey && providedRecoveryKey === expectedRecoveryKey) {
+  const providedRecoveryKey = String(
+    req.headers[ADMIN_RECOVERY_HEADER] || ''
+  ).trim();
+
+  if (
+    expectedRecoveryKey &&
+    providedRecoveryKey &&
+    providedRecoveryKey === expectedRecoveryKey
+  ) {
     req.systemAuthMode = 'recovery_key';
     return next();
   }
 
   const token = parseBearerToken(req.headers.authorization);
+
   if (!token) {
     return res.status(401).json({
       success: false,
@@ -40,7 +68,10 @@ function authorizeAdminOrRecovery(req, res, next) {
 
   try {
     const decoded = authService.verifyAccessToken(token);
-    const role = String(decoded?.role || '').trim().toLowerCase();
+    const role = String(decoded?.role || '')
+      .trim()
+      .toLowerCase();
+
     if (decoded?.type !== 'access' || role !== 'admin') {
       return res.status(403).json({
         success: false,
@@ -54,7 +85,9 @@ function authorizeAdminOrRecovery(req, res, next) {
       email: decoded.email,
       role: decoded.role,
     };
+
     req.systemAuthMode = 'admin_token';
+
     return next();
   } catch (_error) {
     return res.status(401).json({
@@ -65,7 +98,15 @@ function authorizeAdminOrRecovery(req, res, next) {
   }
 }
 
-// Public health check (no auth required)
+/*
+ * =========================================================
+ * PUBLIC SYSTEM ROUTES
+ * =========================================================
+ */
+
+/**
+ * Public health check
+ */
 router.get('/health', (req, res) => {
   res.status(200).json({
     status: 'ok',
@@ -73,7 +114,75 @@ router.get('/health', (req, res) => {
     nodeEnv: process.env.NODE_ENV || 'development',
     nodeVersion: process.version,
     pythonCommand: process.env.PYTHON_BIN || 'python3',
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+  });
+});
+
+/**
+ * @swagger
+ * /api/system/security-headers:
+ *   get:
+ *     summary: Check API security headers
+ *     tags: [System]
+ *     description: Checks whether recommended HTTP security headers are present.
+ *     responses:
+ *       200:
+ *         description: Security header status returned successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 headers:
+ *                   type: object
+ *                 summary:
+ *                   type: object
+ */
+router.get('/security-headers', (req, res) => {
+  const headersToCheck = [
+    'content-security-policy',
+    'x-content-type-options',
+    'x-frame-options',
+    'strict-transport-security',
+    'referrer-policy',
+  ];
+
+  const headerStatus = {};
+
+  headersToCheck.forEach((header) => {
+    const value = res.getHeader(header);
+
+    headerStatus[header] = {
+      present: Boolean(value),
+      value: value || null,
+    };
+  });
+
+  const passed = Object.values(headerStatus).filter(
+    (header) => header.present
+  ).length;
+
+  const total = headersToCheck.length;
+
+  return res.status(200).json({
+    success: true,
+    message: 'Security headers checked successfully',
+    headers: headerStatus,
+    summary: {
+      passed,
+      total,
+      missing: total - passed,
+      allPresent: passed === total,
+    },
+    environment: {
+      protocol: req.protocol,
+      nodeEnv: process.env.NODE_ENV || 'development',
+    },
+    timestamp: new Date().toISOString(),
   });
 });
 
@@ -102,34 +211,48 @@ router.get('/health', (req, res) => {
  *       404:
  *         description: IP is not currently blocked
  */
-router.post('/unblock-ip', authorizeAdminOrRecovery, (req, res) => {
-  const explicitIp = typeof req.body?.ip === 'string' ? req.body.ip.trim() : '';
-  const targetIp = explicitIp || getClientIp(req);
-  const result = unblockIp(targetIp);
+router.post(
+  '/unblock-ip',
+  authorizeAdminOrRecovery,
+  (req, res) => {
+    const explicitIp =
+      typeof req.body?.ip === 'string'
+        ? req.body.ip.trim()
+        : '';
 
-  if (!result.unblocked) {
-    return res.status(404).json({
-      success: false,
+    const targetIp = explicitIp || getClientIp(req);
+
+    const result = unblockIp(targetIp);
+
+    if (!result.unblocked) {
+      return res.status(404).json({
+        success: false,
+        code: result.reason,
+        message: `IP ${result.ip || targetIp} is not currently blocked`,
+        ip: result.ip || targetIp,
+        authMode: req.systemAuthMode,
+        activeBlocks: getActiveBlocks().length,
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
       code: result.reason,
-      message: `IP ${result.ip || targetIp} is not currently blocked`,
-      ip: result.ip || targetIp,
+      message: `IP ${result.ip} has been unblocked`,
+      ip: result.ip,
+      releasedBlock: result.block,
       authMode: req.systemAuthMode,
       activeBlocks: getActiveBlocks().length,
     });
   }
+);
 
-  return res.status(200).json({
-    success: true,
-    code: result.reason,
-    message: `IP ${result.ip} has been unblocked`,
-    ip: result.ip,
-    releasedBlock: result.block,
-    authMode: req.systemAuthMode,
-    activeBlocks: getActiveBlocks().length,
-  });
-});
+/*
+ * =========================================================
+ * ADMIN-PROTECTED SYSTEM ROUTES
+ * =========================================================
+ */
 
-// All routes below require auth + admin role
 router.use(createBlockMiddleware());
 router.use(authenticateToken);
 router.use(authorizeRoles('admin'));
@@ -153,6 +276,18 @@ router.use(authorizeRoles('admin'));
  *                 fileCount:
  *                   type: integer
  */
+router.post('/generate-baseline', (req, res) => {
+  try {
+    const result = generateBaseline();
+
+    return res.status(200).json(result);
+  } catch (err) {
+    return res.status(500).json({
+      error: 'Failed to generate baseline',
+      details: err.message,
+    });
+  }
+});
 
 /**
  * @swagger
@@ -178,29 +313,26 @@ router.use(authorizeRoles('admin'));
  *                       issue:
  *                         type: string
  */
-
-router.post('/generate-baseline', (req, res) => {
-  try {
-    const result = generateBaseline();
-    res.status(200).json(result);
-  } catch (err) {
-    res.status(500).json({ error: "Failed to generate baseline", details: err.message });
-  }
-});
-
 router.get('/integrity-check', (req, res) => {
   try {
     const anomalies = checkFileIntegrity();
-    res.json({ anomalies });
+
+    return res.status(200).json({
+      anomalies,
+    });
   } catch (err) {
-    res.status(500).json({ error: "Failed to check integrity", details: err.message });
+    return res.status(500).json({
+      error: 'Failed to check integrity',
+      details: err.message,
+    });
   }
 });
 
-// Mount test error router only in development
+/*
+ * Test error route is available only during development.
+ */
 if (process.env.NODE_ENV !== 'production') {
   router.use('/test-error', testErrorRouter);
 }
-
 
 module.exports = router;

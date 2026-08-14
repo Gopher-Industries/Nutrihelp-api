@@ -58,7 +58,16 @@ function handleServiceError(res, error, fallbackStatus, fallbackCode, label, con
 
 exports.register = async (req, res) => {
   try {
-    const { name, email, password, first_name, last_name } = req.body;
+    const {
+      name,
+      email,
+      password,
+      first_name,
+      last_name,
+      contact_number,
+      address,
+      privacy_consent
+    } = req.body;
 
     if (!name || !email || !password) {
       return res.status(400).json(
@@ -71,7 +80,10 @@ exports.register = async (req, res) => {
       email,
       password,
       first_name,
-      last_name
+      last_name,
+      contact_number,
+      address,
+      privacy_consent
     });
 
     return res.status(201).json(createSuccessResponse({

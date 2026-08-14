@@ -20,5 +20,10 @@ node_modules
 *.crt
 *.p12
 certs/
+# Local development
+.venv/
 logs/
+uploads/
+
+# Security scanner generated output
 security/output/

@@ -556,6 +556,43 @@ paths:
                           type: string
                         issue:
                           type: string
+  /system/security-headers:
+    get:
+      tags:
+      - System
+      summary: Check API security headers
+      description: Checks whether recommended HTTP security headers are present.
+      responses:
+        '200':
+          description: Security header status returned successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: Security headers checked successfully
+                  headers:
+                    type: object
+                  summary:
+                    type: object
+                    properties:
+                      passed:
+                        type: integer
+                        example: 5
+                      total:
+                        type: integer
+                        example: 5
+                      missing:
+                        type: integer
+                        example: 0
+                      allPresent:
+                        type: boolean
+                        example: true
   /login-dashboard/kpi:
     get:
       tags:
