@@ -11,6 +11,9 @@ module.exports = app => {
     app.use("/api/faq", require('./faq'));
     app.use('/api/health-tools', require('./healthTools'));
 
+    // community surface (feed, posts, comments, likes, leaderboard)
+    app.use('/api/community', require('./community'));
+
     app.use("/api/recipe", require('./recipe'));
     app.use("/api/admin", require('./adminUserRole'));
     app.use("/api/recipe-library", require('./recipeLibrary'));
@@ -47,6 +50,7 @@ module.exports = app => {
     app.use('/api/security', require('./securityEvents'));
     app.use('/api/recommendations', require('./recommendations'));
     app.use('/api/meal-plan', require('./mealPlanAIRoutes'));
+};
 
     // AI model routes (ported from NutriHelp-ai)
     app.use('/ai-model/chatbot', require('./ai/chatbot'));
