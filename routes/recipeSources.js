@@ -3,7 +3,11 @@ const router = express.Router();
 const recipeSourcesController = require('../controller/recipeSourcesController');
 const { authenticateToken } = require('../middleware/authenticateToken');
 const validate = require('../middleware/validate');
-const { recipeSourcesSearchQuery, recipeSourcesMapBody } = require('../validators/schemas');
+const {
+  recipeSourcesSearchQuery,
+  recipeSourcesMapBody,
+  recipeSourcesResolveIngredientsBody,
+} = require('../validators/schemas');
 
 router.get(
   '/search',
@@ -17,6 +21,15 @@ router.post(
   authenticateToken,
   validate(recipeSourcesMapBody, 'body'),
   recipeSourcesController.mapSource
+);
+
+// Called when the user saves a prefilled recipe, not when they preview one:
+// this is the only path allowed to create ingredients.
+router.post(
+  '/resolve-ingredients',
+  authenticateToken,
+  validate(recipeSourcesResolveIngredientsBody, 'body'),
+  recipeSourcesController.resolveIngredientsForSave
 );
 
 module.exports = router;

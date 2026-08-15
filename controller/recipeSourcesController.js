@@ -67,11 +67,17 @@ exports.mapSource = async (req, res) => {
   try {
     const result = await mapperService.mapRecipe(sourceRecipe);
 
-    // Resolve each mapped ingredient to a NutriHelp ingredient id, creating the
-    // ones that do not exist yet. Without this the save path silently drops
-    // roughly three quarters of an external recipe's ingredients.
+    // Match each mapped ingredient against NutriHelp's vocabulary so the save
+    // path does not have to match by name — that silently dropped roughly three
+    // quarters of an external recipe's ingredients.
+    //
+    // READ-ONLY on purpose. Previewing a recipe and walking away must not leave
+    // rows in the shared ingredients table; creation happens at save time via
+    // POST /resolve-ingredients.
     try {
-      const resolved = await resolveIngredients(result.draft.ingredients);
+      const resolved = await resolveIngredients(result.draft.ingredients, {
+        createMissing: false,
+      });
       const byName = new Map(resolved.map((row) => [row.name, row]));
 
       result.draft.ingredients = result.draft.ingredients.map((ingredient) => {
@@ -88,7 +94,7 @@ exports.mapSource = async (req, res) => {
 
       result.ingredient_resolution = {
         matched: resolved.filter((row) => row.status === 'matched').length,
-        created: resolved.filter((row) => row.status === 'created').length,
+        unmatched: resolved.filter((row) => row.status === 'unmatched').length,
         failed: resolved.filter((row) => row.status === 'failed').length,
       };
     } catch (resolveError) {
@@ -116,5 +122,46 @@ exports.mapSource = async (req, res) => {
       ms: Date.now() - startedAt,
     });
     return res.status(500).json({ success: false, error: 'Recipe mapping failed' });
+  }
+};
+
+/**
+ * Save-time counterpart to /map: resolves ingredient names to ids, CREATING the
+ * ones NutriHelp does not have yet.
+ *
+ * Split out from /map deliberately. Creation writes to the shared ingredients
+ * table, so it is tied to an explicit user action (saving a recipe) rather than
+ * to merely previewing one.
+ */
+exports.resolveIngredientsForSave = async (req, res) => {
+  const startedAt = Date.now();
+  const { ingredients } = req.body;
+  const trace = {
+    requestId: req.requestId,
+    userId: req.user?.userId,
+    count: ingredients.length,
+  };
+
+  logger.info('[recipeSources] POST /resolve-ingredients', trace);
+
+  try {
+    const resolved = await resolveIngredients(ingredients, { createMissing: true });
+
+    logger.info('[recipeSources] POST /resolve-ingredients 200', {
+      ...trace,
+      matched: resolved.filter((row) => row.status === 'matched').length,
+      created: resolved.filter((row) => row.status === 'created').length,
+      failed: resolved.filter((row) => row.status === 'failed').length,
+      ms: Date.now() - startedAt,
+    });
+
+    return res.status(200).json({ success: true, data: { resolved } });
+  } catch (err) {
+    logger.error('[recipeSources] POST /resolve-ingredients 500', {
+      ...trace,
+      error: err.message,
+      ms: Date.now() - startedAt,
+    });
+    return res.status(500).json({ success: false, error: 'Ingredient resolution failed' });
   }
 };

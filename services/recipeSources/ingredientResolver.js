@@ -9,12 +9,14 @@
  * Strategy, cheapest first:
  *   1. exact match (case/whitespace-insensitive)
  *   2. normalised match — punctuation stripped, singular/plural folded
- *   3. create the missing ingredient
+ *   3. create the missing ingredient — ONLY when `createMissing` is set
  *
- * Creation writes to the SHARED ingredients table, so it is deliberately
- * conservative: never insert a name that already exists in any casing, always
- * record the AI-assigned category, and leave nutrition columns null rather than
- * inventing values (the same "no invented data" rule the mapper follows).
+ * Creation writes to the SHARED ingredients table, so it is off by default and
+ * gated on an explicit caller opt-in. Previewing a recipe must never leave rows
+ * behind: only saving one does. Beyond that it stays conservative — never
+ * insert a name that already exists in any casing, always record the
+ * AI-assigned category, and leave nutrition columns null rather than inventing
+ * values (the same "no invented data" rule the mapper follows).
  */
 const { supabaseService } = require('../supabaseClient');
 const logger = require('../../utils/logger');
@@ -84,11 +86,22 @@ function buildLookup(rows) {
   return { exact, loose };
 }
 
+function insertIngredient(row) {
+  return supabaseService
+    .from(INGREDIENTS_TABLE)
+    .insert(row)
+    .select('id,name,category')
+    .single();
+}
+
 /**
  * @param {Array<{name: string, category?: string}>} ingredients
- * @returns {Promise<Array<{name, id, category, status: 'matched'|'created'|'failed', matchedName?}>>}
+ * @param {{createMissing?: boolean}} [options] createMissing defaults to false:
+ *   matching is read-only unless the caller explicitly asks for creation.
+ * @returns {Promise<Array<{name, id, category, status: 'matched'|'unmatched'|'created'|'failed', matchedName?}>>}
  */
-async function resolveIngredients(ingredients = []) {
+async function resolveIngredients(ingredients = [], options = {}) {
+  const { createMissing = false } = options;
   if (!ingredients.length) return [];
 
   const { data: existing, error } = await supabaseService
@@ -126,6 +139,14 @@ async function resolveIngredients(ingredients = []) {
       continue;
     }
 
+    if (!createMissing) {
+      // Read-only mode (preview). Report the gap and leave the shared table
+      // alone. `category` is deliberately null rather than a guess so the
+      // caller's own classification survives instead of being overwritten.
+      results.push({ name: rawName, id: null, category: null, status: 'unmatched' });
+      continue;
+    }
+
     // Not in the vocabulary — add it. Nutrition columns stay null: we have no
     // real figures and will not invent them.
     //
@@ -137,11 +158,11 @@ async function resolveIngredients(ingredients = []) {
     const category = ingredient?.category || 'Pantry';
     nextId = nextId === null ? (await getMaxIngredientId()) + 1 : nextId + 1;
 
-    const { data: inserted, error: insertError } = await supabaseService
-      .from(INGREDIENTS_TABLE)
-      .insert({ id: nextId, name: rawName, category })
-      .select('id,name,category')
-      .single();
+    const { data: inserted, error: insertError } = await insertIngredient({
+      id: nextId,
+      name: rawName,
+      category,
+    });
 
     if (insertError) {
       logger.warn('[recipeSources][ingredients] could not create ingredient', {
