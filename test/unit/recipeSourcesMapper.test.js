@@ -12,6 +12,8 @@ const axiosStub = { get: sinon.stub().rejects(new Error('image fetch stubbed')) 
 
 const {
   TARGET_FIELDS,
+  LLM_TIMEOUT_MS,
+  withTimeout,
   buildMapPrompt,
   deterministicMap,
   mapRecipe,
@@ -215,6 +217,66 @@ describe('mapRecipe', () => {
 
     for (const field of TARGET_FIELDS) {
       assert.ok(field in result.draft, `draft is missing target field ${field}`);
+    }
+  });
+});
+
+describe('withTimeout', () => {
+  it('resolves with the promise value when it settles in time', async () => {
+    assert.strictEqual(await withTimeout(Promise.resolve('ok'), 1000, 'task'), 'ok');
+  });
+
+  it('rejects once the deadline passes', async () => {
+    await assert.rejects(
+      withTimeout(new Promise(() => {}), 10, 'task'),
+      /task timed out after 10ms/
+    );
+  });
+
+  it('clears its timer so a settled call leaves nothing pending', async () => {
+    const clock = sinon.useFakeTimers();
+    try {
+      await withTimeout(Promise.resolve('ok'), 45000, 'task');
+      assert.strictEqual(clock.countTimers(), 0);
+    } finally {
+      clock.restore();
+    }
+  });
+});
+
+describe('gemini provider timeout', () => {
+  it('bounds an unbounded generateContent call at LLM_TIMEOUT_MS', async () => {
+    const clock = sinon.useFakeTimers();
+    try {
+      // Gemini's SDK takes no timeout option, so a hung call would otherwise
+      // never return. Gemini is the default whenever OPENROUTER_API_KEY is
+      // unset, so this is the common path, not an edge case.
+      const mapper = proxyquire('../../services/recipeSources/mapperService', {
+        axios: axiosStub,
+        '@google/generative-ai': {
+          GoogleGenerativeAI: class {
+            getGenerativeModel() {
+              return { generateContent: () => new Promise(() => {}) };
+            }
+          },
+        },
+      });
+
+      const originalKey = process.env.OPENROUTER_API_KEY;
+      delete process.env.OPENROUTER_API_KEY;
+      let generate;
+      try {
+        generate = mapper.resolveProvider().generate;
+      } finally {
+        if (originalKey !== undefined) process.env.OPENROUTER_API_KEY = originalKey;
+      }
+
+      const pending = generate('prompt');
+      const assertion = assert.rejects(pending, /gemini generateContent timed out/);
+      await clock.tickAsync(LLM_TIMEOUT_MS + 1);
+      await assertion;
+    } finally {
+      clock.restore();
     }
   });
 });

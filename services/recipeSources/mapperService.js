@@ -281,6 +281,22 @@ function openRouterGenerate() {
   };
 }
 
+/**
+ * Bounds a promise that has no timeout of its own.
+ *
+ * The SDK call below takes no timeout option, so without this the request is
+ * unbounded — one was observed hanging for 242s. The timer is always cleared so
+ * a completed call cannot leave the process alive waiting on it.
+ */
+function withTimeout(promise, ms, label) {
+  let timer;
+  const timeout = new Promise((_resolve, reject) => {
+    timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
+  });
+
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
 function geminiGenerate() {
   const modelName = process.env.RECIPE_SOURCES_GEMINI_MODEL || DEFAULT_MODEL;
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
@@ -290,7 +306,13 @@ function geminiGenerate() {
   });
 
   return async (prompt) => {
-    const result = await model.generateContent(prompt);
+    // Gemini is the default provider whenever OPENROUTER_API_KEY is unset, so
+    // this path carries real traffic — it must be bounded like the other one.
+    const result = await withTimeout(
+      model.generateContent(prompt),
+      LLM_TIMEOUT_MS,
+      'gemini generateContent'
+    );
     return result.response.text();
   };
 }
@@ -559,6 +581,8 @@ module.exports = {
   TARGET_FIELDS,
   NUTRITION_FIELDS,
   COOKING_METHODS,
+  LLM_TIMEOUT_MS,
+  withTimeout,
   buildMapPrompt,
   deterministicMap,
   mapRecipe,
