@@ -407,8 +407,12 @@ describe('mapRecipe — source image fetch', () => {
 
     const result = await mapper.mapRecipe(SOURCE, { generate });
 
+    // NOTE: not a discriminating assertion on its own — the deterministic draft
+    // copies image_url straight from the thumbnail, so both spellings of the
+    // call produce the same url here. It guards against the two paths drifting.
     assert.strictEqual(result.mapper.strategy, 'fallback');
     assert.strictEqual(get.firstCall.args[0], SOURCE.thumbnail);
+    assert.strictEqual(get.firstCall.args[1].maxRedirects, 0);
   });
 
   it('rejects an image whose content type is not an allowed image', async () => {

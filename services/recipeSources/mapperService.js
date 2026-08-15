@@ -614,7 +614,9 @@ async function mapRecipe(sourceRecipe, options = {}) {
     draft,
     unmapped_fields: unmapped,
     source_meta: buildSourceMeta(sourceRecipe),
-    source_image: await fetchImageAsDataUrl(draft.image_url || sourceRecipe.thumbnail),
+    // Adapter-derived only, same rule as the llm path. Here draft.image_url is
+    // already a copy of the thumbnail, but the two must not drift apart.
+    source_image: await fetchImageAsDataUrl(sourceRecipe.thumbnail),
     mapper: { strategy: 'fallback', model: modelName, violations },
   };
 }
