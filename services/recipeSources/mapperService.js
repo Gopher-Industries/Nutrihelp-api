@@ -8,12 +8,18 @@
  * usable draft and never returns invented content.
  */
 const Joi = require('joi');
+const axios = require('axios');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const { checkFidelity } = require('./fidelity');
 const logger = require('../../utils/logger');
 
 const DEFAULT_MODEL = 'gemini-flash-latest';
+const DEFAULT_OPENROUTER_MODEL = 'google/gemini-2.5-flash';
 const MAX_ATTEMPTS = 2;
+// The mapping call is otherwise unbounded: one request was observed hanging for
+// 242s before completing. Past this, the deterministic fallback produces a full
+// draft in about a second, so waiting longer serves nobody.
+const LLM_TIMEOUT_MS = 45000;
 
 const TARGET_FIELDS = [
   'recipe_name',
@@ -211,7 +217,44 @@ function buildSourceMeta(sourceRecipe) {
   };
 }
 
-function defaultGenerate() {
+/**
+ * OpenRouter generator (OpenAI-compatible chat completions over plain HTTP).
+ *
+ * Preferred when OPENROUTER_API_KEY is set: it avoids Gemini's free-tier
+ * 5-requests-per-minute cap, which was the main source of fallbacks in
+ * development.
+ */
+function openRouterGenerate() {
+  const modelName = process.env.RECIPE_SOURCES_OPENROUTER_MODEL || DEFAULT_OPENROUTER_MODEL;
+
+  return async (prompt) => {
+    const response = await axios.post(
+      'https://openrouter.ai/api/v1/chat/completions',
+      {
+        model: modelName,
+        temperature: 0,
+        messages: [
+          { role: 'system', content: 'Return only valid JSON. No markdown. No explanations.' },
+          { role: 'user', content: prompt },
+        ],
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+          'Content-Type': 'application/json',
+          // OpenRouter uses these for attribution on its dashboard; optional.
+          'HTTP-Referer': process.env.OPENROUTER_SITE_URL || 'http://localhost:3000',
+          'X-Title': 'NutriHelp Recipe Sources',
+        },
+        timeout: LLM_TIMEOUT_MS,
+      }
+    );
+
+    return response.data?.choices?.[0]?.message?.content || '';
+  };
+}
+
+function geminiGenerate() {
   const modelName = process.env.RECIPE_SOURCES_GEMINI_MODEL || DEFAULT_MODEL;
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
   const model = genAI.getGenerativeModel({
@@ -225,9 +268,60 @@ function defaultGenerate() {
   };
 }
 
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const MAX_RETRY_DELAY_MS = 15000;
+
+/**
+ * Pulls a retry delay out of a provider error. Gemini reports it as
+ * `retryDelay: "6s"` in the RetryInfo block; OpenAI-compatible APIs use a
+ * Retry-After header. Returns null when the error carries no guidance, and
+ * caps the wait so a long backoff never strands the request.
+ */
+function parseRetryDelayMs(error) {
+  const headerValue = error?.response?.headers?.['retry-after'];
+  if (headerValue) {
+    const seconds = Number(headerValue);
+    if (Number.isFinite(seconds) && seconds > 0) {
+      return Math.min(seconds * 1000, MAX_RETRY_DELAY_MS);
+    }
+  }
+
+  const match = /"?retryDelay"?[:\s]+"?(\d+(?:\.\d+)?)s/i.exec(error?.message || '');
+  if (match) {
+    return Math.min(Math.ceil(Number(match[1]) * 1000) + 500, MAX_RETRY_DELAY_MS);
+  }
+
+  return null;
+}
+
+/**
+ * Picks the configured provider. OpenRouter wins when its key is present —
+ * Gemini's free tier caps at 5 requests/minute, which produced most of the
+ * deterministic fallbacks seen in development.
+ */
+function resolveProvider() {
+  if (process.env.OPENROUTER_API_KEY) {
+    return {
+      name: 'openrouter',
+      model: process.env.RECIPE_SOURCES_OPENROUTER_MODEL || DEFAULT_OPENROUTER_MODEL,
+      generate: openRouterGenerate(),
+    };
+  }
+
+  return {
+    name: 'gemini',
+    model: process.env.RECIPE_SOURCES_GEMINI_MODEL || DEFAULT_MODEL,
+    generate: geminiGenerate(),
+  };
+}
+
 async function mapRecipe(sourceRecipe, options = {}) {
-  const generate = options.generate || defaultGenerate();
-  const modelName = process.env.RECIPE_SOURCES_GEMINI_MODEL || DEFAULT_MODEL;
+  const provider = options.generate
+    ? { name: 'injected', model: 'injected', generate: options.generate }
+    : resolveProvider();
+  const generate = provider.generate;
+  const modelName = provider.model;
   const prompt = buildMapPrompt(sourceRecipe);
   const mapStartedAt = Date.now();
 
@@ -239,6 +333,7 @@ async function mapRecipe(sourceRecipe, options = {}) {
 
   logger.info('[recipeSources][mapper] start', {
     ...traceContext,
+    provider: provider.name,
     model: modelName,
     promptChars: prompt.length,
     sourceIngredients: (sourceRecipe.ingredients || []).length,
@@ -278,6 +373,19 @@ async function mapRecipe(sourceRecipe, options = {}) {
         error: error.message,
       });
       violations = [`provider error: ${error.message}`];
+
+      // Rate-limit responses state how long to wait. Retrying instantly just
+      // burns the second attempt inside the same quota window — which is
+      // exactly what turned transient 429s into deterministic fallbacks.
+      const retryDelayMs = parseRetryDelayMs(error);
+      if (retryDelayMs && attempt < MAX_ATTEMPTS) {
+        logger.info('[recipeSources][mapper] honouring provider retry delay', {
+          ...traceContext,
+          attempt,
+          retryDelayMs,
+        });
+        await sleep(retryDelayMs);
+      }
       continue;
     }
 
@@ -357,9 +465,11 @@ async function mapRecipe(sourceRecipe, options = {}) {
 module.exports = {
   TARGET_FIELDS,
   NUTRITION_FIELDS,
+  COOKING_METHODS,
   buildMapPrompt,
   deterministicMap,
   mapRecipe,
+  resolveProvider,
   extractJson,
   parseMeasure,
   splitInstructions,
