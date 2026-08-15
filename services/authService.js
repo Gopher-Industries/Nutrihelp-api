@@ -21,12 +21,35 @@ const supabaseService = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
+const DEFAULT_ACCESS_TOKEN_EXPIRY = '15m';
+// jwt.sign accepts a number of seconds or an ms-style span ("15m", "2h").
+const ACCESS_TOKEN_EXPIRY_PATTERN = /^\d+(ms|s|m|h|d)$/;
+
+/**
+ * jwt.sign throws on a malformed expiresIn, which would surface as a 500 at
+ * login rather than at boot. Validate the env value once and fall back instead.
+ */
+function resolveAccessTokenExpiry() {
+  const configured = process.env.ACCESS_TOKEN_EXPIRY;
+  if (!configured) return DEFAULT_ACCESS_TOKEN_EXPIRY;
+
+  if (!ACCESS_TOKEN_EXPIRY_PATTERN.test(configured.trim())) {
+    console.warn(
+      `[authService] ACCESS_TOKEN_EXPIRY "${configured}" is not a valid span `
+      + `(e.g. "900s", "15m", "2h") — falling back to ${DEFAULT_ACCESS_TOKEN_EXPIRY}.`
+    );
+    return DEFAULT_ACCESS_TOKEN_EXPIRY;
+  }
+
+  return configured.trim();
+}
+
 class AuthService {
   constructor() {
     // Overridable for local development, where a 15-minute access token means
     // re-authenticating constantly during manual testing. Defaults to 15m so
     // deployed behaviour is unchanged.
-    this.accessTokenExpiry = process.env.ACCESS_TOKEN_EXPIRY || '15m';
+    this.accessTokenExpiry = resolveAccessTokenExpiry();
     this.refreshTokenExpiry = 7 * 24 * 60 * 60 * 1000; // 7 days
     this.trustedDeviceExpiry = 30 * 24 * 60 * 60 * 1000; // 30 days
     this.trustedDeviceCookieName = 'trusted_device';
