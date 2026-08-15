@@ -54,6 +54,25 @@ const NUTRITION_FIELDS = ['calories', 'protein', 'fat', 'carbohydrates'];
 // Decision taken deliberately (2026-08-16): LLM judgement, no code-level
 // verification. If derived methods prove unreliable, the cheap hardening is to
 // require the chosen method's stem to appear in the source instructions.
+// NutriHelp's ingredient-category vocabulary. The stored data is inconsistent
+// ("Meat & Seafood" / "Meat & Sea Food" / "Meat and Sea Food" all appear), so
+// this is a cleaned canonical set rather than a raw dump of the column.
+//
+// Categorising an ingredient is classification, not invention: "penne rigate"
+// is Pantry whatever the source says. recipe_ingredient.cuisine_id is NOT NULL,
+// so a blank category makes a prefilled recipe unsavable.
+const INGREDIENT_CATEGORIES = [
+  'Fruit & Vegetables',
+  'Meat & Seafood',
+  'Dairy',
+  'Bakery',
+  'Pantry',
+  'Frozen Foods',
+  'Canned Goods',
+  'Deli',
+  'Ready Meals',
+];
+
 const COOKING_METHODS = [
   'Bake', 'Boil', 'Fry', 'Grill', 'Roast', 'Sauté', 'Simmer', 'Steam',
   'Slow Cooking', 'Stir-Frying', 'Pressure Cooking', 'Air Frying',
@@ -77,6 +96,7 @@ const draftSchema = Joi.object({
       quantity: Joi.number().allow(null),
       unit: Joi.string().allow(null, ''),
       notes: Joi.string().allow(null, ''),
+      category: Joi.string().allow(null, ''),
     })
   ).required(),
   instructions: Joi.array().items(Joi.string()).required(),
@@ -106,12 +126,13 @@ Target shape:
   "cook_time_minutes": "number or null",
   "difficulty": "easy|medium|hard or null",
   "image_url": "string or null",
-  "ingredients": [{"name": "string", "quantity": "number or null", "unit": "string or null", "notes": "string or null"}],
+  "ingredients": [{"name": "string", "quantity": "number or null", "unit": "string or null", "notes": "string or null", "category": "string"}],
   "instructions": ["string"]
 }
 
 Mapping rules:
 - ingredients: split the source measure into quantity (number) and unit (string). "1 pound" becomes quantity 1, unit "pound". If the measure has no number, quantity is null and the text goes in notes.
+- ingredients[].category: classify each ingredient into exactly one of: ${INGREDIENT_CATEGORIES.join(', ')}. This is classification of the ingredient itself, not a claim about the source — "penne rigate" is Pantry, "chicken thighs" is Meat & Seafood, "basil" is Fruit & Vegetables. Always provide a category for every ingredient; use "Pantry" when genuinely unsure.
 - instructions: split the source instruction text into individual steps. Keep the original wording. Do not add steps.
 - cuisine_name: use the source area.
 - cooking_method_name: identify the dish's PRIMARY cooking method from the cooking verbs actually used in the source instructions, and return the closest match from this list: ${COOKING_METHODS.join(', ')}. Only choose a method whose technique is genuinely described in the instructions — if the instructions describe boiling pasta and sauteing garlic, pick the one that defines the dish. If the instructions describe no cooking at all, use "Raw / No Cook". If you cannot tell, return null rather than guessing.
@@ -170,6 +191,9 @@ function deterministicMap(sourceRecipe) {
   draft.ingredients = (sourceRecipe.ingredients || []).map((item) => ({
     name: item.name,
     ...parseMeasure(item.measure),
+    // No LLM in this path to classify with, so default to the safe bucket —
+    // the row stays saveable and the user can correct it.
+    category: 'Pantry',
   }));
   draft.instructions = splitInstructions(sourceRecipe.instructions);
 
@@ -192,6 +216,9 @@ function normalizeDraft(parsed) {
         quantity: item.quantity ?? null,
         unit: item.unit ?? null,
         notes: item.notes ?? null,
+        // Only accept a category from the controlled vocabulary; anything else
+        // falls back to Pantry so the row stays saveable.
+        category: INGREDIENT_CATEGORIES.includes(item.category) ? item.category : 'Pantry',
       }))
     : [];
   draft.instructions = Array.isArray(parsed.instructions) ? parsed.instructions : [];
@@ -271,6 +298,60 @@ function geminiGenerate() {
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const MAX_RETRY_DELAY_MS = 15000;
+
+const IMAGE_FETCH_TIMEOUT_MS = 10000;
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+
+/**
+ * Fetches the source recipe's image server-side and returns it as a base64 data
+ * URL, the format the existing save path already accepts (model/createRecipe.js
+ * saveImage -> parseBase64Image).
+ *
+ * Done on the backend rather than in the browser because the source CDN's CORS
+ * policy is not ours to depend on, and because every client (web, mobile, any
+ * future integration) then gets the image without repeating this work.
+ *
+ * Returns null on any failure — a missing image must never fail a mapping.
+ */
+async function fetchImageAsDataUrl(imageUrl) {
+  if (!imageUrl || typeof imageUrl !== 'string') return null;
+
+  try {
+    const response = await axios.get(imageUrl, {
+      responseType: 'arraybuffer',
+      timeout: IMAGE_FETCH_TIMEOUT_MS,
+      maxContentLength: MAX_IMAGE_BYTES,
+      maxBodyLength: MAX_IMAGE_BYTES,
+    });
+
+    const contentType = String(response.headers['content-type'] || '').split(';')[0].trim();
+    if (!ALLOWED_IMAGE_TYPES.includes(contentType)) {
+      logger.warn('[recipeSources][mapper] source image rejected: unexpected content type', {
+        imageUrl,
+        contentType,
+      });
+      return null;
+    }
+
+    const buffer = Buffer.from(response.data);
+    if (buffer.length > MAX_IMAGE_BYTES) {
+      logger.warn('[recipeSources][mapper] source image rejected: too large', {
+        imageUrl,
+        bytes: buffer.length,
+      });
+      return null;
+    }
+
+    return `data:${contentType};base64,${buffer.toString('base64')}`;
+  } catch (error) {
+    logger.warn('[recipeSources][mapper] source image fetch failed', {
+      imageUrl,
+      error: error.message,
+    });
+    return null;
+  }
+}
 
 /**
  * Pulls a retry delay out of a provider error. Gemini reports it as
@@ -436,6 +517,7 @@ async function mapRecipe(sourceRecipe, options = {}) {
       draft,
       unmapped_fields: unmapped,
       source_meta: buildSourceMeta(sourceRecipe),
+      source_image: await fetchImageAsDataUrl(draft.image_url || sourceRecipe.thumbnail),
       mapper: { strategy: 'llm', model: modelName, violations: [] },
     };
   }
@@ -458,6 +540,7 @@ async function mapRecipe(sourceRecipe, options = {}) {
     draft,
     unmapped_fields: unmapped,
     source_meta: buildSourceMeta(sourceRecipe),
+    source_image: await fetchImageAsDataUrl(draft.image_url || sourceRecipe.thumbnail),
     mapper: { strategy: 'fallback', model: modelName, violations },
   };
 }

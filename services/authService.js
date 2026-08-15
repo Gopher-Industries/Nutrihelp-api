@@ -23,7 +23,10 @@ const supabaseService = createClient(
 
 class AuthService {
   constructor() {
-    this.accessTokenExpiry = '15m';
+    // Overridable for local development, where a 15-minute access token means
+    // re-authenticating constantly during manual testing. Defaults to 15m so
+    // deployed behaviour is unchanged.
+    this.accessTokenExpiry = process.env.ACCESS_TOKEN_EXPIRY || '15m';
     this.refreshTokenExpiry = 7 * 24 * 60 * 60 * 1000; // 7 days
     this.trustedDeviceExpiry = 30 * 24 * 60 * 60 * 1000; // 30 days
     this.trustedDeviceCookieName = 'trusted_device';
