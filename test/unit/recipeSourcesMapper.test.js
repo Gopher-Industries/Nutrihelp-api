@@ -221,6 +221,76 @@ describe('mapRecipe', () => {
   });
 });
 
+describe('controlled vocabularies', () => {
+  function payloadWith(overrides) {
+    return JSON.stringify({ ...JSON.parse(goodLlmPayload()), ...overrides });
+  }
+
+  it('keeps a cooking method that is on the list', async () => {
+    const generate = sinon.stub().resolves(payloadWith({ cooking_method_name: 'Boil' }));
+
+    const result = await mapRecipe(SOURCE, { generate });
+
+    assert.strictEqual(result.draft.cooking_method_name, 'Boil');
+    assert.ok(!result.unmapped_fields.includes('cooking_method_name'));
+  });
+
+  it('nulls out an off-list cooking method and reports it as unmapped', async () => {
+    const generate = sinon.stub().resolves(payloadWith({ cooking_method_name: 'Sous Vide' }));
+
+    const result = await mapRecipe(SOURCE, { generate });
+
+    // Previously copied through verbatim: rendered as a blank select, dropped
+    // at save, and never flagged.
+    assert.strictEqual(result.draft.cooking_method_name, null);
+    assert.ok(result.unmapped_fields.includes('cooking_method_name'));
+  });
+
+  it('restores the canonical casing of a cooking method', async () => {
+    const generate = sinon.stub().resolves(payloadWith({ cooking_method_name: 'stir-frying' }));
+
+    const result = await mapRecipe(SOURCE, { generate });
+
+    assert.strictEqual(result.draft.cooking_method_name, 'Stir-Frying');
+  });
+
+  it('keeps a cuisine that is on the list', async () => {
+    const generate = sinon.stub().resolves(payloadWith({ cuisine_name: 'Italian' }));
+
+    const result = await mapRecipe(SOURCE, { generate });
+
+    assert.strictEqual(result.draft.cuisine_name, 'Italian');
+    assert.ok(!result.unmapped_fields.includes('cuisine_name'));
+  });
+
+  it('nulls out an off-list cuisine and reports it as unmapped', async () => {
+    const generate = sinon.stub().resolves(payloadWith({ cuisine_name: 'Canadian' }));
+
+    const result = await mapRecipe(SOURCE, { generate });
+
+    assert.strictEqual(result.draft.cuisine_name, null);
+    assert.ok(result.unmapped_fields.includes('cuisine_name'));
+  });
+
+  it('restores the canonical casing of a cuisine', async () => {
+    const generate = sinon.stub().resolves(payloadWith({ cuisine_name: 'MEDITERRANEAN' }));
+
+    const result = await mapRecipe(SOURCE, { generate });
+
+    assert.strictEqual(result.draft.cuisine_name, 'Mediterranean');
+  });
+
+  it('gates the cuisine on the deterministic fallback path too', async () => {
+    const generate = sinon.stub().resolves('the model went off-script');
+
+    const result = await mapRecipe({ ...SOURCE, area: 'Canadian' }, { generate });
+
+    assert.strictEqual(result.mapper.strategy, 'fallback');
+    assert.strictEqual(result.draft.cuisine_name, null);
+    assert.ok(result.unmapped_fields.includes('cuisine_name'));
+  });
+});
+
 describe('withTimeout', () => {
   it('resolves with the promise value when it settles in time', async () => {
     assert.strictEqual(await withTimeout(Promise.resolve('ok'), 1000, 'task'), 'ok');

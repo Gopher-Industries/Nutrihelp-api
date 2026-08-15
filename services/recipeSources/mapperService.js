@@ -79,6 +79,32 @@ const COOKING_METHODS = [
   'Poaching', 'Smoking', 'Raw / No Cook',
 ];
 
+// Mirrors the `cuisines` table. TheMealDB's `strArea` is its own vocabulary and
+// does not always line up ("Turkish" vs "Turkey"), and an off-list value renders
+// as a blank select and is silently dropped at save without being flagged.
+//
+// KEEP IN SYNC: if the cuisines table gains or loses a row, update this list.
+// A value missing here is nulled out and reported as unmapped, which is safe but
+// loses information the source did supply.
+const CUISINES = [
+  'Universal', 'French', 'Chinese', 'Japanese', 'Italian', 'Greek', 'Spanish',
+  'Lebanese', 'Turkey', 'Thai', 'Indian', 'Mexican', 'Vietnamese', 'Australian',
+  'Other', 'Mediterranean', 'American', 'Middle Eastern', 'Korean', 'Turkish',
+  'African',
+];
+
+/**
+ * Returns the canonical spelling when `value` is in `vocabulary`
+ * (case-insensitively), and null otherwise. Nulled fields flow into
+ * unmapped_fields, so the user is told the field needs completing rather than
+ * being shown a silently blank select.
+ */
+function canonicalize(value, vocabulary) {
+  if (typeof value !== 'string' || !value.trim()) return null;
+  const needle = value.trim().toLowerCase();
+  return vocabulary.find((entry) => entry.toLowerCase() === needle) || null;
+}
+
 const draftSchema = Joi.object({
   recipe_name: Joi.string().allow(null, ''),
   description: Joi.string().allow(null, ''),
@@ -186,7 +212,9 @@ function deterministicMap(sourceRecipe) {
   const draft = emptyDraft();
 
   draft.recipe_name = sourceRecipe.title || null;
-  draft.cuisine_name = sourceRecipe.area || null;
+  // TheMealDB's areas are its own vocabulary ("British", "Canadian"), most of
+  // which NutriHelp has no cuisine row for. Same gate as the LLM path.
+  draft.cuisine_name = canonicalize(sourceRecipe.area, CUISINES);
   draft.image_url = sourceRecipe.thumbnail || null;
   draft.ingredients = (sourceRecipe.ingredients || []).map((item) => ({
     name: item.name,
@@ -222,6 +250,12 @@ function normalizeDraft(parsed) {
       }))
     : [];
   draft.instructions = Array.isArray(parsed.instructions) ? parsed.instructions : [];
+
+  // Both of these feed a form select backed by a controlled table. An off-list
+  // value was previously copied through verbatim, where it rendered as a blank
+  // select, dropped at save, and was never reported as unmapped.
+  draft.cooking_method_name = canonicalize(draft.cooking_method_name, COOKING_METHODS);
+  draft.cuisine_name = canonicalize(draft.cuisine_name, CUISINES);
 
   return draft;
 }
@@ -581,6 +615,7 @@ module.exports = {
   TARGET_FIELDS,
   NUTRITION_FIELDS,
   COOKING_METHODS,
+  CUISINES,
   LLM_TIMEOUT_MS,
   withTimeout,
   buildMapPrompt,
