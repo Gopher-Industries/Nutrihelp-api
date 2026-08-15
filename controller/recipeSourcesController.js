@@ -1,5 +1,6 @@
 const recipeSources = require('../services/recipeSources');
 const mapperService = require('../services/recipeSources/mapperService');
+const { resolveIngredients } = require('../services/recipeSources/ingredientResolver');
 const logger = require('../utils/logger');
 
 exports.searchSources = async (req, res) => {
@@ -65,6 +66,39 @@ exports.mapSource = async (req, res) => {
 
   try {
     const result = await mapperService.mapRecipe(sourceRecipe);
+
+    // Resolve each mapped ingredient to a NutriHelp ingredient id, creating the
+    // ones that do not exist yet. Without this the save path silently drops
+    // roughly three quarters of an external recipe's ingredients.
+    try {
+      const resolved = await resolveIngredients(result.draft.ingredients);
+      const byName = new Map(resolved.map((row) => [row.name, row]));
+
+      result.draft.ingredients = result.draft.ingredients.map((ingredient) => {
+        const match = byName.get(String(ingredient.name || '').trim());
+        if (!match) return ingredient;
+        return {
+          ...ingredient,
+          ingredient_id: match.id,
+          category: match.category || ingredient.category,
+          matched_name: match.matchedName || match.name,
+          resolution: match.status,
+        };
+      });
+
+      result.ingredient_resolution = {
+        matched: resolved.filter((row) => row.status === 'matched').length,
+        created: resolved.filter((row) => row.status === 'created').length,
+        failed: resolved.filter((row) => row.status === 'failed').length,
+      };
+    } catch (resolveError) {
+      // Resolution is an enhancement — never fail a mapping over it.
+      logger.warn('[recipeSources] ingredient resolution failed', {
+        ...trace,
+        error: resolveError.message,
+      });
+    }
+
     logger.info('[recipeSources] POST /map 200', {
       ...trace,
       strategy: result.mapper.strategy,
