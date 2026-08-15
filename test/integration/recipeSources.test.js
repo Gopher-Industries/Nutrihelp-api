@@ -72,6 +72,13 @@ function buildApp(axiosGet, generate) {
       ...mapperService,
       mapRecipe: (sourceRecipe) => mapperService.mapRecipe(sourceRecipe, { generate }),
     },
+    // The resolver talks to Supabase with the service role. Other always-loaded
+    // suites call dotenv.config() at module scope, so leaving it unstubbed makes
+    // this test read and write the team's SHARED ingredients table. Resolution
+    // is not what this test is about — stub it out entirely.
+    '../services/recipeSources/ingredientResolver': {
+      resolveIngredients: sinon.stub().resolves([]),
+    },
   });
   const router = proxyquire('../../routes/recipeSources', {
     '../controller/recipeSourcesController': controller,
