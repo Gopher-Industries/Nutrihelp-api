@@ -1,14 +1,26 @@
 /**
- * Unit tests for the recipe mapper. The LLM is injected as a stub — no network.
+ * Unit tests for the recipe mapper. The LLM is injected as a stub and axios is
+ * proxyquired out — no network. (Without the axios stub the source-image fetch
+ * really does reach out to the thumbnail host on every mapRecipe call.)
  */
 const assert = require('assert');
 const sinon = require('sinon');
+const proxyquire = require('proxyquire');
+
+// Shared default: image fetches fail, which mapRecipe treats as "no image".
+const axiosStub = { get: sinon.stub().rejects(new Error('image fetch stubbed')) };
+
 const {
   TARGET_FIELDS,
   buildMapPrompt,
   deterministicMap,
   mapRecipe,
-} = require('../../services/recipeSources/mapperService');
+} = proxyquire('../../services/recipeSources/mapperService', { axios: axiosStub });
+
+/** Loads a fresh mapper whose axios.get is the supplied stub. */
+function loadMapperWithAxios(get) {
+  return proxyquire('../../services/recipeSources/mapperService', { axios: { get } });
+}
 
 const SOURCE = {
   source: 'themealdb',
@@ -204,5 +216,90 @@ describe('mapRecipe', () => {
     for (const field of TARGET_FIELDS) {
       assert.ok(field in result.draft, `draft is missing target field ${field}`);
     }
+  });
+});
+
+describe('mapRecipe — source image fetch', () => {
+  const PNG = {
+    headers: { 'content-type': 'image/png' },
+    data: Buffer.from('not really a png'),
+  };
+
+  /** A payload whose image_url points somewhere the model chose. */
+  function hostileImagePayload() {
+    const payload = JSON.parse(goodLlmPayload());
+    payload.image_url = 'http://169.254.169.254/latest/meta-data/';
+    return JSON.stringify(payload);
+  }
+
+  it('fetches the adapter-supplied thumbnail, never the model-supplied url', async () => {
+    const get = sinon.stub().resolves(PNG);
+    const mapper = loadMapperWithAxios(get);
+    const generate = sinon.stub().resolves(hostileImagePayload());
+
+    const result = await mapper.mapRecipe(SOURCE, { generate });
+
+    assert.strictEqual(result.mapper.strategy, 'llm');
+    assert.strictEqual(get.callCount, 1);
+    assert.strictEqual(get.firstCall.args[0], SOURCE.thumbnail);
+    assert.ok(result.source_image.startsWith('data:image/png;base64,'));
+  });
+
+  it('refuses redirects on the image fetch', async () => {
+    const get = sinon.stub().resolves(PNG);
+    const mapper = loadMapperWithAxios(get);
+    const generate = sinon.stub().resolves(goodLlmPayload());
+
+    await mapper.mapRecipe(SOURCE, { generate });
+
+    // A permitted host must not be able to bounce the request onto another one.
+    assert.strictEqual(get.firstCall.args[1].maxRedirects, 0);
+  });
+
+  it('caps the image at 1 MB', async () => {
+    const get = sinon.stub().resolves(PNG);
+    const mapper = loadMapperWithAxios(get);
+    const generate = sinon.stub().resolves(goodLlmPayload());
+
+    await mapper.mapRecipe(SOURCE, { generate });
+
+    const options = get.firstCall.args[1];
+    assert.strictEqual(options.maxContentLength, 1024 * 1024);
+    assert.strictEqual(options.maxBodyLength, 1024 * 1024);
+  });
+
+  it('uses the adapter thumbnail on the deterministic fallback path too', async () => {
+    const get = sinon.stub().resolves(PNG);
+    const mapper = loadMapperWithAxios(get);
+    const generate = sinon.stub().resolves('the model went off-script');
+
+    const result = await mapper.mapRecipe(SOURCE, { generate });
+
+    assert.strictEqual(result.mapper.strategy, 'fallback');
+    assert.strictEqual(get.firstCall.args[0], SOURCE.thumbnail);
+  });
+
+  it('rejects an image whose content type is not an allowed image', async () => {
+    const get = sinon.stub().resolves({
+      headers: { 'content-type': 'text/html' },
+      data: Buffer.from('<html>internal page</html>'),
+    });
+    const mapper = loadMapperWithAxios(get);
+    const generate = sinon.stub().resolves(goodLlmPayload());
+
+    const result = await mapper.mapRecipe(SOURCE, { generate });
+
+    assert.strictEqual(result.source_image, null);
+  });
+
+  it('returns a draft with no image rather than failing when the fetch throws', async () => {
+    const get = sinon.stub().rejects(new Error('ECONNREFUSED'));
+    const mapper = loadMapperWithAxios(get);
+    const generate = sinon.stub().resolves(goodLlmPayload());
+
+    const result = await mapper.mapRecipe(SOURCE, { generate });
+
+    assert.strictEqual(result.source_image, null);
+    assert.strictEqual(result.draft.recipe_name, 'Spicy Arrabiata Penne');
   });
 });

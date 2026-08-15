@@ -65,7 +65,11 @@ function buildApp(axiosGet, generate) {
   const registry = proxyquire('../../services/recipeSources', {
     './adapters/theMealDb': theMealDb,
   });
-  const mapperService = require('../../services/recipeSources/mapperService');
+  // axios stubbed out: the mapper fetches the source thumbnail server-side, and
+  // unstubbed that is a real outbound request on every mapped recipe.
+  const mapperService = proxyquire('../../services/recipeSources/mapperService', {
+    axios: { get: sinon.stub().rejects(new Error('image fetch stubbed')) },
+  });
   const controller = proxyquire('../../controller/recipeSourcesController', {
     '../services/recipeSources': registry,
     '../services/recipeSources/mapperService': {

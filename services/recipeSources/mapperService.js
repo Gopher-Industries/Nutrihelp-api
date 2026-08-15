@@ -300,7 +300,8 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const MAX_RETRY_DELAY_MS = 15000;
 
 const IMAGE_FETCH_TIMEOUT_MS = 10000;
-const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+// TheMealDB thumbnails are well under this; anything larger is not a thumbnail.
+const MAX_IMAGE_BYTES = 1 * 1024 * 1024;
 const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 
 /**
@@ -311,6 +312,12 @@ const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
  * Done on the backend rather than in the browser because the source CDN's CORS
  * policy is not ours to depend on, and because every client (web, mobile, any
  * future integration) then gets the image without repeating this work.
+ *
+ * SECURITY: callers must pass an ADAPTER-DERIVED url only. This makes a
+ * server-side request, so handing it a model-authored or otherwise
+ * third-party-controlled url turns the endpoint into an SSRF gadget. Redirects
+ * are refused for the same reason — a permitted host must not be able to bounce
+ * the request onto an internal one.
  *
  * Returns null on any failure — a missing image must never fail a mapping.
  */
@@ -323,6 +330,7 @@ async function fetchImageAsDataUrl(imageUrl) {
       timeout: IMAGE_FETCH_TIMEOUT_MS,
       maxContentLength: MAX_IMAGE_BYTES,
       maxBodyLength: MAX_IMAGE_BYTES,
+      maxRedirects: 0,
     });
 
     const contentType = String(response.headers['content-type'] || '').split(';')[0].trim();
@@ -517,7 +525,9 @@ async function mapRecipe(sourceRecipe, options = {}) {
       draft,
       unmapped_fields: unmapped,
       source_meta: buildSourceMeta(sourceRecipe),
-      source_image: await fetchImageAsDataUrl(draft.image_url || sourceRecipe.thumbnail),
+      // Adapter-derived only. draft.image_url is model output and reachable from
+      // third-party source content, so it must never drive a server-side fetch.
+      source_image: await fetchImageAsDataUrl(sourceRecipe.thumbnail),
       mapper: { strategy: 'llm', model: modelName, violations: [] },
     };
   }
