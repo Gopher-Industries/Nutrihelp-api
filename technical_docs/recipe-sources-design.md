@@ -17,9 +17,10 @@ external database, and keep humans in control of what gets saved.
 
 A "Start from a real recipe" search field on the create-recipe surfaces. The user types a few
 words, we search an external recipe source, the user picks a result, and an LLM agent maps the
-external recipe onto the NutriHelp recipe schema — **mapping only, never inventing or editing
-content**. The mapped draft prefills the form; the user reviews, completes any missing fields,
-and saves through the existing, unchanged save path.
+external recipe onto the NutriHelp recipe schema — **mapping only, no enrichment**, with
+ingredients and instruction steps verified in code against the source text (see §4 guardrails for
+the precise scope of that guarantee). The mapped draft prefills the form; the user reviews,
+completes any missing fields, and saves through the existing, unchanged save path.
 
 ## 3. Decisions (with rationale)
 
@@ -64,6 +65,19 @@ from the source (client-supplied recipe content is never trusted), runs the mapp
                        "license": "Free with attribution" } }
 ```
 
+Each drafted ingredient additionally carries `ingredient_id` / `matched_name` / `resolution` when
+it matched an existing NutriHelp ingredient, plus an `ingredient_resolution` summary
+`{ matched, unmatched, failed }`. **`/map` is read-only** — it matches, it never creates.
+
+### POST /api/recipe-sources/resolve-ingredients  (authenticateToken)
+Body `{ "ingredients": [{ "name": "penne rigate", "category": "Pantry" }] }`, max 30 items.
+Matches as `/map` does but **creates** the ingredients NutriHelp does not have yet, returning
+`{ "resolved": [{ name, id, category, status }] }`.
+
+Split from `/map` deliberately: creation writes to the team's shared `ingredients` table, so it is
+tied to the user actually saving a recipe rather than merely previewing one. Previewing a recipe
+and walking away leaves no trace. The 30-item cap bounds how much a single request can write.
+
 ### Mapper guardrails ("map, never invent")
 1. Prompt embeds the raw source JSON + target field list; instruction: every output value must be
    copied or restructured from the source; missing data stays `null`.
@@ -71,6 +85,18 @@ from the source (client-supplied recipe content is never trusted), runs the mapp
 3. Fidelity check in code: every mapped ingredient must appear in the source text; instruction
    text compared against source with normalized similarity. Any rewrite ⇒ reject LLM output and
    fall back to a minimal deterministic mapping.
+4. `cuisine_name` and `cooking_method_name` are clamped to NutriHelp's controlled vocabularies
+   (the `cuisines` and `cooking_methods` tables); an off-list value is nulled and reported in
+   `unmapped_fields` rather than copied through.
+
+**What the guarantee actually covers.** Only **ingredients** and **instruction steps** are
+verified in code against the source text — those cannot be invented. Nutrition is never populated
+at all. Every other scalar field (`description`, `meal_type`, `difficulty`, prep/cook times,
+`servings`, `cooking_method_name`) is constrained by the prompt and the output schema only, plus
+the vocabulary clamp where one applies. `cooking_method_name` in particular is *derived* from the
+instruction prose rather than copied from a source field, because TheMealDB has no such column.
+So the honest claim is "verified for ingredients and instructions, prompt-and-schema-constrained
+elsewhere", not "never returns invented content".
 
 ## 5. Frontend design (Nutrihelp-web)
 
@@ -110,13 +136,16 @@ First live runs against real TheMealDB and real Gemini, from the stage tracing i
 | LLM mapping call | **43–71 s** |
 
 The model call is ~99% of `/map`. `gemini-flash-latest` currently resolves to `gemini-3.6-flash`,
-which does extended thinking by default — wasted effort on a mechanical field-mapping task, and
-the likely fix is a zero thinking budget or a flash-lite model. **This is a blocker for the D4
-loading state and should be resolved before the frontend is built around it.**
+which does extended thinking by default — wasted effort on a mechanical field-mapping task.
+
+**Resolved.** OpenRouter is now the preferred provider whenever `OPENROUTER_API_KEY` is set,
+which brings the mapping call down to **~3 s**. Gemini remains the fallback for when the key is
+absent, and its call is now bounded by `LLM_TIMEOUT_MS` like the OpenRouter one. The latency
+blocker on the D4 loading state no longer applies.
 
 Fallback behaviour confirmed live: on a provider error both attempts are made, then the
 deterministic mapping returns a complete draft (8 ingredients with parsed quantities, 10 steps)
-in ~1 s. No invented content reached a draft in any run.
+in ~1 s. No unsourced ingredient or instruction step reached a draft in any run.
 
 ## 8. Out of scope (future tickets)
 

@@ -4,8 +4,16 @@
  * The model MAPS ONLY. It may restructure and reformat source content; it may
  * not add facts. Two gates enforce that — Joi schema validation and the
  * fidelity check — and if either fails we discard the model output and use a
- * deterministic mapping instead. The endpoint therefore always returns a
- * usable draft and never returns invented content.
+ * deterministic mapping instead. The endpoint therefore always returns a usable
+ * draft.
+ *
+ * Scope of that guarantee, precisely: INGREDIENTS and INSTRUCTION STEPS are
+ * verified in code against the source text, so those cannot be invented. The
+ * remaining scalar fields (description, meal_type, difficulty, times, servings,
+ * cooking_method_name) are constrained by the prompt and the schema only —
+ * cuisine_name and cooking_method_name are additionally clamped to NutriHelp's
+ * controlled vocabularies, but nothing proves their VALUE against source text.
+ * Nutrition is never populated at all.
  */
 const Joi = require('joi');
 const axios = require('axios');
