@@ -38,6 +38,22 @@ const TARGET_FIELDS = [
 // so the UI can flag it, but the mapper must never populate it.
 const NUTRITION_FIELDS = ['calories', 'protein', 'fat', 'carbohydrates'];
 
+// NutriHelp's controlled cooking_methods vocabulary (cooking_methods table).
+// The mapper picks from this list rather than inventing free text, so the value
+// lines up with the form's dropdown.
+//
+// NOTE: cooking_method_name is DERIVED from the instruction prose, not copied
+// from a source field — TheMealDB has no cooking-method column. It is therefore
+// the one drafted field the fidelity check cannot prove against source text.
+// Decision taken deliberately (2026-08-16): LLM judgement, no code-level
+// verification. If derived methods prove unreliable, the cheap hardening is to
+// require the chosen method's stem to appear in the source instructions.
+const COOKING_METHODS = [
+  'Bake', 'Boil', 'Fry', 'Grill', 'Roast', 'Sauté', 'Simmer', 'Steam',
+  'Slow Cooking', 'Stir-Frying', 'Pressure Cooking', 'Air Frying',
+  'Poaching', 'Smoking', 'Raw / No Cook',
+];
+
 const draftSchema = Joi.object({
   recipe_name: Joi.string().allow(null, ''),
   description: Joi.string().allow(null, ''),
@@ -91,7 +107,8 @@ Target shape:
 Mapping rules:
 - ingredients: split the source measure into quantity (number) and unit (string). "1 pound" becomes quantity 1, unit "pound". If the measure has no number, quantity is null and the text goes in notes.
 - instructions: split the source instruction text into individual steps. Keep the original wording. Do not add steps.
-- cuisine_name: use the source area. cooking_method_name: only if the source states one, otherwise null.
+- cuisine_name: use the source area.
+- cooking_method_name: identify the dish's PRIMARY cooking method from the cooking verbs actually used in the source instructions, and return the closest match from this list: ${COOKING_METHODS.join(', ')}. Only choose a method whose technique is genuinely described in the instructions — if the instructions describe boiling pasta and sauteing garlic, pick the one that defines the dish. If the instructions describe no cooking at all, use "Raw / No Cook". If you cannot tell, return null rather than guessing.
 - Never output a value for calories, protein, fat or carbohydrates.`;
 }
 
