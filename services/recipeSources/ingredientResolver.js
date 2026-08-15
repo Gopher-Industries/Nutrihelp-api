@@ -158,11 +158,27 @@ async function resolveIngredients(ingredients = [], options = {}) {
     const category = ingredient?.category || 'Pantry';
     nextId = nextId === null ? (await getMaxIngredientId()) + 1 : nextId + 1;
 
-    const { data: inserted, error: insertError } = await insertIngredient({
+    let { data: inserted, error: insertError } = await insertIngredient({
       id: nextId,
       name: rawName,
       category,
     });
+
+    // max-id + 1 is racy: two concurrent creates compute the same id, and the
+    // loser's insert fails on the primary key. Re-read the max and retry once
+    // so its ingredient still gets created instead of silently vanishing.
+    if (insertError && insertError.code === '23505') {
+      nextId = (await getMaxIngredientId()) + 1;
+      logger.warn('[recipeSources][ingredients] id collision, retrying once', {
+        name: rawName,
+        nextId,
+      });
+      ({ data: inserted, error: insertError } = await insertIngredient({
+        id: nextId,
+        name: rawName,
+        category,
+      }));
+    }
 
     if (insertError) {
       logger.warn('[recipeSources][ingredients] could not create ingredient', {

@@ -178,6 +178,62 @@ describe('resolveIngredients', () => {
     assert.strictEqual(result.id, null);
   });
 
+  it('retries once against a fresh max id when the insert hits a duplicate key', async () => {
+    const fake = fakeSupabase({
+      rows: VOCABULARY,
+      maxId: 500,
+      insertResults: [{ error: { message: 'duplicate key value', code: '23505' } }],
+    });
+    const { resolveIngredients } = loadResolver(fake);
+
+    // A concurrent create took 501 between our max-id read and our insert.
+    fake.state.maxId = 501;
+
+    const [result] = await resolveIngredients(
+      [{ name: 'penne rigate', category: 'Pantry' }],
+      { createMissing: true }
+    );
+
+    assert.strictEqual(result.status, 'created');
+    assert.strictEqual(result.id, 502);
+    assert.strictEqual(calledInserts(fake), 2);
+  });
+
+  it('gives up after a single retry when the duplicate key persists', async () => {
+    const fake = fakeSupabase({
+      rows: VOCABULARY,
+      insertResults: [
+        { error: { message: 'duplicate key value', code: '23505' } },
+        { error: { message: 'duplicate key value', code: '23505' } },
+      ],
+    });
+    const { resolveIngredients } = loadResolver(fake);
+
+    const [result] = await resolveIngredients(
+      [{ name: 'penne rigate', category: 'Pantry' }],
+      { createMissing: true }
+    );
+
+    assert.strictEqual(result.status, 'failed');
+    assert.strictEqual(calledInserts(fake), 2);
+  });
+
+  it('does not retry an insert failure that is not a key collision', async () => {
+    const fake = fakeSupabase({
+      rows: VOCABULARY,
+      insertResults: [{ error: { message: 'permission denied', code: '42501' } }],
+    });
+    const { resolveIngredients } = loadResolver(fake);
+
+    const [result] = await resolveIngredients(
+      [{ name: 'penne rigate', category: 'Pantry' }],
+      { createMissing: true }
+    );
+
+    assert.strictEqual(result.status, 'failed');
+    assert.strictEqual(calledInserts(fake), 1);
+  });
+
   it('returns an empty array without touching the database for no ingredients', async () => {
     const fake = fakeSupabase({ rows: VOCABULARY });
     const { resolveIngredients } = loadResolver(fake);
