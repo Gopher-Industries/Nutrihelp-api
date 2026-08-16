@@ -1,6 +1,19 @@
 const recipeSources = require('../services/recipeSources');
 const mapperService = require('../services/recipeSources/mapperService');
 const { resolveIngredients } = require('../services/recipeSources/ingredientResolver');
+
+/**
+ * LLM generator for the resolver's semantic-matching tier, or null when no
+ * provider is configured — the resolver then runs its mechanical tiers only.
+ */
+function semanticGenerate() {
+  if (!process.env.OPENROUTER_API_KEY && !process.env.GEMINI_API_KEY) return null;
+  try {
+    return mapperService.resolveProvider().generate;
+  } catch (_error) {
+    return null;
+  }
+}
 const logger = require('../utils/logger');
 
 exports.searchSources = async (req, res) => {
@@ -77,6 +90,7 @@ exports.mapSource = async (req, res) => {
     try {
       const resolved = await resolveIngredients(result.draft.ingredients, {
         createMissing: false,
+        generate: semanticGenerate(),
       });
       const byName = new Map(resolved.map((row) => [row.name, row]));
 
@@ -145,7 +159,10 @@ exports.resolveIngredientsForSave = async (req, res) => {
   logger.info('[recipeSources] POST /resolve-ingredients', trace);
 
   try {
-    const resolved = await resolveIngredients(ingredients, { createMissing: true });
+    const resolved = await resolveIngredients(ingredients, {
+      createMissing: true,
+      generate: semanticGenerate(),
+    });
 
     logger.info('[recipeSources] POST /resolve-ingredients 200', {
       ...trace,

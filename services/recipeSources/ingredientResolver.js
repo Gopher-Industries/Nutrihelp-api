@@ -95,13 +95,71 @@ function insertIngredient(row) {
 }
 
 /**
+ * Asks the LLM to match the still-unmatched names against the existing
+ * vocabulary. This is classification against a fixed list, not generation:
+ * the model may only answer with an entry from the vocabulary or null, and
+ * every answer is validated against the list in code before it is trusted.
+ * It exists to stop near-duplicates the mechanical tiers cannot see —
+ * "caster sugar" IS the existing "Sugar" — from being created as new rows.
+ *
+ * Returns Map<inputName, vocabularyRow>. Any model failure returns an empty
+ * map so resolution proceeds exactly as if the tier did not exist.
+ */
+async function semanticMatch(unmatchedNames, vocabularyRows, exact, generate) {
+  if (!unmatchedNames.length || !generate) return new Map();
+
+  const prompt = `You match grocery ingredient names against an existing vocabulary list.
+For each input name, answer with the ONE vocabulary entry that is the same ingredient — a different wording, spelling, plural, or a specific form of the same food. Examples: "caster sugar" is "Sugar"; "egg yolks" is "Egg"; "beef fillet" is "Beef".
+If the input is a genuinely different ingredient with no vocabulary entry, answer null. "coconut milk" is NOT "Milk". Do not match merely related foods.
+Never answer with anything that is not in the vocabulary. When unsure, answer null.
+
+Vocabulary:
+${vocabularyRows.map((row) => row.name).join('\n')}
+
+Inputs:
+${unmatchedNames.join('\n')}
+
+Return strict JSON only, no markdown: [{"input": "name", "match": "vocabulary entry or null"}]`;
+
+  try {
+    const raw = await generate(prompt);
+    const start = raw.indexOf('[');
+    const end = raw.lastIndexOf(']');
+    if (start === -1 || end <= start) return new Map();
+    const parsed = JSON.parse(raw.slice(start, end + 1));
+
+    const matches = new Map();
+    for (const entry of Array.isArray(parsed) ? parsed : []) {
+      if (!entry || typeof entry.input !== 'string' || typeof entry.match !== 'string') continue;
+      // Trust nothing off-list: the answer must resolve to a real row.
+      const hit = exact.get(normalizeName(entry.match));
+      if (hit && unmatchedNames.includes(entry.input)) {
+        matches.set(entry.input, hit);
+        logger.info('[recipeSources][ingredients] semantic match', {
+          input: entry.input,
+          matched: hit.name,
+        });
+      }
+    }
+    return matches;
+  } catch (error) {
+    logger.warn('[recipeSources][ingredients] semantic match skipped', {
+      error: error.message,
+    });
+    return new Map();
+  }
+}
+
+/**
  * @param {Array<{name: string, category?: string}>} ingredients
- * @param {{createMissing?: boolean}} [options] createMissing defaults to false:
- *   matching is read-only unless the caller explicitly asks for creation.
+ * @param {{createMissing?: boolean, generate?: Function}} [options]
+ *   createMissing defaults to false: matching is read-only unless the caller
+ *   explicitly asks for creation. `generate` enables the semantic matching
+ *   tier; when absent, only the mechanical tiers run (keeps tests offline).
  * @returns {Promise<Array<{name, id, category, status: 'matched'|'unmatched'|'created'|'failed', matchedName?}>>}
  */
 async function resolveIngredients(ingredients = [], options = {}) {
-  const { createMissing = false } = options;
+  const { createMissing = false, generate = null } = options;
   if (!ingredients.length) return [];
 
   const { data: existing, error } = await supabaseService
@@ -112,13 +170,13 @@ async function resolveIngredients(ingredients = [], options = {}) {
   if (error) throw error;
 
   const { exact, loose } = buildLookup(existing || []);
-  const results = [];
-  let nextId = null;
 
+  // Pass 1: mechanical matching, collecting what it cannot place.
+  const mechanicalHits = new Map();
+  const pendingNames = [];
   for (const ingredient of ingredients) {
     const rawName = String(ingredient?.name || '').trim();
-    if (!rawName) continue;
-
+    if (!rawName || mechanicalHits.has(rawName)) continue;
     const normalized = normalizeName(rawName);
     const folded = singularize(normalized);
     const hit =
@@ -127,6 +185,25 @@ async function resolveIngredients(ingredients = [], options = {}) {
       // "Parmigiano-Reggiano cheese" -> "Cheese": if the source name ends with a
       // known ingredient, prefer the existing row over minting a near-duplicate.
       findTrailingWordMatch(folded, exact);
+    if (hit) mechanicalHits.set(rawName, hit);
+    else if (!pendingNames.includes(rawName)) pendingNames.push(rawName);
+  }
+
+  // Pass 2: semantic matching over the remainder, before anything is created.
+  const semanticHits = await semanticMatch(pendingNames, existing || [], exact, generate);
+
+  const results = [];
+  let nextId = null;
+
+  for (const ingredient of ingredients) {
+    const rawName = String(ingredient?.name || '').trim();
+    if (!rawName) continue;
+
+    const hit = mechanicalHits.get(rawName) || semanticHits.get(rawName) || (() => {
+      // A row created earlier in this same request also counts as a match.
+      const normalized = normalizeName(rawName);
+      return exact.get(normalized) || loose.get(singularize(normalized));
+    })();
 
     if (hit) {
       results.push({

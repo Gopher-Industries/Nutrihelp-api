@@ -284,3 +284,69 @@ describe('singularize', () => {
     assert.strictEqual(singularize('gas'), 'gas');
   });
 });
+
+describe('resolveIngredients semantic tier', () => {
+  const sinon = require('sinon');
+
+  it('matches via the LLM when mechanical tiers fail, validated against the vocabulary', async () => {
+    // "gruyere" defeats every mechanical tier: no exact row, no plural fold,
+    // and no trailing-word overlap with "Cheese".
+    const fake = fakeSupabase({ rows: VOCABULARY });
+    const { resolveIngredients } = loadResolver(fake);
+    const generate = sinon.stub().resolves('[{"input":"gruyere","match":"Cheese"}]');
+
+    const [result] = await resolveIngredients([{ name: 'gruyere' }], { generate });
+
+    assert.strictEqual(result.status, 'matched');
+    assert.strictEqual(result.matchedName, 'Cheese');
+    assert.strictEqual(result.id, 3);
+    assert.strictEqual(generate.callCount, 1);
+    assert.strictEqual(calledInserts(fake), 0);
+  });
+
+  it('rejects an off-vocabulary answer and treats the name as new', async () => {
+    const fake = fakeSupabase({ rows: VOCABULARY, maxId: 500 });
+    const { resolveIngredients } = loadResolver(fake);
+    const generate = sinon.stub().resolves('[{"input":"caster sugar","match":"Brown Sugar Deluxe"}]');
+
+    const [result] = await resolveIngredients(
+      [{ name: 'caster sugar', category: 'Pantry' }],
+      { createMissing: true, generate }
+    );
+
+    assert.strictEqual(result.status, 'created');
+    assert.strictEqual(calledInserts(fake), 1);
+  });
+
+  it('proceeds without the tier when the LLM fails', async () => {
+    const fake = fakeSupabase({ rows: VOCABULARY, maxId: 500 });
+    const { resolveIngredients } = loadResolver(fake);
+    const generate = sinon.stub().rejects(new Error('provider down'));
+
+    const [result] = await resolveIngredients(
+      [{ name: 'caster sugar', category: 'Pantry' }],
+      { createMissing: true, generate }
+    );
+
+    assert.strictEqual(result.status, 'created');
+  });
+
+  it('does not call the LLM when everything matched mechanically', async () => {
+    const fake = fakeSupabase({ rows: VOCABULARY });
+    const { resolveIngredients } = loadResolver(fake);
+    const generate = sinon.stub().resolves('[]');
+
+    await resolveIngredients([{ name: 'Tomato' }], { generate });
+
+    assert.strictEqual(generate.callCount, 0);
+  });
+
+  it('runs mechanical-only when no generate is provided', async () => {
+    const fake = fakeSupabase({ rows: VOCABULARY });
+    const { resolveIngredients } = loadResolver(fake);
+
+    const [result] = await resolveIngredients([{ name: 'caster sugar' }]);
+
+    assert.strictEqual(result.status, 'unmatched');
+  });
+});

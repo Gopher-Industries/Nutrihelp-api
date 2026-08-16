@@ -100,7 +100,7 @@ describe('POST /api/recipe-sources/map', () => {
       .expect(200);
 
     // The whole point of the split: /map must ask for matching only.
-    assert.deepStrictEqual(resolveIngredients.firstCall.args[1], { createMissing: false });
+    assert.strictEqual(resolveIngredients.firstCall.args[1].createMissing, false);
     assert.deepStrictEqual(response.body.data.ingredient_resolution, {
       matched: 0,
       unmatched: 1,
@@ -251,7 +251,7 @@ describe('POST /api/recipe-sources/resolve-ingredients', () => {
     assert.strictEqual(response.body.data.resolved.length, 2);
     assert.strictEqual(response.body.data.resolved[1].id, 501);
     // This is the one endpoint allowed to write.
-    assert.deepStrictEqual(resolveIngredients.firstCall.args[1], { createMissing: true });
+    assert.strictEqual(resolveIngredients.firstCall.args[1].createMissing, true);
   });
 
   it('accepts an ingredient without a category', async () => {
