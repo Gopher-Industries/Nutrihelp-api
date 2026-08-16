@@ -147,7 +147,50 @@ Fallback behaviour confirmed live: on a provider error both attempts are made, t
 deterministic mapping returns a complete draft (8 ingredients with parsed quantities, 10 steps)
 in ~1 s. No unsourced ingredient or instruction step reached a draft in any run.
 
-## 8. Out of scope (future tickets)
+## 8. Appendix — worked mapping example (TheMealDB 52771, captured 2026-08-16)
+
+What the source provides (54 keys, only 25 populated; no servings, times, difficulty,
+description, nutrition, or cooking-method field — condensed):
+
+```json
+{ "idMeal": "52771", "strMeal": "Spicy Arrabiata Penne",
+  "strCategory": "Vegetarian", "strArea": "Italian",
+  "strInstructions": "Bring a large pot of water to a boil. Add kosher salt ... about 9 minutes.\nIn a large skillet ... add the chopped basil.\nDrain the pasta ... serve warm.",
+  "strIngredient1": "penne rigate",  "strMeasure1": "1 pound",
+  "strIngredient2": "olive oil",     "strMeasure2": "1/4 cup",
+  "strIngredient3": "garlic",        "strMeasure3": "3 cloves" }
+```
+
+What `/map` returns for it (condensed — `strategy: "llm"`, model via OpenRouter):
+
+```json
+{ "draft": {
+    "recipe_name": "Spicy Arrabiata Penne", "cuisine_name": "Italian",
+    "cooking_method_name": "Boil",
+    "ingredients": [
+      { "name": "penne rigate", "quantity": 1, "unit": "pound",
+        "category": "Pantry", "ingredient_id": 277, "resolution": "matched" },
+      { "name": "olive oil", "quantity": 0.25, "unit": "cup",
+        "category": "Pantry", "ingredient_id": 3, "matched_name": "Olive Oil" },
+      { "name": "garlic", "quantity": 3, "unit": "cloves",
+        "category": "Fruit & Vegetables", "ingredient_id": 63 } ],
+    "instructions": ["Bring a large pot of water to a boil. ...", "..."],
+    "servings": null, "prep_time_minutes": null, "calories": null },
+  "unmapped_fields": ["description", "servings", "prep_time_minutes",
+                      "cook_time_minutes", "difficulty", "calories",
+                      "protein", "fat", "carbohydrates"],
+  "source_meta": { "source": "themealdb", "external_id": "52771",
+                   "attribution": "TheMealDB", "license": "Free with attribution" },
+  "ingredient_resolution": { "matched": 3, "unmatched": 5, "failed": 0 },
+  "mapper": { "strategy": "llm", "violations": [] } }
+```
+
+Points the example demonstrates: nutrition and unavailable fields are `null` and reported,
+never guessed; `cooking_method_name` is derived from cooking verbs in the instructions
+(the one field not verifiable against a source column); ingredient names resolve to the
+shared vocabulary where possible, and unmatched ones are only created at save time.
+
+## 9. Out of scope (future tickets)
 
 Additional adapters (Food.com dataset indexed in Supabase, RecipeNLG), provenance columns on the
 user `recipes` table, nutrition auto-lookup (USDA FoodData Central / AFCD), MCP server exposing
