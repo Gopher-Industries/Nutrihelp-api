@@ -52,7 +52,7 @@ module.exports = app => {
     app.use('/security-dashboard', require('./securityDashboard'));
     app.use('/api/recommendations', require('./recommendations'));
     app.use('/api/meal-plan', require('./mealPlanAIRoutes'));
-};
+
 
     // AI model routes (ported from NutriHelp-ai)
     app.use('/ai-model/chatbot', require('./ai/chatbot'));
