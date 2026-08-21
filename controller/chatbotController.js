@@ -40,6 +40,7 @@ function resolveChatbotUserId(req) {
 async function getChatResponse(req, res) {
   try {
     const userId = resolveChatbotUserId(req);
+    logger.info('Chatbot request received', { userId, ip: req.ip, flagged: req.injectionFlagged || false });
     const result = await chatbotService.getChatResponse({
       userId,
       userInput: req.body.user_input
