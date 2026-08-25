@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -135,6 +136,7 @@
       border: 1px solid var(--border);
       border-radius: 10px;
       padding: 20px;
+      margin-bottom: 28px;
       box-shadow: 0 3px 10px rgba(15, 23, 42, 0.06);
     }
 
@@ -258,17 +260,246 @@
       color: #991b1b;
     }
 
+    /* --- Findings by Severity Visuals --- */
+
+    .severity-chart {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 20px;
+      margin-bottom: 28px;
+      box-shadow: 0 3px 10px rgba(15, 23, 42, 0.06);
+    }
+
+    .severity-chart h2 {
+      margin: 0 0 8px;
+      font-size: 20px;
+    }
+
+    .severity-visuals {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 30px;
+      min-height: 90px;
+    }
+
+    .horizontal-chart {
+      flex: 1;
+    }
+
+    .horizontal-row {
+      display: grid;
+      grid-template-columns: 75px 1fr 30px;
+      align-items: center;
+      gap: 10px;
+      margin: 7px 0;
+    }
+
+    .horizontal-label {
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .horizontal-track {
+      height: 10px;
+      background: #eef2f7;
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .horizontal-bar {
+      height: 100%;
+      width: 0;
+      border-radius: 999px;
+      transition: width 0.3s ease;
+    }
+
+    .horizontal-bar.critical {
+      background: var(--critical);
+    }
+
+    .horizontal-bar.high {
+      background: var(--high);
+    }
+
+    .horizontal-bar.medium {
+      background: var(--medium);
+    }
+
+    .horizontal-bar.low {
+      background: var(--low);
+    }
+
+    .horizontal-value {
+      font-size: 13px;
+      font-weight: 700;
+      text-align: right;
+    }
+
+    .doughnut-container {
+      width: 150px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .doughnut-chart {
+      width: 105px;
+      height: 105px;
+      border-radius: 50%;
+      position: relative;
+      background: #e5e7eb;
+    }
+
+    .doughnut-chart::after {
+      content: "";
+      position: absolute;
+      inset: 20px;
+      background: var(--surface);
+      border-radius: 50%;
+    }
+
+    .doughnut-center {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 1;
+    }
+
+    .doughnut-total {
+      font-size: 20px;
+      font-weight: 700;
+    }
+
+    .doughnut-label {
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    /* --- Scan and rule omission controls --- */
+
+    .filters button {
+      padding: 10px 14px;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      background: var(--navy);
+      color: white;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .filters button:hover {
+      background: var(--blue);
+    }
+
+    .filters button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .omit-rules-control {
+      position: relative;
+    }
+
+    .omit-rules-menu {
+      position: absolute;
+      top: calc(100% + 8px);
+      right: 0;
+      width: 520px;
+      max-height: 360px;
+      overflow-y: auto;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.15);
+      z-index: 20;
+    }
+
+    .omit-rules-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 8px;
+      margin-bottom: 6px;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+    }
+
+    .omit-rule-option {
+      display: grid;
+      grid-template-columns: 24px 60px 150px 1fr;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 4px;
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .omit-rule-option:hover {
+      background: var(--light-blue);
+    }
+
+    .omit-rule-option input {
+      min-width: auto;
+      width: auto;
+      margin: 0;
+    }
+
+    .omit-rule-id {
+      font-weight: 700;
+    }
+
+    .omit-rule-name {
+      font-weight: 600;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .omit-rule-description {
+      color: var(--muted);
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* --- Omitted rules display --- */
+    .omitted-rules-section {
+      background: var(--light-blue);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin-bottom: 14px;
+    }
+
+    .omitted-rules-title {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 5px;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .omitted-rule {
+      display: grid;
+      grid-template-columns: 60px 180px 1fr;
+      gap: 10px;
+      align-items: center;
+      padding: 3px 0;
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
     @media (max-width: 700px) {
-      header h1 {
-        font-size: 24px;
+      .severity-visuals {
+        flex-direction: column;
       }
 
-      .filters {
-        width: 100%;
-      }
-
-      .filters input,
-      .filters select {
+      .doughnut-container {
         width: 100%;
       }
     }
@@ -337,17 +568,100 @@
         <p>Low</p>
       </div>
     </section>
+    <!-- Findings by Severity -->
+    <section class="severity-chart">
+      <h2>Findings by Severity</h2>
+
+      <div class="severity-visuals">
+
+        <div class="horizontal-chart">
+
+          <div class="horizontal-row">
+            <div class="horizontal-label">Critical</div>
+            <div class="horizontal-track">
+              <div class="horizontal-bar critical" id="bar-critical"></div>
+            </div>
+            <div class="horizontal-value" id="bar-critical-value">
+              0
+            </div>
+          </div>
+
+          <div class="horizontal-row">
+            <div class="horizontal-label">High</div>
+            <div class="horizontal-track">
+              <div class="horizontal-bar high" id="bar-high"></div>
+            </div>
+            <div class="horizontal-value" id="bar-high-value">
+              0
+            </div>
+          </div>
+
+          <div class="horizontal-row">
+            <div class="horizontal-label">Medium</div>
+            <div class="horizontal-track">
+              <div class="horizontal-bar medium" id="bar-medium"></div>
+            </div>
+            <div class="horizontal-value" id="bar-medium-value">
+              0
+            </div>
+          </div>
+
+          <div class="horizontal-row">
+            <div class="horizontal-label">Low</div>
+            <div class="horizontal-track">
+              <div class="horizontal-bar low" id="bar-low"></div>
+            </div>
+            <div class="horizontal-value" id="bar-low-value">
+              0
+            </div>
+          </div>
+
+        </div>
+
+        <div class="doughnut-container">
+          <div class="doughnut-chart" id="severity-doughnut">
+            <div class="doughnut-center">
+              <div class="doughnut-total" id="doughnut-total">
+                0
+              </div>
+              <div class="doughnut-label">
+                Findings
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
 
     <section class="dashboard-section">
       <div class="section-header">
         <h2>Security Findings</h2>
 
         <div class="filters">
-          <input
-            id="search-input"
-            type="search"
-            placeholder="Search rule, file, CWE or OWASP"
-          >
+          <!-- Trigger a new security scan from the dashboard -->
+          <button id="run-scan-button" type="button">
+            Run Scan
+          </button>
+
+          <!-- Select rules to omit from the next scan -->
+          <div class="omit-rules-control">
+            <button id="omit-rules-button" type="button">
+              Omit Rules
+            </button>
+
+            <div id="omit-rules-menu" class="omit-rules-menu" hidden>
+              <div class="omit-rules-header">
+                <strong>Rules to Omit</strong>
+                <span id="omit-count">0 selected</span>
+              </div>
+
+              <div id="omit-rules-list">
+                Loading rules...
+              </div>
+            </div>
+          </div>
+          <input id="search-input" type="search" placeholder="Search rule, file, CWE or OWASP">
 
           <select id="severity-filter">
             <option value="all">All severities</option>
@@ -359,9 +673,17 @@
           </select>
         </div>
       </div>
+      <!-- Display rules intentionally omitted from the current scan -->
+      <div id="omitted-rules-section" class="omitted-rules-section" hidden>
+        <div class="omitted-rules-title">
+          Omitted Rules
+          <span id="omitted-rules-count">0</span>
+        </div>
 
+        <div id="omitted-rules-display"></div>
+      </div>
       <div id="status-message" class="message">
-        Loading scan results...
+        Select any rules to omit, then click Run Scan.
       </div>
 
       <div class="table-wrap">
@@ -386,6 +708,8 @@
 
   <script>
     const apiUrl = '/api/security-scanner/results';
+    const scanApiUrl = '/api/security-scanner/scan';
+    const rulesApiUrl = '/api/security-scanner/rules';
 
     let allFindings = [];
 
@@ -444,7 +768,166 @@
 
       document.getElementById('low-count').textContent =
         severity.Low || 0;
+
+      // --- Update severity visuals ---
+
+      const critical = severity.Critical || 0;
+      const high = severity.High || 0;
+      const medium = severity.Medium || 0;
+      const low = severity.Low || 0;
+
+      const total = critical + high + medium + low;
+      const maxCount = Math.max(critical, high, medium, low, 1);
+
+      // Update horizontal bar values
+      document.getElementById('bar-critical-value').textContent = critical;
+      document.getElementById('bar-high-value').textContent = high;
+      document.getElementById('bar-medium-value').textContent = medium;
+      document.getElementById('bar-low-value').textContent = low;
+
+      // Scale horizontal bars relative to the highest count
+      document.getElementById('bar-critical').style.width =
+        `${(critical / maxCount) * 100}%`;
+
+      document.getElementById('bar-high').style.width =
+        `${(high / maxCount) * 100}%`;
+
+      document.getElementById('bar-medium').style.width =
+        `${(medium / maxCount) * 100}%`;
+
+      document.getElementById('bar-low').style.width =
+        `${(low / maxCount) * 100}%`;
+
+      // Update doughnut total
+      document.getElementById('doughnut-total').textContent = total;
+
+      // Update doughnut severity distribution
+      const doughnut = document.getElementById('severity-doughnut');
+
+      if (total === 0) {
+        doughnut.style.background = '#e5e7eb';
+      } else {
+        const criticalEnd = (critical / total) * 100;
+        const highEnd = criticalEnd + (high / total) * 100;
+        const mediumEnd = highEnd + (medium / total) * 100;
+
+        doughnut.style.background = `
+          conic-gradient(
+            var(--critical) 0% ${criticalEnd}%,
+            var(--high) ${criticalEnd}% ${highEnd}%,
+            var(--medium) ${highEnd}% ${mediumEnd}%,
+            var(--low) ${mediumEnd}% 100%
+          )
+        `;
+      }
     };
+    // Run a new security scan and refresh the dashboard results.
+    const runScan = async () => {
+      const runScanButton = document.getElementById('run-scan-button');
+
+      try {
+        runScanButton.disabled = true;
+        runScanButton.textContent = 'Scanning...';
+
+        const omittedRules = Array.from(
+          document.querySelectorAll('.omit-rule-checkbox:checked')
+        ).map((checkbox) => checkbox.value);
+
+        const response = await fetch(scanApiUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            omittedRules
+          })
+        });
+
+        const responseBody = await response.json();
+
+        if (!response.ok || !responseBody.success) {
+          throw new Error(
+            responseBody.error || 'Unable to run security scan'
+          );
+        }
+        sessionStorage.setItem('securityScanCompleted', 'true');
+        await loadScanResults();
+      } catch (error) {
+        const statusMessage = document.getElementById('status-message');
+
+        statusMessage.hidden = false;
+        statusMessage.classList.add('error');
+        statusMessage.textContent =
+          `Unable to run security scan: ${error.message}`;
+      } finally {
+        runScanButton.disabled = false;
+        runScanButton.textContent = 'Run Scan';
+      }
+    };
+    // Load available security rules into the omission selector.
+    const loadRuleOptions = async () => {
+      const rulesList = document.getElementById('omit-rules-list');
+      const omitCount = document.getElementById('omit-count');
+
+      try {
+        const response = await fetch(rulesApiUrl);
+        const responseBody = await response.json();
+
+        if (!response.ok || !responseBody.success) {
+          throw new Error(
+            responseBody.error || 'Unable to load security rules'
+          );
+        }
+
+        rulesList.innerHTML = '';
+
+        responseBody.data.forEach((rule) => {
+          const option = document.createElement('label');
+          option.className = 'omit-rule-option';
+
+          option.innerHTML = `
+        <input
+          type="checkbox"
+          class="omit-rule-checkbox"
+          value="${escapeHtml(rule.id)}"
+        >
+
+        <span class="omit-rule-id">
+          ${escapeHtml(rule.id)}
+        </span>
+
+        <span class="omit-rule-name">
+          ${escapeHtml(rule.name)}
+        </span>
+
+        <span class="omit-rule-description">
+          ${escapeHtml(rule.description)}
+        </span>
+      `;
+
+          rulesList.appendChild(option);
+        });
+
+        document
+          .querySelectorAll('.omit-rule-checkbox')
+          .forEach((checkbox) => {
+            checkbox.addEventListener('change', () => {
+              const selectedCount =
+                document.querySelectorAll(
+                  '.omit-rule-checkbox:checked'
+                ).length;
+
+              omitCount.textContent =
+                `${selectedCount} selected`;
+            });
+          });
+
+      } catch (error) {
+        rulesList.textContent =
+          `Unable to load rules: ${error.message}`;
+      }
+    };
+
 
     const renderFindings = (findings) => {
       const table = document.getElementById('findings-table');
@@ -459,8 +942,34 @@
         statusMessage.textContent = 'No security findings were detected in the current scan.';
         return;
       }
+      const severityOrder = {
+        Critical: 1,
+        High: 2,
+        Medium: 3,
+        Low: 4,
+        Informational: 5
+      };
 
-      findings.forEach((finding) => {
+      const sortedFindings = [...findings].sort((a, b) => {
+        const severityDifference =
+          (severityOrder[a.severity] || 99) -
+          (severityOrder[b.severity] || 99);
+
+        if (severityDifference !== 0) {
+          return severityDifference;
+        }
+
+        const ruleNumberA = Number(
+          String(a.ruleId).replace('NH', '')
+        );
+
+        const ruleNumberB = Number(
+          String(b.ruleId).replace('NH', '')
+        );
+
+        return ruleNumberA - ruleNumberB;
+      });
+      sortedFindings.forEach((finding) => {
         const row = document.createElement('tr');
 
         row.innerHTML = `
@@ -538,6 +1047,36 @@
       renderFindings(filtered);
     };
 
+    // Display rules omitted from the current scan.
+    const displayOmittedRules = (rules) => {
+      const section = document.getElementById('omitted-rules-section');
+      const count = document.getElementById('omitted-rules-count');
+      const display = document.getElementById('omitted-rules-display');
+
+      if (!Array.isArray(rules) || rules.length === 0) {
+        section.hidden = true;
+        display.innerHTML = '';
+        count.textContent = '0';
+        return;
+      }
+
+      section.hidden = false;
+      count.textContent = rules.length;
+      display.innerHTML = '';
+
+      rules.forEach((rule) => {
+        const row = document.createElement('div');
+        row.className = 'omitted-rule';
+
+        row.innerHTML = `
+      <span class="omit-rule-id">${escapeHtml(rule.id)}</span>
+      <span class="omit-rule-name">${escapeHtml(rule.name)}</span>
+      <span class="omit-rule-description">${escapeHtml(rule.description)}</span>
+    `;
+
+        display.appendChild(row);
+      });
+    };
     const loadScanResults = async () => {
       const statusMessage = document.getElementById('status-message');
 
@@ -559,6 +1098,7 @@
 
         displayMetadata(data);
         displaySummary(data);
+        displayOmittedRules(data.omittedRules);
         renderFindings(allFindings);
       } catch (error) {
         statusMessage.classList.add('error');
@@ -575,7 +1115,25 @@
       .getElementById('severity-filter')
       .addEventListener('change', applyFilters);
 
-    loadScanResults();
+    document
+      .getElementById('run-scan-button')
+      .addEventListener('click', runScan);
+
+    document
+      .getElementById('omit-rules-button')
+      .addEventListener('click', () => {
+        const menu = document.getElementById('omit-rules-menu');
+        menu.hidden = !menu.hidden;
+      });
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      await loadRuleOptions();
+
+      if (sessionStorage.getItem('securityScanCompleted') === 'true') {
+        await loadScanResults();
+      }
+    });
   </script>
 </body>
+
 </html>
