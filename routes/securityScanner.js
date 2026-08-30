@@ -5,22 +5,18 @@ const {
   getScanResults,
 } = require('../controller/securityScannerController');
 
-/**
- * @swagger
- * /api/security-scanner/results:
- *   get:
- *     summary: Retrieve the latest secure code analysis results
- *     tags: [Security Scanner]
- *     responses:
- *       200:
- *         description: Security scan results retrieved successfully
- *       404:
- *         description: No security scan results were found
- *       500:
- *         description: Unable to retrieve security scan results
- */
+const {
+  runScan,
+  getRules,
+} = require('../controller/securityScanController');
 
 // GET /api/security-scanner/results
 router.get('/results', getScanResults);
+
+// POST /api/security-scanner/scan
+router.post('/scan', runScan);
+
+// Return available security rules for dashboard selection.
+router.get('/rules', getRules);
 
 module.exports = router;
