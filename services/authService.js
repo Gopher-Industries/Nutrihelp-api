@@ -2,7 +2,11 @@ console.log("🟢 Loaded AuthService from:", __filename);
 console.log("URL:", process.env.SUPABASE_URL);
 console.log("LOGIN FUNCTION HIT");
 
-const { createClient } = require('@supabase/supabase-js');
+// Use the centralized Supabase clients.
+const {
+  supabaseAnon,
+  supabaseServiceRole: supabaseService,
+} = require('../database/supabase');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
@@ -11,15 +15,6 @@ const logLoginEvent = require('../Monitor_&_Logging/loginLogger');
 const { ServiceError } = require('./serviceError');
 const userProfileService = require('./userProfileService');
 
-const supabaseAnon = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_ANON_KEY
-);
-
-const supabaseService = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
 
 class AuthService {
   constructor() {
