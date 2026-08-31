@@ -1,17 +1,20 @@
-const { createClient } = require('@supabase/supabase-js');
+const {
+  supabaseAnon,
+  supabaseServiceRole,
+} = require('../database/supabase');
 
 function getAnonClient() {
-  return createClient(
-    process.env.SUPABASE_URL,
-    process.env.SUPABASE_ANON_KEY
-  );
+  return supabaseAnon;
 }
 
 function getServiceClient() {
-  return createClient(
-    process.env.SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY
-  );
+  if (!supabaseServiceRole) {
+    throw new Error(
+      '[authRepository] SUPABASE_SERVICE_ROLE_KEY is required for session operations.'
+    );
+  }
+
+  return supabaseServiceRole;
 }
 
 async function createRefreshSession(sessionPayload) {
