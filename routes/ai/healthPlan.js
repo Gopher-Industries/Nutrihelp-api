@@ -1,8 +1,11 @@
+const { authenticateAIToken } = require('../../middleware/authenticateAIToken');
 const express = require('express');
 const Groq = require('groq-sdk');
 const { retrieve } = require('./chatbot');
 
 const router = express.Router();
+
+router.use(authenticateAIToken);
 
 const GROQ_MODEL = process.env.GROQ_MODEL || 'llama-3.1-8b-instant';
 
