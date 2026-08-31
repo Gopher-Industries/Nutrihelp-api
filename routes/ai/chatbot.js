@@ -1,3 +1,4 @@
+const { authenticateAIToken } = require('../../middleware/authenticateAIToken');
 const express = require('express');
 const Groq = require('groq-sdk');
 const { ChromaClient } = require('chromadb');
@@ -5,6 +6,8 @@ const { v4: uuidv4 } = require('uuid');
 const multer = require('multer');
 
 const router = express.Router();
+
+router.use(authenticateAIToken);
 const upload = multer({ storage: multer.memoryStorage() });
 
 // --- Settings (match Python ActiveAISettings defaults exactly) ---
