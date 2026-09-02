@@ -274,14 +274,16 @@ async function generateRecipeEnrichment(queueRow) {
   const prompt = buildEnrichmentPrompt(queueRow);
 
   if (process.env.GEMINI_API_KEY) {
+    const geminiModel =
+      process.env.RECIPE_ENRICHMENT_GEMINI_MODEL || process.env.GEMINI_MODEL || 'gemini-flash-latest';
     try {
       const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-      const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+      const model = genAI.getGenerativeModel({ model: geminiModel });
       const result = await model.generateContent(prompt);
       return {
         parsed: extractJsonObject(result.response.text()),
         provider: 'gemini',
-        model: 'gemini-2.5-flash',
+        model: geminiModel,
       };
     } catch (error) {
       if (!process.env.GROQ_API_KEY) throw error;

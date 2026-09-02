@@ -20,6 +20,8 @@ tags:
   description: Home Service API
 - name: Auth
   description: Authentication and user session endpoints
+- name: Recipe Sources
+  description: External recipe search and schema mapping (TheMealDB adapter; LLM mapper with fidelity guardrails)
 paths:
   /account:
     get:
@@ -1712,6 +1714,230 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ScanErrorResponse'
+  /recipe-sources/search:
+    get:
+      tags:
+      - Recipe Sources
+      summary: Search external recipe sources
+      description: Typeahead search fanned out across registered source adapters (currently TheMealDB). A failing adapter contributes no results rather than failing the request.
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: q
+        in: query
+        required: true
+        schema:
+          type: string
+          minLength: 3
+          maxLength: 80
+        description: Search text (3-80 characters)
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      results:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            source:
+                              type: string
+                              example: themealdb
+                            external_id:
+                              type: string
+                              example: '52771'
+                            title:
+                              type: string
+                              example: Spicy Arrabiata Penne
+                            thumbnail:
+                              type: string
+                              nullable: true
+                            cuisine:
+                              type: string
+                              nullable: true
+                              example: Italian
+                            category:
+                              type: string
+                              nullable: true
+                              example: Vegetarian
+        '400':
+          description: Query missing or outside 3-80 characters
+        '401':
+          description: Missing or invalid bearer token
+        '502':
+          description: Recipe source search failed
+  /recipe-sources/map:
+    post:
+      tags:
+      - Recipe Sources
+      summary: Map an external recipe onto the NutriHelp schema
+      description: Re-fetches the recipe server-side from the source (client-supplied recipe content is never trusted), runs the LLM mapper (temperature 0, map-only prompt) guarded by schema validation and a fidelity check, and falls back to a deterministic mapping on any failure. Ingredients and instruction steps are verified against source text; other scalar fields are constrained by prompt and schema only. Read-only — ingredient rows are matched but never created here.
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - source
+              - external_id
+              properties:
+                source:
+                  type: string
+                  example: themealdb
+                external_id:
+                  type: string
+                  example: '52771'
+      responses:
+        '200':
+          description: Mapped draft with provenance
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      draft:
+                        type: object
+                        description: Schema-shaped recipe draft; fields the source cannot supply are null, nutrition is never populated
+                      unmapped_fields:
+                        type: array
+                        items:
+                          type: string
+                        example: [servings, prep_time_minutes, calories]
+                      source_meta:
+                        type: object
+                        properties:
+                          source:
+                            type: string
+                          external_id:
+                            type: string
+                          source_url:
+                            type: string
+                            nullable: true
+                          attribution:
+                            type: string
+                            example: TheMealDB
+                          license:
+                            type: string
+                      source_image:
+                        type: string
+                        nullable: true
+                        description: Source thumbnail fetched server-side as a base64 data URL (max 1 MB), ready for the existing save path
+                      ingredient_resolution:
+                        type: object
+                        properties:
+                          matched:
+                            type: integer
+                          unmatched:
+                            type: integer
+                          failed:
+                            type: integer
+                      mapper:
+                        type: object
+                        properties:
+                          strategy:
+                            type: string
+                            enum: [llm, fallback]
+                          model:
+                            type: string
+                          violations:
+                            type: array
+                            items:
+                              type: string
+        '400':
+          description: Unknown source or invalid body
+        '401':
+          description: Missing or invalid bearer token
+        '404':
+          description: Recipe not found at source
+        '502':
+          description: Source lookup failed
+  /recipe-sources/resolve-ingredients:
+    post:
+      tags:
+      - Recipe Sources
+      summary: Resolve ingredient names to NutriHelp ingredient ids
+      description: Called at save time. Matches each name against the shared ingredients vocabulary (exact, plural-folded, then head-noun), creating rows that do not exist yet with the supplied category and null nutrition. Creation happens only here — never on preview/map.
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - ingredients
+              properties:
+                ingredients:
+                  type: array
+                  minItems: 1
+                  maxItems: 30
+                  items:
+                    type: object
+                    required:
+                    - name
+                    properties:
+                      name:
+                        type: string
+                        minLength: 1
+                        maxLength: 120
+                      category:
+                        type: string
+                        example: Pantry
+      responses:
+        '200':
+          description: Per-ingredient resolution
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      resolutions:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            name:
+                              type: string
+                            id:
+                              type: integer
+                              nullable: true
+                            category:
+                              type: string
+                              nullable: true
+                            status:
+                              type: string
+                              enum: [matched, created, failed]
+                            matchedName:
+                              type: string
+        '400':
+          description: Invalid body or more than 30 ingredients
+        '401':
+          description: Missing or invalid bearer token
+        '500':
+          description: Resolution failed
   /recipeImageClassification:
     post:
       summary: Recipe image scan classification
