@@ -1,22 +1,22 @@
 /**
  * Resolves external recipe ingredient names to NutriHelp ingredient ids.
  *
- * TheMealDB names only match NutriHelp's ~276-item vocabulary about 25% of the
- * time ("penne rigate", "Parmigiano-Reggiano", "Breadcrumbs" are all absent), and
- * the create-recipe save path silently drops anything it cannot resolve. That
- * loses most of a prefilled recipe without telling anyone.
+ * Why: on master the create-recipe save path keeps only ingredients whose name
+ * is already in the ingredients table and drops the rest silently. TheMealDB
+ * names match that table poorly (about 37% of distinct names, 63% of
+ * occurrences, measured 2026-09-02 over all 790 recipes) because the table is
+ * small, holds dish names as ingredients and lacks plain rows like "Sugar".
  *
- * Strategy, cheapest first:
+ * Tiers, cheapest first:
  *   1. exact match (case/whitespace-insensitive)
- *   2. normalised match — punctuation stripped, singular/plural folded
- *   3. create the missing ingredient — ONLY when `createMissing` is set
+ *   2. normalised match: punctuation stripped, plurals folded
+ *   3. head-noun match: "Beef Fillet" -> "Beef"
+ *   4. semantic match via LLM, answer must be an entry from the list (optional)
+ *   5. create the missing ingredient, ONLY when `createMissing` is set
  *
- * Creation writes to the SHARED ingredients table, so it is off by default and
- * gated on an explicit caller opt-in. Previewing a recipe must never leave rows
- * behind: only saving one does. Beyond that it stays conservative — never
- * insert a name that already exists in any casing, always record the
- * AI-assigned category, and leave nutrition columns null rather than inventing
- * values (the same "no invented data" rule the mapper follows).
+ * Creation writes to the SHARED ingredients table: off by default, opt-in at
+ * save time only, never on preview. Nothing is dropped silently; every name
+ * comes back with a status. Created rows keep nutrition null, no invented data.
  */
 const { supabaseService } = require('../supabaseClient');
 const logger = require('../../utils/logger');
