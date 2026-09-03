@@ -3,6 +3,11 @@ const logger = require('../utils/logger');
 const { supabaseService: supabase } = require('../services/supabaseClient');
 const crypto = require('crypto');
 const path = require('path');
+const { fileTypeFromBuffer } = require('file-type');
+
+// Single source of truth for allowed file types — used by both
+// the initial mimetype check (fileFilter) and the real content check (uploadFile)
+const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'application/pdf'];
 
 const storage = multer.memoryStorage();
 
@@ -11,13 +16,7 @@ const upload = multer({
   limits: { fileSize: 5 * 1024 * 1024 },
 
   fileFilter: (req, file, cb) => {
-    const allowedTypes = [
-      'image/jpeg',
-      'image/png',
-      'application/pdf'
-    ];
-
-    if (allowedTypes.includes(file.mimetype)) {
+    if (ALLOWED_TYPES.includes(file.mimetype)) {
       cb(null, true);
     } else {
       cb(new Error('Unsupported file type'), false);
@@ -41,21 +40,37 @@ exports.uploadFile = async (req, res) => {
       });
     }
 
-    // User identity comes from the verified JWT middleware.
-    // Never trust a user_id supplied by the client.
     const user_id = req.user.userId;
-
     const file = req.file;
+
+  
+    const detectedType = await fileTypeFromBuffer(file.buffer);
+
+    if (!detectedType || !ALLOWED_TYPES.includes(detectedType.mime)) {
+      return res.status(400).json({
+        success: false,
+        error: 'File content does not match an allowed file type (jpeg, png, or pdf).'
+      });
+    }
+
+    if (detectedType.mime !== file.mimetype) {
+      return res.status(400).json({
+        success: false,
+        error: 'Declared file type does not match actual file content.'
+      });
+    }
+
+    // --- Task 4: sanitize filename before it touches storage ---
     const safeName = crypto.randomBytes(16).toString('hex');
     const ext = path.extname(file.originalname).toLowerCase();
-    const filePath = `files/${user_id}/${safeName}${ext}`;  
+    const filePath = `files/${user_id}/${safeName}${ext}`;
     console.log('--- Upload Debug ---');
     console.log('Original filename:', file.originalname);
     console.log('Generated safeName:', safeName);
     console.log('Extension:', ext);
     console.log('Final filePath:', filePath);
-    console.log('--------------------');    
-  
+    console.log('--------------------');
+
     try {
       const { error: uploadError } = await supabase.storage
         .from('uploads')
@@ -78,15 +93,9 @@ exports.uploadFile = async (req, res) => {
 
       const fileUrl = urlData.publicUrl;
 
-      // Current upload_logs schema only contains:
-      // id, created_at, user_id
       const { error: logError } = await supabase
         .from('upload_logs')
-        .insert([
-          {
-            user_id
-          }
-        ]);
+        .insert([{ user_id }]);
 
       if (logError) {
         throw logError;
