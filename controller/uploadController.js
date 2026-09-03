@@ -1,6 +1,8 @@
 const multer = require('multer');
 const logger = require('../utils/logger');
 const { supabaseService: supabase } = require('../services/supabaseClient');
+const crypto = require('crypto');
+const path = require('path');
 
 const storage = multer.memoryStorage();
 
@@ -44,8 +46,16 @@ exports.uploadFile = async (req, res) => {
     const user_id = req.user.userId;
 
     const file = req.file;
-    const filePath = `files/${user_id}/${file.originalname}`;
-
+    const safeName = crypto.randomBytes(16).toString('hex');
+    const ext = path.extname(file.originalname).toLowerCase();
+    const filePath = `files/${user_id}/${safeName}${ext}`;  
+    console.log('--- Upload Debug ---');
+    console.log('Original filename:', file.originalname);
+    console.log('Generated safeName:', safeName);
+    console.log('Extension:', ext);
+    console.log('Final filePath:', filePath);
+    console.log('--------------------');    
+  
     try {
       const { error: uploadError } = await supabase.storage
         .from('uploads')
