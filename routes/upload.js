@@ -1,7 +1,12 @@
 const express = require('express');
 const router = express.Router();
 const uploadController = require('../controller/uploadController');
+const { authenticateToken } = require('../middleware/authenticateToken');
 
-router.post('/', uploadController.uploadFile);
+router.post(
+  '/',
+  authenticateToken,
+  uploadController.uploadFile
+);
 
 module.exports = router;
