@@ -1,12 +1,12 @@
 require("dotenv").config();
-const { createClient } = require("@supabase/supabase-js");
+const {
+  supabaseAnon,
+  supabaseServiceRole,
+} = require("../database/supabase");
+
 const twilio = require("twilio");
 
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY
-);
-
+const supabase = supabaseServiceRole || supabaseAnon;
 
 const twilioClient = twilio(
   process.env.TWILIO_ACCOUNT_SID || "",

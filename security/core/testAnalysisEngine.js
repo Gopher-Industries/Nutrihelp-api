@@ -4,7 +4,11 @@ const RuleManager = require("./ruleManager");
 const AnalysisEngine = require("./analysisEngine");
 const ResultsManager = require("./resultsManager");
 
-try {
+/**
+ * Runs NutriHelp static security analysis.
+ * Returns completed scan results.
+ */
+const runSecurityScan = (omittedRuleIds = []) => {
     const configurationManager = new ConfigurationManager();
     const configuration = configurationManager.loadConfiguration();
 
@@ -12,7 +16,22 @@ try {
     const files = fileDiscovery.discoverFiles();
 
     const ruleManager = new RuleManager();
-    const rules = ruleManager.loadRules();
+    const allRules = ruleManager.loadRules();
+
+    // Store details for rules omitted from this scan.
+    const omittedRules = allRules
+        .filter((rule) => omittedRuleIds.includes(rule.id))
+        .map((rule) => ({
+            id: rule.id,
+            name: rule.name,
+            description: rule.description || "",
+            severity: rule.severity
+        }));
+
+    // Exclude selected rules from the analysis.
+    const rules = allRules.filter(
+        (rule) => !omittedRuleIds.includes(rule.id)
+    );
 
     const analysisEngine = new AnalysisEngine(rules);
 
@@ -26,7 +45,8 @@ try {
         files,
         rules,
         findings,
-        scanDurationMs
+        scanDurationMs,
+        omittedRules
     );
 
     const outputPath = resultsManager.saveResults(results);
@@ -35,6 +55,18 @@ try {
     console.log(`Findings detected: ${findings.length}`);
     console.log(`Scan results saved to: ${outputPath}`);
 
-} catch (error) {
-    console.error(error.message);
+    return results;
+};
+
+// Allows other parts of the backend to trigger a scan.
+module.exports = runSecurityScan;
+
+// Preserve the existing command:
+// node security/core/testAnalysisEngine.js
+if (require.main === module) {
+    try {
+        runSecurityScan();
+    } catch (error) {
+        console.error(error.message);
+    }
 }

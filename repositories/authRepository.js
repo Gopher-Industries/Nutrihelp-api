@@ -1,14 +1,17 @@
-const { createClient } = require('@supabase/supabase-js');
+const { supabaseAnon, supabaseServiceRole } = require('../database/supabase');
 
 function getAnonClient() {
-  return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
+  return supabaseAnon;
 }
 
 function getServiceClient() {
-  // TODO(Supabase standardization): replace this local factory with the team's
-  // named, server-only service-role client once that card is merged. Keep the
-  // privilege level unchanged: session persistence requires the service role.
-  return createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+  if (!supabaseServiceRole) {
+    throw new Error(
+      '[authRepository] SUPABASE_SERVICE_ROLE_KEY is required for session operations.'
+    );
+  }
+
+  return supabaseServiceRole;
 }
 
 async function createRefreshSession(sessionPayload) {
@@ -54,7 +57,6 @@ async function deactivateSessionsByUserId(userId) {
 
 async function findActiveRefreshSessionByLookupHash(lookupHash) {
   // maybeSingle deliberately fails if duplicate active lookup hashes exist.
-  // TODO(schema): confirm/add a uniqueness constraint for refresh_token_lookup.
   const { data, error } = await getServiceClient()
     .from('user_sessiontoken')
     .select(
@@ -79,8 +81,7 @@ async function findActiveRefreshSessionByLookupHash(lookupHash) {
 }
 
 async function findUserByIdForSession(userId) {
-  // TODO(Supabase standardization): switch this to the team's named anon/RLS
-  // client import. Do not silently promote this user lookup to service-role.
+  // This user lookup intentionally uses the anon/RLS client, not the service-role client.
   const { data, error } = await getAnonClient()
     .from('users')
     .select(
