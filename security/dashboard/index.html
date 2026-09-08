@@ -661,6 +661,13 @@
               </div>
             </div>
           </div>
+
+          <!-- Export security scan results -->
+          <select id="export-format">
+            <option value="">Export Report</option>
+            <option value="json">Download JSON</option>
+            <option value="csv">Download CSV</option>
+          </select>
           <input id="search-input" type="search" placeholder="Search rule, file, CWE or OWASP">
 
           <select id="severity-filter">
@@ -712,6 +719,7 @@
     const rulesApiUrl = '/api/security-scanner/rules';
 
     let allFindings = [];
+    let latestScanData = null;
 
     const escapeHtml = (value) => {
       return String(value ?? '')
@@ -1092,6 +1100,8 @@
 
         const data = responseBody.data;
 
+        latestScanData = data;
+
         allFindings = Array.isArray(data.findings)
           ? data.findings
           : [];
@@ -1107,9 +1117,146 @@
       }
     };
 
+        // Download content as a file
+    const downloadFile = (content, filename, mimeType) => {
+      const blob = new Blob([content], { type: mimeType });
+      const url = URL.createObjectURL(blob);
+
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      URL.revokeObjectURL(url);
+    };
+
+    // Export the latest security scan as JSON
+    const exportJson = () => {
+      if (!latestScanData) {
+        alert('No scan results are available to export.');
+        return;
+      }
+
+      const report = {
+        exportedAt: new Date().toISOString(),
+        framework: latestScanData.framework,
+        scanInformation: latestScanData.scanInformation,
+        summary: latestScanData.summary,
+        omittedRules: latestScanData.omittedRules || [],
+        findings: latestScanData.findings || []
+      };
+
+      const json = JSON.stringify(report, null, 2);
+
+      downloadFile(
+        json,
+        `security-report-${Date.now()}.json`,
+        'application/json'
+      );
+    };
+
+      // Escape values safely for CSV
+    const escapeCsv = (value) => {
+      const text = String(value ?? '');
+      return `"${text.replaceAll('"', '""')}"`;
+    };
+
+    // Export the latest security scan as CSV
+    const exportCsv = () => {
+      if (!latestScanData) {
+        alert('No scan results are available to export.');
+        return;
+      }
+
+      const findings = Array.isArray(latestScanData.findings)
+        ? latestScanData.findings
+        : [];
+
+      const severity = latestScanData.summary?.severity || {};
+      const scanInfo = latestScanData.scanInformation || {};
+
+      const rows = [];
+
+      // Overall scan summary
+      rows.push(['SECURITY SCAN SUMMARY']);
+      rows.push(['Timestamp', scanInfo.timestamp || '']);
+      rows.push(['Files Scanned', scanInfo.filesScanned || 0]);
+      rows.push(['Rules Loaded', scanInfo.rulesLoaded || 0]);
+      rows.push(['Rules Omitted', scanInfo.rulesOmitted || 0]);
+      rows.push(['Findings Detected', scanInfo.findingsDetected || 0]);
+
+      rows.push([]);
+
+      // Severity summary
+      rows.push(['SEVERITY SUMMARY']);
+      rows.push(['Critical', severity.Critical || 0]);
+      rows.push(['High', severity.High || 0]);
+      rows.push(['Medium', severity.Medium || 0]);
+      rows.push(['Low', severity.Low || 0]);
+      rows.push(['Informational', severity.Informational || 0]);
+
+      rows.push([]);
+
+      // Finding details
+      rows.push([
+        'Rule ID',
+        'Rule Name',
+        'Severity',
+        'Filename',
+        'Line Number',
+        'Finding',
+        'CWE',
+        'OWASP',
+        'Recommendation'
+      ]);
+
+      findings.forEach((finding) => {
+        rows.push([
+          finding.ruleId || '',
+          finding.ruleName || '',
+          finding.severity || '',
+          finding.file || '',
+          finding.line || '',
+          finding.matchedText || '',
+          finding.cwe || '',
+          finding.owasp || '',
+          finding.recommendation || ''
+        ]);
+      });
+
+      const csv = rows
+        .map((row) => row.map(escapeCsv).join(','))
+        .join('\r\n');
+
+      downloadFile(
+        csv,
+        `security-report-${Date.now()}.csv`,
+        'text/csv;charset=utf-8'
+      );
+    };
+
     document
       .getElementById('search-input')
       .addEventListener('input', applyFilters);
+    document
+      .getElementById('export-format')
+      .addEventListener('change', (event) => {
+        const format = event.target.value;
+
+        if (format === 'json') {
+          exportJson();
+        }
+
+        if (format === 'csv') {
+          exportCsv();
+        }
+
+    // Reset the dropdown after export
+    event.target.value = '';
+  });
 
     document
       .getElementById('severity-filter')
