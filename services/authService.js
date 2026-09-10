@@ -2,7 +2,11 @@ console.log("🟢 Loaded AuthService from:", __filename);
 console.log("URL:", process.env.SUPABASE_URL);
 console.log("LOGIN FUNCTION HIT");
 
-const { createClient } = require('@supabase/supabase-js');
+// Use the centralized Supabase clients.
+const {
+  supabaseAnon,
+  supabaseServiceRole: supabaseService,
+} = require('../database/supabase');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
@@ -11,15 +15,6 @@ const logLoginEvent = require('../Monitor_&_Logging/loginLogger');
 const { ServiceError } = require('./serviceError');
 const userProfileService = require('./userProfileService');
 
-const supabaseAnon = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_ANON_KEY
-);
-
-const supabaseService = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
 
 class AuthService {
   constructor() {
@@ -763,6 +758,30 @@ class AuthService {
      ========================= */
   verifyAccessToken(token) {
     return jwt.verify(token, process.env.JWT_TOKEN);
+  }
+
+  verifyAIToken(token) {
+    const secret = process.env.AI_JWT_TOKEN;
+    const issuer = process.env.AI_JWT_ISSUER;
+    const audience = process.env.AI_JWT_AUDIENCE;
+    const keyId = process.env.AI_JWT_KEY_ID;
+
+    if (!secret || !issuer || !audience || !keyId) {
+      throw new Error('AI JWT configuration is incomplete');
+    }
+
+    const verified = jwt.verify(token, secret, {
+      algorithms: ['HS256'],
+      issuer,
+      audience,
+      complete: true,
+    });
+
+    if (verified.header.kid !== keyId) {
+      throw new jwt.JsonWebTokenError('invalid key id');
+    }
+
+    return verified.payload;
   }
 
   /* =========================

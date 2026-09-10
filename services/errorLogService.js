@@ -4,10 +4,8 @@ const path = require('path');
 // Dynamically import Supabase (if available)
 let supabase = null;
 try {
-  const { createClient } = require('@supabase/supabase-js');
-  if (process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY) {
-    supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
-  }
+  const { supabaseAnon } = require('../database/supabase');
+  supabase = supabaseAnon;
 } catch (error) {
   // Supabase not available, using file-based logging
   console.warn('Supabase not available, using file-based logging');
