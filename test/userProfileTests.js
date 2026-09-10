@@ -5,6 +5,11 @@ const proxyquire = require('proxyquire').noCallThru();
 const { ServiceError } = require('../services/serviceError');
 
 describe('User Profile Controller', () => {
+  let logHealthDataAccess;
+
+  beforeEach(() => {
+    logHealthDataAccess = sinon.stub().resolves(true);
+  });
   afterEach(() => {
     sinon.restore();
   });
@@ -28,7 +33,13 @@ describe('User Profile Controller', () => {
     };
 
     const controller = proxyquire('../controller/userProfileController', {
-      '../services/userProfileService': userProfileService,
+      '../services': {
+        authAndIdentity: {
+          userProfileService,
+          serviceError: { ServiceError },
+        },
+      },
+      '../services/healthDataAuditService': { logHealthDataAccess },
       '../utils/logger': { error: sinon.stub() }
     });
 
@@ -37,6 +48,7 @@ describe('User Profile Controller', () => {
       query: {},
       body: {}
     };
+
     const res = {
       status: sinon.stub().returnsThis(),
       json: sinon.stub()
@@ -44,8 +56,19 @@ describe('User Profile Controller', () => {
 
     await controller.getUserProfile(req, res);
 
-    expect(userProfileService.getCanonicalProfile.calledOnceWith({ userId: 42 })).to.equal(true);
+    expect(
+      userProfileService.getCanonicalProfile.calledOnceWith({ userId: 42 })
+    ).to.equal(true);
+
+    expect(logHealthDataAccess.calledOnce).to.equal(true);
+    expect(logHealthDataAccess.firstCall.args[0]).to.include({
+      req,
+      targetUserId: 42,
+      resource: 'USER_PROFILE'
+    });
+
     expect(res.status.calledWith(200)).to.equal(true);
+
     expect(res.json.firstCall.args[0]).to.deep.equal({
       success: true,
       contractVersion: 'user-profile-v1',
@@ -73,7 +96,13 @@ describe('User Profile Controller', () => {
     };
 
     const controller = proxyquire('../controller/userProfileController', {
-      '../services/userProfileService': userProfileService,
+      '../services': {
+        authAndIdentity: {
+          userProfileService,
+          serviceError: { ServiceError },
+        },
+      },
+      '../services/healthDataAuditService': { logHealthDataAccess },
       '../utils/logger': { error: sinon.stub() }
     });
 
@@ -105,7 +134,13 @@ describe('User Profile Controller', () => {
     };
 
     const controller = proxyquire('../controller/userProfileController', {
-      '../services/userProfileService': userProfileService,
+      '../services': {
+        authAndIdentity: {
+          userProfileService,
+          serviceError: { ServiceError },
+        },
+      },
+      '../services/healthDataAuditService': { logHealthDataAccess },
       '../utils/logger': { error: sinon.stub() }
     });
 
@@ -147,7 +182,13 @@ describe('User Profile Controller', () => {
     };
 
     const controller = proxyquire('../controller/userProfileController', {
-      '../services/userProfileService': userProfileService,
+      '../services': {
+        authAndIdentity: {
+          userProfileService,
+          serviceError: { ServiceError },
+        },
+      },
+      '../services/healthDataAuditService': { logHealthDataAccess },
       '../utils/logger': logger
     });
 
