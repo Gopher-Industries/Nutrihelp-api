@@ -110,6 +110,17 @@
   "recommendation": "Use jwt.verify() and validate the token signature and expected claims."
 },
 {
+  "id": "NH011",
+  "name": "Weak Random Security Value",
+  "description": "Detects Math.random() being used to generate security-sensitive values.",
+  "pattern": "(token|secret|password|otp|session|verification).*Math\\.random\\s*\\(|Math\\.random\\s*\\([^\\n]*(token|secret|password|otp|session|verification)",
+  "severity": "High",
+  "confidence": "Medium",
+  "cwe": "CWE-338",
+  "owasp": "A02:2021",
+  "recommendation": "Use crypto.randomBytes(), crypto.randomUUID(), or another cryptographically secure generator."
+},
+{
   "id": "NH012",
   "name": "Disabled TLS Certificate Validation",
   "description": "Detects TLS configuration that disables certificate validation.",
@@ -242,6 +253,17 @@
   "recommendation": "Use safe YAML parsing with schema restrictions and validated input."
 },
 {
+  "id": "NH024",
+  "name": "Insecure HTTP Request",
+  "description": "Detects outbound HTTP URLs that transmit data without TLS.",
+  "pattern": "[\"'`]http://[^\"'`]+[\"'`]",
+  "severity": "Medium",
+  "confidence": "Medium",
+  "cwe": "CWE-319",
+  "owasp": "A02:2021",
+  "recommendation": "Use HTTPS for all sensitive network communications."
+},
+{
   "id": "NH025",
   "name": "Hardcoded Database Password",
   "description": "Detects database password values assigned directly in source code.",
@@ -284,6 +306,17 @@
   "cwe": "CWE-693",
   "owasp": "A05:2021",
   "recommendation": "Restrict CSP directives to explicitly trusted origins."
+},
+{
+  "id": "NH029",
+  "name": "Sensitive Data Logging",
+  "description": "Detects potentially sensitive values written directly to application logs.",
+  "pattern": "console\\.(log|info|debug)\\s*\\([^\\n]*(password|secret|token|apiKey|api_key)",
+  "severity": "High",
+  "confidence": "Medium",
+  "cwe": "CWE-532",
+  "owasp": "A09:2021",
+  "recommendation": "Do not log passwords, tokens, secrets, or other sensitive values."
 },
 {
   "id": "NH030",
@@ -493,6 +526,17 @@
   "cwe": "CWE-73",
   "owasp": "A01:2021",
   "recommendation": "Validate and constrain file paths before deleting files."
+},
+{
+  "id": "NH049",
+  "name": "Sensitive Error Disclosure",
+  "description": "Detects server error responses returning raw exception messages.",
+  "pattern": "res\\.status\\s*\\(\\s*500\\s*\\)[^\\n]*\\.json\\s*\\([^\\n]*(error\\.message|err\\.message)",
+  "severity": "Medium",
+  "confidence": "Medium",
+  "cwe": "CWE-209",
+  "owasp": "A05:2021",
+  "recommendation": "Return generic client-facing errors and log internal exception details securely."
 },
 {
   "id": "NH050",

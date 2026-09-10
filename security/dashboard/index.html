@@ -11,17 +11,18 @@
     :root {
       --navy: #17324d;
       --blue: #245b85;
-      --light-blue: #eaf2f8;
-      --background: #f4f6f8;
-      --surface: #ffffff;
-      --border: #d9e0e6;
-      --text: #1f2933;
-      --muted: #66788a;
 
-      --critical: #b91c1c;
-      --high: #ea580c;
-      --medium: #ca8a04;
-      --low: #15803d;
+      --light-blue: #455866;
+      --background: #f4f6f8;
+      --surface: #3b4e5b;
+      --border: #5b6e7c;
+      --text: #f8fafc;
+      --muted: #d7e0e7;
+
+      --critical: #e00e0e;
+      --high: #ff7a00;
+      --medium: #facc15;
+      --low: #006b3c;
       --info: #2563eb;
     }
 
@@ -32,19 +33,22 @@
     body {
       margin: 0;
       font-family: Arial, Helvetica, sans-serif;
-      background: var(--background);
+      background: #012942;
       color: var(--text);
     }
 
     header {
-      background: linear-gradient(135deg, var(--navy), var(--blue));
+      background: transparent;
       color: white;
-      padding: 28px 24px;
+      padding: 8px 20px 0;
     }
 
     .header-content {
-      max-width: 1280px;
+      max-width: 1228px;
       margin: 0 auto;
+      background: var(--surface);
+      padding: 22px 24px;
+      border-radius: 8px;
     }
 
     header h1 {
@@ -58,16 +62,17 @@
     }
 
     main {
-      max-width: 1280px;
-      margin: 28px auto;
-      padding: 0 20px 40px;
+      max-width: 1260px;
+      margin: 0 auto;
+      padding: 15px 20px 40px;
+      background: #0b2235;
     }
 
     .meta-panel {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
       gap: 14px;
-      margin-bottom: 22px;
+      margin-bottom: 15px;
     }
 
     .meta-item {
@@ -93,7 +98,7 @@
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
       gap: 16px;
-      margin-bottom: 28px;
+      margin-bottom: 15px;
     }
 
     .summary-card {
@@ -165,8 +170,8 @@
       padding: 10px 12px;
       border: 1px solid var(--border);
       border-radius: 7px;
-      background: white;
-      color: var(--text);
+      background: #526471;
+      color: white;
     }
 
     .table-wrap {
@@ -190,7 +195,7 @@
     th {
       background: var(--light-blue);
       font-size: 13px;
-      color: #34495e;
+      color: white;
       position: sticky;
       top: 0;
     }
@@ -235,8 +240,8 @@
     }
 
     .reference-badge {
-      background: #eef2f7;
-      color: #334155;
+      background: #596b78;
+      color: white;
       margin-right: 4px;
     }
 
@@ -267,7 +272,7 @@
       border: 1px solid var(--border);
       border-radius: 10px;
       padding: 14px 20px;
-      margin-bottom: 28px;
+      margin-bottom: 15px;
       box-shadow: 0 3px 10px rgba(15, 23, 42, 0.06);
     }
 
@@ -303,7 +308,7 @@
 
     .horizontal-track {
       height: 10px;
-      background: #eef2f7;
+      background: #6b7c89;
       border-radius: 999px;
       overflow: hidden;
     }
@@ -338,18 +343,24 @@
     }
 
     .doughnut-container {
-      width: 150px;
+      width: 255px;
       display: flex;
-      justify-content: center;
+      justify-content: flex-end;
       align-items: center;
+      gap: 10px;
     }
 
     .doughnut-chart {
-      width: 105px;
-      height: 105px;
+      width: 115px;
+      height: 115px;
       border-radius: 50%;
       position: relative;
       background: #e5e7eb;
+    }
+
+    .risk-doughnut {
+      width: 140px;
+      height: 140px;
     }
 
     .doughnut-chart::after {
@@ -503,6 +514,30 @@
         width: 100%;
       }
     }
+
+    .horizontal-bar-track {
+      background: #6b7c89;
+    }
+
+    table thead {
+      background: #526471;
+    }
+
+    input,
+    select {
+      background: #344754;
+      color: #f8fafc;
+      border: 1px solid #667985;
+    }
+
+    input::placeholder {
+      color: #d0d8df;
+    }
+
+    select option {
+      background: #344754;
+      color: #f8fafc;
+    }
   </style>
 </head>
 
@@ -619,6 +654,7 @@
         </div>
 
         <div class="doughnut-container">
+
           <div class="doughnut-chart" id="severity-doughnut">
             <div class="doughnut-center">
               <div class="doughnut-total" id="doughnut-total">
@@ -629,6 +665,21 @@
               </div>
             </div>
           </div>
+
+          <div class="doughnut-chart risk-doughnut" id="risk-doughnut">
+            <div class="doughnut-center">
+              <div class="doughnut-total" id="risk-score">
+                0
+              </div>
+              <div class="doughnut-label">
+                Risk Score
+              </div>
+              <div class="doughnut-label" id="risk-level">
+                Low
+              </div>
+            </div>
+          </div>
+
         </div>
 
       </div>
@@ -776,6 +827,22 @@
       const medium = severity.Medium || 0;
       const low = severity.Low || 0;
 
+      // Calculate overall scan risk score.
+      const criticalRisk = critical * 20;
+      const highRisk = high * 10;
+      const mediumRisk = medium * 5;
+      const lowRisk = low * 2;
+
+      const totalRisk =
+        criticalRisk +
+        highRisk +
+        mediumRisk +
+        lowRisk;
+
+      const riskScore = Math.min(100, totalRisk);
+
+      document.getElementById('risk-score').textContent = riskScore;
+
       const total = critical + high + medium + low;
       const maxCount = Math.max(critical, high, medium, low, 1);
 
@@ -820,6 +887,29 @@
           )
         `;
       }
+      // Update risk score doughnut.
+      const riskDoughnut = document.getElementById('risk-doughnut');
+      const riskLevel = document.getElementById('risk-level');
+
+      let riskColour;
+      let riskLevelText;
+
+      if (riskScore > 80) {
+        riskColour = 'var(--critical)';
+        riskLevelText = 'High';
+      } else if (riskScore >= 50) {
+        riskColour = 'var(--high)';
+        riskLevelText = 'Medium';
+      } else if (riskScore >= 20) {
+        riskColour = 'var(--medium)';
+        riskLevelText = 'Low';
+      } else {
+        riskColour = 'var(--low)';
+        riskLevelText = 'Minimal';
+      }
+
+      riskDoughnut.style.background = riskColour;
+      riskLevel.textContent = riskLevelText;
     };
     // Run a new security scan and refresh the dashboard results.
     const runScan = async () => {
