@@ -1,6 +1,9 @@
 # NutriHelp Secure Code Analysis Framework
 
 **Developed by:** John Patrick Thomas
+**Contributors**  Tennakoon Mudiyanselage Oshan Lujith B Tennakoon
+				  Tushar Verma
+				  Ishaan Markanday
 
 A lightweight static code analysis framework developed for the NutriHelp backend to identify potentially insecure coding patterns in JavaScript source files.
 

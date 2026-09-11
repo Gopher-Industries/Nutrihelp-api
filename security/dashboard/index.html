@@ -33,7 +33,11 @@
     body {
       margin: 0;
       font-family: Arial, Helvetica, sans-serif;
-      background: #012942;
+      background: linear-gradient(to right,
+          #012942 0%,
+          #0b2235 28%,
+          #0b2235 72%,
+          #012942 100%);
       color: var(--text);
     }
 
@@ -246,7 +250,7 @@
     }
 
     .file-path {
-      max-width: 320px;
+      max-width: 410px;
       word-break: break-word;
       font-family: Consolas, monospace;
       font-size: 12px;
@@ -1005,18 +1009,35 @@
 
           rulesList.appendChild(option);
         });
+        // Restore previously selected omitted rules after page refresh.
+        const savedOmittedRules = JSON.parse(
+          sessionStorage.getItem('omittedSecurityRules') || '[]'
+        );
 
         document
           .querySelectorAll('.omit-rule-checkbox')
           .forEach((checkbox) => {
+            checkbox.checked = savedOmittedRules.includes(checkbox.value);
+          });
+
+        omitCount.textContent =
+          `${savedOmittedRules.length} selected`;
+        document
+          .querySelectorAll('.omit-rule-checkbox')
+          .forEach((checkbox) => {
             checkbox.addEventListener('change', () => {
-              const selectedCount =
-                document.querySelectorAll(
-                  '.omit-rule-checkbox:checked'
-                ).length;
+              // Save selected omitted rules for the current browser session.
+              const selectedRules = Array.from(
+                document.querySelectorAll('.omit-rule-checkbox:checked')
+              ).map((checkbox) => checkbox.value);
 
               omitCount.textContent =
-                `${selectedCount} selected`;
+                `${selectedRules.length} selected`;
+
+              sessionStorage.setItem(
+                'omittedSecurityRules',
+                JSON.stringify(selectedRules)
+              );
             });
           });
 
@@ -1067,14 +1088,19 @@
 
         return ruleNumberA - ruleNumberB;
       });
+      let previousRuleId = null;
+
       sortedFindings.forEach((finding) => {
         const row = document.createElement('tr');
 
         row.innerHTML = `
           <td>
-            <strong>${escapeHtml(finding.ruleId)}</strong><br>
-            ${escapeHtml(finding.ruleName)}
-          </td>
+            ${finding.ruleId !== previousRuleId
+            ? `<strong>${escapeHtml(finding.ruleId)}</strong><br>
+                   ${escapeHtml(finding.ruleName)}`
+            : ''
+          }
+      </td>
 
           <td>
             <span class="severity-badge ${getSeverityClass(finding.severity)}">
@@ -1104,7 +1130,7 @@
 
           <td>${escapeHtml(finding.recommendation)}</td>
         `;
-
+        previousRuleId = finding.ruleId;
         tableBody.appendChild(row);
       });
 
@@ -1207,7 +1233,7 @@
       }
     };
 
-        // Download content as a file
+    // Download content as a file
     const downloadFile = (content, filename, mimeType) => {
       const blob = new Blob([content], { type: mimeType });
       const url = URL.createObjectURL(blob);
@@ -1248,7 +1274,7 @@
       );
     };
 
-      // Escape values safely for CSV
+    // Escape values safely for CSV
     const escapeCsv = (value) => {
       const text = String(value ?? '');
       return `"${text.replaceAll('"', '""')}"`;
@@ -1344,9 +1370,9 @@
           exportCsv();
         }
 
-    // Reset the dropdown after export
-    event.target.value = '';
-  });
+        // Reset the dropdown after export
+        event.target.value = '';
+      });
 
     document
       .getElementById('severity-filter')
@@ -1358,9 +1384,16 @@
 
     document
       .getElementById('omit-rules-button')
-      .addEventListener('click', () => {
+      .addEventListener('click', async () => {
         const menu = document.getElementById('omit-rules-menu');
-        menu.hidden = !menu.hidden;
+
+        if (menu.hidden) {
+          menu.hidden = false;
+          return;
+        }
+
+        menu.hidden = true;
+        await runScan();
       });
 
     document.addEventListener('DOMContentLoaded', async () => {
