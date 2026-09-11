@@ -11,7 +11,7 @@ class ResultsManager {
         );
     }
 
-    createResults(files, rules, findings, scanDurationMs) {
+    createResults(files, rules, findings, scanDurationMs, omittedRules = []) {
         const severitySummary = {
             Critical: 0,
             High: 0,
@@ -40,6 +40,7 @@ class ResultsManager {
                 scanDurationMs,
                 filesScanned: files.length,
                 rulesLoaded: rules.length,
+                rulesOmitted: omittedRules.length,
                 findingsDetected: findings.length
             },
 
@@ -47,6 +48,7 @@ class ResultsManager {
                 severity: severitySummary
             },
 
+            omittedRules,
             findings
         };
     }
