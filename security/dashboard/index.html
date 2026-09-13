@@ -33,7 +33,11 @@
     body {
       margin: 0;
       font-family: Arial, Helvetica, sans-serif;
-      background: #012942;
+      background: linear-gradient(to right,
+          #012942 0%,
+          #0b2235 28%,
+          #0b2235 72%,
+          #012942 100%);
       color: var(--text);
     }
 
@@ -246,7 +250,7 @@
     }
 
     .file-path {
-      max-width: 320px;
+      max-width: 410px;
       word-break: break-word;
       font-family: Consolas, monospace;
       font-size: 12px;
@@ -439,6 +443,27 @@
       margin-bottom: 6px;
       border-bottom: 1px solid var(--border);
       font-size: 13px;
+    }
+
+    #omit-rule-search {
+      width: 100%;
+      margin-bottom: 8px;
+      padding: 8px 10px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--light-blue);
+      color: var(--text);
+      font-size: 12px;
+    }
+
+    #omit-rule-search::placeholder {
+      color: var(--muted);
+    }
+
+    .omit-rule-search-match {
+      background: var(--light-blue);
+      outline: 2px solid var(--info);
+      border-radius: 4px;
     }
 
     .omit-rule-option {
@@ -707,6 +732,7 @@
                 <span id="omit-count">0 selected</span>
               </div>
 
+              <input id="omit-rule-search" type="search" placeholder="Search rule number...">
               <div id="omit-rules-list">
                 Loading rules...
               </div>
@@ -921,6 +947,7 @@
     };
     // Run a new security scan and refresh the dashboard results.
     const runScan = async () => {
+      document.getElementById('omit-rules-menu').hidden = true;
       const runScanButton = document.getElementById('run-scan-button');
 
       try {
@@ -1005,21 +1032,94 @@
 
           rulesList.appendChild(option);
         });
+        // Restore previously selected omitted rules after page refresh.
+        const savedOmittedRules = JSON.parse(
+          sessionStorage.getItem('omittedSecurityRules') || '[]'
+        );
 
         document
           .querySelectorAll('.omit-rule-checkbox')
           .forEach((checkbox) => {
-            checkbox.addEventListener('change', () => {
-              const selectedCount =
-                document.querySelectorAll(
-                  '.omit-rule-checkbox:checked'
-                ).length;
-
-              omitCount.textContent =
-                `${selectedCount} selected`;
-            });
+            checkbox.checked = savedOmittedRules.includes(checkbox.value);
           });
 
+        omitCount.textContent =
+          `${savedOmittedRules.length} selected`;
+        document
+          .querySelectorAll('.omit-rule-checkbox')
+          .forEach((checkbox) => {
+            checkbox.addEventListener('change', () => {
+              // Save selected omitted rules for the current browser session.
+              const selectedRules = Array.from(
+                document.querySelectorAll('.omit-rule-checkbox:checked')
+              ).map((checkbox) => checkbox.value);
+
+              omitCount.textContent =
+                `${selectedRules.length} selected`;
+
+              sessionStorage.setItem(
+                'omittedSecurityRules',
+                JSON.stringify(selectedRules)
+              );
+              const omitRuleSearch = document.getElementById('omit-rule-search');
+
+              omitRuleSearch.value = '';
+
+              document
+                .querySelectorAll('.omit-rule-option')
+                .forEach((option) => {
+                  option.classList.remove('omit-rule-search-match');
+                });
+            });
+          });
+        // Filter omission rules by rule number or rule ID.
+        const omitRuleSearch = document.getElementById('omit-rule-search');
+
+        omitRuleSearch.addEventListener('keydown', (event) => {
+          if (event.key !== 'Enter') {
+            return;
+          }
+
+          event.preventDefault();
+          const searchValue = omitRuleSearch.value
+            .trim()
+            .toUpperCase()
+            .replace(/^NH/, '')
+            .replace(/^0+/, '');
+
+          const options = document.querySelectorAll('.omit-rule-option');
+          const omitRulesMenu = document.getElementById('omit-rules-menu');
+
+          options.forEach((option) => {
+            option.classList.remove('omit-rule-search-match');
+          });
+
+          if (searchValue === '') {
+            omitRulesMenu.scrollTop = 0;
+            return;
+          }
+
+          const matchingOption = Array.from(options).find((option) => {
+            const ruleId = option
+              .querySelector('.omit-rule-id')
+              .textContent
+              .trim()
+              .toUpperCase();
+
+            const ruleNumber = ruleId
+              .replace(/^NH/, '')
+              .replace(/^0+/, '');
+
+            return ruleNumber === searchValue;
+          });
+
+          if (matchingOption) {
+            matchingOption.classList.add('omit-rule-search-match');
+
+            omitRulesMenu.scrollTop =
+              matchingOption.offsetTop - 90;
+          }
+        });
       } catch (error) {
         rulesList.textContent =
           `Unable to load rules: ${error.message}`;
@@ -1067,14 +1167,19 @@
 
         return ruleNumberA - ruleNumberB;
       });
+      let previousRuleId = null;
+
       sortedFindings.forEach((finding) => {
         const row = document.createElement('tr');
 
         row.innerHTML = `
           <td>
-            <strong>${escapeHtml(finding.ruleId)}</strong><br>
-            ${escapeHtml(finding.ruleName)}
-          </td>
+            ${finding.ruleId !== previousRuleId
+            ? `<strong>${escapeHtml(finding.ruleId)}</strong><br>
+                   ${escapeHtml(finding.ruleName)}`
+            : ''
+          }
+      </td>
 
           <td>
             <span class="severity-badge ${getSeverityClass(finding.severity)}">
@@ -1104,7 +1209,7 @@
 
           <td>${escapeHtml(finding.recommendation)}</td>
         `;
-
+        previousRuleId = finding.ruleId;
         tableBody.appendChild(row);
       });
 
@@ -1207,7 +1312,7 @@
       }
     };
 
-        // Download content as a file
+    // Download content as a file
     const downloadFile = (content, filename, mimeType) => {
       const blob = new Blob([content], { type: mimeType });
       const url = URL.createObjectURL(blob);
@@ -1248,7 +1353,7 @@
       );
     };
 
-      // Escape values safely for CSV
+    // Escape values safely for CSV
     const escapeCsv = (value) => {
       const text = String(value ?? '');
       return `"${text.replaceAll('"', '""')}"`;
@@ -1344,9 +1449,9 @@
           exportCsv();
         }
 
-    // Reset the dropdown after export
-    event.target.value = '';
-  });
+        // Reset the dropdown after export
+        event.target.value = '';
+      });
 
     document
       .getElementById('severity-filter')
@@ -1358,9 +1463,16 @@
 
     document
       .getElementById('omit-rules-button')
-      .addEventListener('click', () => {
+      .addEventListener('click', async () => {
         const menu = document.getElementById('omit-rules-menu');
-        menu.hidden = !menu.hidden;
+
+        if (menu.hidden) {
+          menu.hidden = false;
+          return;
+        }
+
+        menu.hidden = true;
+        await runScan();
       });
 
     document.addEventListener('DOMContentLoaded', async () => {
