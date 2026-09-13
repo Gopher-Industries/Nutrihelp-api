@@ -445,6 +445,27 @@
       font-size: 13px;
     }
 
+    #omit-rule-search {
+      width: 100%;
+      margin-bottom: 8px;
+      padding: 8px 10px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--light-blue);
+      color: var(--text);
+      font-size: 12px;
+    }
+
+    #omit-rule-search::placeholder {
+      color: var(--muted);
+    }
+
+    .omit-rule-search-match {
+      background: var(--light-blue);
+      outline: 2px solid var(--info);
+      border-radius: 4px;
+    }
+
     .omit-rule-option {
       display: grid;
       grid-template-columns: 24px 60px 150px 1fr;
@@ -711,6 +732,7 @@
                 <span id="omit-count">0 selected</span>
               </div>
 
+              <input id="omit-rule-search" type="search" placeholder="Search rule number...">
               <div id="omit-rules-list">
                 Loading rules...
               </div>
@@ -925,6 +947,7 @@
     };
     // Run a new security scan and refresh the dashboard results.
     const runScan = async () => {
+      document.getElementById('omit-rules-menu').hidden = true;
       const runScanButton = document.getElementById('run-scan-button');
 
       try {
@@ -1038,9 +1061,65 @@
                 'omittedSecurityRules',
                 JSON.stringify(selectedRules)
               );
+              const omitRuleSearch = document.getElementById('omit-rule-search');
+
+              omitRuleSearch.value = '';
+
+              document
+                .querySelectorAll('.omit-rule-option')
+                .forEach((option) => {
+                  option.classList.remove('omit-rule-search-match');
+                });
             });
           });
+        // Filter omission rules by rule number or rule ID.
+        const omitRuleSearch = document.getElementById('omit-rule-search');
 
+        omitRuleSearch.addEventListener('keydown', (event) => {
+          if (event.key !== 'Enter') {
+            return;
+          }
+
+          event.preventDefault();
+          const searchValue = omitRuleSearch.value
+            .trim()
+            .toUpperCase()
+            .replace(/^NH/, '')
+            .replace(/^0+/, '');
+
+          const options = document.querySelectorAll('.omit-rule-option');
+          const omitRulesMenu = document.getElementById('omit-rules-menu');
+
+          options.forEach((option) => {
+            option.classList.remove('omit-rule-search-match');
+          });
+
+          if (searchValue === '') {
+            omitRulesMenu.scrollTop = 0;
+            return;
+          }
+
+          const matchingOption = Array.from(options).find((option) => {
+            const ruleId = option
+              .querySelector('.omit-rule-id')
+              .textContent
+              .trim()
+              .toUpperCase();
+
+            const ruleNumber = ruleId
+              .replace(/^NH/, '')
+              .replace(/^0+/, '');
+
+            return ruleNumber === searchValue;
+          });
+
+          if (matchingOption) {
+            matchingOption.classList.add('omit-rule-search-match');
+
+            omitRulesMenu.scrollTop =
+              matchingOption.offsetTop - 90;
+          }
+        });
       } catch (error) {
         rulesList.textContent =
           `Unable to load rules: ${error.message}`;
