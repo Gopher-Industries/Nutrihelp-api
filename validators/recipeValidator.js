@@ -26,6 +26,14 @@ const validateRecipe = [
   body('instructions').notEmpty().withMessage('instructions is required'),
   body('ingredient_id').isArray().withMessage('ingredient_id must be an array'),
   body('ingredient_quantity').isArray().withMessage('ingredient_quantity must be an array'),
+  body('ingredient_id').isArray({ min: 1 }),
+  body('ingredient_id.*').isInt({ min: 1 }),
+  body('ingredient_quantity').custom((values, { req }) => Array.isArray(values) && values.length === req.body.ingredient_id?.length),
+  body('ingredient_quantity.*').optional({ nullable: true }).isFloat({ gt: 0 }),
+  ...['ingredient_unit', 'ingredient_notes', 'ingredient_source_measure'].flatMap(field => [
+    body(field).optional().isArray().custom((values, { req }) => values.length === req.body.ingredient_id?.length),
+    body(`${field}.*`).optional().isString().isLength({ max: 500 }),
+  ]),
 ];
 
 module.exports = { recipeSchema, getRecipesSchema, validateRecipe };
