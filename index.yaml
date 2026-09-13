@@ -2002,6 +2002,63 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /mealplan/me:
+    get:
+      summary: Get authenticated user's meal plans
+      description: |
+        Returns meal plans belonging only to the authenticated user.
+        User identity is derived from the verified bearer token.
+        Client-supplied user IDs are not used to select another user's data.
+        Optional start_date and end_date parameters filter meal plans by created_at.
+      security:
+      - BearerAuth: []
+      parameters:
+      - in: query
+        name: start_date
+        required: false
+        description: Start date for meal-plan filtering, inclusive.
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: end_date
+        required: false
+        description: End date for meal-plan filtering, inclusive.
+        schema:
+          type: string
+          format: date
+      responses:
+        '200':
+          description: Authenticated user's meal plans fetched successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MealPlanListEnvelope'
+        '400':
+          description: Invalid date parameter or date range
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+        '401':
+          description: Authentication required or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+        '403':
+          description: Authenticated user is not authorised for this endpoint
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorEnvelope'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /mealplan:
     get:
       summary: Get meal plans
