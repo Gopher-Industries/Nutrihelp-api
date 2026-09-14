@@ -712,6 +712,10 @@
               </div>
             </div>
           </div>
+          <!-- Security scan history -->
+          <select id="scan-history">
+            <option value="">Scan History</option>
+          </select>
 
           <!-- Export security scan results -->
           <select id="export-format">
@@ -768,6 +772,9 @@
     const apiUrl = '/api/security-scanner/results';
     const scanApiUrl = '/api/security-scanner/scan';
     const rulesApiUrl = '/api/security-scanner/rules';
+
+    const historyApiUrl = '/api/security-scanner/history';
+    const historicalScanApiUrl = '/api/security-scanner/history';
 
     let allFindings = [];
     let latestScanData = null;
@@ -1207,6 +1214,85 @@
       }
     };
 
+    const loadScanHistory = async () => {
+      const historySelect = document.getElementById('scan-history');
+
+      try {
+        const response = await fetch(historyApiUrl);
+        const responseBody = await response.json();
+
+        if (!response.ok || !responseBody.success) {
+          throw new Error(
+            responseBody.error || 'Unable to load scan history'
+          );
+        }
+
+        const history = Array.isArray(responseBody.data)
+          ? responseBody.data
+          : [];
+
+        historySelect.innerHTML =
+          '<option value="">Scan History</option>';
+
+        history.forEach((scan) => {
+          const option = document.createElement('option');
+
+          option.value = scan.id;
+
+          const date = scan.timestamp
+            ? new Date(scan.timestamp).toLocaleString()
+            : 'Unknown date';
+
+          option.textContent =
+            `${date} - ${scan.findingsDetected} findings`;
+
+          historySelect.appendChild(option);
+        });
+      } catch (error) {
+        console.error('Unable to load scan history:', error);
+      }
+    };
+
+    const loadHistoricalScan = async (scanId) => {
+      const statusMessage = document.getElementById('status-message');
+
+      try {
+        const response = await fetch(
+          `${historicalScanApiUrl}/${encodeURIComponent(scanId)}`
+        );
+
+        const responseBody = await response.json();
+
+        if (!response.ok || !responseBody.success) {
+          throw new Error(
+            responseBody.error || 'Unable to load historical scan'
+          );
+        }
+
+        const data = responseBody.data;
+
+        latestScanData = data;
+
+        allFindings = Array.isArray(data.findings)
+          ? data.findings
+          : [];
+
+        displayMetadata(data);
+        displaySummary(data);
+        displayOmittedRules(data.omittedRules);
+        renderFindings(allFindings);
+
+        statusMessage.classList.remove('error');
+        statusMessage.textContent =
+          'Historical scan loaded successfully.';
+      } catch (error) {
+        statusMessage.classList.add('error');
+        statusMessage.textContent =
+          `Unable to load historical scan: ${error.message}`;
+      }
+    };
+
+
         // Download content as a file
     const downloadFile = (content, filename, mimeType) => {
       const blob = new Blob([content], { type: mimeType });
@@ -1349,6 +1435,16 @@
   });
 
     document
+      .getElementById('scan-history')
+      .addEventListener('change', (event) => {
+        const scanId = event.target.value;
+
+        if (scanId) {
+          loadHistoricalScan(scanId);
+        }
+      });
+
+    document
       .getElementById('severity-filter')
       .addEventListener('change', applyFilters);
 
@@ -1365,6 +1461,7 @@
 
     document.addEventListener('DOMContentLoaded', async () => {
       await loadRuleOptions();
+      await loadScanHistory();
 
       if (sessionStorage.getItem('securityScanCompleted') === 'true') {
         await loadScanResults();
