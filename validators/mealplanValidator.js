@@ -44,6 +44,19 @@ const getMealPlanValidation = [
         .withMessage('Meal type must be a string')
 ];
 
+// Validation for authenticated user's own meal plans
+const getMyMealPlanValidation = [
+    query('start_date')
+        .optional()
+        .isISO8601({ strict: true })
+        .withMessage('start_date must be a valid ISO-8601 date'),
+
+    query('end_date')
+        .optional()
+        .isISO8601({ strict: true })
+        .withMessage('end_date must be a valid ISO-8601 date')
+];
+
 // Validation for deleting a meal plan
 const deleteMealPlanValidation = [
     body('id')
@@ -65,5 +78,6 @@ const deleteMealPlanValidation = [
 module.exports = {
     addMealPlanValidation,
     getMealPlanValidation,
+    getMyMealPlanValidation,
     deleteMealPlanValidation
 };
