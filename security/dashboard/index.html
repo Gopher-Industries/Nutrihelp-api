@@ -592,7 +592,7 @@
       </div>
 
       <div class="meta-item">
-        <div class="meta-label">Rules Loaded</div>
+        <div class="meta-label">Active Rules</div>
         <div class="meta-value" id="rules-loaded">0</div>
       </div>
     </section>
@@ -723,12 +723,12 @@
           <!-- Select rules to omit from the next scan -->
           <div class="omit-rules-control">
             <button id="omit-rules-button" type="button">
-              Omit Rules
+              Rule Exclusions
             </button>
 
             <div id="omit-rules-menu" class="omit-rules-menu" hidden>
               <div class="omit-rules-header">
-                <strong>Rules to Omit</strong>
+                <strong>Rule Exclusions</strong>
                 <span id="omit-count">0 selected</span>
               </div>
 
@@ -764,14 +764,14 @@
       <!-- Display rules intentionally omitted from the current scan -->
       <div id="omitted-rules-section" class="omitted-rules-section" hidden>
         <div class="omitted-rules-title">
-          Omitted Rules
+          Excluded Rules:
           <span id="omitted-rules-count">0</span>
         </div>
 
         <div id="omitted-rules-display"></div>
       </div>
       <div id="status-message" class="message">
-        Select any rules to omit, then click Run Scan.
+        Select any rules to exclude, then click Run Scan.
       </div>
 
       <div class="table-wrap">
@@ -1055,7 +1055,7 @@
         document
           .querySelectorAll('.omit-rule-checkbox')
           .forEach((checkbox) => {
-            checkbox.addEventListener('change', () => {
+            checkbox.addEventListener('change', async () => {
               // Save selected omitted rules for the current browser session.
               const selectedRules = Array.from(
                 document.querySelectorAll('.omit-rule-checkbox:checked')
@@ -1077,6 +1077,8 @@
                 .forEach((option) => {
                   option.classList.remove('omit-rule-search-match');
                 });
+
+              await runScan();
             });
           });
         // Filter omission rules by rule number or rule ID.
