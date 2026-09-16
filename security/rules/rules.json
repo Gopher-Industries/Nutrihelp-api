@@ -1796,7 +1796,7 @@
   "id": "NH164",
   "name": "Plaintext Password Comparison",
   "description": "Detects request passwords compared directly against password properties using equality operators.",
-  "pattern": "req\\.body\\.password\\s*(===|==)\\s*[^\\n]*(password|\\.password)",
+  "pattern": "req\\.body\\.password\\s*(===|==)\\s*(user|account|storedUser)\\.password\\b",
   "severity": "High",
   "confidence": "Medium",
   "cwe": "CWE-256",
