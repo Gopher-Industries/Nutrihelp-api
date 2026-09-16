@@ -2280,7 +2280,7 @@
   "id": "NH208",
   "name": "Request Controlled SMTP Recipient",
   "description": "Detects email recipient fields populated directly from request-controlled input.",
-  "pattern": "(to|cc|bcc)\\s*:\\s*req\\.(body|query|params)",
+  "pattern": "\\b(to|cc|bcc)\\s*:\\s*req\\.(body|query|params)",
   "severity": "Medium",
   "confidence": "Medium",
   "cwe": "CWE-20",
