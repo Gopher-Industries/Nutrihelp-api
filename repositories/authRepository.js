@@ -1,4 +1,7 @@
-const { supabaseAnon, supabaseServiceRole } = require('../database/supabase');
+const {
+  supabaseAnon,
+  supabaseServiceRole,
+} = require('../database/supabase');
 
 function getAnonClient() {
   return supabaseAnon;

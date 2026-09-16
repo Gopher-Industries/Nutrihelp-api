@@ -4,6 +4,7 @@ const { coreApp } = require('../controller');
 const {
     addMealPlanValidation,
     getMealPlanValidation,
+    getMyMealPlanValidation,
     deleteMealPlanValidation
 } = require('../validators/mealplanValidator.js');
 const {
@@ -17,6 +18,16 @@ const { authenticateToken } = require('../middleware/authenticateToken.js');
 const authorizeRoles = require('../middleware/authorizeRoles.js');
 
 const { mealplan: controller } = coreApp;
+
+// Secure route for the authenticated user's own meal plans
+router.get(
+    '/me',
+    authenticateToken,
+    authorizeRoles("user", "nutritionist", "admin"),
+    getMyMealPlanValidation,
+    validate,
+    (req, res) => controller.getMyMealPlan(req, res)
+);
 
 // Route to add a meal plan for the authenticated user (or managed users for staff roles)
 router.route('/')

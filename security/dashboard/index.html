@@ -11,17 +11,18 @@
     :root {
       --navy: #17324d;
       --blue: #245b85;
-      --light-blue: #eaf2f8;
-      --background: #f4f6f8;
-      --surface: #ffffff;
-      --border: #d9e0e6;
-      --text: #1f2933;
-      --muted: #66788a;
 
-      --critical: #b91c1c;
-      --high: #ea580c;
-      --medium: #ca8a04;
-      --low: #15803d;
+      --light-blue: #455866;
+      --background: #f4f6f8;
+      --surface: #3b4e5b;
+      --border: #5b6e7c;
+      --text: #f8fafc;
+      --muted: #d7e0e7;
+
+      --critical: #e00e0e;
+      --high: #ff7a00;
+      --medium: #facc15;
+      --low: #04be52;
       --info: #2563eb;
     }
 
@@ -32,19 +33,26 @@
     body {
       margin: 0;
       font-family: Arial, Helvetica, sans-serif;
-      background: var(--background);
+      background: linear-gradient(to right,
+          #012942 0%,
+          #0b2235 28%,
+          #0b2235 72%,
+          #012942 100%);
       color: var(--text);
     }
 
     header {
-      background: linear-gradient(135deg, var(--navy), var(--blue));
+      background: transparent;
       color: white;
-      padding: 28px 24px;
+      padding: 8px 20px 0;
     }
 
     .header-content {
-      max-width: 1280px;
+      max-width: 1228px;
       margin: 0 auto;
+      background: var(--surface);
+      padding: 22px 24px;
+      border-radius: 8px;
     }
 
     header h1 {
@@ -58,16 +66,17 @@
     }
 
     main {
-      max-width: 1280px;
-      margin: 28px auto;
-      padding: 0 20px 40px;
+      max-width: 1260px;
+      margin: 0 auto;
+      padding: 15px 20px 40px;
+      background: #0b2235;
     }
 
     .meta-panel {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
       gap: 14px;
-      margin-bottom: 22px;
+      margin-bottom: 15px;
     }
 
     .meta-item {
@@ -93,7 +102,7 @@
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
       gap: 16px;
-      margin-bottom: 28px;
+      margin-bottom: 15px;
     }
 
     .summary-card {
@@ -165,8 +174,8 @@
       padding: 10px 12px;
       border: 1px solid var(--border);
       border-radius: 7px;
-      background: white;
-      color: var(--text);
+      background: #526471;
+      color: white;
     }
 
     .table-wrap {
@@ -190,7 +199,7 @@
     th {
       background: var(--light-blue);
       font-size: 13px;
-      color: #34495e;
+      color: white;
       position: sticky;
       top: 0;
     }
@@ -235,13 +244,13 @@
     }
 
     .reference-badge {
-      background: #eef2f7;
-      color: #334155;
+      background: #596b78;
+      color: white;
       margin-right: 4px;
     }
 
     .file-path {
-      max-width: 320px;
+      max-width: 410px;
       word-break: break-word;
       font-family: Consolas, monospace;
       font-size: 12px;
@@ -267,7 +276,7 @@
       border: 1px solid var(--border);
       border-radius: 10px;
       padding: 14px 20px;
-      margin-bottom: 28px;
+      margin-bottom: 15px;
       box-shadow: 0 3px 10px rgba(15, 23, 42, 0.06);
     }
 
@@ -303,7 +312,7 @@
 
     .horizontal-track {
       height: 10px;
-      background: #eef2f7;
+      background: #6b7c89;
       border-radius: 999px;
       overflow: hidden;
     }
@@ -338,18 +347,24 @@
     }
 
     .doughnut-container {
-      width: 150px;
+      width: 255px;
       display: flex;
-      justify-content: center;
+      justify-content: flex-end;
       align-items: center;
+      gap: 10px;
     }
 
     .doughnut-chart {
-      width: 105px;
-      height: 105px;
+      width: 115px;
+      height: 115px;
       border-radius: 50%;
       position: relative;
       background: #e5e7eb;
+    }
+
+    .risk-doughnut {
+      width: 140px;
+      height: 140px;
     }
 
     .doughnut-chart::after {
@@ -430,6 +445,27 @@
       font-size: 13px;
     }
 
+    #omit-rule-search {
+      width: 100%;
+      margin-bottom: 8px;
+      padding: 8px 10px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--light-blue);
+      color: var(--text);
+      font-size: 12px;
+    }
+
+    #omit-rule-search::placeholder {
+      color: var(--muted);
+    }
+
+    .omit-rule-search-match {
+      background: var(--light-blue);
+      outline: 2px solid var(--info);
+      border-radius: 4px;
+    }
+
     .omit-rule-option {
       display: grid;
       grid-template-columns: 24px 60px 150px 1fr;
@@ -502,6 +538,30 @@
       .doughnut-container {
         width: 100%;
       }
+    }
+
+    .horizontal-bar-track {
+      background: #6b7c89;
+    }
+
+    table thead {
+      background: #526471;
+    }
+
+    input,
+    select {
+      background: #344754;
+      color: #f8fafc;
+      border: 1px solid #667985;
+    }
+
+    input::placeholder {
+      color: #d0d8df;
+    }
+
+    select option {
+      background: #344754;
+      color: #f8fafc;
     }
   </style>
 </head>
@@ -619,6 +679,7 @@
         </div>
 
         <div class="doughnut-container">
+
           <div class="doughnut-chart" id="severity-doughnut">
             <div class="doughnut-center">
               <div class="doughnut-total" id="doughnut-total">
@@ -629,6 +690,21 @@
               </div>
             </div>
           </div>
+
+          <div class="doughnut-chart risk-doughnut" id="risk-doughnut">
+            <div class="doughnut-center">
+              <div class="doughnut-total" id="risk-score">
+                0
+              </div>
+              <div class="doughnut-label">
+                Risk Score
+              </div>
+              <div class="doughnut-label" id="risk-level">
+                Low
+              </div>
+            </div>
+          </div>
+
         </div>
 
       </div>
@@ -656,11 +732,23 @@
                 <span id="omit-count">0 selected</span>
               </div>
 
+              <input id="omit-rule-search" type="search" placeholder="Search rule number...">
               <div id="omit-rules-list">
                 Loading rules...
               </div>
             </div>
           </div>
+          <!-- Security scan history -->
+          <select id="scan-history">
+            <option value="">Scan History</option>
+          </select>
+
+          <!-- Export security scan results -->
+          <select id="export-format">
+            <option value="">Export Report</option>
+            <option value="json">Download JSON</option>
+            <option value="csv">Download CSV</option>
+          </select>
           <input id="search-input" type="search" placeholder="Search rule, file, CWE or OWASP">
 
           <select id="severity-filter">
@@ -711,7 +799,11 @@
     const scanApiUrl = '/api/security-scanner/scan';
     const rulesApiUrl = '/api/security-scanner/rules';
 
+    const historyApiUrl = '/api/security-scanner/history';
+    const historicalScanApiUrl = '/api/security-scanner/history';
+
     let allFindings = [];
+    let latestScanData = null;
 
     const escapeHtml = (value) => {
       return String(value ?? '')
@@ -776,6 +868,22 @@
       const medium = severity.Medium || 0;
       const low = severity.Low || 0;
 
+      // Calculate overall scan risk score.
+      const criticalRisk = critical * 20;
+      const highRisk = high * 10;
+      const mediumRisk = medium * 5;
+      const lowRisk = low * 2;
+
+      const totalRisk =
+        criticalRisk +
+        highRisk +
+        mediumRisk +
+        lowRisk;
+
+      const riskScore = Math.min(100, totalRisk);
+
+      document.getElementById('risk-score').textContent = riskScore;
+
       const total = critical + high + medium + low;
       const maxCount = Math.max(critical, high, medium, low, 1);
 
@@ -820,9 +928,33 @@
           )
         `;
       }
+      // Update risk score doughnut.
+      const riskDoughnut = document.getElementById('risk-doughnut');
+      const riskLevel = document.getElementById('risk-level');
+
+      let riskColour;
+      let riskLevelText;
+
+      if (riskScore > 80) {
+        riskColour = 'var(--critical)';
+        riskLevelText = 'High';
+      } else if (riskScore >= 50) {
+        riskColour = 'var(--high)';
+        riskLevelText = 'Medium';
+      } else if (riskScore >= 20) {
+        riskColour = 'var(--medium)';
+        riskLevelText = 'Low';
+      } else {
+        riskColour = 'var(--low)';
+        riskLevelText = 'Acceptable';
+      }
+
+      riskDoughnut.style.background = riskColour;
+      riskLevel.textContent = riskLevelText;
     };
     // Run a new security scan and refresh the dashboard results.
     const runScan = async () => {
+      document.getElementById('omit-rules-menu').hidden = true;
       const runScanButton = document.getElementById('run-scan-button');
 
       try {
@@ -907,21 +1039,94 @@
 
           rulesList.appendChild(option);
         });
+        // Restore previously selected omitted rules after page refresh.
+        const savedOmittedRules = JSON.parse(
+          sessionStorage.getItem('omittedSecurityRules') || '[]'
+        );
 
         document
           .querySelectorAll('.omit-rule-checkbox')
           .forEach((checkbox) => {
-            checkbox.addEventListener('change', () => {
-              const selectedCount =
-                document.querySelectorAll(
-                  '.omit-rule-checkbox:checked'
-                ).length;
-
-              omitCount.textContent =
-                `${selectedCount} selected`;
-            });
+            checkbox.checked = savedOmittedRules.includes(checkbox.value);
           });
 
+        omitCount.textContent =
+          `${savedOmittedRules.length} selected`;
+        document
+          .querySelectorAll('.omit-rule-checkbox')
+          .forEach((checkbox) => {
+            checkbox.addEventListener('change', () => {
+              // Save selected omitted rules for the current browser session.
+              const selectedRules = Array.from(
+                document.querySelectorAll('.omit-rule-checkbox:checked')
+              ).map((checkbox) => checkbox.value);
+
+              omitCount.textContent =
+                `${selectedRules.length} selected`;
+
+              sessionStorage.setItem(
+                'omittedSecurityRules',
+                JSON.stringify(selectedRules)
+              );
+              const omitRuleSearch = document.getElementById('omit-rule-search');
+
+              omitRuleSearch.value = '';
+
+              document
+                .querySelectorAll('.omit-rule-option')
+                .forEach((option) => {
+                  option.classList.remove('omit-rule-search-match');
+                });
+            });
+          });
+        // Filter omission rules by rule number or rule ID.
+        const omitRuleSearch = document.getElementById('omit-rule-search');
+
+        omitRuleSearch.addEventListener('keydown', (event) => {
+          if (event.key !== 'Enter') {
+            return;
+          }
+
+          event.preventDefault();
+          const searchValue = omitRuleSearch.value
+            .trim()
+            .toUpperCase()
+            .replace(/^NH/, '')
+            .replace(/^0+/, '');
+
+          const options = document.querySelectorAll('.omit-rule-option');
+          const omitRulesMenu = document.getElementById('omit-rules-menu');
+
+          options.forEach((option) => {
+            option.classList.remove('omit-rule-search-match');
+          });
+
+          if (searchValue === '') {
+            omitRulesMenu.scrollTop = 0;
+            return;
+          }
+
+          const matchingOption = Array.from(options).find((option) => {
+            const ruleId = option
+              .querySelector('.omit-rule-id')
+              .textContent
+              .trim()
+              .toUpperCase();
+
+            const ruleNumber = ruleId
+              .replace(/^NH/, '')
+              .replace(/^0+/, '');
+
+            return ruleNumber === searchValue;
+          });
+
+          if (matchingOption) {
+            matchingOption.classList.add('omit-rule-search-match');
+
+            omitRulesMenu.scrollTop =
+              matchingOption.offsetTop - 90;
+          }
+        });
       } catch (error) {
         rulesList.textContent =
           `Unable to load rules: ${error.message}`;
@@ -969,14 +1174,19 @@
 
         return ruleNumberA - ruleNumberB;
       });
+      let previousRuleId = null;
+
       sortedFindings.forEach((finding) => {
         const row = document.createElement('tr');
 
         row.innerHTML = `
           <td>
-            <strong>${escapeHtml(finding.ruleId)}</strong><br>
-            ${escapeHtml(finding.ruleName)}
-          </td>
+            ${finding.ruleId !== previousRuleId
+            ? `<strong>${escapeHtml(finding.ruleId)}</strong><br>
+                   ${escapeHtml(finding.ruleName)}`
+            : ''
+          }
+      </td>
 
           <td>
             <span class="severity-badge ${getSeverityClass(finding.severity)}">
@@ -1006,7 +1216,7 @@
 
           <td>${escapeHtml(finding.recommendation)}</td>
         `;
-
+        previousRuleId = finding.ruleId;
         tableBody.appendChild(row);
       });
 
@@ -1092,6 +1302,8 @@
 
         const data = responseBody.data;
 
+        latestScanData = data;
+
         allFindings = Array.isArray(data.findings)
           ? data.findings
           : [];
@@ -1107,9 +1319,237 @@
       }
     };
 
+    const loadScanHistory = async () => {
+      const historySelect = document.getElementById('scan-history');
+
+      try {
+        const response = await fetch(historyApiUrl);
+        const responseBody = await response.json();
+
+        if (!response.ok || !responseBody.success) {
+          throw new Error(
+            responseBody.error || 'Unable to load scan history'
+          );
+        }
+
+        const history = Array.isArray(responseBody.data)
+          ? responseBody.data
+          : [];
+
+        historySelect.innerHTML =
+          '<option value="">Scan History</option>';
+
+        history.forEach((scan) => {
+          const option = document.createElement('option');
+
+          option.value = scan.id;
+
+          const date = scan.timestamp
+            ? new Date(scan.timestamp).toLocaleString()
+            : 'Unknown date';
+
+          option.textContent =
+            `${date} - ${scan.findingsDetected} findings`;
+
+          historySelect.appendChild(option);
+        });
+      } catch (error) {
+        console.error('Unable to load scan history:', error);
+      }
+    };
+
+    const loadHistoricalScan = async (scanId) => {
+      const statusMessage = document.getElementById('status-message');
+
+      try {
+        const response = await fetch(
+          `${historicalScanApiUrl}/${encodeURIComponent(scanId)}`
+        );
+
+        const responseBody = await response.json();
+
+        if (!response.ok || !responseBody.success) {
+          throw new Error(
+            responseBody.error || 'Unable to load historical scan'
+          );
+        }
+
+        const data = responseBody.data;
+
+        latestScanData = data;
+
+        allFindings = Array.isArray(data.findings)
+          ? data.findings
+          : [];
+
+        displayMetadata(data);
+        displaySummary(data);
+        displayOmittedRules(data.omittedRules);
+        renderFindings(allFindings);
+
+        statusMessage.classList.remove('error');
+        statusMessage.textContent =
+          'Historical scan loaded successfully.';
+      } catch (error) {
+        statusMessage.classList.add('error');
+        statusMessage.textContent =
+          `Unable to load historical scan: ${error.message}`;
+      }
+    };
+
+
+        // Download content as a file
+
+    // Download content as a file
+    const downloadFile = (content, filename, mimeType) => {
+      const blob = new Blob([content], { type: mimeType });
+      const url = URL.createObjectURL(blob);
+
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      URL.revokeObjectURL(url);
+    };
+
+    // Export the latest security scan as JSON
+    const exportJson = () => {
+      if (!latestScanData) {
+        alert('No scan results are available to export.');
+        return;
+      }
+
+      const report = {
+        exportedAt: new Date().toISOString(),
+        framework: latestScanData.framework,
+        scanInformation: latestScanData.scanInformation,
+        summary: latestScanData.summary,
+        omittedRules: latestScanData.omittedRules || [],
+        findings: latestScanData.findings || []
+      };
+
+      const json = JSON.stringify(report, null, 2);
+
+      downloadFile(
+        json,
+        `security-report-${Date.now()}.json`,
+        'application/json'
+      );
+    };
+
+    // Escape values safely for CSV
+    const escapeCsv = (value) => {
+      const text = String(value ?? '');
+      return `"${text.replaceAll('"', '""')}"`;
+    };
+
+    // Export the latest security scan as CSV
+    const exportCsv = () => {
+      if (!latestScanData) {
+        alert('No scan results are available to export.');
+        return;
+      }
+
+      const findings = Array.isArray(latestScanData.findings)
+        ? latestScanData.findings
+        : [];
+
+      const severity = latestScanData.summary?.severity || {};
+      const scanInfo = latestScanData.scanInformation || {};
+
+      const rows = [];
+
+      // Overall scan summary
+      rows.push(['SECURITY SCAN SUMMARY']);
+      rows.push(['Timestamp', scanInfo.timestamp || '']);
+      rows.push(['Files Scanned', scanInfo.filesScanned || 0]);
+      rows.push(['Rules Loaded', scanInfo.rulesLoaded || 0]);
+      rows.push(['Rules Omitted', scanInfo.rulesOmitted || 0]);
+      rows.push(['Findings Detected', scanInfo.findingsDetected || 0]);
+
+      rows.push([]);
+
+      // Severity summary
+      rows.push(['SEVERITY SUMMARY']);
+      rows.push(['Critical', severity.Critical || 0]);
+      rows.push(['High', severity.High || 0]);
+      rows.push(['Medium', severity.Medium || 0]);
+      rows.push(['Low', severity.Low || 0]);
+      rows.push(['Informational', severity.Informational || 0]);
+
+      rows.push([]);
+
+      // Finding details
+      rows.push([
+        'Rule ID',
+        'Rule Name',
+        'Severity',
+        'Filename',
+        'Line Number',
+        'Finding',
+        'CWE',
+        'OWASP',
+        'Recommendation'
+      ]);
+
+      findings.forEach((finding) => {
+        rows.push([
+          finding.ruleId || '',
+          finding.ruleName || '',
+          finding.severity || '',
+          finding.file || '',
+          finding.line || '',
+          finding.matchedText || '',
+          finding.cwe || '',
+          finding.owasp || '',
+          finding.recommendation || ''
+        ]);
+      });
+
+      const csv = rows
+        .map((row) => row.map(escapeCsv).join(','))
+        .join('\r\n');
+
+      downloadFile(
+        csv,
+        `security-report-${Date.now()}.csv`,
+        'text/csv;charset=utf-8'
+      );
+    };
+
     document
       .getElementById('search-input')
       .addEventListener('input', applyFilters);
+    document
+      .getElementById('export-format')
+      .addEventListener('change', (event) => {
+        const format = event.target.value;
+
+        if (format === 'json') {
+          exportJson();
+        }
+
+        if (format === 'csv') {
+          exportCsv();
+        }
+
+        // Reset the dropdown after export
+        event.target.value = '';
+      });
+
+    document
+      .getElementById('scan-history')
+      .addEventListener('change', (event) => {
+        const scanId = event.target.value;
+
+        if (scanId) {
+          loadHistoricalScan(scanId);
+        }
+      });
 
     document
       .getElementById('severity-filter')
@@ -1121,13 +1561,21 @@
 
     document
       .getElementById('omit-rules-button')
-      .addEventListener('click', () => {
+      .addEventListener('click', async () => {
         const menu = document.getElementById('omit-rules-menu');
-        menu.hidden = !menu.hidden;
+
+        if (menu.hidden) {
+          menu.hidden = false;
+          return;
+        }
+
+        menu.hidden = true;
+        await runScan();
       });
 
     document.addEventListener('DOMContentLoaded', async () => {
       await loadRuleOptions();
+      await loadScanHistory();
 
       if (sessionStorage.getItem('securityScanCompleted') === 'true') {
         await loadScanResults();
