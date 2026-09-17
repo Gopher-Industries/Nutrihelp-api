@@ -191,8 +191,15 @@ app.use(errorLogger);
 app.use(structuredErrorHandler);
 
 app.use((err, req, res, next) => {
-  const status = err.status || 500;
-  const message = process.env.NODE_ENV === 'production' ? 'Internal Server Error' : err.message;
+  // Changed: support both Express status properties
+  const status = err.status || err.statusCode || 500;
+
+  // Changed: do not expose raw internal error messages to the client
+  const message =
+    status >= 500
+      ? 'Internal Server Error'
+      : 'Request could not be processed.';
+
   res.status(status).json({
     success: false,
     error: message,

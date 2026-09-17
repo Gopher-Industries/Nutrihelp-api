@@ -2,7 +2,6 @@ require('dotenv').config();
 // security/runAssessment.js
 const SecurityChecklist = require('./securityChecklist');
 const SecurityReportGenerator = require('./reportGenerator');
-const { createClient } = require('@supabase/supabase-js');
 
 
 class SecurityAssessmentRunner {
@@ -10,16 +9,14 @@ class SecurityAssessmentRunner {
     this.checklist = new SecurityChecklist();
     this.reportGenerator = new SecurityReportGenerator();
 
-    // Make Supabase optional for local testing. If env vars are missing,
-    // don't create the client and skip DB storage.
-    if (process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY) {
-      this.supabase = createClient(
-        process.env.SUPABASE_URL,
-        process.env.SUPABASE_ANON_KEY
-      );
+    try {
+      const { supabaseAnon } = require('../database/supabase');
+
+      this.supabase = supabaseAnon;
       this.hasSupabase = true;
-    } else {
-      console.warn('⚠️  SUPABASE_URL or SUPABASE_ANON_KEY not set. Database storage will be skipped.');
+    } catch (error) {
+      console.warn('⚠️ Supabase unavailable. Database storage will be skipped.');
+
       this.supabase = null;
       this.hasSupabase = false;
     }
