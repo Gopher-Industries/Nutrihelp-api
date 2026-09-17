@@ -46,8 +46,8 @@ class AnalysisEngine {
         let fileContent;
 
         try {
-            fileContent = fs.readFileSync(filePath, "utf8");
-        } catch (error) {
+            fileContent = fs.readFileSync(filePath, "utf8"); 
+            } catch (error) {
             throw new Error(`Unable to read file: ${error.message}`);
         }
 
