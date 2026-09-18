@@ -346,12 +346,12 @@ class SecurityChecklist {
 
     try {
       // Check JWT configuration
-      if (!process.env.JWT_SECRET) {
-        issues.push('JWT_SECRET not configured');
-        recommendations.push('Set a strong JWT_SECRET in environment variables');
-      } else if (process.env.JWT_SECRET.length < 32) {
-        issues.push('JWT_SECRET is too short');
-        recommendations.push('Use a JWT_SECRET with at least 32 characters');
+      if (!process.env.JWT_TOKEN) {
+        issues.push('JWT_TOKEN not configured');
+        recommendations.push('Set a strong JWT_TOKEN in environment variables');
+      } else if (process.env.JWT_TOKEN.length < 32) {
+        issues.push('JWT_TOKEN is too short');
+        recommendations.push('Use a JWT_TOKEN with at least 32 characters');
       }
 
       // Check bcrypt configuration -
@@ -400,9 +400,9 @@ class SecurityChecklist {
         };
       } else {
         return {
-          status: issues.some(i => i.includes('JWT_SECRET')) ? 'fail' : 'warning',
+          status: issues.some(i => i.includes('JWT_TOKEN')) ? 'fail' : 'warning',
           message: `Authentication security issues: ${issues.join(', ')}`,
-          severity: issues.some(i => i.includes('JWT_SECRET')) ? 'critical' : 'medium',
+          severity: issues.some(i => i.includes('JWT_TOKEN')) ? 'critical' : 'medium',
           details: { issues },
           recommendations
         };
