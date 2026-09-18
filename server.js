@@ -39,7 +39,6 @@ const ALLOWED_CORS_ORIGINS = new Set([
   FRONTEND_ORIGIN,
   'http://127.0.0.1:3000',
   'chrome-extension://eggdlmopfankeonchoflhfoglaakobma',
-  'https://apifox.cn-hangzhou.log.aliyuncs.com',
 ]);
 
 console.log('🔧 Environment Variables Check:');
