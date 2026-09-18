@@ -147,7 +147,46 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 app.use(metricsMiddleware);
-app.get('/api/metrics', metricsEndpoint);
+
+/**
+ * NH-VULN-2026-014. /api/metrics was served to any unauthenticated caller.
+ *
+ * A user JWT is the wrong control here, because the intended consumer is a
+ * scraper rather than a person, so this uses a static scrape token instead.
+ *
+ * It fails closed. If METRICS_TOKEN is unset the endpoint is unavailable rather
+ * than public, so a missing configuration cannot quietly reopen the exposure.
+ * Comparison is constant time, for the same reason recorded against
+ * NH-VULN-2026-005.
+ */
+const requireMetricsToken = (req, res, next) => {
+  const expected = process.env.METRICS_TOKEN;
+  if (!expected) {
+    return res.status(503).json({
+      success: false,
+      error: 'Metrics endpoint is not configured',
+      code: 'METRICS_NOT_CONFIGURED',
+    });
+  }
+
+  const header = req.get('authorization') || '';
+  const presented = header.startsWith('Bearer ') ? header.slice(7) : '';
+
+  const a = Buffer.from(presented);
+  const b = Buffer.from(expected);
+  const ok = a.length === b.length && require('crypto').timingSafeEqual(a, b);
+
+  if (!ok) {
+    return res.status(401).json({
+      success: false,
+      error: 'Unauthorized',
+      code: 'METRICS_UNAUTHORIZED',
+    });
+  }
+  return next();
+};
+
+app.get('/api/metrics', requireMetricsToken, metricsEndpoint);
 
 app.get('/api/ai/stats', (req, res) => {
   const aiMonitor = require('./services/aiServiceMonitor');
@@ -276,6 +315,18 @@ activeServer.listen(activePort, async () => {
   }
   console.log('='.repeat(50));
   console.log('💡 Press Ctrl+C to stop the server \n');
+
+  // NH-VULN-2026-014. /api/metrics now requires METRICS_TOKEN and returns 503
+  // without it. Say so at boot, because otherwise the first symptom is a
+  // Prometheus dashboard quietly going empty hours later and nobody connecting
+  // it to a deploy. A configuration problem should be loud at the moment it
+  // becomes true.
+  if (!process.env.METRICS_TOKEN) {
+    console.warn('⚠️  METRICS_TOKEN is not set. GET /api/metrics will return 503 and');
+    console.warn('    Prometheus scraping will fail. Set it in the API environment and');
+    console.warn('    write the same value to the Prometheus credentials_file.');
+    console.warn('    Generate one with: openssl rand -base64 32\n');
+  }
 
   // CT-004: Start alert job only after the server is fully bound and ready.
   // The interval callback is wrapped so a single failing run never stops
