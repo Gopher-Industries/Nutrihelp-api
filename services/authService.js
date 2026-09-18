@@ -72,7 +72,7 @@ class AuthService {
   }
 
   async findUserByEmail(email) {
-    const { data, error } = await supabaseAnon
+    const { data, error } = await supabaseService
       .from('users')
       .select(`
         user_id, email, password, name, first_name, last_name, role_id,
@@ -188,7 +188,7 @@ class AuthService {
         );
       }
 
-      const { data: existingUser } = await supabaseAnon
+      const { data: existingUser } = await supabaseService
         .from('users')
         .select('user_id')
         .eq('email', email)
@@ -200,7 +200,7 @@ class AuthService {
 
       const hashedPassword = await bcrypt.hash(password, 12);
 
-      const { data: newUser, error } = await supabaseAnon
+      const { data: newUser, error } = await supabaseService
         .from('users')
         .insert({
           name,
@@ -254,7 +254,7 @@ class AuthService {
         throw new ServiceError(400, 'Email and password are required');
       }
 
-      const { data: user, error } = await supabaseAnon
+      const { data: user, error } = await supabaseService
         .from('users')
         .select(`
           user_id, email, password, name, role_id,
@@ -319,7 +319,7 @@ class AuthService {
       }
       const tokens = await this.generateTokenPair(user, deviceInfo);
 
-      await supabaseAnon
+      await supabaseService
         .from('users')
         .update({ last_login: new Date().toISOString() })
         .eq('user_id', user.user_id);
@@ -384,7 +384,7 @@ class AuthService {
         authMethod: 'oauth',
       });
 
-      await supabaseAnon
+      await supabaseService
         .from('users')
         .update({
           last_login: new Date().toISOString(),
@@ -518,7 +518,7 @@ class AuthService {
         throw new ServiceError(401, 'Refresh token expired');
       }
 
-      const { data: user, error: userError } = await supabaseAnon
+      const { data: user, error: userError } = await supabaseService
         .from('users')
         .select(`
           user_id,
@@ -852,7 +852,7 @@ class AuthService {
       throw new ServiceError(400, 'Email is required');
     }
 
-    const { data, error } = await supabaseAnon
+    const { data, error } = await supabaseService
       .from('users')
       .select('contact_number')
       .eq('email', email)

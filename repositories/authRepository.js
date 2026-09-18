@@ -83,7 +83,7 @@ async function findActiveRefreshSessionByLookupHash(lookupHash) {
 }
 
 async function findUserByIdForSession(userId) {
-  const { data, error } = await getAnonClient()
+  const { data, error } = await getServiceClient()
     .from('users')
     .select(`
       user_id,
