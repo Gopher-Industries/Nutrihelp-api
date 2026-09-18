@@ -3,6 +3,7 @@ const logger = require('../utils/logger');
 const { supabaseService: supabase } = require('../services/supabaseClient');
 const crypto = require('crypto');
 const path = require('path');
+const { spawn } = require('child_process');
 const { fileTypeFromBuffer } = require('file-type');
 
 // Single source of truth for allowed file types — used by both
@@ -24,6 +25,19 @@ const upload = multer({
     }
   }
 }).single('file');
+
+function reencodeImage(buffer) {
+  return new Promise((resolve, reject) => {
+    const child = spawn('node', [path.join(__dirname, 'reencode.js')]);
+    let out = [];
+    child.stdout.on('data', (d) => out.push(d));
+    child.on('close', (code) => {
+      code === 0 ? resolve(Buffer.concat(out)) : reject(new Error('Reencode failed'));
+    });
+    child.stdin.write(buffer);
+    child.stdin.end();
+  });
+}
 
 /**
  * Improve Upload Audit Logging
@@ -168,9 +182,14 @@ exports.uploadFile = (req, res) => {
       const filePath = `files/${user_id}/${safeName}${ext}`;
 
       try {
-        const { error: uploadError } = await supabase.storage
-          .from('uploads')
-          .upload(filePath, file.buffer, {
+        let fileBuffer = file.buffer;
+
+        if (file.mimetype === 'image/jpeg' || file.mimetype === 'image/png') {
+        fileBuffer = await reencodeImage(file.buffer);}
+
+  const { error: uploadError } = await supabase.storage
+    .from('uploads')
+    .upload(filePath, fileBuffer, {
             contentType: file.mimetype,
             cacheControl: '3600',
           });
