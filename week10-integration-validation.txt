@@ -1,0 +1,112 @@
+WEEK 10 INTEGRATION VALIDATION 
+Fri Sep 18 14:24:02 AEST 2026
+
+ FOCUSED SECURITY TESTS 
+🟢 Loaded AuthService from: /Users/kim/Nutrihelp-api/services/authService.js
+URL: https://mdauzoueyzgtqsojttkp.supabase.co
+LOGIN FUNCTION HIT
+🔧 Environment Variables Check:
+   SUPABASE_URL: ✓ Set
+   SUPABASE_ANON_KEY: ✓ Set
+   HTTPS_PORT: 8443
+   HTTP_PORT: 8081
+
+📚 Swagger loaded successfully
+🔧 Environment Variables Check:
+   SUPABASE_URL: ✓ Set
+   SUPABASE_ANON_KEY: ✓ Set
+   HTTPS_PORT: 8443
+   HTTP_PORT: 8081
+
+📚 Swagger loaded successfully
+
+ Exception during run: Error: Cannot find module 'sanitize-html'
+Require stack:
+- /Users/kim/Nutrihelp-api/middleware/sanitizeInput.js
+- /Users/kim/Nutrihelp-api/routes/signup.js
+- /Users/kim/Nutrihelp-api/routes/index.js
+- /Users/kim/Nutrihelp-api/server.js
+- /Users/kim/Nutrihelp-api/test/appointment.v2.test.js
+- /Users/kim/Nutrihelp-api/node_modules/mocha/lib/nodejs/esm-utils.js
+- /Users/kim/Nutrihelp-api/node_modules/mocha/lib/mocha.js
+- /Users/kim/Nutrihelp-api/node_modules/mocha/lib/cli/one-and-dones.js
+- /Users/kim/Nutrihelp-api/node_modules/mocha/lib/cli/options.js
+- /Users/kim/Nutrihelp-api/node_modules/mocha/bin/mocha.js
+    at Module._resolveFilename (node:internal/modules/cjs/loader:1410:15)
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1051:19)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1056:22)
+    at Module._load (node:internal/modules/cjs/loader:1219:37)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:238:24)
+    at Module.require (node:internal/modules/cjs/loader:1493:12)
+    at require (node:internal/modules/helpers:152:16)
+    at Object.<anonymous> (/Users/kim/Nutrihelp-api/middleware/sanitizeInput.js:1:22)
+    at Module._compile (node:internal/modules/cjs/loader:1738:14)
+    at Object..js (node:internal/modules/cjs/loader:1871:10)
+    at Module.load (node:internal/modules/cjs/loader:1470:32)
+    at Module._load (node:internal/modules/cjs/loader:1290:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:238:24)
+    at Module.require (node:internal/modules/cjs/loader:1493:12)
+    at require (node:internal/modules/helpers:152:16)
+    at Object.<anonymous> (/Users/kim/Nutrihelp-api/routes/signup.js:21:23)
+    at Module._compile (node:internal/modules/cjs/loader:1738:14)
+    at Object..js (node:internal/modules/cjs/loader:1871:10)
+    at Module.load (node:internal/modules/cjs/loader:1470:32)
+    at Module._load (node:internal/modules/cjs/loader:1290:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:238:24)
+    at Module.require (node:internal/modules/cjs/loader:1493:12)
+    at require (node:internal/modules/helpers:152:16)
+    at module.exports (/Users/kim/Nutrihelp-api/routes/index.js:6:28)
+    at Object.<anonymous> (/Users/kim/Nutrihelp-api/server.js:176:1)
+    at Module._compile (node:internal/modules/cjs/loader:1738:14)
+    at Object..js (node:internal/modules/cjs/loader:1871:10)
+    at Module.load (node:internal/modules/cjs/loader:1470:32)
+    at Module._load (node:internal/modules/cjs/loader:1290:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:238:24)
+    at Module.require (node:internal/modules/cjs/loader:1493:12)
+    at require (node:internal/modules/helpers:152:16)
+    at Object.<anonymous> (/Users/kim/Nutrihelp-api/test/appointment.v2.test.js:2:13)
+    at Module._compile (node:internal/modules/cjs/loader:1738:14)
+    at Object..js (node:internal/modules/cjs/loader:1871:10)
+    at Module.load (node:internal/modules/cjs/loader:1470:32)
+    at Module._load (node:internal/modules/cjs/loader:1290:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:238:24)
+    at cjsLoader (node:internal/modules/esm/translators:317:5)
+    at ModuleWrap.<anonymous> (node:internal/modules/esm/translators:209:7)
+    at ModuleJob.run (node:internal/modules/esm/module_job:371:25)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:683:26)
+    at async formattedImport (/Users/kim/Nutrihelp-api/node_modules/mocha/lib/nodejs/esm-utils.js:10:14)
+    at async Object.requireModule [as requireOrImport] (/Users/kim/Nutrihelp-api/node_modules/mocha/lib/nodejs/esm-utils.js:102:30)
+    at async exports.loadFilesAsync (/Users/kim/Nutrihelp-api/node_modules/mocha/lib/nodejs/esm-utils.js:137:20)
+    at async singleRun (/Users/kim/Nutrihelp-api/node_modules/mocha/lib/cli/run-helpers.js:168:3)
+    at async exports.handler (/Users/kim/Nutrihelp-api/node_modules/mocha/lib/cli/run.js:379:5) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [
+    '/Users/kim/Nutrihelp-api/middleware/sanitizeInput.js',
+    '/Users/kim/Nutrihelp-api/routes/signup.js',
+    '/Users/kim/Nutrihelp-api/routes/index.js',
+    '/Users/kim/Nutrihelp-api/server.js',
+    '/Users/kim/Nutrihelp-api/test/appointment.v2.test.js',
+    '/Users/kim/Nutrihelp-api/node_modules/mocha/lib/nodejs/esm-utils.js',
+    '/Users/kim/Nutrihelp-api/node_modules/mocha/lib/mocha.js',
+    '/Users/kim/Nutrihelp-api/node_modules/mocha/lib/cli/one-and-dones.js',
+    '/Users/kim/Nutrihelp-api/node_modules/mocha/lib/cli/options.js',
+    '/Users/kim/Nutrihelp-api/node_modules/mocha/bin/mocha.js'
+  ]
+}
+zsh: permission denied: test/mealplanController.test.js
+zsh: permission denied: test/mealplanValidator.test.js
+zsh: permission denied: test/unit/mealPlanSecurity.test.js
+zsh: permission denied: test/unit/supabaseClientConfig.test.js
+zsh: command not found: --timeout
+
+ OPENAPI VALIDATION 
+
+> nutrihelp-api@1.0.0 openapi:validate
+> swagger-cli validate index.yaml
+
+index.yaml is valid
