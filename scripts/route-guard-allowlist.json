@@ -1,0 +1,43 @@
+[
+  { "file": "routes/auth.js", "method": "POST", "path": "/register",
+    "reason": "Account creation. Runs before any identity exists, so it cannot require one." },
+  { "file": "routes/auth.js", "method": "POST", "path": "/login",
+    "reason": "Credential exchange. Runs before any identity exists." },
+  { "file": "routes/auth.js", "method": "POST", "path": "/google/exchange",
+    "reason": "OAuth code exchange. The Google authorisation code is the credential." },
+  { "file": "routes/auth.js", "method": "POST", "path": "/refresh",
+    "reason": "Refresh token exchange. The refresh token is the credential; an access token is not held at this point." },
+  { "file": "routes/auth.js", "method": "POST", "path": "/logout",
+    "reason": "Session teardown. Must succeed even when the access token has already expired." },
+  { "file": "routes/auth.js", "method": "POST", "path": "/log-login-attempt",
+    "reason": "Records failed sign-in attempts, which by definition have no session. Rate limiting is the appropriate control here, not authentication." },
+
+  { "file": "routes/login.js", "method": "POST", "path": "/",
+    "reason": "Primary login endpoint. Runs before any identity exists." },
+  { "file": "routes/login.js", "method": "POST", "path": "/mfa",
+    "reason": "Second factor verification. The MFA token is the credential." },
+  { "file": "routes/login.js", "method": "POST", "path": "/resend-mfa",
+    "reason": "Reissues a second factor mid-login, before a session token has been granted." },
+
+  { "file": "routes/signup.js", "method": "POST", "path": "/",
+    "reason": "Account creation. Runs before any identity exists." },
+
+  { "file": "routes/password.js", "method": "POST", "path": "/request-reset",
+    "reason": "Account recovery. The user cannot authenticate, which is why they are here." },
+  { "file": "routes/password.js", "method": "POST", "path": "/verify-code",
+    "reason": "Account recovery. The emailed code is the credential." },
+  { "file": "routes/password.js", "method": "POST", "path": "/reset",
+    "reason": "Account recovery. The reset token is the credential." },
+
+  { "file": "routes/sms.js", "method": "POST", "path": "/send-sms-code",
+    "reason": "Second factor delivery during login, before a session exists." },
+  { "file": "routes/sms.js", "method": "POST", "path": "/verify-sms-code",
+    "reason": "Second factor verification. The SMS code is the credential." },
+
+  { "file": "routes/contactus.js", "method": "POST", "path": "/",
+    "reason": "Public contact form, intended for visitors who have no account." },
+  { "file": "routes/homeSubscribe.js", "method": "POST", "path": "/",
+    "reason": "Public newsletter subscription, intended for visitors who have no account." },
+  { "file": "routes/userfeedback.js", "method": "POST", "path": "/",
+    "reason": "Public feedback form, intended for visitors who have no account." }
+]
