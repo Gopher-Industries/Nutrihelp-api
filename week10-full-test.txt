@@ -1,0 +1,39 @@
+
+> nutrihelp-api@1.0.0 test
+> mocha 'test/**/*.test.js' --timeout 5000 --exit
+
+🟢 Loaded AuthService from: /Users/kim/Nutrihelp-api/services/authService.js
+URL: https://mdauzoueyzgtqsojttkp.supabase.co
+LOGIN FUNCTION HIT
+🔧 Environment Variables Check:
+   SUPABASE_URL: ✓ Set
+   SUPABASE_ANON_KEY: ✓ Set
+   HTTPS_PORT: 8443
+   HTTP_PORT: 8081
+
+📚 Swagger loaded successfully
+⚠️  TLS certs not found — falling back to HTTP for local development.
+
+ Exception during run: ReferenceError: test is not defined
+    at Suite.<anonymous> (/Users/kim/Nutrihelp-api/test/appointment.v2.test.js:15:5)
+    at Object.create (/Users/kim/Nutrihelp-api/node_modules/mocha/lib/interfaces/common.js:153:19)
+    at context.describe.context.context (/Users/kim/Nutrihelp-api/node_modules/mocha/lib/interfaces/bdd.js:46:27)
+    at Suite.<anonymous> (/Users/kim/Nutrihelp-api/test/appointment.v2.test.js:13:3)
+    at Object.create (/Users/kim/Nutrihelp-api/node_modules/mocha/lib/interfaces/common.js:153:19)
+    at context.describe.context.context (/Users/kim/Nutrihelp-api/node_modules/mocha/lib/interfaces/bdd.js:46:27)
+    at Object.<anonymous> (/Users/kim/Nutrihelp-api/test/appointment.v2.test.js:4:1)
+    at Module._compile (node:internal/modules/cjs/loader:1738:14)
+    at Object..js (node:internal/modules/cjs/loader:1871:10)
+    at Module.load (node:internal/modules/cjs/loader:1470:32)
+    at Module._load (node:internal/modules/cjs/loader:1290:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:238:24)
+    at cjsLoader (node:internal/modules/esm/translators:317:5)
+    at ModuleWrap.<anonymous> (node:internal/modules/esm/translators:209:7)
+    at ModuleJob.run (node:internal/modules/esm/module_job:371:25)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:683:26)
+    at async formattedImport (/Users/kim/Nutrihelp-api/node_modules/mocha/lib/nodejs/esm-utils.js:10:14)
+    at async Object.requireModule [as requireOrImport] (/Users/kim/Nutrihelp-api/node_modules/mocha/lib/nodejs/esm-utils.js:102:30)
+    at async exports.loadFilesAsync (/Users/kim/Nutrihelp-api/node_modules/mocha/lib/nodejs/esm-utils.js:137:20)
+    at async singleRun (/Users/kim/Nutrihelp-api/node_modules/mocha/lib/cli/run-helpers.js:168:3)
+    at async exports.handler (/Users/kim/Nutrihelp-api/node_modules/mocha/lib/cli/run.js:379:5)
