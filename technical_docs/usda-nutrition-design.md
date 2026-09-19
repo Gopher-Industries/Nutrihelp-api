@@ -82,13 +82,19 @@ Tiers, first hit wins. Each result records its `source`.
 No schema change. `recipes.ingredients` is JSONB, so a parallel `grams` array needs no migration.
 
 - `services/nutritionSources/`: `usdaClient`, `nutrientMapper`, `foodMatcher`, `unitConversion`,
-  `index` (lookup with cache).
-- `ingredientResolver.resolveIngredients(items, { createMissing, lookupNutrition })`:
-  - created rows carry USDA nutrients when a match is found, `null` otherwise;
-  - at save time, matched rows whose nutrition is entirely `null` are filled, never overwritten;
-  - each item may carry `quantity` and `unit`, and comes back with `grams` and `grams_source`.
-- `POST /api/recipe/createRecipe` accepts optional `ingredient_grams`. The rollup prefers it over the
-  mass-unit factor.
+  `index` (lookup with cache) and `ingredientEnricher`.
+- `ingredientResolver` is unchanged. `ingredientEnricher.enrichIngredients(resolved, measures,
+{ fillMissing, generate })` runs straight after it on the save path:
+  - rows whose nutrition is entirely `null` are filled from a confident USDA match (`high`, or
+    confirmed by the LLM). That covers rows the resolver has just created and older empty rows alike.
+    A `low` confidence match is never written;
+  - each item may carry `quantity`, `unit` and `notes`, and comes back with `grams`,
+    `grams_source` and `nutrition: { status, source }`.
+- `POST /api/recipe-sources/resolve-ingredients` returns the enriched items plus a `nutrition`
+  summary (`provider`, `weighed`, `unweighed`, `filled`, `missing`, `complete`). If enrichment fails
+  the plain resolution is returned and the recipe still saves.
+- `POST /api/recipe/createRecipe` accepts optional `ingredient_grams` and `ingredient_grams_source`.
+  The rollup prefers a supplied weight over the mass-unit factor, and a weight of 0 adds nothing.
 - Web: the save path sends quantity and unit to resolve, forwards `ingredient_grams`, and shows the
   nutrition with USDA attribution and an "estimated" label when any weight was estimated.
 
