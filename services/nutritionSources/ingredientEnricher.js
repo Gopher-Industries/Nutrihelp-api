@@ -38,7 +38,10 @@ function lookupName(item) {
 }
 
 function isEmptyRow(row) {
-  return Boolean(row) && NUTRIENT_COLUMNS.every((column) => row[column] === null || row[column] === undefined);
+  return (
+    Boolean(row) &&
+    NUTRIENT_COLUMNS.every((column) => row[column] === null || row[column] === undefined)
+  );
 }
 
 async function readCurrentNutrition(ids) {
@@ -52,7 +55,9 @@ async function readCurrentNutrition(ids) {
 
   if (error) {
     // Without the current values we cannot prove a row is empty, so nothing is written.
-    logger.warn('[nutritionSources][enrich] could not read current nutrition', { error: error.message });
+    logger.warn('[nutritionSources][enrich] could not read current nutrition', {
+      error: error.message,
+    });
     return current;
   }
   for (const row of data || []) current.set(Number(row.id), row);
@@ -93,7 +98,10 @@ async function fillRow(id, nutrients) {
     .select('id');
 
   if (error) {
-    logger.warn('[nutritionSources][enrich] could not fill nutrition', { id, error: error.message });
+    logger.warn('[nutritionSources][enrich] could not fill nutrition', {
+      id,
+      error: error.message,
+    });
     return false;
   }
   return Array.isArray(data) && data.length > 0;
@@ -123,10 +131,19 @@ async function enrichIngredients(resolved = [], measures = [], options = {}) {
     const weight = toGrams(measure);
     const needsPortions = weight.source === null;
     const needsFill = fillMissing && empty;
-    return { item, measure, row, empty, weight, wantsLookup: hasId(item) && (needsPortions || needsFill) };
+    return {
+      item,
+      measure,
+      row,
+      empty,
+      weight,
+      wantsLookup: hasId(item) && (needsPortions || needsFill),
+    };
   });
 
-  const names = [...new Set(plans.filter((plan) => plan.wantsLookup).map((plan) => lookupName(plan.item)))];
+  const names = [
+    ...new Set(plans.filter((plan) => plan.wantsLookup).map((plan) => lookupName(plan.item))),
+  ];
   const lookups = await runLookups(names.filter(Boolean), generate);
 
   const fills = new Map(); // id -> boolean, so a repeated ingredient is filled once
@@ -137,7 +154,8 @@ async function enrichIngredients(resolved = [], measures = [], options = {}) {
     const lookup = plan.wantsLookup ? lookups.get(lookupName(item)) : null;
     const found = lookup?.status === 'found';
 
-    const weight = plan.weight.source === null && found ? toGrams(measure, lookup.foodPortions) : plan.weight;
+    const weight =
+      plan.weight.source === null && found ? toGrams(measure, lookup.foodPortions) : plan.weight;
 
     let status = 'missing';
     let source = null;

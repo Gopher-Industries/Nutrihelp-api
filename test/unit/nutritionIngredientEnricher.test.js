@@ -13,8 +13,17 @@ const proxyquire = require('proxyquire');
 const SILENT_LOGGER = { info() {}, warn() {}, error() {}, debug() {} };
 
 const EMPTY = {
-  calories: null, protein: null, fat: null, carbohydrates: null, fiber: null, sugar: null,
-  sodium: null, vitamin_a: null, vitamin_b: null, vitamin_c: null, vitamin_d: null,
+  calories: null,
+  protein: null,
+  fat: null,
+  carbohydrates: null,
+  fiber: null,
+  sugar: null,
+  sodium: null,
+  vitamin_a: null,
+  vitamin_b: null,
+  vitamin_c: null,
+  vitamin_d: null,
 };
 const GARLIC_NUTRIENTS = { ...EMPTY, calories: 149, protein: 6.36, fat: 0.5, carbohydrates: 33.06 };
 const GARLIC_PORTIONS = [
@@ -82,7 +91,13 @@ function load(fake, lookupIngredient) {
   });
 }
 
-const resolvedGarlic = { name: 'Garlic', id: 63, category: 'Fruit & Vegetables', status: 'matched', matchedName: 'Garlic' };
+const resolvedGarlic = {
+  name: 'Garlic',
+  id: 63,
+  category: 'Fruit & Vegetables',
+  status: 'matched',
+  matchedName: 'Garlic',
+};
 
 describe('nutritionSources/ingredientEnricher', () => {
   it('weighs a mass quantity without asking USDA when the row already has nutrition', async () => {
@@ -109,10 +124,11 @@ describe('nutritionSources/ingredientEnricher', () => {
       [{ name: 'Garlic', quantity: 20, unit: 'g' }]
     );
 
-    for (const [key, value] of Object.entries(resolvedGarlic)) assert.strictEqual(item[key], value, key);
+    for (const [key, value] of Object.entries(resolvedGarlic))
+      assert.strictEqual(item[key], value, key);
   });
 
-  it("uses the food's USDA portions to weigh a counted or volume quantity", async () => {
+  it('uses the USDA portions of the food to weigh a counted or volume quantity', async () => {
     const fake = fakeSupabase({ rows: [{ id: 63, ...GARLIC_NUTRIENTS }] });
     const lookup = sinon.stub().resolves(found());
 
@@ -140,8 +156,16 @@ describe('nutritionSources/ingredientEnricher', () => {
     assert.strictEqual(fake.calls.updates.length, 1);
     const [update] = fake.calls.updates;
     // Only measured figures are written; columns USDA lacks stay untouched.
-    assert.deepStrictEqual(update.values, { calories: 149, protein: 6.36, fat: 0.5, carbohydrates: 33.06 });
-    assert.deepStrictEqual(update.filters, [['eq', 'id', 301], ['is', 'calories', null]]);
+    assert.deepStrictEqual(update.values, {
+      calories: 149,
+      protein: 6.36,
+      fat: 0.5,
+      carbohydrates: 33.06,
+    });
+    assert.deepStrictEqual(update.filters, [
+      ['eq', 'id', 301],
+      ['is', 'calories', null],
+    ]);
     assert.strictEqual(item.nutrition.status, 'filled');
     assert.deepStrictEqual(item.nutrition.source, {
       provider: 'usda',
@@ -251,7 +275,10 @@ describe('nutritionSources/ingredientEnricher', () => {
   });
 
   it('reports missing when the guarded fill fails', async () => {
-    const fake = fakeSupabase({ rows: [{ id: 301, ...EMPTY }], updateError: { message: 'permission denied' } });
+    const fake = fakeSupabase({
+      rows: [{ id: 301, ...EMPTY }],
+      updateError: { message: 'permission denied' },
+    });
     const lookup = sinon.stub().resolves(found());
 
     const [item] = await load(fake, lookup).enrichIngredients(
@@ -285,7 +312,10 @@ describe('nutritionSources/ingredientEnricher', () => {
 
     const items = await load(fake, sinon.stub()).enrichIngredients(
       [resolvedGarlic],
-      [{ name: '  ', quantity: 999, unit: 'g' }, { name: 'Garlic', quantity: 20, unit: 'g' }]
+      [
+        { name: '  ', quantity: 999, unit: 'g' },
+        { name: 'Garlic', quantity: 20, unit: 'g' },
+      ]
     );
 
     assert.strictEqual(items.length, 1);
@@ -298,10 +328,16 @@ describe('nutritionSources/ingredientEnricher', () => {
 
     const items = await load(fake, lookup).enrichIngredients(
       [resolvedGarlic, resolvedGarlic],
-      [{ name: 'Garlic', quantity: 2, unit: 'cloves' }, { name: 'Garlic', quantity: 1, unit: 'tsp' }]
+      [
+        { name: 'Garlic', quantity: 2, unit: 'cloves' },
+        { name: 'Garlic', quantity: 1, unit: 'tsp' },
+      ]
     );
 
-    assert.deepStrictEqual(items.map((item) => item.grams), [6, 2.8]);
+    assert.deepStrictEqual(
+      items.map((item) => item.grams),
+      [6, 2.8]
+    );
     assert.strictEqual(lookup.callCount, 1);
   });
 

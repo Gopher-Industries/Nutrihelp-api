@@ -86,8 +86,18 @@ describe('nutritionSources/nutrientMapper', () => {
 
     it('falls back to Atwater energy when the plain energy figure is absent', () => {
       const foundationLike = [
-        { nutrientId: 2047, nutrientName: 'Energy (Atwater General Factors)', value: 61, unitName: 'KCAL' },
-        { nutrientId: 2048, nutrientName: 'Energy (Atwater Specific Factors)', value: 60, unitName: 'KCAL' },
+        {
+          nutrientId: 2047,
+          nutrientName: 'Energy (Atwater General Factors)',
+          value: 61,
+          unitName: 'KCAL',
+        },
+        {
+          nutrientId: 2048,
+          nutrientName: 'Energy (Atwater Specific Factors)',
+          value: 60,
+          unitName: 'KCAL',
+        },
       ];
 
       assert.strictEqual(mapNutrients(foundationLike).calories, 61);
@@ -103,7 +113,10 @@ describe('nutritionSources/nutrientMapper', () => {
     });
 
     it('falls back to the older sugars id when total sugars is absent', () => {
-      assert.strictEqual(mapNutrients([{ nutrientId: 1063, value: 4.2, unitName: 'G' }]).sugar, 4.2);
+      assert.strictEqual(
+        mapNutrients([{ nutrientId: 1063, value: 4.2, unitName: 'G' }]).sugar,
+        4.2
+      );
     });
 
     it('returns all-null columns for empty or malformed input', () => {

@@ -16,10 +16,30 @@ const CORE = [
   { nutrientId: 1004, value: 0.5, unitName: 'G' },
   { nutrientId: 1005, value: 33.06, unitName: 'G' },
 ];
-const GARLIC = { fdcId: 169230, description: 'Garlic, raw', dataType: 'SR Legacy', foodNutrients: CORE };
-const GARLIC_POWDER = { fdcId: 171325, description: 'Spices, garlic powder', dataType: 'SR Legacy', foodNutrients: CORE };
-const BRIE = { fdcId: 172177, description: 'Cheese, brie', dataType: 'SR Legacy', foodNutrients: CORE };
-const BLUE = { fdcId: 172175, description: 'Cheese, blue', dataType: 'SR Legacy', foodNutrients: CORE };
+const GARLIC = {
+  fdcId: 169230,
+  description: 'Garlic, raw',
+  dataType: 'SR Legacy',
+  foodNutrients: CORE,
+};
+const GARLIC_POWDER = {
+  fdcId: 171325,
+  description: 'Spices, garlic powder',
+  dataType: 'SR Legacy',
+  foodNutrients: CORE,
+};
+const BRIE = {
+  fdcId: 172177,
+  description: 'Cheese, brie',
+  dataType: 'SR Legacy',
+  foodNutrients: CORE,
+};
+const BLUE = {
+  fdcId: 172175,
+  description: 'Cheese, blue',
+  dataType: 'SR Legacy',
+  foodNutrients: CORE,
+};
 const GARLIC_PORTIONS = [{ amount: 1, modifier: 'clove', gramWeight: 3 }];
 
 function usdaError(code) {
@@ -53,7 +73,9 @@ describe('nutritionSources lookup', () => {
   });
 
   it('reports not_found when no USDA food contains every word', async () => {
-    const searchFoods = sinon.stub().resolves([{ ...GARLIC, description: 'Fruit cocktail, canned' }]);
+    const searchFoods = sinon
+      .stub()
+      .resolves([{ ...GARLIC, description: 'Fruit cocktail, canned' }]);
     const getFood = sinon.stub();
 
     const result = await load({ searchFoods, getFood }).lookupIngredient('dragon fruit');

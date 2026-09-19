@@ -9,19 +9,70 @@
  */
 const { mapNutrients, hasCoreNutrients } = require('./nutrientMapper');
 
-const STOPWORDS = new Set(['and', 'or', 'with', 'without', 'of', 'the', 'a', 'an', 'in', 'for', 'to']);
+const STOPWORDS = new Set([
+  'and',
+  'or',
+  'with',
+  'without',
+  'of',
+  'the',
+  'a',
+  'an',
+  'in',
+  'for',
+  'to',
+]);
 
 // Words that say nothing about which food it is.
 const NEUTRAL = new Set([
-  'raw', 'fresh', 'whole', 'table', 'plain', 'regular', 'commercial', 'average', 'year', 'round',
-  'ripe', 'mature', 'uncooked', 'unprepared', 'all',
+  'raw',
+  'fresh',
+  'whole',
+  'table',
+  'plain',
+  'regular',
+  'commercial',
+  'average',
+  'year',
+  'round',
+  'ripe',
+  'mature',
+  'uncooked',
+  'unprepared',
+  'all',
 ]);
 
 // A recipe ingredient means the unprocessed food unless it says otherwise.
 const PROCESSED = new Set([
-  'canned', 'frozen', 'cooked', 'boiled', 'fried', 'roasted', 'baked', 'grilled', 'braised', 'stewed',
-  'dried', 'dehydrated', 'powder', 'juice', 'sauce', 'soup', 'paste', 'puree', 'pickled', 'smoked',
-  'cured', 'sweetened', 'babyfood', 'mix', 'snack', 'restaurant', 'product', 'imitation', 'substitute',
+  'canned',
+  'frozen',
+  'cooked',
+  'boiled',
+  'fried',
+  'roasted',
+  'baked',
+  'grilled',
+  'braised',
+  'stewed',
+  'dried',
+  'dehydrated',
+  'powder',
+  'juice',
+  'sauce',
+  'soup',
+  'paste',
+  'puree',
+  'pickled',
+  'smoked',
+  'cured',
+  'sweetened',
+  'babyfood',
+  'mix',
+  'snack',
+  'restaurant',
+  'product',
+  'imitation',
+  'substitute',
 ]);
 
 // Two candidates closer than this are a coin toss, not a match.

@@ -37,7 +37,11 @@ describe('nutritionSources/foodMatcher', () => {
       const onions = food('Onions, raw');
 
       assert.strictEqual(pickCandidate('onion', [onions]).food.fdcId, onions.fdcId);
-      assert.strictEqual(pickCandidate('Tomatoes', [food('Tomatoes, red, ripe, raw, year round average')]).confidence, 'high');
+      assert.strictEqual(
+        pickCandidate('Tomatoes', [food('Tomatoes, red, ripe, raw, year round average')])
+          .confidence,
+        'high'
+      );
     });
 
     it('prefers the raw food when the name does not mention a processed form', () => {
@@ -99,7 +103,10 @@ describe('nutritionSources/foodMatcher', () => {
 
       const ranked = rankCandidates('garlic', foods);
 
-      assert.deepStrictEqual(ranked.map((entry) => entry.food.description), ['Garlic, raw', 'Spices, garlic powder']);
+      assert.deepStrictEqual(
+        ranked.map((entry) => entry.food.description),
+        ['Garlic, raw', 'Spices, garlic powder']
+      );
       assert.ok(ranked[0].score > ranked[1].score);
       assert.strictEqual(JSON.stringify(foods), before);
     });

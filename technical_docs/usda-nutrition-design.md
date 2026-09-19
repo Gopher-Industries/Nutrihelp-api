@@ -28,10 +28,10 @@ estimate all the way to the UI.
 
 USDA FoodData Central REST API, `https://api.nal.usda.gov/fdc/v1`.
 
-| Call | Use |
-|---|---|
-| `GET /foods/search?query=&dataType=SR Legacy,Foundation` | candidates with nutrients |
-| `GET /food/{fdcId}` | portion weights (`foodPortions`) |
+| Call                                                     | Use                              |
+| -------------------------------------------------------- | -------------------------------- |
+| `GET /foods/search?query=&dataType=SR Legacy,Foundation` | candidates with nutrients        |
+| `GET /food/{fdcId}`                                      | portion weights (`foodPortions`) |
 
 Verified against the live API on 19 Sep 2026:
 
@@ -49,17 +49,17 @@ Verified against the live API on 19 Sep 2026:
 The shared `ingredients` table stores everything **per 100 g**. Checked against existing rows
 (Butter, Milk, Salt, Garlic):
 
-| Column | Table unit | USDA nutrient id | USDA unit | Factor |
-|---|---|---|---|---|
-| calories | kcal | 1008 (fallback 2047, 2048) | kcal | 1 |
-| protein, fat, carbohydrates | g | 1003, 1004, 1005 | g | 1 |
-| fiber | g | 1079 | g | 1 |
-| sugar | g | 2000 (fallback 1063) | g | 1 |
-| sodium | **g** | 1093 | mg | 0.001 |
-| vitamin_a | **g** | 1106 (RAE) | µg | 0.000001 |
-| vitamin_c | **g** | 1162 | mg | 0.001 |
-| vitamin_d | **g** | 1114 | µg | 0.000001 |
-| vitamin_b | **g** | 1178 (B-12) | µg | 0.000001 |
+| Column                      | Table unit | USDA nutrient id           | USDA unit | Factor   |
+| --------------------------- | ---------- | -------------------------- | --------- | -------- |
+| calories                    | kcal       | 1008 (fallback 2047, 2048) | kcal      | 1        |
+| protein, fat, carbohydrates | g          | 1003, 1004, 1005           | g         | 1        |
+| fiber                       | g          | 1079                       | g         | 1        |
+| sugar                       | g          | 2000 (fallback 1063)       | g         | 1        |
+| sodium                      | **g**      | 1093                       | mg        | 0.001    |
+| vitamin_a                   | **g**      | 1106 (RAE)                 | µg        | 0.000001 |
+| vitamin_c                   | **g**      | 1162                       | mg        | 0.001    |
+| vitamin_d                   | **g**      | 1114                       | µg        | 0.000001 |
+| vitamin_b                   | **g**      | 1178 (B-12)                | µg        | 0.000001 |
 
 `vitamin_b` is ambiguous in the existing data: Milk and Butter match B-12, Tomato matches B-6. We
 map B-12 and record the choice here. Known bad row: `Olive Oil` (id 3) holds per-tablespoon values.

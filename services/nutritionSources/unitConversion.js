@@ -58,7 +58,11 @@ function round(value, places) {
 }
 
 function clean(text) {
-  return String(text ?? '').toLowerCase().replace(/\./g, '').replace(/\s+/g, ' ').trim();
+  return String(text ?? '')
+    .toLowerCase()
+    .replace(/\./g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 /**
@@ -87,7 +91,9 @@ function extractPortions(foodPortions) {
     if (!(amount > 0) || !(gramWeight > 0)) continue;
 
     const measure = entry.measureUnit?.abbreviation || entry.measureUnit?.name;
-    const label = String(measure && measure !== 'undetermined' ? measure : entry.modifier || '').trim();
+    const label = String(
+      measure && measure !== 'undetermined' ? measure : entry.modifier || ''
+    ).trim();
     const text = clean(label);
     if (!text) continue;
 
@@ -121,7 +127,11 @@ function fromDensity(quantity, unit, portions) {
   const wanted = VOLUME_IN_ML[unit];
   const nearest = volumes
     .slice()
-    .sort((a, b) => Math.abs(Math.log(VOLUME_IN_ML[a.unit] / wanted)) - Math.abs(Math.log(VOLUME_IN_ML[b.unit] / wanted)))[0];
+    .sort(
+      (a, b) =>
+        Math.abs(Math.log(VOLUME_IN_ML[a.unit] / wanted)) -
+        Math.abs(Math.log(VOLUME_IN_ML[b.unit] / wanted))
+    )[0];
   const gramsPerMl = nearest.grams / VOLUME_IN_ML[nearest.unit];
   return quantity * wanted * gramsPerMl;
 }
@@ -132,7 +142,9 @@ function fromCount(quantity, notes, portions) {
 
   const asked = String(notes || '').match(SIZE_WORDS);
   const size = asked ? asked[1].toLowerCase() : DEFAULT_SIZE;
-  const match = sized.find((portion) => portion.size === size) || sized.find((portion) => portion.size === DEFAULT_SIZE);
+  const match =
+    sized.find((portion) => portion.size === size) ||
+    sized.find((portion) => portion.size === DEFAULT_SIZE);
   return match ? quantity * match.grams : null;
 }
 
@@ -147,7 +159,10 @@ function toGrams({ quantity, unit, notes } = {}, foodPortions = []) {
   const canonical = normalizeUnit(unit);
   const hasQuantity = quantity !== null && quantity !== undefined && quantity !== '';
 
-  if (NEGLIGIBLE_UNITS.has(canonical) || (!hasQuantity && NEGLIGIBLE_NOTES.test(String(notes || '')))) {
+  if (
+    NEGLIGIBLE_UNITS.has(canonical) ||
+    (!hasQuantity && NEGLIGIBLE_NOTES.test(String(notes || '')))
+  ) {
     return { grams: 0, source: 'negligible' };
   }
 
@@ -162,7 +177,8 @@ function toGrams({ quantity, unit, notes } = {}, foodPortions = []) {
 
   if (canonical && canonical !== 'piece') {
     const exact = portions.filter((portion) => portion.unit === canonical);
-    if (exact.length) return { grams: round(amount * plainest(exact).grams, 2), source: 'usda_portion' };
+    if (exact.length)
+      return { grams: round(amount * plainest(exact).grams, 2), source: 'usda_portion' };
 
     if (VOLUME_IN_ML[canonical]) {
       const grams = fromDensity(amount, canonical, portions);

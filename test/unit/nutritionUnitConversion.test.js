@@ -22,7 +22,12 @@ const GARLIC_PORTIONS = [
 
 // "Oil, olive, extra virgin" (Foundation 748608)
 const OLIVE_OIL_PORTIONS = [
-  { amount: 100, gramWeight: 90.7, modifier: '', measureUnit: { name: 'milliliter', abbreviation: 'ml' } },
+  {
+    amount: 100,
+    gramWeight: 90.7,
+    modifier: '',
+    measureUnit: { name: 'milliliter', abbreviation: 'ml' },
+  },
 ];
 
 // "Egg, whole, raw, fresh" (SR Legacy 171287)
@@ -45,11 +50,26 @@ describe('nutritionSources/unitConversion', () => {
   describe('normalizeUnit', () => {
     it('folds the spellings the measure parser emits onto one canonical unit', () => {
       const cases = {
-        Tablespoons: 'tbsp', tbls: 'tbsp', tbs: 'tbsp', TBSP: 'tbsp',
-        teaspoon: 'tsp', Cups: 'cup', grams: 'g', kilogram: 'kg',
-        pound: 'lb', lbs: 'lb', ounces: 'oz', 'fl oz': 'floz',
-        millilitres: 'ml', liter: 'l', cloves: 'clove', leaves: 'leaf',
-        tin: 'can', cans: 'can', pcs: 'piece', pieces: 'piece',
+        Tablespoons: 'tbsp',
+        tbls: 'tbsp',
+        tbs: 'tbsp',
+        TBSP: 'tbsp',
+        teaspoon: 'tsp',
+        Cups: 'cup',
+        grams: 'g',
+        kilogram: 'kg',
+        pound: 'lb',
+        lbs: 'lb',
+        ounces: 'oz',
+        'fl oz': 'floz',
+        millilitres: 'ml',
+        liter: 'l',
+        cloves: 'clove',
+        leaves: 'leaf',
+        tin: 'can',
+        cans: 'can',
+        pcs: 'piece',
+        pieces: 'piece',
       };
       for (const [input, expected] of Object.entries(cases)) {
         assert.strictEqual(normalizeUnit(input), expected, input);
@@ -105,19 +125,25 @@ describe('nutritionSources/unitConversion', () => {
   describe('toGrams', () => {
     it('converts mass units without needing any portion data', () => {
       assert.deepStrictEqual(toGrams({ quantity: 400, unit: 'g' }), { grams: 400, source: 'mass' });
-      assert.deepStrictEqual(toGrams({ quantity: 1, unit: 'pound' }), { grams: 453.59, source: 'mass' });
+      assert.deepStrictEqual(toGrams({ quantity: 1, unit: 'pound' }), {
+        grams: 453.59,
+        source: 'mass',
+      });
       assert.deepStrictEqual(toGrams({ quantity: 2, unit: 'oz' }), { grams: 56.7, source: 'mass' });
-      assert.deepStrictEqual(toGrams({ quantity: 0.5, unit: 'kg' }), { grams: 500, source: 'mass' });
+      assert.deepStrictEqual(toGrams({ quantity: 0.5, unit: 'kg' }), {
+        grams: 500,
+        source: 'mass',
+      });
     });
 
-    it("uses the food's own portion when USDA lists that unit", () => {
+    it('uses the portion USDA lists for that food and unit', () => {
       assert.deepStrictEqual(toGrams({ quantity: 2, unit: 'cloves' }, GARLIC_PORTIONS), {
         grams: 6,
         source: 'usda_portion',
       });
     });
 
-    it("derives other volumes from the food's density when the exact unit is missing", () => {
+    it('derives other volumes from the density of the food when the exact unit is missing', () => {
       // Garlic lists tsp (2.8 g / 5 ml) but no tbsp: 15 ml at 0.56 g/ml.
       assert.deepStrictEqual(toGrams({ quantity: 1, unit: 'tbsp' }, GARLIC_PORTIONS), {
         grams: 8.4,
@@ -134,17 +160,23 @@ describe('nutritionSources/unitConversion', () => {
     });
 
     it('sizes a counted ingredient from the size word in its notes', () => {
-      assert.deepStrictEqual(toGrams({ quantity: 2, unit: null, notes: 'large eggs' }, EGG_PORTIONS), {
-        grams: 100,
-        source: 'usda_portion',
-      });
+      assert.deepStrictEqual(
+        toGrams({ quantity: 2, unit: null, notes: 'large eggs' }, EGG_PORTIONS),
+        {
+          grams: 100,
+          source: 'usda_portion',
+        }
+      );
     });
 
     it('assumes a medium item when a counted ingredient gives no size', () => {
-      assert.deepStrictEqual(toGrams({ quantity: 1, unit: null, notes: 'chopped' }, ONION_PORTIONS), {
-        grams: 110,
-        source: 'usda_portion',
-      });
+      assert.deepStrictEqual(
+        toGrams({ quantity: 1, unit: null, notes: 'chopped' }, ONION_PORTIONS),
+        {
+          grams: 110,
+          source: 'usda_portion',
+        }
+      );
       assert.deepStrictEqual(toGrams({ quantity: 3, unit: 'pieces' }, EGG_PORTIONS), {
         grams: 132,
         source: 'usda_portion',
@@ -152,7 +184,10 @@ describe('nutritionSources/unitConversion', () => {
     });
 
     it('counts a pinch, a dash or "to taste" as nothing', () => {
-      assert.deepStrictEqual(toGrams({ quantity: 1, unit: 'pinch' }), { grams: 0, source: 'negligible' });
+      assert.deepStrictEqual(toGrams({ quantity: 1, unit: 'pinch' }), {
+        grams: 0,
+        source: 'negligible',
+      });
       assert.deepStrictEqual(toGrams({ quantity: null, unit: null, notes: 'to taste' }), {
         grams: 0,
         source: 'negligible',

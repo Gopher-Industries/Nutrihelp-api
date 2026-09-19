@@ -33,7 +33,9 @@ function apiKey() {
   if (configured) return configured;
   if (!warnedAboutDemoKey) {
     warnedAboutDemoKey = true;
-    logger.warn('[nutritionSources][usda] USDA_API_KEY is not set, using the rate-limited DEMO_KEY');
+    logger.warn(
+      '[nutritionSources][usda] USDA_API_KEY is not set, using the rate-limited DEMO_KEY'
+    );
   }
   return 'DEMO_KEY';
 }
@@ -45,8 +47,12 @@ function requestConfig(params) {
 
 function toUsdaError(error, action) {
   const status = error?.response?.status;
-  if (status === 429) return new UsdaError('rate_limited', `USDA rate limit reached while ${action}`);
-  return new UsdaError('unavailable', `USDA request failed while ${action}: ${error?.message || 'unknown error'}`);
+  if (status === 429)
+    return new UsdaError('rate_limited', `USDA rate limit reached while ${action}`);
+  return new UsdaError(
+    'unavailable',
+    `USDA request failed while ${action}: ${error?.message || 'unknown error'}`
+  );
 }
 
 /**

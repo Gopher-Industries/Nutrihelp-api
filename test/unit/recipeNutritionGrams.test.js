@@ -23,7 +23,19 @@ function model(rows) {
 }
 
 function create(rows, ids, quantities, metadata) {
-  return model(rows).createRecipe(960, ids, quantities, 'Arrabiata', 1, 2, 20, 'Cook', 1, [], metadata);
+  return model(rows).createRecipe(
+    960,
+    ids,
+    quantities,
+    'Arrabiata',
+    1,
+    2,
+    20,
+    'Cook',
+    1,
+    [],
+    metadata
+  );
 }
 
 const OLIVE_OIL = { id: 1, calories: 884, protein: 0 };

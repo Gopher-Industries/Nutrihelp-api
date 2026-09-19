@@ -22,7 +22,10 @@ const NOT_FOUND = Object.freeze({ status: 'not_found' });
 const cache = new Map();
 
 function cacheKey(name) {
-  return String(name || '').toLowerCase().replace(/\s+/g, ' ').trim();
+  return String(name || '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 /**

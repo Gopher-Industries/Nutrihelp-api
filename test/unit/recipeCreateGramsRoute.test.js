@@ -64,7 +64,12 @@ describe('POST /api/recipe/createRecipe gram weights', () => {
 
     await request(app)
       .post('/api/recipe/createRecipe')
-      .send(body({ ingredient_grams: [54.42, 6], ingredient_grams_source: ['usda_density', 'usda_portion'] }))
+      .send(
+        body({
+          ingredient_grams: [54.42, 6],
+          ingredient_grams_source: ['usda_density', 'usda_portion'],
+        })
+      )
       .expect(201);
 
     const metadata = metadataPassedToModel(createRecipe);
