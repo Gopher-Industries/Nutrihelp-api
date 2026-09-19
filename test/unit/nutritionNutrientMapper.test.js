@@ -103,6 +103,18 @@ describe('nutritionSources/nutrientMapper', () => {
       assert.strictEqual(mapNutrients(foundationLike).calories, 61);
     });
 
+    it('rounds energy to whole kilocalories, because the table column is an integer', () => {
+      // All 276 populated rows hold a whole number; a decimal would fail the write.
+      assert.strictEqual(
+        mapNutrients([{ nutrientId: 2047, value: 61.5, unitName: 'KCAL' }]).calories,
+        62
+      );
+      assert.strictEqual(
+        mapNutrients([{ nutrientId: 1008, value: 0.4, unitName: 'KCAL' }]).calories,
+        0
+      );
+    });
+
     it('ignores the kilojoule energy row, which shares the word "Energy"', () => {
       const withKilojoules = [
         { nutrientId: 1062, nutrientName: 'Energy', value: 623, unitName: 'kJ' },
