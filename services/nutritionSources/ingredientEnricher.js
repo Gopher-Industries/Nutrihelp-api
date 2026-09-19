@@ -19,6 +19,7 @@
 const { supabaseService } = require('../supabaseClient');
 const { lookupIngredient } = require('./index');
 const { toGrams } = require('./unitConversion');
+const { estimateWeights } = require('./weightEstimator');
 const { NUTRIENT_COLUMNS } = require('./nutrientMapper');
 const logger = require('../../utils/logger');
 
@@ -146,16 +147,40 @@ async function enrichIngredients(resolved = [], measures = [], options = {}) {
   ];
   const lookups = await runLookups(names.filter(Boolean), generate);
 
+  // Second pass: weigh with the food's own USDA portions where the first pass could not.
+  for (const plan of plans) {
+    plan.lookup = plan.wantsLookup ? lookups.get(lookupName(plan.item)) : null;
+    if (plan.weight.source === null && plan.lookup?.status === 'found') {
+      plan.weight = toGrams(plan.measure, plan.lookup.foodPortions);
+    }
+  }
+
+  // Last resort for measures USDA cannot weigh ("1 tin", "1 bunch"): a bounded
+  // estimate, labelled as one. Only for ingredients that will actually be saved.
+  const unweighed = plans.filter(
+    (plan) => hasId(plan.item) && plan.weight.source === null && Number(plan.measure.quantity) > 0
+  );
+  if (generate && unweighed.length) {
+    const estimates = await estimateWeights(
+      unweighed.map(({ item, measure }) => ({
+        name: item.name,
+        quantity: measure.quantity,
+        unit: measure.unit,
+        notes: measure.notes,
+      })),
+      generate
+    );
+    unweighed.forEach((plan, index) => {
+      if (estimates[index]?.source) plan.weight = estimates[index];
+    });
+  }
+
   const fills = new Map(); // id -> boolean, so a repeated ingredient is filled once
   const enriched = [];
 
   for (const plan of plans) {
-    const { item, measure, row, empty } = plan;
-    const lookup = plan.wantsLookup ? lookups.get(lookupName(item)) : null;
+    const { item, row, empty, lookup, weight } = plan;
     const found = lookup?.status === 'found';
-
-    const weight =
-      plan.weight.source === null && found ? toGrams(measure, lookup.foodPortions) : plan.weight;
 
     let status = 'missing';
     let source = null;
