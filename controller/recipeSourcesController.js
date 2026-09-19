@@ -151,6 +151,8 @@ function summariseNutrition(items) {
     provider: 'USDA FoodData Central',
     weighed,
     unweighed: items.length - weighed,
+    // Weights the LLM estimated because USDA had no portion for the unit.
+    estimated: items.filter((item) => item.grams_source === 'llm_estimate').length,
     filled: items.filter((item) => item.nutrition?.status === 'filled').length,
     missing,
     complete: weighed === items.length && missing === 0,
