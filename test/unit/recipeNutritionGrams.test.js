@@ -82,6 +82,60 @@ describe('Recipe nutrition totals from gram weights', () => {
     }
   });
 
+  it('publishes the total when only a trace ingredient has no data', async () => {
+    // Half a gram of an unlisted seasoning must not erase a 450 g recipe.
+    const recipe = await create([GARLIC, MYSTERY_SPICE], [2, 3], [450, 0.5], {
+      unit: ['g', 'g'],
+      grams: [450, 0.5],
+    });
+
+    assert.ok(Math.abs(recipe.calories - 670.5) < 0.01, `calories was ${recipe.calories}`);
+  });
+
+  it('withholds the total but keeps a labelled partial sum when a big ingredient has no data', async () => {
+    const recipe = await create([GARLIC, MYSTERY_SPICE], [2, 3], [450, 150], {
+      unit: ['g', 'g'],
+      grams: [450, 150],
+    });
+
+    assert.equal(recipe.calories, null);
+    const coverage = recipe.ingredients.nutrition_coverage;
+    assert.equal(coverage.reliable, false);
+    assert.equal(coverage.ingredients, 2);
+    assert.equal(coverage.counted.calories, 1);
+    assert.equal(coverage.partial.calories, 670.5);
+  });
+
+  it('records estimated weights in the coverage', async () => {
+    const recipe = await create([GARLIC, OLIVE_OIL], [2, 1], [2000, 1], {
+      unit: ['g', 'tin'],
+      grams: [2000, 400],
+      grams_source: ['mass', 'llm_estimate'],
+    });
+
+    assert.equal(recipe.ingredients.nutrition_coverage.estimated, 1);
+    assert.equal(recipe.ingredients.nutrition_coverage.reliable, true);
+    assert.ok(recipe.calories > 0);
+  });
+
+  it('stores coverage for legacy clients too, without inventing unit metadata', async () => {
+    const recipe = await model([GARLIC]).createRecipe(
+      960,
+      [2],
+      [100],
+      'Garlic',
+      1,
+      2,
+      20,
+      'Cook',
+      1
+    );
+
+    assert.equal(recipe.calories, 149);
+    assert.equal(recipe.ingredients.unit, undefined);
+    assert.equal(recipe.ingredients.nutrition_coverage.weighed, 1);
+  });
+
   it('stores the gram weights next to the units so the total can be explained later', async () => {
     const recipe = await create([OLIVE_OIL], [1], [0.25], {
       unit: ['cup'],
