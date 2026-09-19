@@ -70,6 +70,9 @@ function mapNutrients(foodNutrients) {
     const id = ids.find((candidate) => byId.has(candidate));
     mapped[column] = id === undefined ? null : tidy(byId.get(id) * factor);
   }
+  // `calories` is an integer column (every populated row holds a whole number),
+  // and Atwater energy figures come with decimals. A decimal would fail the write.
+  if (mapped.calories !== null) mapped.calories = Math.round(mapped.calories);
   return mapped;
 }
 
