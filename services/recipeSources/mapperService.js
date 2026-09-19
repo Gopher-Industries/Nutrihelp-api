@@ -188,17 +188,43 @@ function extractJson(rawText) {
 
 function parseMeasure(measure) {
   const text = typeof measure === 'string' ? measure.trim() : '';
-  if (!text) return { quantity: null, unit: null, notes: null };
+  const unparsed = { quantity: null, unit: null, notes: text || null };
+  if (!text) return unparsed;
 
-  const match = text.match(/^(\d+(?:\.\d+)?|\d+\/\d+)\s*(.*)$/);
-  if (!match) return { quantity: null, unit: null, notes: text };
+  const fractions = { '¼': '1/4', '½': '1/2', '¾': '3/4', '⅓': '1/3', '⅔': '2/3', '⅛': '1/8', '⅜': '3/8', '⅝': '5/8', '⅞': '7/8' };
+  const normalized = text.replace(/[¼½¾⅓⅔⅛⅜⅝⅞]/g, (value) => ` ${fractions[value]}`).trim();
+  // Fractions must precede integers; otherwise 1/4 is parsed as 1 with unit /4.
+  const match = normalized.match(/^(?:(\d+)[ -]+)?(\d+\s*\/\s*\d+)|^(\d+(?:\.\d+)?|\.\d+)/);
+  if (!match) return unparsed;
+  const rest = normalized.slice(match[0].length).trim();
+  // A range or another amount needs user review, not a guessed single value.
+  if (/^[\d/–—-]/.test(rest) || /^(?:to\s+|[x×]\s*)\d/i.test(rest)) return unparsed;
+  let quantity;
+  if (match[2]) {
+    const [numerator, denominator] = match[2].split('/').map(Number);
+    if (!denominator) return unparsed;
+    quantity = Number(match[1] || 0) + numerator / denominator;
+  } else {
+    quantity = Number(match[3]);
+  }
+  if (!Number.isFinite(quantity) || quantity <= 0) return unparsed;
+  const unitMatch = rest.match(/^(kilograms?|grams?|millilit(?:er|re)s?|lit(?:er|re)s?|tablespoons?|teaspoons?|pounds?|ounces?|cups?|tbsp|tbls|tbs|tsp|kg|ml|oz|lb|g|l|pieces?|pcs|cloves?|leaves|leaf|tins?|cans?|sprigs?|bunch(?:es)?)(?=$|[\s/.,(])/i);
+  const unit = unitMatch ? unitMatch[0] : null;
+  const notes = unitMatch ? rest.slice(unitMatch[0].length).trim() : rest;
+  return { quantity, unit, notes: notes || null };
+}
 
-  const [, rawQuantity, rest] = match;
-  const quantity = rawQuantity.includes('/')
-    ? Number(rawQuantity.split('/')[0]) / Number(rawQuantity.split('/')[1])
-    : Number(rawQuantity);
-
-  return { quantity, unit: rest.trim() || null, notes: null };
+// Keep source amounts and all source ingredients even when the mapper classifies
+// them. This avoids model conversions or omissions changing the user's recipe.
+function sourceIngredients(sourceRecipe, mappedIngredients = []) {
+  const key = (name) => String(name || '').trim().toLowerCase();
+  const mapped = new Map(mappedIngredients.map((item) => [key(item.name), item]));
+  return (sourceRecipe.ingredients || []).map((item) => ({
+    name: item.name,
+    ...parseMeasure(item.measure),
+    source_measure: typeof item.measure === 'string' ? item.measure.trim() : '',
+    category: mapped.get(key(item.name))?.category || 'Pantry',
+  }));
 }
 
 function splitInstructions(text) {
@@ -224,13 +250,7 @@ function deterministicMap(sourceRecipe) {
   // which NutriHelp has no cuisine row for. Same gate as the LLM path.
   draft.cuisine_name = canonicalize(sourceRecipe.area, CUISINES);
   draft.image_url = sourceRecipe.thumbnail || null;
-  draft.ingredients = (sourceRecipe.ingredients || []).map((item) => ({
-    name: item.name,
-    ...parseMeasure(item.measure),
-    // No LLM in this path to classify with, so default to the safe bucket —
-    // the row stays saveable and the user can correct it.
-    category: 'Pantry',
-  }));
+  draft.ingredients = sourceIngredients(sourceRecipe);
   draft.instructions = splitInstructions(sourceRecipe.instructions);
 
   return draft;
@@ -574,6 +594,7 @@ async function mapRecipe(sourceRecipe, options = {}) {
       continue;
     }
 
+    draft.ingredients = sourceIngredients(sourceRecipe, draft.ingredients);
     const unmapped = computeUnmappedFields(draft);
     logger.info('[recipeSources][mapper] done', {
       ...traceContext,
