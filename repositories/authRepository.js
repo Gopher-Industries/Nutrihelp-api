@@ -1,7 +1,4 @@
-const {
-  supabaseAnon,
-  supabaseServiceRole,
-} = require('../database/supabase');
+const { supabaseAnon, supabaseServiceRole } = require('../database/supabase');
 
 function getAnonClient() {
   return supabaseAnon;
@@ -73,6 +70,7 @@ async function findActiveRefreshSessionByLookupHash(lookupHash) {
     `
     )
     .eq('refresh_token_lookup', lookupHash)
+    .eq('token_type', 'refresh')
     .eq('is_active', true)
     .maybeSingle();
 
