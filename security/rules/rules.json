@@ -2159,7 +2159,7 @@
   "id": "NH197",
   "name": "LDAP Filter Template Injection",
   "description": "Detects request-controlled data interpolated directly into LDAP filter template literals.",
-  "pattern": "\\([^`\\n]*\\$\\{\\s*req\\.(body|query|params)[^`\\n]*\\)",
+  "pattern": "(ldapFilter|ldap_filter|filter)\\s*=\\s*`\\([^`\\n]*=\\s*\\$\\{\\s*req\\.(body|query|params)[^`\\n]*\\)`",
   "severity": "High",
   "confidence": "Medium",
   "cwe": "CWE-90",
