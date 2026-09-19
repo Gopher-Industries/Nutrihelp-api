@@ -12,8 +12,19 @@ const request = require('supertest');
 const proxyquire = require('proxyquire').noCallThru();
 const { validateRecipe } = require('../../validators/recipeValidator');
 
+const COVERAGE = {
+  ingredients: 8,
+  weighed: 8,
+  estimated: 1,
+  reliable: false,
+  counted: { calories: 7 },
+  partial: { calories: 1830.4 },
+};
+
 function buildApp() {
-  const createRecipe = sinon.stub().resolves({ ingredients: {} });
+  const createRecipe = sinon
+    .stub()
+    .resolves({ calories: null, protein: null, ingredients: { nutrition_coverage: COVERAGE } });
   const controller = proxyquire('../../controller/recipeController', {
     '../dbConnection.js': {},
     '../model/getUserRecipes.js': {},
@@ -97,6 +108,15 @@ describe('POST /api/recipe/createRecipe gram weights', () => {
     const metadata = metadataPassedToModel(createRecipe);
     assert.equal(metadata.grams, undefined);
     assert.deepEqual(metadata.unit, ['cup', 'cloves']);
+  });
+
+  it('tells the client how complete the nutrition is, so it can label the figure', async () => {
+    const { app } = buildApp();
+
+    const response = await request(app).post('/api/recipe/createRecipe').send(body()).expect(201);
+
+    assert.equal(response.body.recipe_id, 900);
+    assert.deepEqual(response.body.nutrition, { calories: null, coverage: COVERAGE });
   });
 
   it('rejects gram weights that do not line up with the ingredients', async () => {
