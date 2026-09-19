@@ -213,7 +213,16 @@ const createAndSaveRecipe = async (req, res) => {
 			await createRecipe.updateRecipeDislike(dislikes);
 		}
 
-		return res.status(201).json({ message: "success", statusCode: 201, recipe_id: savedData[0].id });
+		return res.status(201).json({
+			message: "success",
+			statusCode: 201,
+			recipe_id: savedData[0].id,
+			// Lets the client say "covers 7 of 8 ingredients" or "includes an estimated weight".
+			nutrition: {
+				calories: recipe.calories ?? null,
+				coverage: recipe.ingredients?.nutrition_coverage || null,
+			},
+		});
 	} catch (error) {
 		console.error("Error logging in:", error);
 		return res
