@@ -265,24 +265,48 @@ describe('POST /api/recipe-sources/resolve-ingredients', () => {
     assert.strictEqual(response.body.data.resolved[0].grams_source, 'usda_portion');
   });
 
-  it('summarises the nutrition work and credits USDA', async () => {
-    const resolveIngredients = sinon.stub().resolves([GARLIC_RESOLVED, GARLIC_RESOLVED, GARLIC_RESOLVED]);
+  it('summarises the nutrition work, counts estimated weights and credits USDA', async () => {
+    const resolveIngredients = sinon
+      .stub()
+      .resolves([GARLIC_RESOLVED, GARLIC_RESOLVED, GARLIC_RESOLVED, GARLIC_RESOLVED]);
     const enrichIngredients = sinon.stub().resolves([
-      { ...GARLIC_RESOLVED, grams: 6, grams_source: 'usda_portion', nutrition: { status: 'existing', source: null } },
-      { ...GARLIC_RESOLVED, grams: 20, grams_source: 'mass', nutrition: { status: 'filled', source: { provider: 'usda', fdcId: 1 } } },
-      { ...GARLIC_RESOLVED, grams: null, grams_source: null, nutrition: { status: 'missing', source: null } },
+      {
+        ...GARLIC_RESOLVED,
+        grams: 6,
+        grams_source: 'usda_portion',
+        nutrition: { status: 'existing', source: null },
+      },
+      {
+        ...GARLIC_RESOLVED,
+        grams: 20,
+        grams_source: 'mass',
+        nutrition: { status: 'filled', source: { provider: 'usda', fdcId: 1 } },
+      },
+      {
+        ...GARLIC_RESOLVED,
+        grams: 400,
+        grams_source: 'llm_estimate',
+        nutrition: { status: 'existing', source: null },
+      },
+      {
+        ...GARLIC_RESOLVED,
+        grams: null,
+        grams_source: null,
+        nutrition: { status: 'missing', source: null },
+      },
     ]);
     const app = buildResolveApp(resolveIngredients, enrichIngredients);
 
     const response = await request(app)
       .post('/api/recipe-sources/resolve-ingredients')
-      .send({ ingredients: [{ name: 'a' }, { name: 'b' }, { name: 'c' }] })
+      .send({ ingredients: [{ name: 'a' }, { name: 'b' }, { name: 'c' }, { name: 'd' }] })
       .expect(200);
 
     assert.deepStrictEqual(response.body.data.nutrition, {
       provider: 'USDA FoodData Central',
-      weighed: 2,
+      weighed: 3,
       unweighed: 1,
+      estimated: 1,
       filled: 1,
       missing: 1,
       complete: false,
