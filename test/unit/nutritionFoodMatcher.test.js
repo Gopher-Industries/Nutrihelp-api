@@ -89,6 +89,41 @@ describe('nutritionSources/foodMatcher', () => {
       assert.strictEqual(picked.confidence, 'low');
     });
 
+    // Found by a dry run over the real ingredients table: "Water" matched the
+    // vegetable "Water convolvulus" at high confidence because it was the only
+    // candidate containing the word. A lone candidate is not a good candidate.
+    it('does not trust a lone candidate whose head noun is a different food', () => {
+      const picked = pickCandidate('water', [food('Water convolvulus,raw')]);
+
+      assert.strictEqual(picked.confidence, 'low');
+    });
+
+    it('does not trust a dish or product that merely contains the ingredient', () => {
+      assert.strictEqual(pickCandidate('chicken', [food('Chicken spread')]).confidence, 'low');
+      assert.strictEqual(pickCandidate('cinnamon', [food('Bread, cinnamon')]).confidence, 'low');
+    });
+
+    it('prefers the real food once USDA returns it', () => {
+      const vegetable = food('Water convolvulus,raw');
+      const water = food('Beverages, water, tap, drinking');
+
+      const picked = pickCandidate('water', [vegetable, water]);
+
+      assert.strictEqual(picked.food.fdcId, water.fdcId);
+      assert.strictEqual(picked.confidence, 'high');
+    });
+
+    it('looks past a category heading such as Spices', () => {
+      assert.strictEqual(pickCandidate('cardamom', [food('Spices, cardamom')]).confidence, 'high');
+      assert.strictEqual(pickCandidate('bay leaf', [food('Spices, bay leaf')]).confidence, 'high');
+    });
+
+    it('ignores a bracketed alternative name and the word leaves', () => {
+      const picked = pickCandidate('coriander', [food('Coriander (cilantro) leaves, raw')]);
+
+      assert.strictEqual(picked.confidence, 'high');
+    });
+
     it('returns null for an empty name or no candidates', () => {
       assert.strictEqual(pickCandidate('', [food('Garlic, raw')]), null);
       assert.strictEqual(pickCandidate('garlic', []), null);
