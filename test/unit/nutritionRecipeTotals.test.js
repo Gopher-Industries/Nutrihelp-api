@@ -105,17 +105,45 @@ describe('nutritionSources/recipeTotals', () => {
   });
 
   it('will not publish a strict total that rests mostly on an estimated weight', () => {
-    // The estimate is 400 g of a 450 g recipe.
-    const { totals, coverage } = totalsFor([PASTA, TOMATO], [50, 1], {
+    // 20 g of pasta is 74 kcal; the estimated tin adds 72 kcal, half the total.
+    const { totals, coverage } = totalsFor([PASTA, TOMATO], [20, 1], {
       unit: ['g', 'tin'],
-      grams: [50, 400],
+      grams: [20, 400],
       grams_source: ['mass', 'llm_estimate'],
     });
 
     assert.strictEqual(totals.calories, null);
-    near(coverage.partial.calories, 371 * 0.5 + 18 * 4);
+    near(coverage.partial.calories, 371 * 0.2 + 18 * 4);
     assert.strictEqual(coverage.counted.calories, 2, 'both were counted, the doubt is the weight');
     assert.strictEqual(coverage.reliable, false);
+  });
+
+  it('measures reliance on estimates by the nutrient, not by the weight', () => {
+    // Seen in a live save: an estimated 400 g tin of tomatoes was 43% of the
+    // recipe's weight but 4% of its calories. The calories do not rest on it.
+    const { totals, coverage } = totalsFor([PASTA, TOMATO], [450, 1], {
+      unit: ['g', 'tin'],
+      grams: [450, 400],
+      grams_source: ['mass', 'llm_estimate'],
+    });
+
+    near(totals.calories, 371 * 4.5 + 18 * 4);
+    assert.strictEqual(coverage.estimated, 1);
+    assert.strictEqual(coverage.reliable, true);
+  });
+
+  it('still withholds a nutrient that does rest on the estimated ingredient', () => {
+    const vitaminRichTomato = { ...TOMATO, vitamin_c: 0.0137 };
+    const plainPasta = { ...PASTA, vitamin_c: 0 };
+
+    const { totals } = totalsFor([plainPasta, vitaminRichTomato], [450, 1], {
+      unit: ['g', 'tin'],
+      grams: [450, 400],
+      grams_source: ['mass', 'llm_estimate'],
+    });
+
+    assert.ok(totals.calories > 0);
+    assert.strictEqual(totals.vitamin_c, null, 'all of the vitamin C comes from the estimated tin');
   });
 
   it('treats a negligible amount as counted, whatever the ingredient is', () => {
