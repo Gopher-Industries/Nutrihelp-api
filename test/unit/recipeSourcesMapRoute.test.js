@@ -36,7 +36,7 @@ function mapResult() {
   };
 }
 
-function buildApp({ getAdapter, mapRecipe, resolveIngredients }) {
+function buildApp({ getAdapter, mapRecipe, resolveIngredients, enrichIngredients }) {
   const controller = proxyquire('../../controller/recipeSourcesController', {
     '../services/recipeSources': {
       getAdapter,
@@ -49,6 +49,12 @@ function buildApp({ getAdapter, mapRecipe, resolveIngredients }) {
     // table during a test run.
     '../services/recipeSources/ingredientResolver': {
       resolveIngredients: resolveIngredients || sinon.stub().resolves([]),
+    },
+    // Always stubbed for the same reason: the real enricher reads and fills the
+    // shared ingredients table and calls USDA. The default passes items through.
+    '../services/nutritionSources/ingredientEnricher': {
+      enrichIngredients: enrichIngredients || sinon.stub().callsFake(async (resolved) => resolved),
+      '@noCallThru': true,
     },
   });
   const router = proxyquire('../../routes/recipeSources', {
@@ -222,13 +228,102 @@ describe('POST /api/recipe-sources/map', () => {
 });
 
 describe('POST /api/recipe-sources/resolve-ingredients', () => {
-  function buildResolveApp(resolveIngredients) {
+  function buildResolveApp(resolveIngredients, enrichIngredients) {
     return buildApp({
       getAdapter: () => null,
       mapRecipe: sinon.stub(),
       resolveIngredients,
+      enrichIngredients,
     });
   }
+
+  const GARLIC_RESOLVED = { name: 'garlic', id: 7, category: 'Fruit & Vegetables', status: 'matched', matchedName: 'Garlic' };
+
+  it('weighs each ingredient and fills empty nutrition, because this is the save path', async () => {
+    const resolveIngredients = sinon.stub().resolves([GARLIC_RESOLVED]);
+    const enrichIngredients = sinon.stub().resolves([
+      {
+        ...GARLIC_RESOLVED,
+        grams: 6,
+        grams_source: 'usda_portion',
+        nutrition: { status: 'existing', source: null },
+      },
+    ]);
+    const app = buildResolveApp(resolveIngredients, enrichIngredients);
+    const ingredients = [{ name: 'garlic', quantity: 2, unit: 'cloves', notes: 'minced' }];
+
+    const response = await request(app)
+      .post('/api/recipe-sources/resolve-ingredients')
+      .send({ ingredients })
+      .expect(200);
+
+    const [resolvedArg, measuresArg, optionsArg] = enrichIngredients.firstCall.args;
+    assert.deepStrictEqual(resolvedArg, [GARLIC_RESOLVED]);
+    assert.deepStrictEqual(measuresArg, ingredients);
+    assert.strictEqual(optionsArg.fillMissing, true);
+    assert.strictEqual(response.body.data.resolved[0].grams, 6);
+    assert.strictEqual(response.body.data.resolved[0].grams_source, 'usda_portion');
+  });
+
+  it('summarises the nutrition work and credits USDA', async () => {
+    const resolveIngredients = sinon.stub().resolves([GARLIC_RESOLVED, GARLIC_RESOLVED, GARLIC_RESOLVED]);
+    const enrichIngredients = sinon.stub().resolves([
+      { ...GARLIC_RESOLVED, grams: 6, grams_source: 'usda_portion', nutrition: { status: 'existing', source: null } },
+      { ...GARLIC_RESOLVED, grams: 20, grams_source: 'mass', nutrition: { status: 'filled', source: { provider: 'usda', fdcId: 1 } } },
+      { ...GARLIC_RESOLVED, grams: null, grams_source: null, nutrition: { status: 'missing', source: null } },
+    ]);
+    const app = buildResolveApp(resolveIngredients, enrichIngredients);
+
+    const response = await request(app)
+      .post('/api/recipe-sources/resolve-ingredients')
+      .send({ ingredients: [{ name: 'a' }, { name: 'b' }, { name: 'c' }] })
+      .expect(200);
+
+    assert.deepStrictEqual(response.body.data.nutrition, {
+      provider: 'USDA FoodData Central',
+      weighed: 2,
+      unweighed: 1,
+      filled: 1,
+      missing: 1,
+      complete: false,
+    });
+  });
+
+  it('still returns the resolution when enrichment fails, so the recipe can save', async () => {
+    const resolveIngredients = sinon.stub().resolves([GARLIC_RESOLVED]);
+    const enrichIngredients = sinon.stub().rejects(new Error('usda exploded'));
+    const app = buildResolveApp(resolveIngredients, enrichIngredients);
+
+    const response = await request(app)
+      .post('/api/recipe-sources/resolve-ingredients')
+      .send({ ingredients: [{ name: 'garlic', quantity: 2, unit: 'cloves' }] })
+      .expect(200);
+
+    assert.deepStrictEqual(response.body.data.resolved, [GARLIC_RESOLVED]);
+    assert.strictEqual(response.body.data.nutrition, null);
+  });
+
+  it('accepts an unspecified quantity, as "to taste" ingredients have none', async () => {
+    const app = buildResolveApp(sinon.stub().resolves([GARLIC_RESOLVED]));
+
+    await request(app)
+      .post('/api/recipe-sources/resolve-ingredients')
+      .send({ ingredients: [{ name: 'salt', quantity: null, unit: '', notes: 'to taste' }] })
+      .expect(200);
+  });
+
+  it('rejects a quantity that is not a positive number', async () => {
+    const resolveIngredients = sinon.stub().resolves([]);
+    const app = buildResolveApp(resolveIngredients);
+
+    for (const quantity of [-1, 0, 'lots']) {
+      await request(app)
+        .post('/api/recipe-sources/resolve-ingredients')
+        .send({ ingredients: [{ name: 'garlic', quantity, unit: 'g' }] })
+        .expect(400);
+    }
+    assert.strictEqual(resolveIngredients.called, false);
+  });
 
   it('creates missing ingredients and returns the resolution', async () => {
     const resolveIngredients = sinon.stub().resolves([
