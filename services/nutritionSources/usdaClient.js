@@ -16,7 +16,8 @@ const REQUEST_TIMEOUT_MS = 5000;
 // Generic foods only. Branded and survey records describe products and
 // composite dishes, which are poor stand-ins for a recipe ingredient.
 const DATA_TYPES = 'SR Legacy,Foundation';
-const DEFAULT_PAGE_SIZE = 8;
+// USDA relevance is weak: with 8, "water" returned a vegetable and never the drink.
+const DEFAULT_PAGE_SIZE = 25;
 
 let warnedAboutDemoKey = false;
 
