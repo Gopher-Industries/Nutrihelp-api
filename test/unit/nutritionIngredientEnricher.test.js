@@ -83,10 +83,17 @@ function fakeSupabase({ rows = [], updateError = null } = {}) {
   return { supabaseService, calls };
 }
 
-function load(fake, lookupIngredient) {
+function load(fake, lookupIngredient, estimateWeights) {
   return proxyquire('../../services/nutritionSources/ingredientEnricher', {
     '../supabaseClient': { supabaseService: fake.supabaseService, '@noCallThru': true },
     './index': { lookupIngredient, '@noCallThru': true },
+    './weightEstimator': {
+      // Default: the estimator knows nothing, as when no LLM is configured.
+      estimateWeights:
+        estimateWeights ||
+        sinon.stub().callsFake(async (items) => items.map(() => ({ grams: null, source: null }))),
+      '@noCallThru': true,
+    },
     '../../utils/logger': { ...SILENT_LOGGER, '@noCallThru': true },
   });
 }
@@ -339,6 +346,124 @@ describe('nutritionSources/ingredientEnricher', () => {
       [6, 2.8]
     );
     assert.strictEqual(lookup.callCount, 1);
+  });
+
+  describe('when USDA portion data cannot weigh the measure', () => {
+    const generate = async () => '[]';
+    const estimating = (grams) =>
+      sinon.stub().callsFake(async (items) => items.map(() => ({ grams, source: 'llm_estimate' })));
+
+    it('asks for an estimate and labels the weight as one', async () => {
+      const fake = fakeSupabase({ rows: [{ id: 63, ...GARLIC_NUTRIENTS }] });
+      const estimateWeights = estimating(60);
+
+      const [item] = await load(
+        fake,
+        sinon.stub().resolves(found()),
+        estimateWeights
+      ).enrichIngredients(
+        [resolvedGarlic],
+        [{ name: 'Garlic', quantity: 1, unit: 'bunch', notes: 'wild' }],
+        { generate }
+      );
+
+      assert.strictEqual(item.grams, 60);
+      assert.strictEqual(item.grams_source, 'llm_estimate');
+      const [asked, passedGenerate] = estimateWeights.firstCall.args;
+      assert.deepStrictEqual(asked, [
+        { name: 'Garlic', quantity: 1, unit: 'bunch', notes: 'wild' },
+      ]);
+      assert.strictEqual(passedGenerate, generate);
+    });
+
+    it('estimates even when USDA has no record of the ingredient at all', async () => {
+      const fake = fakeSupabase({ rows: [{ id: 63, ...GARLIC_NUTRIENTS }] });
+
+      const [item] = await load(
+        fake,
+        sinon.stub().resolves({ status: 'not_found' }),
+        estimating(400)
+      ).enrichIngredients([resolvedGarlic], [{ name: 'Garlic', quantity: 1, unit: 'tin' }], {
+        generate,
+      });
+
+      assert.strictEqual(item.grams, 400);
+      assert.strictEqual(item.grams_source, 'llm_estimate');
+    });
+
+    it('never asks for an estimate when the weight is already known', async () => {
+      const fake = fakeSupabase({ rows: [{ id: 63, ...GARLIC_NUTRIENTS }] });
+      const estimateWeights = estimating(999);
+
+      const [item] = await load(
+        fake,
+        sinon.stub().resolves(found()),
+        estimateWeights
+      ).enrichIngredients([resolvedGarlic], [{ name: 'Garlic', quantity: 2, unit: 'cloves' }], {
+        generate,
+      });
+
+      assert.strictEqual(item.grams, 6);
+      assert.strictEqual(item.grams_source, 'usda_portion');
+      assert.strictEqual(estimateWeights.callCount, 0);
+    });
+
+    it('estimates only the unknown weights and keeps every ingredient in order', async () => {
+      const fake = fakeSupabase({ rows: [{ id: 63, ...GARLIC_NUTRIENTS }] });
+      const estimateWeights = estimating(60);
+
+      const items = await load(
+        fake,
+        sinon.stub().resolves(found()),
+        estimateWeights
+      ).enrichIngredients(
+        [resolvedGarlic, resolvedGarlic, resolvedGarlic],
+        [
+          { name: 'Garlic', quantity: 2, unit: 'cloves' },
+          { name: 'Garlic', quantity: 1, unit: 'bunch' },
+          { name: 'Garlic', quantity: 20, unit: 'g' },
+        ],
+        { generate }
+      );
+
+      assert.deepStrictEqual(
+        items.map((item) => [item.grams, item.grams_source]),
+        [
+          [6, 'usda_portion'],
+          [60, 'llm_estimate'],
+          [20, 'mass'],
+        ]
+      );
+      assert.strictEqual(estimateWeights.firstCall.args[0].length, 1);
+    });
+
+    it('leaves the weight empty when no LLM is available', async () => {
+      const fake = fakeSupabase({ rows: [{ id: 63, ...GARLIC_NUTRIENTS }] });
+      const estimateWeights = estimating(60);
+
+      const [item] = await load(
+        fake,
+        sinon.stub().resolves(found()),
+        estimateWeights
+      ).enrichIngredients([resolvedGarlic], [{ name: 'Garlic', quantity: 1, unit: 'bunch' }]);
+
+      assert.strictEqual(item.grams, null);
+      assert.strictEqual(estimateWeights.callCount, 0);
+    });
+
+    it('does not estimate for an ingredient that cannot be saved anyway', async () => {
+      const fake = fakeSupabase({ rows: [] });
+      const estimateWeights = estimating(60);
+      const unmatched = { name: 'unobtainium', id: null, category: null, status: 'unmatched' };
+
+      await load(fake, sinon.stub(), estimateWeights).enrichIngredients(
+        [unmatched],
+        [{ name: 'unobtainium', quantity: 1, unit: 'bunch' }],
+        { generate }
+      );
+
+      assert.strictEqual(estimateWeights.callCount, 0);
+    });
   });
 
   it('returns an empty list for no ingredients', async () => {
