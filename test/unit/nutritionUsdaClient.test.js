@@ -59,6 +59,15 @@ describe('nutritionSources/usdaClient', () => {
       assert.ok(config.timeout > 0);
     });
 
+    it('asks for enough candidates to get past the weak relevance order', async () => {
+      // With 8, "water" returned a vegetable and never the drink.
+      const axiosGet = sinon.stub().resolves({ data: { foods: [] } });
+
+      await loadClient(axiosGet).searchFoods('water');
+
+      assert.strictEqual(axiosGet.firstCall.args[1].params.pageSize, 25);
+    });
+
     it('falls back to the public demo key when none is configured', async () => {
       const axiosGet = sinon.stub().resolves({ data: { foods: [] } });
 
