@@ -74,7 +74,8 @@ Tiers, first hit wins. Each result records its `source`.
 3. `usda_density`: the food has any volume portion, so its density converts every volume unit.
    Standard volumes: tsp 5 ml, tbsp 15 ml, cup 240 ml, fl oz 30 ml (US labelling rounding).
 4. `negligible`: pinch, dash, sprinkling, to taste, garnish count as 0 g.
-5. `llm_estimate`: optional last resort, bounded by sanity ranges, labelled as an estimate.
+5. `llm_estimate`: planned, not built. A last resort bounded by sanity ranges and labelled as an
+   estimate all the way to the UI.
 6. Otherwise `null`. The total for that recipe stays empty, as today.
 
 ## 6. Where it plugs in
@@ -97,6 +98,36 @@ No schema change. `recipes.ingredients` is JSONB, so a parallel `grams` array ne
   The rollup prefers a supplied weight over the mass-unit factor, and a weight of 0 adds nothing.
 - Web: the save path sends quantity and unit to resolve, forwards `ingredient_grams`, and shows the
   nutrition with USDA attribution and an "estimated" label when any weight was estimated.
+
+## 6a. Matching a name to a USDA record
+
+1. **Deterministic rank.** Every word of the name must appear. Candidates are scored on head-noun
+   position, extra words, processed forms (`canned`, `powder`, `paste`) and `raw`. 25 candidates are
+   requested because USDA's own relevance order is weak.
+2. **The record must be about the ingredient.** USDA descriptions lead with the food, after an
+   optional category heading (`Spices,`, `Beverages,`). `high` confidence needs that leading segment
+   to be made of the ingredient's own words. "Chicken spread" and "Bread, cinnamon" merely mention
+   the ingredient and are capped at `low`.
+3. **LLM tie-break** for a `low` result: the model chooses an `fdcId` from the candidate list or
+   answers `null`. An id that was not offered is ignored.
+4. **LLM rewording** when nothing matched: USDA says "Catsup" for ketchup and "Sugars, granulated"
+   for caster sugar. The model suggests up to three USDA-style search phrases. Whatever USDA returns
+   then goes through step 3, judged against the original name. The model's text is only ever a search
+   query.
+
+In no tier does a model supply a nutrient value.
+
+### What the dry run found
+
+`node scripts/nutritionDryRun.js [--llm]` lists the proposed match for every empty row and writes
+nothing. Run it before trusting a live fill. Its first run, over the 27 empty rows on 19 Sep 2026:
+
+- **Defect caught.** "Water" matched the vegetable "Water convolvulus, raw" at `high` confidence,
+  because it was the only candidate containing the word. Rule 2 above is the fix.
+- 12 of 27 found nothing because of USDA's wording. Rule 4 is the fix.
+- After both: 11 `high`, 11 `llm`, 5 with no USDA record (italian seasoning, English mustard, beef
+  fillet, Parma ham, and a bare "Oil" that the model rightly refused to guess). All 22 proposed
+  matches were checked by hand and are correct.
 
 ## 7. Writes to shared data
 
