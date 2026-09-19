@@ -180,6 +180,131 @@ describe('nutritionSources lookup', () => {
     });
   });
 
+  describe('when the plain name finds nothing in USDA', () => {
+    // USDA words things its own way: ketchup is "Catsup", breadcrumbs is
+    // "Bread crumbs", caster sugar is "Sugars, granulated". A dry run over the
+    // real table left 12 of 27 ingredients unmatched for this reason alone.
+    const CATSUP = {
+      fdcId: 168556,
+      description: 'Catsup',
+      dataType: 'SR Legacy',
+      foodNutrients: CORE,
+    };
+    const SALSA = {
+      fdcId: 174524,
+      description: 'Sauce, salsa, ready-to-serve',
+      dataType: 'SR Legacy',
+      foodNutrients: CORE,
+    };
+
+    function searchByTerm(results) {
+      return sinon.stub().callsFake(async (term) => results[term] || []);
+    }
+
+    it('asks the LLM how USDA words it, then lets it pick only from the records found', async () => {
+      const searchFoods = searchByTerm({ catsup: [CATSUP], 'tomato sauce': [SALSA] });
+      const getFood = sinon.stub().resolves({ fdcId: 168556, foodPortions: [] });
+      const generate = sinon.stub();
+      generate.onFirstCall().resolves('["catsup", "tomato sauce"]');
+      generate.onSecondCall().resolves('{"fdcId": 168556}');
+
+      const result = await load({ searchFoods, getFood }).lookupIngredient('Tomato Ketchup', {
+        generate,
+      });
+
+      assert.strictEqual(result.status, 'found');
+      assert.strictEqual(result.confidence, 'llm');
+      assert.strictEqual(result.description, 'Catsup');
+      assert.strictEqual(result.nutrients.calories, 149, 'figures still come from USDA');
+      assert.ok(generate.secondCall.args[0].includes('168556: Catsup'));
+      assert.ok(
+        generate.secondCall.args[0].includes('Tomato Ketchup'),
+        'the pick is judged against the original name'
+      );
+    });
+
+    it('reports not_found when the LLM confirms none of the rewritten candidates', async () => {
+      const searchFoods = searchByTerm({ catsup: [CATSUP] });
+      const generate = sinon.stub();
+      generate.onFirstCall().resolves('["catsup"]');
+      generate.onSecondCall().resolves('{"fdcId": null}');
+
+      const result = await load({ searchFoods, getFood: sinon.stub() }).lookupIngredient(
+        'Tomato Ketchup',
+        { generate }
+      );
+
+      assert.deepStrictEqual(result, { status: 'not_found' });
+    });
+
+    it('never accepts a rewritten candidate the LLM did not pick from the list', async () => {
+      const searchFoods = searchByTerm({ catsup: [CATSUP] });
+      const generate = sinon.stub();
+      generate.onFirstCall().resolves('["catsup"]');
+      generate.onSecondCall().resolves('{"fdcId": 424242}');
+
+      const result = await load({ searchFoods, getFood: sinon.stub() }).lookupIngredient(
+        'Tomato Ketchup',
+        { generate }
+      );
+
+      assert.deepStrictEqual(result, { status: 'not_found' });
+    });
+
+    it('does not rewrite the search when no LLM is available', async () => {
+      const searchFoods = searchByTerm({ catsup: [CATSUP] });
+
+      const result = await load({ searchFoods, getFood: sinon.stub() }).lookupIngredient(
+        'Tomato Ketchup'
+      );
+
+      assert.deepStrictEqual(result, { status: 'not_found' });
+      assert.strictEqual(searchFoods.callCount, 1);
+    });
+
+    it('tries at most three rewritten searches', async () => {
+      const searchFoods = searchByTerm({});
+      const generate = sinon.stub().resolves('["a", "b", "c", "d", "e", "f"]');
+
+      await load({ searchFoods, getFood: sinon.stub() }).lookupIngredient('Tomato Ketchup', {
+        generate,
+      });
+
+      assert.strictEqual(searchFoods.callCount, 4, 'the original search plus three rewrites');
+    });
+
+    it('survives an unusable answer from the LLM', async () => {
+      for (const answer of ['no idea, sorry', '{"terms": "catsup"}', '[1, null, ""]']) {
+        const searchFoods = searchByTerm({ catsup: [CATSUP] });
+        const generate = sinon.stub().resolves(answer);
+
+        const result = await load({ searchFoods, getFood: sinon.stub() }).lookupIngredient(
+          'Tomato Ketchup',
+          { generate }
+        );
+
+        assert.deepStrictEqual(result, { status: 'not_found' }, answer);
+      }
+    });
+
+    it('keeps going when one rewritten search fails', async () => {
+      const searchFoods = sinon.stub().callsFake(async (term) => {
+        if (term === 'broken') throw usdaError('unavailable');
+        return term === 'catsup' ? [CATSUP] : [];
+      });
+      const generate = sinon.stub();
+      generate.onFirstCall().resolves('["broken", "catsup"]');
+      generate.onSecondCall().resolves('{"fdcId": 168556}');
+
+      const result = await load({
+        searchFoods,
+        getFood: sinon.stub().resolves(null),
+      }).lookupIngredient('Tomato Ketchup', { generate });
+
+      assert.strictEqual(result.status, 'found');
+    });
+  });
+
   it('never consults the LLM for a clear match', async () => {
     const generate = sinon.stub();
     const searchFoods = sinon.stub().resolves([GARLIC, GARLIC_POWDER]);
