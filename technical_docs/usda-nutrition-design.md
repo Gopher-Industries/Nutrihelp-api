@@ -74,8 +74,9 @@ Tiers, first hit wins. Each result records its `source`.
 3. `usda_density`: the food has any volume portion, so its density converts every volume unit.
    Standard volumes: tsp 5 ml, tbsp 15 ml, cup 240 ml, fl oz 30 ml (US labelling rounding).
 4. `negligible`: pinch, dash, sprinkling, to taste, garnish count as 0 g.
-5. `llm_estimate`: planned, not built. A last resort bounded by sanity ranges and labelled as an
-   estimate all the way to the UI.
+5. `llm_estimate`: last resort for measures USDA cannot weigh ("1 tin", "1 bunch"). The model is
+   asked what ONE unit weighs, the quantity is applied in code, the answer must fall inside a
+   plausibility range for the unit, and the label travels with the weight into the saved recipe.
 6. Otherwise `null`. The total for that recipe stays empty, as today.
 
 ## 6. Where it plugs in
@@ -128,6 +129,30 @@ nothing. Run it before trusting a live fill. Its first run, over the 27 empty ro
 - After both: 11 `high`, 11 `llm`, 5 with no USDA record (italian seasoning, English mustard, beef
   fillet, Parma ham, and a bare "Oil" that the model rightly refused to guess). All 22 proposed
   matches were checked by hand and are correct.
+
+## 6b. Totals and coverage
+
+The old rule blanked a total as soon as one ingredient was unknown. Half a teaspoon of an unlisted
+herb erased a recipe that was 99.9% accounted for. `services/nutritionSources/recipeTotals.js` now
+returns two layers.
+
+**Strict totals** go in the `recipes` columns, which meal planning and daily plans add up. A
+nutrient's total is published only when:
+
+- every ingredient has a weight;
+- ingredients with no figure for that nutrient are at most 5% of the recipe's weight;
+- at most 25% of that nutrient's total comes from ingredients whose weight was estimated. This is
+  measured per nutrient, not by weight: a live save had an estimated tin of tomatoes at 43% of the
+  recipe's weight but 4% of its calories, and nearly all of its vitamin C.
+
+**Coverage** goes in `recipes.ingredients.nutrition_coverage` (JSONB, no migration):
+`ingredients`, `weighed`, `estimated`, `reliable`, and per nutrient `counted` and the `partial` sum.
+`POST /api/recipe/createRecipe` returns it as `nutrition: { calories, coverage }`.
+
+The web card shows "459 kcal per serving" for a strict total, and "About 459 kcal per serving,
+covers 7 of 8 ingredients · 2 weights estimated" when the total was withheld. A recipe with no
+coverage record shows nothing: its total predates gram weights and read "2 chicken breasts" as 2 g,
+which put "7 kcal per serving" on real dishes.
 
 ## 7. Writes to shared data
 
