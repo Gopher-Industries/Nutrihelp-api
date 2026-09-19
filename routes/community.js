@@ -17,6 +17,7 @@ const router = express.Router();
 
 const controller = require('../controller/communityController');
 const { authenticateToken } = require('../middleware/authenticateToken');
+const sanitizeInput = require('../middleware/sanitizeInput');
 const {
   createPostValidator,
   createCommentValidator,
@@ -32,11 +33,12 @@ router.get('/posts/:postId/comments', postIdParamValidator, controller.listComme
 router.get('/leaderboard', leaderboardQueryValidator, controller.leaderboard);
 
 // Writes (auth required)
-router.post('/posts', authenticateToken, createPostValidator, controller.createPost);
+router.post('/posts', authenticateToken, sanitizeInput, createPostValidator, controller.createPost);
 router.post('/posts/:postId/like', authenticateToken, postIdParamValidator, controller.toggleLike);
 router.post(
   '/posts/:postId/comments',
   authenticateToken,
+  sanitizeInput,
   createCommentValidator,
   controller.createComment
 );
