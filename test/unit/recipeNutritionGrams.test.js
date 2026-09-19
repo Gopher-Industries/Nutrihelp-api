@@ -107,9 +107,10 @@ describe('Recipe nutrition totals from gram weights', () => {
   });
 
   it('records estimated weights in the coverage', async () => {
+    // 40 g of estimated oil is about a tenth of the calories, so the total stands.
     const recipe = await create([GARLIC, OLIVE_OIL], [2, 1], [2000, 1], {
-      unit: ['g', 'tin'],
-      grams: [2000, 400],
+      unit: ['g', 'splash'],
+      grams: [2000, 40],
       grams_source: ['mass', 'llm_estimate'],
     });
 

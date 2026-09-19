@@ -9,7 +9,7 @@
  *             features (meal planning, daily plans) add up. A figure is only
  *             published when every ingredient has a weight, the ingredients
  *             with no data for that nutrient are a sliver of the recipe, and
- *             the total does not rest mostly on an estimated weight.
+ *             that nutrient's total does not rest mostly on estimated weights.
  *   coverage  What was counted and what was estimated, plus the partial sums,
  *             so the UI can still show a number with an honest label:
  *             "about 1,830 kcal, covers 7 of 8 ingredients".
@@ -22,8 +22,10 @@ const { MASS_IN_GRAMS, normalizeUnit } = require('./unitConversion');
 // Ingredients with no figure for a nutrient may be at most this share of the
 // recipe's weight before that nutrient's strict total is withheld.
 const MAX_MISSING_WEIGHT_SHARE = 0.05;
-// A strict total may lean on LLM-estimated weights for at most this share.
-const MAX_ESTIMATED_WEIGHT_SHARE = 0.25;
+// At most this share of a nutrient's total may come from ingredients whose
+// weight was estimated. Measured per nutrient, not by weight: a live save had an
+// estimated tin of tomatoes at 43% of the recipe's weight but 4% of its calories.
+const MAX_ESTIMATED_SHARE = 0.25;
 
 function round2(value) {
   return Math.round(value * 100) / 100;
@@ -67,10 +69,6 @@ function computeRecipeTotals({ rows = [], ingredientIds = [], quantities = [], m
   const totalWeight = weights.reduce((sum, grams) => sum + (grams || 0), 0);
   const isEstimate = (index) =>
     Array.isArray(meta.grams_source) && meta.grams_source[index] === 'llm_estimate';
-  const estimatedWeight = weights.reduce(
-    (sum, grams, index) => sum + (grams !== null && isEstimate(index) ? grams : 0),
-    0
-  );
   const share = (weight) => (totalWeight > 0 ? weight / totalWeight : 0);
 
   const totals = {};
@@ -79,6 +77,7 @@ function computeRecipeTotals({ rows = [], ingredientIds = [], quantities = [], m
 
   for (const nutrient of NUTRIENT_COLUMNS) {
     let sum = 0;
+    let estimatedSum = 0;
     let countedHere = 0;
     let missingWeight = 0;
 
@@ -93,7 +92,9 @@ function computeRecipeTotals({ rows = [], ingredientIds = [], quantities = [], m
         missingWeight += grams;
         return;
       }
-      sum += (value / 100) * grams;
+      const contribution = (value / 100) * grams;
+      sum += contribution;
+      if (isEstimate(index)) estimatedSum += contribution;
       countedHere += 1;
     });
 
@@ -101,7 +102,7 @@ function computeRecipeTotals({ rows = [], ingredientIds = [], quantities = [], m
       count > 0 &&
       weighed === count &&
       share(missingWeight) <= MAX_MISSING_WEIGHT_SHARE &&
-      share(estimatedWeight) <= MAX_ESTIMATED_WEIGHT_SHARE;
+      (sum > 0 ? estimatedSum / sum : 0) <= MAX_ESTIMATED_SHARE;
 
     totals[nutrient] = publishable ? sum : null;
     counted[nutrient] = countedHere;
@@ -122,4 +123,4 @@ function computeRecipeTotals({ rows = [], ingredientIds = [], quantities = [], m
   };
 }
 
-module.exports = { computeRecipeTotals, MAX_MISSING_WEIGHT_SHARE, MAX_ESTIMATED_WEIGHT_SHARE };
+module.exports = { computeRecipeTotals, MAX_MISSING_WEIGHT_SHARE, MAX_ESTIMATED_SHARE };
