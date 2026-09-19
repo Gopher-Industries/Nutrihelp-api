@@ -176,6 +176,11 @@ const createAndSaveRecipe = async (req, res) => {
 				unit: req.body.ingredient_unit,
 				notes: req.body.ingredient_notes || [],
 				source_measure: req.body.ingredient_source_measure || [],
+				// Gram weights let the totals cover cups, cloves and spoons.
+				...(Array.isArray(req.body.ingredient_grams) ? {
+					grams: req.body.ingredient_grams,
+					grams_source: req.body.ingredient_grams_source || [],
+				} : {}),
 			} : {}
 		);
 
