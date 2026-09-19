@@ -1,4 +1,5 @@
 const supabase = require("../dbConnection.js");
+const { computeRecipeTotals } = require("../services/nutritionSources/recipeTotals");
 
 async function createRecipe(
 	user_id,
@@ -41,43 +42,18 @@ async function createRecipe(
 	try {
 		const { data, error } = await supabase.from("ingredients").select("*").in("id", ingredient_id);
 		if (error) throw error;
-		const byId = new Map((data || []).map(row => [Number(row.id), row]));
-		const massFactors = { g: 1, gram: 1, grams: 1, kg: 1000, kilogram: 1000, kilograms: 1000,
-			lb: 453.59237, lbs: 453.59237, pound: 453.59237, pounds: 453.59237,
-			oz: 28.349523125, ounce: 28.349523125, ounces: 28.349523125 };
-		// One entry per ingredient: a usable weight in grams, or null when unknown.
-		const gramWeights = ingredient_id.map((_, i) => {
-			const raw = Array.isArray(ingredientMetadata.grams) ? ingredientMetadata.grams[i] : null;
-			if (raw === null || raw === undefined || raw === '') return null;
-			const grams = Number(raw);
-			return Number.isFinite(grams) && grams >= 0 ? grams : null;
+		// Strict totals for the recipes table, plus coverage for the UI. One unknown
+		// ingredient no longer blanks a total: see nutritionSources/recipeTotals.
+		const { totals, coverage } = computeRecipeTotals({
+			rows: data || [],
+			ingredientIds: ingredient_id,
+			quantities: ingredient_quantity,
+			metadata: ingredientMetadata,
 		});
-		const nutrients = ["calories", "fat", "carbohydrates", "protein", "fiber", "vitamin_a", "vitamin_b", "vitamin_c", "vitamin_d", "sodium", "sugar"];
-		for (const nutrient of nutrients) {
-			let total = 0;
-			for (let i = 0; i < ingredient_id.length; i++) {
-				const value = byId.get(Number(ingredient_id[i]))?.[nutrient];
-				const quantity = ingredient_quantity[i];
-				// A caller that already knows the weight (nutritionSources converts
-				// cups, cloves and spoons through USDA portion data) passes it here.
-				const suppliedGrams = gramWeights[i];
-				if (suppliedGrams === 0) continue; // a pinch adds nothing, whatever it is
-				// Legacy clients supply gram quantities. Explicit cups/pieces or
-				// unspecified amounts cannot be converted without ingredient data.
-				const factor = ingredientMetadata.unit
-					? massFactors[String(ingredientMetadata.unit[i] || '').trim().toLowerCase()]
-					: 1;
-				const grams = suppliedGrams !== null
-					? suppliedGrams
-					: (quantity == null || !factor ? null : quantity * factor);
-				if (value == null || !Number.isFinite(Number(value)) || grams === null) {
-					total = null;
-					break;
-				}
-				total += Number(value) / 100 * grams;
-			}
-			recipe[nutrient] = total;
-		}
+		Object.assign(recipe, totals);
+		// JSONB, so this needs no migration. It lets a recipe whose strict total was
+		// withheld still show "about 1,830 kcal, covers 7 of 8 ingredients".
+		recipe.ingredients.nutrition_coverage = coverage;
 		recipe.instructions = instructions;
 
 		return recipe;
