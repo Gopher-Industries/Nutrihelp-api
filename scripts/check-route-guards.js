@@ -173,6 +173,25 @@ function literalPath(node) {
 }
 
 /**
+ * Does `routePath` fall under a `router.use(prefix, mw)` mount?
+ *
+ * Express matches a use() prefix on a path SEGMENT boundary: router.use('/admin')
+ * covers /admin and /admin/anything, and does NOT cover /adminsettings. A plain
+ * startsWith treats /adminsettings as covered, so an unprotected route inherits a
+ * guard it never actually runs and the check reports it as protected.
+ *
+ * That is the fail-open direction, which is the one that matters here: a false
+ * positive wastes a reviewer's time, a false negative is a route nobody looks at
+ * again. Raised in review by James Nardella on PR #311.
+ */
+function pathUnderPrefix(routePath, prefix) {
+  if (typeof routePath !== 'string' || typeof prefix !== 'string') return false;
+  const p = prefix.replace(/\/+$/, '');
+  if (p === '') return true;                  // router.use('/') covers everything
+  return routePath === p || routePath.startsWith(`${p}/`);
+}
+
+/**
  * Express accepts two forms for the same thing:
  *
  *   router.delete('/v2/:id', authenticateToken, handler)     path is argument 0
@@ -345,7 +364,7 @@ function analyseAst(rel, ast, mountMws) {
       for (let i = r.argStart; i < args.length; i++) inline.push(...namesOf(args[i]));
 
       const scoped = scopedSnapshot
-        .filter((s) => r.path !== null && r.path.startsWith(s.prefix))
+        .filter((s) => pathUnderPrefix(r.path, s.prefix))
         .flatMap((s) => s.mws);
 
       const inScope = [...inline, ...routerLevelSnapshot, ...scoped, ...mountMws];
@@ -554,6 +573,7 @@ module.exports = {
   parseSource,
   namesOf,
   resolveRouteCall,
+  pathUnderPrefix,
   GUARDS,
   WRITE_METHODS,
   UNKNOWN_PATH,

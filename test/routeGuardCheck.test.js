@@ -5,6 +5,7 @@ const path = require("path");
 const {
   analyseSource,
   parseSource,
+  pathUnderPrefix,
   UNKNOWN_PATH,
 } = require("../scripts/check-route-guards");
 
@@ -89,6 +90,82 @@ describe("route guard check: recognising protection", () => {
        router.post('/public/ping', ctrl.ping);`);
     expect(rs.find((r) => r.path === "/admin/purge").protectedBy).to.equal(true);
     expect(rs.find((r) => r.path === "/public/ping").protectedBy).to.equal(false);
+  });
+});
+
+describe("route guard check: router.use path prefixes", () => {
+  // Raised in review by James Nardella on PR #311. A plain startsWith would let
+  // /adminsettings inherit the guard mounted at /admin, which is fail-open: an
+  // unprotected route would be reported as protected and nobody would look again.
+
+  it("applies a prefixed guard to the prefix itself", () => {
+    const r = only(analyseSource("routes/x.js",
+      `const router = require('express').Router();
+       router.use('/admin', authenticateToken);
+       router.post('/admin', ctrl.create);`));
+    expect(r.protectedBy).to.equal(true);
+  });
+
+  it("applies a prefixed guard to paths below the prefix", () => {
+    const r = only(analyseSource("routes/x.js",
+      `const router = require('express').Router();
+       router.use('/admin', authenticateToken);
+       router.post('/admin/users/:id', ctrl.create);`));
+    expect(r.protectedBy).to.equal(true);
+  });
+
+  it("does NOT apply a prefixed guard to a similarly prefixed sibling", () => {
+    const r = only(analyseSource("routes/x.js",
+      `const router = require('express').Router();
+       router.use('/admin', authenticateToken);
+       router.post('/adminsettings', ctrl.create);`));
+    expect(r.protectedBy).to.equal(false);
+    expect(r.guards).to.deep.equal([]);
+  });
+
+  it("ignores a trailing slash on the prefix", () => {
+    const r = only(analyseSource("routes/x.js",
+      `const router = require('express').Router();
+       router.use('/admin/', authenticateToken);
+       router.post('/adminsettings', ctrl.create);`));
+    expect(r.protectedBy).to.equal(false);
+  });
+
+  it("treats a guard mounted at / as covering everything", () => {
+    const r = only(analyseSource("routes/x.js",
+      `const router = require('express').Router();
+       router.use('/', authenticateToken);
+       router.post('/anything', ctrl.create);`));
+    expect(r.protectedBy).to.equal(true);
+  });
+
+  it("does not let a runtime-built path inherit a prefixed guard", () => {
+    const r = only(analyseSource("routes/x.js",
+      `const router = require('express').Router();
+       router.use('/admin', authenticateToken);
+       router.post(BASE + '/thing', ctrl.create);`));
+    expect(r.path).to.equal(UNKNOWN_PATH);
+    expect(r.protectedBy).to.equal(false);
+  });
+
+  describe("pathUnderPrefix directly", () => {
+    const cases = [
+      ["/admin",            "/admin",   true],
+      ["/admin/",           "/admin",   true],
+      ["/admin/users",      "/admin",   true],
+      ["/admin/users/:id",  "/admin",   true],
+      ["/adminsettings",    "/admin",   false],
+      ["/admin-settings",   "/admin",   false],
+      ["/adm",              "/admin",   false],
+      ["/anything",         "/",        true],
+      ["/admin/users",      "/admin/",  true],
+      [null,                "/admin",   false],
+    ];
+    for (const [route, prefix, want] of cases) {
+      it(`${JSON.stringify(route)} under ${JSON.stringify(prefix)} -> ${want}`, () => {
+        expect(pathUnderPrefix(route, prefix)).to.equal(want);
+      });
+    }
   });
 });
 
