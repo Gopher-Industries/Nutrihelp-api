@@ -82,8 +82,11 @@ async function findActiveRefreshSessionByLookupHash(lookupHash) {
 }
 
 async function findUserByIdForSession(userId) {
-  // This user lookup intentionally uses the anon/RLS client, not the service-role client.
-  const { data, error } = await getAnonClient()
+  // NOTE: kept on the service-role client per CS-VULN-008 (RLS enabled with zero anon
+  // policies on users). PR #293 had switched this to the anon/RLS client, assuming a
+  // future per-user RLS policy that does not exist yet -- revisit with that PR's author
+  // once such a policy is designed, since anon access here is blocked until then.
+  const { data, error } = await getServiceClient()
     .from('users')
     .select(
       `

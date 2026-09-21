@@ -6,7 +6,11 @@ const {
 
 const twilio = require("twilio");
 
-const supabase = supabaseServiceRole || supabaseAnon;
+if (!supabaseServiceRole) {
+  throw new Error("[smsController] SUPABASE_SERVICE_ROLE_KEY is required.");
+}
+
+const supabase = supabaseServiceRole;
 
 const twilioClient = twilio(
   process.env.TWILIO_ACCOUNT_SID || "",
