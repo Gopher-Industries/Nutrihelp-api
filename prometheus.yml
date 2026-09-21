@@ -12,5 +12,15 @@ rule_files:
 scrape_configs:
   - job_name: "nutrihelp-backend"
     metrics_path: /api/metrics
+    # NH-VULN-2026-014. /api/metrics used to answer any unauthenticated caller.
+    # It now requires the scrape token, so Prometheus must present it or every
+    # scrape returns 401 and all metrics and alert rules go silent.
+    #
+    # The value must match METRICS_TOKEN in the API environment. Keep it in a
+    # file rather than here so the token is not committed:
+    #   echo -n "$METRICS_TOKEN" > /etc/prometheus/metrics_token
+    authorization:
+      type: Bearer
+      credentials_file: /etc/prometheus/metrics_token
     static_configs:
       - targets: ["localhost:80"]
