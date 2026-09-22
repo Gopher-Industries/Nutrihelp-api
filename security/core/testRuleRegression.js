@@ -19,7 +19,11 @@ const analysisEngine = new AnalysisEngine([nh197]);
 const testCases = [
     {
         name: "LDAP filter with request-controlled input",
-        code: "const ldapFilter = `(uid=${req.body.username})`;",
+        code: [
+            "const ldapFilter = `",
+            "(uid=${req.body.username})",
+            "`;"
+        ].join(""),
         shouldMatch: true
     },
     {
