@@ -230,7 +230,7 @@ class SecurityChecklist {
       for (const ep of endpoints) {
         // ensure url has protocol
         const url = ep.match(/^https?:\/\//) ? ep : `http://${ep}`;
-        // eslint-disable-next-line no-await-in-loop - keep sequential to avoid bursts
+        // eslint-disable-next-line no-await-in-loop -- keep sequential to avoid bursts
         const r = await checkSingle(url);
         results.push(r);
       }
