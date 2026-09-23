@@ -64,14 +64,13 @@ jobs:
         NODE_ENV: production
         SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
         SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-        JWT_SECRET: ${{ secrets.JWT_SECRET }}
+        JWT_TOKEN: ${{ secrets.JWT_TOKEN }}
         GITHUB_ACTIONS: true
-      continue-on-error: true
       run: |
         echo "Starting security assessment..."
         
         # Run the assessment
-        node security/runAssessment.js || true
+        node security/runAssessment.js
         
         # Find the latest generated JSON report
         LATEST_REPORT=$(ls -t security/reports/security-report-*.json 2>/dev/null | head -1)
