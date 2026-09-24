@@ -272,6 +272,15 @@ const login = async (req, res) => {
     });
 
     const session = await authService.generateTokenPair(user, getDeviceInfo(req));
+
+    // CS-14: Store JWT in HTTP-only cookie for Security Dashboard access
+    res.cookie("auth_token", session.accessToken, {
+      httpOnly: true,
+      secure: false,
+      sameSite: "lax",
+      maxAge: session.expiresIn * 1000,
+    });
+
     // CT-004 Week 6: Log session for alert A6 (geo-impossible travel detection)
     try {
       await sessionHookOnLoginSuccess(req, user);
@@ -352,6 +361,15 @@ const loginMfa = async (req, res) => {
     }
 
     const session = await authService.generateTokenPair(user, getDeviceInfo(req));
+
+    // CS-14: Store JWT in HTTP-only cookie for Security Dashboard access
+    res.cookie("auth_token", session.accessToken, {
+      httpOnly: true,
+      secure: false,
+      sameSite: "lax",
+      maxAge: session.expiresIn * 1000,
+    });
+
     return authOk(res, {
       user: sanitizeUserForResponse(user),
       token: session.accessToken,
