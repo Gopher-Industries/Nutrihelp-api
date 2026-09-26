@@ -1,8 +1,5 @@
-const { authenticateAIToken } = require('../../middleware/authenticateAIToken');
 const express = require('express');
 const router = express.Router();
-
-router.use(authenticateAIToken);
 const mealLogService = require('../../services/mealLogService');
 
 // POST /ai-model/meals/log-scan

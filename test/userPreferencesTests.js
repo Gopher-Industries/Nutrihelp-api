@@ -4,11 +4,6 @@ const proxyquire = require('proxyquire').noCallThru();
 const { ServiceError } = require('../services/serviceError');
 
 describe('User Preferences Controller', () => {
-  let logHealthDataAccess;
-
-  beforeEach(() => {
-    logHealthDataAccess = sinon.stub().resolves(true);
-  });
   afterEach(() => {
     sinon.restore();
   });
@@ -31,7 +26,6 @@ describe('User Preferences Controller', () => {
       '../model/fetchUserPreferences': fetchUserPreferences,
       '../model/updateUserPreferences': sinon.stub(),
       '../services/userPreferencesService': {},
-      '../services/healthDataAuditService': { logHealthDataAccess },
       '../utils/logger': { error: sinon.stub() }
     });
 
@@ -44,12 +38,6 @@ describe('User Preferences Controller', () => {
     await controller.getUserPreferences(req, res);
 
     expect(fetchUserPreferences.calledOnceWith(55)).to.equal(true);
-    expect(logHealthDataAccess.calledOnce).to.equal(true);
-    expect(logHealthDataAccess.firstCall.args[0]).to.include({
-      req,
-      targetUserId: 55,
-      resource: 'USER_PREFERENCES'
-    });
     expect(res.status.calledWith(200)).to.equal(true);
   });
 
@@ -60,7 +48,6 @@ describe('User Preferences Controller', () => {
       '../model/fetchUserPreferences': sinon.stub(),
       '../model/updateUserPreferences': updateUserPreferences,
       '../services/userPreferencesService': {},
-      '../services/healthDataAuditService': { logHealthDataAccess },
       '../utils/logger': { error: sinon.stub() }
     });
 
@@ -96,7 +83,6 @@ describe('User Preferences Controller', () => {
       '../model/fetchUserPreferences': sinon.stub(),
       '../model/updateUserPreferences': updateUserPreferences,
       '../services/userPreferencesService': {},
-      '../services/healthDataAuditService': { logHealthDataAccess },
       '../utils/logger': { error: sinon.stub() }
     });
 

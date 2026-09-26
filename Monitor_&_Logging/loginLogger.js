@@ -1,4 +1,9 @@
-const { supabaseAnon: supabase } = require('../database/supabase');
+const { createClient } = require('@supabase/supabase-js');
+
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_ANON_KEY
+);
 
 async function logLoginEvent({ userId, eventType, ip, userAgent, details = {} }) {
   const { error } = await supabase

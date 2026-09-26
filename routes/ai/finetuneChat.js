@@ -1,4 +1,3 @@
-const { authenticateAIToken } = require('../../middleware/authenticateAIToken');
 const express = require('express');
 const router = express.Router();
 
@@ -39,7 +38,7 @@ router.get('/healthz', async (_req, res) => {
 });
 
 // POST /ai-model/chatbot-finetune/chat
-router.post('/chat', authenticateAIToken, async (req, res) => {
+router.post('/chat', async (req, res) => {
   try {
     await fetchWithTimeout(`${HF_SPACE_URL}/healthz`, { headers: buildHeaders() }, 30000).catch(() => {});
   } catch { /* non-fatal preflight */ }
