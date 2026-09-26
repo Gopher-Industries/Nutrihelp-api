@@ -1,0 +1,51 @@
+# Sample semgrep rules for Nutrihelp-api (examples)
+# Save as security/semgrep_rules.yml and run with `semgrep --config security/semgrep_rules.yml`.
+
+rules:
+  - id: jwt-hardcoded-secret
+    patterns:
+      - pattern: "jwt.sign($ARGS, '...')"
+      - pattern-either:
+          - pattern: "jwt.sign($ARGS, \"$SECRET\")"
+          - pattern: "jwt.verify($ARGS, \"$SECRET\")"
+    message: "Possible hard-coded JWT secret or inline secret usage. Use environment secrets instead."
+    languages: [javascript]
+    severity: ERROR
+
+  - id: dotenv-file-committed
+    pattern: |
+      .env
+    message: "Detected .env file string in repository — ensure secrets are not committed."
+    languages: [javascript]
+    severity: WARNING
+
+  - id: express-static-uploads
+    pattern: "express.static('uploads')"
+    message: "Publicly exposing uploads directory can be risky. Enforce file-type checks and disable execution."
+    languages: [javascript]
+    severity: WARNING
+
+  - id: eval-or-function-constructor
+    pattern-either:
+      - pattern: "eval(...)"
+      - pattern: "new Function(...)"
+    message: "Use of eval or Function constructor can lead to code injection. Avoid or sanitize inputs."
+    languages: [javascript]
+    severity: ERROR
+
+  - id: csp-unsafe-inline
+    pattern: "unsafe-inline"
+    message: "CSP contains 'unsafe-inline'. Consider using nonces or hashes instead."
+    languages: [javascript]
+    severity: WARNING
+
+  - id: slack-webhook-hardcoded
+    # removed: slack webhook rule intentionally deleted per request
+
+  - id: jwt-no-exp
+    pattern: "jwt.sign($PAYLOAD, $SECRET, $OPTS)"
+    message: "jwt.sign called; ensure 'exp' is set in options to avoid long-lived tokens."
+    languages: [javascript]
+    severity: WARNING
+
+# Note: These rules are examples. For production, refine patterns, add tests, and use semgrep's YAML format with 'patterns' and 'pattern-regex' as needed.

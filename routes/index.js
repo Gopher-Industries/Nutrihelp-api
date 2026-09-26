@@ -1,0 +1,59 @@
+module.exports = app => {
+    // home
+    app.use("/api/home/services", require('./homeService'));
+    app.use('/api/home/subscribe', require('./homeSubscribe'));
+    app.use("/api/login", require('./login'));
+    app.use("/api/signup", require('./signup'));
+
+    // support surface
+    app.use("/api/contactus", require('./contactus'));
+    app.use("/api/userfeedback", require('./userfeedback'));
+    app.use("/api/faq", require('./faq'));
+    app.use('/api/health-tools', require('./healthTools'));
+
+    app.use("/api/recipe", require('./recipe'));
+    app.use("/api/admin", require('./adminUserRole'));
+    app.use("/api/recipe-library", require('./recipeLibrary'));
+    app.use("/api/recipe-reviews", require('./recipeReviews'));
+    app.use("/api/appointments", require('./appointment'));
+    app.use("/api/imageClassification", require('./imageClassification'));
+    app.use("/api/recipeImageClassification", require('./recipeImageClassification'));
+    app.use("/api/userprofile", require('./userprofile')); // get profile, update profile, update by identifier (email or username)
+    app.use("/api/profile", require('./profile'));
+    app.use("/api/userpassword", require('./userpassword'));
+    app.use("/api/password", require('./password'));
+    app.use("/api/fooddata", require('./fooddata'));
+    app.use("/api/user/preferences", require('./userPreferences'));
+    app.use("/api/mealplan", require('./mealplan'));
+    app.use("/api/account", require('./account'));
+    app.use('/api/notifications', require('./notifications'));
+    app.use('/api/filter', require('./filter'));
+    app.use('/api/substitution', require('./ingredientSubstitution'));
+    app.use('/api/auth', require('./auth'));
+    app.use('/api/recipe/cost', require('./costEstimation'));
+    app.use('/api/chatbot', require('./chatbot'));
+    // app.use('/api/obesity', require('./obesityPrediction'));
+    app.use('/api/upload', require('./upload'));
+    app.use("/api/articles", require('./articles'));
+    app.use('/api/medical-report', require('./medicalPrediction'));
+    app.use('/api/recipe/nutritionlog', require('./recipeNutritionlog'));
+    app.use('/api/recipe/scale', require('./recipeScaling'));
+    app.use('/api/water-intake', require('./waterIntake'));
+    app.use('/api/health-news', require('./healthNews'));
+
+    // Add shopping list routes
+    app.use('/api/shopping-list', require('./shoppingList'));
+    app.use('/api/barcode', require('./barcodeScanning'));
+    app.use('/api/security', require('./securityEvents'));
+    app.use('/api/recommendations', require('./recommendations'));
+    app.use('/api/meal-plan', require('./mealPlanAIRoutes'));
+
+    // AI model routes (ported from NutriHelp-ai)
+    app.use('/ai-model/chatbot', require('./ai/chatbot'));
+    app.use('/ai-model/medical-report/plan', require('./ai/healthPlan'));
+    app.use('/ai-model/medical-report', require('./ai/medicalReport'));
+    app.use('/ai-model/image-analysis', require('./ai/imageAnalysis'));
+    app.use('/ai-model/meals', require('./ai/mealLog'));
+    app.use('/ai-model/meal-plan', require('./ai/mealPlan'));
+    app.use('/ai-model/chatbot-finetune', require('./ai/finetuneChat'));
+};

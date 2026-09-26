@@ -1,0 +1,18 @@
+const fs = require('fs');
+const p = 'validators/appointmentValidator.js';
+if (!fs.existsSync(p)) { console.error('File not found:', p); process.exit(1); }
+let s = fs.readFileSync(p, 'utf8');
+
+// Replace the required check with an optional string check, keep other checks (like length) intact
+const oldFragment = '.notEmpty().withMessage("Appointment type is required")';
+if (s.includes(oldFragment)) {
+  s = s.replace(oldFragment, '.optional().isString().withMessage("Appointment type must be a string")');
+  fs.writeFileSync(p, s, 'utf8');
+  console.log('Patched', p);
+} else {
+  console.error('Expected pattern not found. Showing file head for inspection:');
+  console.log('--- FILE START ---');
+  console.log(s.split("\\n").slice(0,120).join("\\n"));
+  console.log('--- FILE END ---');
+  process.exit(2);
+}

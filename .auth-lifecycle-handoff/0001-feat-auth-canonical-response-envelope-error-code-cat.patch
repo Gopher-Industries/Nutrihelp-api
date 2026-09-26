@@ -1,0 +1,285 @@
+From 8862dd749eb1a07a6028689e371cb60c98899fa7 Mon Sep 17 00:00:00 2001
+From: thoran <machagadu6@gmail.com>
+Date: Tue, 5 May 2026 20:04:24 +0000
+Subject: [PATCH 1/5] feat(auth): canonical response envelope + error code
+ catalogue
+
+Adds services/authResponse.js (authOk/authFail/authValidationError/
+authFailFromError) and services/authErrorCodes.js so every auth
+controller emits the same shape:
+
+  Success: { success: true,  data, meta? }
+  Error:   { success: false, error: { message, code, details? } }
+
+The error catalogue is frozen and additive; web and mobile clients
+branch on AUTH_ERROR_CODES rather than HTTP status or free-text.
+---
+ services/authErrorCodes.js | 118 +++++++++++++++++++++++++++++++++
+ services/authResponse.js   | 130 +++++++++++++++++++++++++++++++++++++
+ 2 files changed, 248 insertions(+)
+ create mode 100644 services/authErrorCodes.js
+ create mode 100644 services/authResponse.js
+
+diff --git a/services/authErrorCodes.js b/services/authErrorCodes.js
+new file mode 100644
+index 0000000..852ba47
+--- /dev/null
++++ b/services/authErrorCodes.js
+@@ -0,0 +1,118 @@
++/**
++ * services/authErrorCodes.js
++ *
++ * Canonical machine-readable error codes for the authentication lifecycle.
++ *
++ * Web and mobile clients should branch on these codes (NOT on HTTP status
++ * alone, NOT on free-text error messages). Codes are stable and additive:
++ * existing values must not change semantics; new flows append new codes.
++ */
++
++const AUTH_ERROR_CODES = Object.freeze({
++  // Generic
++  VALIDATION_ERROR: 'AUTH_VALIDATION_ERROR',
++  INTERNAL_ERROR: 'AUTH_INTERNAL_ERROR',
++  RATE_LIMITED: 'AUTH_RATE_LIMITED',
++  NOT_FOUND: 'AUTH_NOT_FOUND',
++
++  // Login
++  MISSING_FIELDS: 'AUTH_MISSING_FIELDS',
++  INVALID_CREDENTIALS: 'AUTH_INVALID_CREDENTIALS',
++  ACCOUNT_LOCKED: 'AUTH_ACCOUNT_LOCKED',
++  ACCOUNT_DISABLED: 'AUTH_ACCOUNT_DISABLED',
++
++  // MFA
++  MFA_REQUIRED: 'AUTH_MFA_REQUIRED',
++  MFA_INVALID: 'AUTH_MFA_INVALID',
++  MFA_DISABLED: 'AUTH_MFA_DISABLED',
++  MFA_RESEND_FAILED: 'AUTH_MFA_RESEND_FAILED',
++  MFA_CHALLENGE_PENDING: 'AUTH_MFA_CHALLENGE_PENDING',
++
++  // Token lifecycle
++  TOKEN_INVALID: 'AUTH_TOKEN_INVALID',
++  TOKEN_EXPIRED: 'AUTH_TOKEN_EXPIRED',
++  REFRESH_FAILED: 'AUTH_REFRESH_FAILED',
++  LOGOUT_FAILED: 'AUTH_LOGOUT_FAILED',
++
++  // Password change (authenticated user)
++  CURRENT_PASSWORD_REQUIRED: 'AUTH_CURRENT_PASSWORD_REQUIRED',
++  CURRENT_PASSWORD_INVALID: 'AUTH_CURRENT_PASSWORD_INVALID',
++  NEW_PASSWORD_REQUIRED: 'AUTH_NEW_PASSWORD_REQUIRED',
++  CONFIRM_PASSWORD_REQUIRED: 'AUTH_CONFIRM_PASSWORD_REQUIRED',
++  PASSWORD_MISMATCH: 'AUTH_PASSWORD_MISMATCH',
++  PASSWORD_REUSE: 'AUTH_PASSWORD_REUSE',
++  WEAK_PASSWORD: 'AUTH_WEAK_PASSWORD',
++  UNAUTHORIZED_USER_CONTEXT: 'AUTH_UNAUTHORIZED_USER_CONTEXT',
++
++  // Forgot/reset password (unauthenticated recovery)
++  RESET_REQUEST_FAILED: 'AUTH_RESET_REQUEST_FAILED',
++  RESET_CODE_INVALID: 'AUTH_RESET_CODE_INVALID',
++  RESET_TOKEN_INVALID: 'AUTH_RESET_TOKEN_INVALID',
++  RESET_FAILED: 'AUTH_RESET_FAILED',
++
++  // Registration / OAuth
++  REGISTER_FAILED: 'AUTH_REGISTER_FAILED',
++  OAUTH_EXCHANGE_FAILED: 'AUTH_OAUTH_EXCHANGE_FAILED',
++
++  // Profile / session
++  PROFILE_LOAD_FAILED: 'AUTH_PROFILE_LOAD_FAILED',
++  USER_NOT_FOUND: 'AUTH_USER_NOT_FOUND',
++  TRUSTED_DEVICE_REVOKE_FAILED: 'AUTH_TRUSTED_DEVICE_REVOKE_FAILED',
++});
++
++/**
++ * Default HTTP status for a given canonical auth code. Controllers can still
++ * override per-call when they have more context.
++ */
++const STATUS_BY_CODE = Object.freeze({
++  [AUTH_ERROR_CODES.VALIDATION_ERROR]: 400,
++  [AUTH_ERROR_CODES.INTERNAL_ERROR]: 500,
++  [AUTH_ERROR_CODES.RATE_LIMITED]: 429,
++  [AUTH_ERROR_CODES.NOT_FOUND]: 404,
++
++  [AUTH_ERROR_CODES.MISSING_FIELDS]: 400,
++  [AUTH_ERROR_CODES.INVALID_CREDENTIALS]: 401,
++  [AUTH_ERROR_CODES.ACCOUNT_LOCKED]: 423,
++  [AUTH_ERROR_CODES.ACCOUNT_DISABLED]: 403,
++
++  [AUTH_ERROR_CODES.MFA_REQUIRED]: 401,
++  [AUTH_ERROR_CODES.MFA_INVALID]: 401,
++  [AUTH_ERROR_CODES.MFA_DISABLED]: 404,
++  [AUTH_ERROR_CODES.MFA_RESEND_FAILED]: 500,
++  [AUTH_ERROR_CODES.MFA_CHALLENGE_PENDING]: 202,
++
++  [AUTH_ERROR_CODES.TOKEN_INVALID]: 401,
++  [AUTH_ERROR_CODES.TOKEN_EXPIRED]: 401,
++  [AUTH_ERROR_CODES.REFRESH_FAILED]: 401,
++  [AUTH_ERROR_CODES.LOGOUT_FAILED]: 500,
++
++  [AUTH_ERROR_CODES.CURRENT_PASSWORD_REQUIRED]: 400,
++  [AUTH_ERROR_CODES.CURRENT_PASSWORD_INVALID]: 401,
++  [AUTH_ERROR_CODES.NEW_PASSWORD_REQUIRED]: 400,
++  [AUTH_ERROR_CODES.CONFIRM_PASSWORD_REQUIRED]: 400,
++  [AUTH_ERROR_CODES.PASSWORD_MISMATCH]: 400,
++  [AUTH_ERROR_CODES.PASSWORD_REUSE]: 400,
++  [AUTH_ERROR_CODES.WEAK_PASSWORD]: 400,
++  [AUTH_ERROR_CODES.UNAUTHORIZED_USER_CONTEXT]: 403,
++
++  [AUTH_ERROR_CODES.RESET_REQUEST_FAILED]: 500,
++  [AUTH_ERROR_CODES.RESET_CODE_INVALID]: 401,
++  [AUTH_ERROR_CODES.RESET_TOKEN_INVALID]: 401,
++  [AUTH_ERROR_CODES.RESET_FAILED]: 500,
++
++  [AUTH_ERROR_CODES.REGISTER_FAILED]: 400,
++  [AUTH_ERROR_CODES.OAUTH_EXCHANGE_FAILED]: 401,
++
++  [AUTH_ERROR_CODES.PROFILE_LOAD_FAILED]: 500,
++  [AUTH_ERROR_CODES.USER_NOT_FOUND]: 404,
++  [AUTH_ERROR_CODES.TRUSTED_DEVICE_REVOKE_FAILED]: 500,
++});
++
++function statusForAuthCode(code) {
++  return STATUS_BY_CODE[code];
++}
++
++module.exports = {
++  AUTH_ERROR_CODES,
++  statusForAuthCode,
++};
+diff --git a/services/authResponse.js b/services/authResponse.js
+new file mode 100644
+index 0000000..0389f07
+--- /dev/null
++++ b/services/authResponse.js
+@@ -0,0 +1,130 @@
++/**
++ * services/authResponse.js
++ *
++ * Canonical response/error envelope for the authentication lifecycle:
++ *   login, MFA verify, resend MFA, forgot password, verify reset code,
++ *   reset password, refresh token, logout, change password.
++ *
++ * Every auth controller MUST emit responses through this module so that
++ * web and mobile clients can integrate against a single, stable contract.
++ *
++ * Wire format
++ * -----------
++ * Success: { success: true,  data: <object|null>, meta?: <object> }
++ * Error:   { success: false, error: { message: <string>, code: <string>, details?: <object> } }
++ *
++ * Validation errors are a special case of the error envelope and always carry
++ * the AUTH_VALIDATION_ERROR code with a `details.fields` array.
++ *
++ * The shape mirrors `services/apiResponseService.js` so any controller that is
++ * already using that helper continues to work unchanged.
++ */
++
++const {
++  createSuccessResponse,
++  createErrorResponse,
++} = require('./apiResponseService');
++const { isServiceError } = require('./serviceError');
++const { AUTH_ERROR_CODES, statusForAuthCode } = require('./authErrorCodes');
++
++/**
++ * Send a canonical success response.
++ *
++ * @param {import('express').Response} res
++ * @param {*} data    Payload returned under `data` (object or null).
++ * @param {object} [opts]
++ * @param {number} [opts.status=200]
++ * @param {string} [opts.message]   Optional message attached to `meta.message`.
++ * @param {object} [opts.meta]      Additional meta fields.
++ */
++function authOk(res, data = null, opts = {}) {
++  const { status = 200, message, meta } = opts;
++  const finalMeta = { ...(meta || {}) };
++  if (message) finalMeta.message = message;
++  const body = createSuccessResponse(
++    data,
++    Object.keys(finalMeta).length ? finalMeta : undefined
++  );
++  return res.status(status).json(body);
++}
++
++/**
++ * Send a canonical error response.
++ *
++ * @param {import('express').Response} res
++ * @param {object} opts
++ * @param {string} opts.message     Human-readable error.
++ * @param {string} opts.code        Machine-readable code from AUTH_ERROR_CODES.
++ * @param {number} [opts.status]    HTTP status; falls back to statusForAuthCode(code).
++ * @param {object} [opts.details]   Extra context (omitted in production).
++ */
++function authFail(res, { message, code, status, details } = {}) {
++  const finalCode = code || AUTH_ERROR_CODES.INTERNAL_ERROR;
++  const finalStatus = status || statusForAuthCode(finalCode) || 500;
++  const safeDetails =
++    details && process.env.NODE_ENV !== 'production' ? details : undefined;
++  const body = createErrorResponse(
++    message || 'An unexpected error occurred',
++    finalCode,
++    safeDetails
++  );
++  return res.status(finalStatus).json(body);
++}
++
++/**
++ * Map an express-validator error array onto the canonical envelope.
++ *
++ * @param {import('express').Response} res
++ * @param {Array<{path?: string, param?: string, msg?: string, message?: string}>} errors
++ */
++function authValidationError(res, errors = []) {
++  const fields = (errors || []).map((err) => ({
++    field: err.path || err.param || 'unknown',
++    message: err.msg || err.message || 'Invalid value',
++  }));
++  return authFail(res, {
++    message: 'Validation failed',
++    code: AUTH_ERROR_CODES.VALIDATION_ERROR,
++    status: 400,
++    details: { fields },
++  });
++}
++
++/**
++ * Translate a thrown error into the canonical envelope. Use this from a
++ * controller-level catch block so service-layer ServiceError instances flow
++ * through with their statusCode + message intact, while unexpected errors
++ * fall back to a safe 500 with the supplied fallback code.
++ *
++ * @param {import('express').Response} res
++ * @param {Error} error
++ * @param {object} [fallback]
++ * @param {string} [fallback.code]
++ * @param {number} [fallback.status]
++ * @param {string} [fallback.message]
++ */
++function authFailFromError(res, error, fallback = {}) {
++  if (isServiceError(error)) {
++    return authFail(res, {
++      message: error.message,
++      code: fallback.code || AUTH_ERROR_CODES.INTERNAL_ERROR,
++      status: error.statusCode,
++      details: error.details || undefined,
++    });
++  }
++
++  return authFail(res, {
++    message: fallback.message || error?.message || 'Internal server error',
++    code: fallback.code || AUTH_ERROR_CODES.INTERNAL_ERROR,
++    status: fallback.status || 500,
++    details: error?.stack ? { stack: error.stack } : undefined,
++  });
++}
++
++module.exports = {
++  authOk,
++  authFail,
++  authValidationError,
++  authFailFromError,
++  AUTH_ERROR_CODES,
++};
+-- 
+2.34.1
+

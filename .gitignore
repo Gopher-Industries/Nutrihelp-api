@@ -1,0 +1,22 @@
+node_modules/
+coverage/
+.env
+.DS_Store
+*.log
+dist/
+build/
+test-results/
+/data
+!data/meal_library.json
+server.pid
+server.log
+*.bak
+.env
+node_modules
+
+# TLS certificates and private keys — generate locally, never commit
+*.pem
+*.key
+*.crt
+*.p12
+certs/

@@ -1,0 +1,134 @@
+{
+  "auth": {
+    "login": {
+      "success": "Login successful.",
+      "failed_credentials": "Invalid email or password.",
+      "failed_not_found": "Account not found. Please create an account first.",
+      "failed_inactive": "Your account is not active. Please contact support.",
+      "failed_missing_fields": "Email and password are required.",
+      "mfa_required": "MFA token required.",
+      "mfa_invalid": "Invalid or expired MFA token.",
+      "mfa_sent": "A new MFA token has been sent to your email."
+    },
+    "register": {
+      "success": "Account created successfully.",
+      "duplicate_email": "An account with this email already exists.",
+      "weak_password": "Password does not meet complexity requirements."
+    },
+    "token": {
+      "missing": "Authentication token is missing.",
+      "invalid": "Authentication token is invalid.",
+      "expired": "Authentication token has expired.",
+      "refreshed": "Token refreshed successfully."
+    },
+    "logout": {
+      "success": "Logged out successfully.",
+      "all_success": "Logged out from all devices successfully."
+    },
+    "password": {
+      "reset_sent": "Password reset email sent.",
+      "reset_success": "Password reset successfully.",
+      "change_success": "Password changed successfully.",
+      "mismatch": "Passwords do not match.",
+      "same_as_old": "New password must differ from the current password."
+    }
+  },
+  "validation": {
+    "failed": "Validation failed.",
+    "required_field": "{{field}} is required.",
+    "invalid_email": "Please provide a valid email address.",
+    "invalid_format": "{{field}} format is invalid."
+  },
+  "image": {
+    "no_file": "No image uploaded. Please upload a JPEG or PNG image.",
+    "invalid_type": "Only JPEG and PNG images are accepted.",
+    "too_large": "Image exceeds the maximum allowed size.",
+    "classification_success": "Image classified successfully.",
+    "classification_failed": "Image classification failed. Please try again.",
+    "classification_timeout": "Image classification timed out. Please try again.",
+    "classification_unavailable": "Image classification service is currently unavailable."
+  },
+  "ai": {
+    "timeout": "The AI service timed out. Please try again.",
+    "unavailable": "The AI service is currently unavailable. Please try again later.",
+    "failed": "AI processing failed. Please try again.",
+    "meal_plan_success": "Meal plan generated successfully.",
+    "meal_plan_failed": "Failed to generate meal plan. Please try again.",
+    "recommendation_success": "Recommendations generated successfully.",
+    "recommendation_failed": "Failed to generate recommendations.",
+    "chatbot_missing_fields": "user_id and user_input are required.",
+    "medical_report_success": "Medical report processed successfully.",
+    "medical_report_failed": "Failed to process medical report."
+  },
+  "recipe": {
+    "created": "Recipe created successfully.",
+    "updated": "Recipe updated successfully.",
+    "deleted": "Recipe deleted successfully.",
+    "not_found": "Recipe not found.",
+    "image_uploaded": "Recipe image uploaded successfully."
+  },
+  "meal_plan": {
+    "created": "Meal plan created successfully.",
+    "updated": "Meal plan updated successfully.",
+    "deleted": "Meal plan deleted successfully.",
+    "not_found": "Meal plan not found.",
+    "feedback_saved": "Feedback saved successfully."
+  },
+  "appointment": {
+    "created": "Appointment booked successfully.",
+    "updated": "Appointment updated successfully.",
+    "cancelled": "Appointment cancelled successfully.",
+    "not_found": "Appointment not found."
+  },
+  "profile": {
+    "updated": "Profile updated successfully.",
+    "not_found": "Profile not found.",
+    "avatar_updated": "Profile picture updated successfully."
+  },
+  "upload": {
+    "success": "File uploaded successfully.",
+    "failed": "File upload failed.",
+    "invalid_type": "File type not permitted.",
+    "too_large": "File exceeds the maximum allowed size."
+  },
+  "shopping_list": {
+    "created": "Shopping list created successfully.",
+    "updated": "Shopping list updated successfully.",
+    "item_added": "Item added to shopping list.",
+    "item_updated": "Item updated successfully.",
+    "item_deleted": "Item removed from shopping list."
+  },
+  "water_intake": {
+    "logged": "Water intake logged successfully.",
+    "updated": "Water intake updated successfully.",
+    "deleted": "Water intake entry deleted."
+  },
+  "notifications": {
+    "sent": "Notification sent successfully.",
+    "preferences_updated": "Notification preferences updated.",
+    "token_registered": "Device token registered.",
+    "token_removed": "Device token removed."
+  },
+  "community": {
+    "post_created": "Post created successfully.",
+    "post_deleted": "Post deleted successfully.",
+    "comment_added": "Comment added successfully.",
+    "comment_deleted": "Comment deleted successfully.",
+    "liked": "Post liked.",
+    "unliked": "Post unliked."
+  },
+  "general": {
+    "not_found": "Resource not found.",
+    "forbidden": "You do not have permission to perform this action.",
+    "internal_error": "An internal server error occurred. Please try again later.",
+    "bad_request": "The request could not be understood. Please check your input.",
+    "rate_limited": "Too many requests. Please try again later.",
+    "service_unavailable": "Service is temporarily unavailable.",
+    "maintenance": "The service is under maintenance. Please try again shortly."
+  },
+  "health": {
+    "ok": "Service is running.",
+    "degraded": "Service is running with degraded performance.",
+    "down": "Service is unavailable."
+  }
+}

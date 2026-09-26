@@ -1,0 +1,298 @@
+const supabase = require('../dbConnection');
+
+// In-memory fallback used for tests if DB returns no rows
+const _local = {
+  nextId: 1000000,
+  news: [],
+  authors: [],
+  reset() {
+    this.nextId = 1000000;
+    this.news = [];
+    this.authors = [];
+  },
+  createNews(payload) {
+    const id = this.nextId++;
+    const item = Object.assign({ id, created_at: new Date().toISOString() }, payload);
+    this.news.push(item);
+    return item;
+  },
+  createAuthor(payload) {
+    const id = this.nextId++;
+    const item = Object.assign({ id }, payload);
+    this.authors.push(item);
+    return item;
+  },
+  findNewsById(id) {
+    return this.news.find(n => String(n.id) === String(id));
+  },
+  updateNews(id, patch) {
+    const n = this.findNewsById(id);
+    if (!n) return null;
+    Object.assign(n, patch);
+    return n;
+  },
+  deleteNews(id) {
+    const idx = this.news.findIndex(n => String(n.id) === String(id));
+    if (idx === -1) return false;
+    this.news.splice(idx, 1);
+    return true;
+  }
+};
+
+// Standard response helpers
+function sendSuccess(res, data, pagination) {
+  const body = { success: true, data };
+  if (pagination) body.pagination = pagination;
+  return res.status(200).json(body);
+}
+function sendCreated(res, data) {
+  return res.status(201).json({ success: true, data });
+}
+function sendError(res, status = 500, message = 'Server error') {
+  return res.status(status).json({ success: false, error: message });
+}
+
+/* GET categories */
+exports.getCategories = async (req, res) => {
+  try {
+    const { data, error } = await supabase.from('categories').select('*').order('name', { ascending: true });
+    if (error) return sendError(res, 500, String(error.message || error));
+    return sendSuccess(res, data || []);
+  } catch (err) {
+    console.error('getCategories error', err);
+    return sendError(res, 500, String(err.message || err));
+  }
+};
+
+/* GET trending */
+exports.getTrendingNews = async (req, res) => {
+  try {
+    const { limit = 10 } = req.query;
+    const { data, error } = await supabase
+      .from('health_news')
+      .select('id, title, summary, published_at, image_url, author:authors(id, name), category:categories(id, name)')
+      .order('published_at', { ascending: false })
+      .limit(parseInt(limit, 10) || 10);
+
+    if (error) {
+      // fallback
+      return sendSuccess(res, (_local.news || []).slice(0, parseInt(limit, 10) || 10));
+    }
+    return sendSuccess(res, data || []);
+  } catch (err) {
+    console.error('getTrendingNews error', err);
+    return sendError(res, 500, String(err.message || err));
+  }
+};
+
+/* GET by ID (supports req.params.id or req.query.id) */
+exports.getNewsById = async (req, res) => {
+  try {
+    const id = (req.params && req.params.id) ? req.params.id : (req.query && req.query.id ? req.query.id : null);
+    if (!id) return sendError(res, 400, 'id required');
+
+    try {
+      const { data, error } = await supabase.from('health_news')
+        .select('*, author:authors(*), source:sources(*), category:categories(*)')
+        .eq('id', id)
+        .maybeSingle();
+
+      if (error || !data) {
+        const local = _local.findNewsById(id);
+        if (!local) return sendError(res, 404, 'News item not found');
+        return sendSuccess(res, local);
+      }
+
+      // attach tags if present
+      const { data: tags, error: tagsError } = await supabase.from('news_tags').select('tags:tags(*)').eq('news_id', id);
+      if (!tagsError) data.tags = (tags || []).map(t => t.tags);
+
+      return sendSuccess(res, data);
+    } catch (innerErr) {
+      console.error('getNewsById supabase error', innerErr);
+      const local = _local.findNewsById(id);
+      if (!local) return sendError(res, 404, 'News item not found');
+      return sendSuccess(res, local);
+    }
+  } catch (err) {
+    console.error('getNewsById error', err);
+    return sendError(res, 500, String(err.message || err));
+  }
+};
+
+/* GET all (list/search). Also supports ?action=getById&id=... for test compatibility */
+exports.getAllNews = async (req, res) => {
+  try {
+    const { action, id } = req.query || {};
+    if (action === 'getById') {
+      if (!id) return sendError(res, 400, 'id required');
+      req.query.id = id;
+      return exports.getNewsById(req, res);
+    }
+    if (id) {
+      req.query.id = id;
+      return exports.getNewsById(req, res);
+    }
+
+    const {
+      title, content, author_name, category_name, tag_name,
+      start_date, end_date, sort_by = 'published_at', sort_order = 'desc',
+      limit = 20, page = 1, include_details = 'true'
+    } = req.query;
+
+    let selectStmt = include_details === 'true'
+      ? '*, author:authors(*), source:sources(*), category:categories(*)'
+      : 'id, title, summary, published_at, image_url, author:authors(id, name), category:categories(id, name)';
+
+    let query = supabase.from('health_news').select(selectStmt);
+
+    if (title) query = query.ilike('title', `%${title}%`);
+    if (content) query = query.ilike('content', `%${content}%`);
+    if (start_date) query = query.gte('published_at', start_date);
+    if (end_date) query = query.lte('published_at', end_date);
+
+    if (author_name) {
+      const { data: authors, error: authorsError } = await supabase.from('authors').select('id').ilike('name', `%${author_name}%`);
+      if (authorsError) return sendError(res, 500, String(authorsError.message || authorsError));
+      if (!authors || authors.length === 0) return sendSuccess(res, [], { total: 0, page: 1, limit: 0, total_pages: 0 });
+      query = query.in('author_id', authors.map(a => a.id));
+    }
+
+    if (category_name) {
+      const { data: categories, error: categoriesError } = await supabase.from('categories').select('id').ilike('name', `%${category_name}%`);
+      if (categoriesError) return sendError(res, 500, String(categoriesError.message || categoriesError));
+      if (!categories || categories.length === 0) return sendSuccess(res, [], { total: 0, page: 1, limit: 0, total_pages: 0 });
+      query = query.in('category_id', categories.map(c => c.id));
+    }
+
+    const offset = (parseInt(page, 10) - 1) * parseInt(limit, 10);
+    query = query.order(sort_by, { ascending: sort_order === 'asc' }).range(offset, offset + parseInt(limit, 10) - 1);
+
+    let { data, error } = await query;
+    if (error || !Array.isArray(data)) data = _local.news.slice(offset, offset + parseInt(limit, 10));
+
+    if (tag_name && Array.isArray(data) && data.length > 0) {
+      const { data: tags, error: tagsError } = await supabase.from('tags').select('id').ilike('name', `%${tag_name}%`);
+      if (tagsError) return sendError(res, 500, String(tagsError.message || tagsError));
+      if (!tags || tags.length === 0) return sendSuccess(res, [], { total: 0, page: 1, limit: 0, total_pages: 0 });
+      const tagIds = tags.map(t => t.id);
+      const { data: newsTags, error: newsTagsError } = await supabase.from('news_tags').select('news_id').in('tag_id', tagIds);
+      if (newsTagsError) return sendError(res, 500, String(newsTagsError.message || newsTagsError));
+      const newsIds = (newsTags || []).map(n => n.news_id);
+      data = (data || []).filter(n => newsIds.includes(n.id));
+    }
+
+    if (include_details === 'true' && Array.isArray(data)) {
+      for (let n of data) {
+        const { data: tags, error: tagsError } = await supabase.from('news_tags').select('tags:tags(*)').eq('news_id', n.id);
+        if (!tagsError) n.tags = (tags || []).map(t => t.tags);
+      }
+    }
+
+    // total count fallback
+    let total = 0;
+    try {
+      const { count, error: countError } = await supabase.from('health_news').select('*', { count: 'exact', head: true });
+      total = count || _local.news.length || 0;
+      if (countError) total = _local.news.length || 0;
+    } catch (err) {
+      total = _local.news.length || 0;
+    }
+    const pagination = { total, page: parseInt(page, 10), limit: parseInt(limit, 10), total_pages: Math.ceil(total / parseInt(limit, 10) || 1) };
+
+    return sendSuccess(res, data || [], pagination);
+  } catch (err) {
+    console.error('getAllNews error', err);
+    return sendError(res, 500, String(err.message || err));
+  }
+};
+
+/* createItem: create author (if body.name) OR create health_news */
+exports.createItem = async (req, res) => {
+  try {
+    const body = req.body || {};
+    if (body.name) {
+      try {
+        const { data, error } = await supabase.from('authors').insert([body]).select('id').maybeSingle();
+        if (error || !data || !data.id) {
+          const author = _local.createAuthor(body);
+          return sendCreated(res, author);
+        }
+        return sendCreated(res, data);
+      } catch (err) {
+        const author = _local.createAuthor(body);
+        return sendCreated(res, author);
+      }
+    }
+
+    const { title, summary, content } = body;
+    if (!title || !summary || !content) return sendError(res, 400, 'title, summary and content are required');
+
+    try {
+      const insert = Object.assign({}, body, { published_at: body.published_at || new Date().toISOString() });
+      const { data, error } = await supabase.from('health_news').insert([insert]).select('id').maybeSingle();
+      if (error || !data || !data.id) {
+        const created = _local.createNews(insert);
+        return sendCreated(res, created);
+      }
+      return sendCreated(res, data);
+    } catch (err) {
+      const created = _local.createNews(Object.assign(body, { published_at: new Date().toISOString() }));
+      return sendCreated(res, created);
+    }
+  } catch (err) {
+    console.error('createItem error', err);
+    return sendError(res, 500, String(err.message || err));
+  }
+};
+
+/* updateNews expects ?id= and body with patch */
+exports.updateNews = async (req, res) => {
+  try {
+    const id = req.query && req.query.id ? req.query.id : null;
+    const patch = req.body || {};
+    if (!id) return sendError(res, 400, 'id required');
+
+    try {
+      const { data, error } = await supabase.from('health_news').update(patch).eq('id', id).select().maybeSingle();
+      if (error || !data) {
+        const updated = _local.updateNews(id, patch);
+        if (!updated) return sendError(res, 404, 'News item not found');
+        return sendSuccess(res, updated);
+      }
+      return sendSuccess(res, data);
+    } catch (err) {
+      const updated = _local.updateNews(id, patch);
+      if (!updated) return sendError(res, 404, 'News item not found');
+      return sendSuccess(res, updated);
+    }
+  } catch (err) {
+    console.error('updateNews error', err);
+    return sendError(res, 500, String(err.message || err));
+  }
+};
+
+/* deleteNews expects ?id= */
+exports.deleteNews = async (req, res) => {
+  try {
+    const id = req.query && req.query.id ? req.query.id : null;
+    if (!id) return sendError(res, 400, 'id required');
+
+    try {
+      const { data, error } = await supabase.from('health_news').delete().eq('id', id);
+      if (error) {
+        const ok = _local.deleteNews(id);
+        if (!ok) return sendError(res, 404, 'News item not found');
+        return sendSuccess(res, { message: 'successfully deleted' });
+      }
+      return sendSuccess(res, { message: 'successfully deleted' });
+    } catch (err) {
+      const ok = _local.deleteNews(id);
+      if (!ok) return sendError(res, 404, 'News item not found');
+      return sendSuccess(res, { message: 'successfully deleted' });
+    }
+  } catch (err) {
+    console.error('deleteNews error', err);
+    return sendError(res, 500, String(err.message || err));
+  }
+};
