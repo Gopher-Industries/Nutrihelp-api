@@ -1,0 +1,102 @@
+[
+  {
+    "file": "routes/allergyRoutes.js",
+    "method": "POST",
+    "path": "/check"
+  },
+  {
+    "file": "routes/barcodeScanning.js",
+    "method": "POST",
+    "path": "/scan"
+  },
+  {
+    "file": "routes/chatbot.js",
+    "method": "POST",
+    "path": "/add_urls"
+  },
+  {
+    "file": "routes/chatbot.js",
+    "method": "POST",
+    "path": "/add_pdfs"
+  },
+  {
+    "file": "routes/healthNews.js",
+    "method": "POST",
+    "path": "/"
+  },
+  {
+    "file": "routes/healthNews.js",
+    "method": "PUT",
+    "path": "/"
+  },
+  {
+    "file": "routes/healthNews.js",
+    "method": "DELETE",
+    "path": "/"
+  },
+  {
+    "file": "routes/homeService.js",
+    "method": "POST",
+    "path": "/"
+  },
+  {
+    "file": "routes/homeService.js",
+    "method": "PUT",
+    "path": "/:id"
+  },
+  {
+    "file": "routes/homeService.js",
+    "method": "DELETE",
+    "path": "/:id"
+  },
+  {
+    "file": "routes/imageClassification.js",
+    "method": "POST",
+    "path": "/"
+  },
+  {
+    "file": "routes/mealPlanAIRoutes.js",
+    "method": "POST",
+    "path": "/ai-generate"
+  },
+  {
+    "file": "routes/mealPlanAIRoutes.js",
+    "method": "POST",
+    "path": "/feedback/:planId"
+  },
+  {
+    "file": "routes/medicalPrediction.js",
+    "method": "POST",
+    "path": "/retrieve"
+  },
+  {
+    "file": "routes/medicalPrediction.js",
+    "method": "POST",
+    "path": "/plan"
+  },
+  {
+    "file": "routes/recipeImageClassification.js",
+    "method": "POST",
+    "path": "/"
+  },
+  {
+    "file": "routes/recipeReviews.js",
+    "method": "POST",
+    "path": "/summary"
+  },
+  {
+    "file": "routes/routes.js",
+    "method": "POST",
+    "path": "/classify"
+  },
+  {
+    "file": "routes/securityScanner.js",
+    "method": "POST",
+    "path": "/scan"
+  },
+  {
+    "file": "routes/testError.js",
+    "method": "POST",
+    "path": "/trigger"
+  }
+]

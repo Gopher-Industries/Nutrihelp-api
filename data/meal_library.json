@@ -1,0 +1,2973 @@
+[
+  {
+    "id": "a1",
+    "name": "Oats with berries and chia",
+    "meal_type": "breakfast",
+    "calories": 350,
+    "protein_g": 12,
+    "carbs_g": 51,
+    "fat_g": 10,
+    "fibre_g": 11,
+    "sodium_mg": 120,
+    "tags": [
+      "low_sugar",
+      "high_fibre",
+      "vegetarian",
+      "soft_food",
+      "cost_low",
+      "low_gi"
+    ],
+    "allergens": [],
+    "food_categories": [
+      "whole_grain",
+      "breakfast_bowl",
+      "plant_based"
+    ],
+    "micronutrients": {
+      "iron_mg": 3.2,
+      "magnesium_mg": 118,
+      "potassium_mg": 390
+    },
+    "vitamins": [
+      "vitamin_b1",
+      "vitamin_b6",
+      "vitamin_e"
+    ],
+    "minerals": [
+      "iron",
+      "magnesium",
+      "zinc"
+    ],
+    "cuisine": "Global Healthy",
+    "region": "Global",
+    "seasonal_tags": [
+      "all-season"
+    ],
+    "prep_time_minutes": 12,
+    "cook_time_minutes": 15,
+    "total_time_minutes": 27,
+    "difficulty": "medium"
+  },
+  {
+    "id": "a2",
+    "name": "Scrambled eggs on toast",
+    "meal_type": "breakfast",
+    "calories": 380,
+    "protein_g": 21,
+    "carbs_g": 28,
+    "fat_g": 20,
+    "fibre_g": 4,
+    "sodium_mg": 460,
+    "tags": [
+      "high_protein",
+      "contains_egg",
+      "contains_gluten",
+      "contains_wheat",
+      "cost_low"
+    ],
+    "allergens": [
+      "egg",
+      "gluten",
+      "wheat"
+    ],
+    "food_categories": [
+      "egg_based",
+      "toast",
+      "breakfast"
+    ],
+    "micronutrients": {
+      "choline_mg": 290,
+      "selenium_mcg": 26,
+      "calcium_mg": 110
+    },
+    "vitamins": [
+      "vitamin_b12",
+      "vitamin_d",
+      "folate"
+    ],
+    "minerals": [
+      "selenium",
+      "phosphorus",
+      "calcium"
+    ],
+    "cuisine": "Western",
+    "region": "European",
+    "seasonal_tags": [
+      "all-season"
+    ],
+    "prep_time_minutes": 12,
+    "cook_time_minutes": 15,
+    "total_time_minutes": 27,
+    "difficulty": "medium"
+  },
+  {
+    "id": "a3",
+    "name": "Grilled chicken salad",
+    "meal_type": "lunch",
+    "calories": 450,
+    "protein_g": 38,
+    "carbs_g": 18,
+    "fat_g": 20,
+    "fibre_g": 6,
+    "sodium_mg": 360,
+    "tags": [
+      "low_fat",
+      "low_salt",
+      "high_protein",
+      "cost_medium",
+      "low_carb"
+    ],
+    "allergens": [],
+    "food_categories": [
+      "salad",
+      "lean_protein"
+    ],
+    "micronutrients": {
+      "vitamin_k_mcg": 120,
+      "potassium_mg": 620,
+      "zinc_mg": 2.1
+    },
+    "vitamins": [
+      "vitamin_a",
+      "vitamin_k",
+      "vitamin_c"
+    ],
+    "minerals": [
+      "potassium",
+      "zinc",
+      "phosphorus"
+    ],
+    "cuisine": "Western",
+    "region": "European",
+    "seasonal_tags": [
+      "spring",
+      "summer"
+    ],
+    "prep_time_minutes": 12,
+    "cook_time_minutes": 15,
+    "total_time_minutes": 27,
+    "difficulty": "medium"
+  },
+  {
+    "id": "a4",
+    "name": "Vegetable stir-fry with tofu and rice",
+    "meal_type": "lunch",
+    "calories": 500,
+    "protein_g": 20,
+    "carbs_g": 58,
+    "fat_g": 18,
+    "fibre_g": 8,
+    "sodium_mg": 410,
+    "tags": [
+      "soft_food",
+      "low_fat",
+      "low_salt",
+      "asian",
+      "contains_soy",
+      "vegetarian",
+      "cost_low",
+      "high_fibre"
+    ],
+    "allergens": [
+      "soy"
+    ],
+    "food_categories": [
+      "stir_fry",
+      "plant_protein"
+    ],
+    "micronutrients": {
+      "calcium_mg": 240,
+      "iron_mg": 3.4,
+      "magnesium_mg": 96
+    },
+    "vitamins": [
+      "vitamin_c",
+      "folate",
+      "vitamin_k"
+    ],
+    "minerals": [
+      "calcium",
+      "iron",
+      "magnesium"
+    ],
+    "cuisine": "Chinese",
+    "region": "Asian",
+    "seasonal_tags": [
+      "all-season"
+    ],
+    "prep_time_minutes": 12,
+    "cook_time_minutes": 15,
+    "total_time_minutes": 27,
+    "difficulty": "medium"
+  },
+  {
+    "id": "a5",
+    "name": "Baked salmon with steamed veggies",
+    "meal_type": "dinner",
+    "calories": 520,
+    "protein_g": 40,
+    "carbs_g": 22,
+    "fat_g": 28,
+    "fibre_g": 7,
+    "sodium_mg": 310,
+    "tags": [
+      "low_sugar",
+      "high_protein",
+      "low_salt",
+      "contains_fish",
+      "cost_high",
+      "omega3_rich",
+      "heart_healthy"
+    ],
+    "allergens": [
+      "fish"
+    ],
+    "food_categories": [
+      "seafood",
+      "lean_protein",
+      "dinner_plate"
+    ],
+    "micronutrients": {
+      "vitamin_d_iu": 540,
+      "selenium_mcg": 42,
+      "potassium_mg": 780
+    },
+    "vitamins": [
+      "vitamin_d",
+      "vitamin_b12",
+      "vitamin_b6"
+    ],
+    "minerals": [
+      "selenium",
+      "potassium",
+      "phosphorus"
+    ],
+    "cuisine": "Mediterranean",
+    "region": "Mediterranean",
+    "seasonal_tags": [
+      "spring",
+      "summer"
+    ],
+    "prep_time_minutes": 12,
+    "cook_time_minutes": 15,
+    "total_time_minutes": 27,
+    "difficulty": "medium"
+  },
+  {
+    "id": "a6",
+    "name": "Lentil soup with soft bread",
+    "meal_type": "dinner",
+    "calories": 480,
+    "protein_g": 22,
+    "carbs_g": 66,
+    "fat_g": 12,
+    "fibre_g": 13,
+    "sodium_mg": 390,
+    "tags": [
+      "vegetarian",
+      "soft_food",
+      "low_fat",
+      "low_salt",
+      "contains_gluten",
+      "contains_wheat",
+      "cost_low",
+      "high_fibre"
+    ],
+    "allergens": [
+      "gluten",
+      "wheat"
+    ],
+    "food_categories": [
+      "soup",
+      "legume",
+      "comfort_food"
+    ],
+    "micronutrients": {
+      "iron_mg": 5.8,
+      "folate_mcg": 230,
+      "magnesium_mg": 88
+    },
+    "vitamins": [
+      "folate",
+      "vitamin_b1",
+      "vitamin_b6"
+    ],
+    "minerals": [
+      "iron",
+      "magnesium",
+      "potassium"
+    ],
+    "cuisine": "Middle Eastern",
+    "region": "Middle Eastern",
+    "seasonal_tags": [
+      "fall",
+      "winter"
+    ],
+    "prep_time_minutes": 12,
+    "cook_time_minutes": 15,
+    "total_time_minutes": 27,
+    "difficulty": "medium"
+  },
+  {
+    "id": "a7",
+    "name": "Apple slices with yoghurt",
+    "meal_type": "snack",
+    "calories": 150,
+    "protein_g": 6,
+    "carbs_g": 24,
+    "fat_g": 3,
+    "fibre_g": 3,
+    "sodium_mg": 60,
+    "tags": [
+      "low_fat",
+      "contains_yoghurt",
+      "contains_dairy",
+      "contains_apple",
+      "cost_low",
+      "probiotic"
+    ],
+    "allergens": [
+      "dairy",
+      "apple"
+    ],
+    "food_categories": [
+      "snack",
+      "fruit",
+      "probiotic"
+    ],
+    "micronutrients": {
+      "calcium_mg": 190,
+      "vitamin_c_mg": 7.0,
+      "potassium_mg": 230
+    },
+    "vitamins": [
+      "vitamin_c",
+      "vitamin_b2"
+    ],
+    "minerals": [
+      "calcium",
+      "potassium"
+    ],
+    "cuisine": "Western",
+    "region": "Global",
+    "seasonal_tags": [
+      "summer",
+      "spring"
+    ],
+    "prep_time_minutes": 10,
+    "cook_time_minutes": 0,
+    "total_time_minutes": 10,
+    "difficulty": "easy"
+  },
+  {
+    "id": "a8",
+    "name": "Unsalted mixed nuts",
+    "meal_type": "snack",
+    "calories": 200,
+    "protein_g": 7,
+    "carbs_g": 8,
+    "fat_g": 17,
+    "fibre_g": 3,
+    "sodium_mg": 5,
+    "tags": [
+      "contains_nuts",
+      "contains_tree_nut",
+      "low_sugar",
+      "cost_medium",
+      "heart_healthy"
+    ],
+    "allergens": [
+      "nuts",
+      "tree_nut"
+    ],
+    "food_categories": [
+      "snack",
+      "nuts",
+      "healthy_fat"
+    ],
+    "micronutrients": {
+      "magnesium_mg": 95,
+      "vitamin_e_mg": 5.5,
+      "zinc_mg": 1.2
+    },
+    "vitamins": [
+      "vitamin_e",
+      "vitamin_b1"
+    ],
+    "minerals": [
+      "magnesium",
+      "zinc",
+      "copper"
+    ],
+    "cuisine": "Global Healthy",
+    "region": "Global",
+    "seasonal_tags": [
+      "all-season"
+    ],
+    "prep_time_minutes": 10,
+    "cook_time_minutes": 0,
+    "total_time_minutes": 10,
+    "difficulty": "easy"
+  },
+  {
+    "id": "a9",
+    "name": "Sugary cereal with milk",
+    "meal_type": "breakfast",
+    "calories": 420,
+    "protein_g": 11,
+    "carbs_g": 67,
+    "fat_g": 9,
+    "fibre_g": 2,
+    "sodium_mg": 370,
+    "tags": [
+      "high_sugar",
+      "high_gi",
+      "refined_carb",
+      "contains_dairy",
+      "contains_milk",
+      "contains_gluten",
+      "contains_wheat",
+      "cost_low"
+    ],
+    "allergens": [
+      "dairy",
+      "milk",
+      "gluten",
+      "wheat"
+    ],
+    "food_categories": [
+      "processed_breakfast",
+      "cereal"
+    ],
+    "micronutrients": {
+      "calcium_mg": 260,
+      "iron_mg": 4.2
+    },
+    "vitamins": [
+      "vitamin_b12",
+      "vitamin_d"
+    ],
+    "minerals": [
+      "calcium",
+      "iron"
+    ],
+    "cuisine": "Western",
+    "region": "Global",
+    "seasonal_tags": [
+      "all-season"
+    ],
+    "prep_time_minutes": 12,
+    "cook_time_minutes": 15,
+    "total_time_minutes": 27,
+    "difficulty": "medium"
+  },
+  {
+    "id": "a10",
+    "name": "Wholegrain toast with avocado",
+    "meal_type": "breakfast",
+    "calories": 360,
+    "protein_g": 10,
+    "carbs_g": 38,
+    "fat_g": 18,
+    "fibre_g": 10,
+    "sodium_mg": 280,
+    "tags": [
+      "low_sugar",
+      "high_fibre",
+      "low_salt",
+      "vegetarian",
+      "contains_gluten",
+      "contains_wheat",
+      "cost_medium",
+      "heart_healthy"
+    ],
+    "allergens": [
+      "gluten",
+      "wheat"
+    ],
+    "food_categories": [
+      "toast",
+      "plant_based",
+      "healthy_fat"
+    ],
+    "micronutrients": {
+      "potassium_mg": 620,
+      "folate_mcg": 96,
+      "vitamin_e_mg": 2.4
+    },
+    "vitamins": [
+      "folate",
+      "vitamin_e",
+      "vitamin_k"
+    ],
+    "minerals": [
+      "potassium",
+      "magnesium"
+    ],
+    "cuisine": "Mediterranean",
+    "region": "Mediterranean",
+    "seasonal_tags": [
+      "all-season"
+    ],
+    "prep_time_minutes": 12,
+    "cook_time_minutes": 15,
+    "total_time_minutes": 27,
+    "difficulty": "medium"
+  },
+  {
+    "id": "a11",
+    "name": "Chicken burger and fries",
+    "meal_type": "lunch",
+    "calories": 800,
+    "protein_g": 34,
+    "carbs_g": 78,
+    "fat_g": 38,
+    "fibre_g": 5,
+    "sodium_mg": 1250,
+    "tags": [
+      "high_fat",
+      "high_saturated_fat",
+      "fried",
+      "processed_meat",
+      "high_salt",
+      "contains_gluten",
+      "contains_wheat",
+      "cost_medium"
+    ],
+    "allergens": [
+      "gluten",
+      "wheat"
+    ],
+    "food_categories": [
+      "fast_food",
+      "fried"
+    ],
+    "micronutrients": {
+      "iron_mg": 3.9,
+      "potassium_mg": 740
+    },
+    "vitamins": [
+      "vitamin_b12",
+      "niacin"
+    ],
+    "minerals": [
+      "sodium",
+      "iron"
+    ],
+    "cuisine": "Western",
+    "region": "North American",
+    "seasonal_tags": [
+      "all-season"
+    ],
+    "prep_time_minutes": 12,
+    "cook_time_minutes": 15,
+    "total_time_minutes": 27,
+    "difficulty": "medium"
+  },
+  {
+    "id": "a12",
+    "name": "Brown rice with grilled fish and veggies",
+    "meal_type": "lunch",
+    "calories": 520,
+    "protein_g": 36,
+    "carbs_g": 52,
+    "fat_g": 16,
+    "fibre_g": 8,
+    "sodium_mg": 340,
+    "tags": [
+      "low_sugar",
+      "low_gi",
+      "low_fat",
+      "low_salt",
+      "high_protein",
+      "contains_fish",
+      "cost_high",
+      "heart_healthy"
+    ],
+    "allergens": [
+      "fish"
+    ],
+    "food_categories": [
+      "rice_bowl",
+      "seafood",
+      "balanced_plate"
+    ],
+    "micronutrients": {
+      "selenium_mcg": 38,
+      "magnesium_mg": 95,
+      "potassium_mg": 810
+    },
+    "vitamins": [
+      "vitamin_d",
+      "vitamin_b12"
+    ],
+    "minerals": [
+      "selenium",
+      "magnesium",
+      "potassium"
+    ],
+    "cuisine": "Asian Fusion",
+    "region": "Asian",
+    "seasonal_tags": [
+      "all-season"
+    ],
+    "prep_time_minutes": 12,
+    "cook_time_minutes": 15,
+    "total_time_minutes": 27,
+    "difficulty": "medium"
+  },
+  {
+    "id": "a13",
+    "name": "Instant noodles with seasoning packet",
+    "meal_type": "lunch",
+    "calories": 550,
+    "protein_g": 12,
+    "carbs_g": 67,
+    "fat_g": 24,
+    "fibre_g": 3,
+    "sodium_mg": 1650,
+    "tags": [
+      "high_salt",
+      "very_high_salt",
+      "refined_carb",
+      "contains_gluten",
+      "contains_wheat",
+      "cost_low"
+    ],
+    "allergens": [
+      "gluten",
+      "wheat"
+    ],
+    "food_categories": [
+      "processed_food",
+      "noodles"
+    ],
+    "micronutrients": {
+      "iron_mg": 2.4
+    },
+    "vitamins": [
+      "niacin"
+    ],
+    "minerals": [
+      "sodium"
+    ],
+    "cuisine": "Japanese",
+    "region": "Asian",
+    "seasonal_tags": [
+      "all-season"
+    ],
+    "prep_time_minutes": 12,
+    "cook_time_minutes": 15,
+    "total_time_minutes": 27,
+    "difficulty": "medium"
+  },
+  {
+    "id": "a14",
+    "name": "Beef stir-fry with vegetables and soy sauce",
+    "meal_type": "dinner",
+    "calories": 650,
+    "protein_g": 39,
+    "carbs_g": 36,
+    "fat_g": 31,
+    "fibre_g": 6,
+    "sodium_mg": 970,
+    "tags": [
+      "high_salt",
+      "soy_sauce_heavy",
+      "asian",
+      "high_protein",
+      "contains_soy",
+      "cost_high"
+    ],
+    "allergens": [
+      "soy"
+    ],
+    "food_categories": [
+      "stir_fry",
+      "red_meat"
+    ],
+    "micronutrients": {
+      "iron_mg": 4.8,
+      "zinc_mg": 5.3,
+      "vitamin_b12_mcg": 2.1
+    },
+    "vitamins": [
+      "vitamin_b12",
+      "niacin"
+    ],
+    "minerals": [
+      "iron",
+      "zinc",
+      "sodium"
+    ],
+    "cuisine": "Chinese",
+    "region": "Asian",
+    "seasonal_tags": [
+      "all-season"
+    ],
+    "prep_time_minutes": 12,
+    "cook_time_minutes": 15,
+    "total_time_minutes": 27,
+    "difficulty": "medium"
+  },
+  {
+    "id": "a15",
+    "name": "Cheese pizza slice",
+    "meal_type": "dinner",
+    "calories": 780,
+    "protein_g": 29,
+    "carbs_g": 78,
+    "fat_g": 39,
+    "fibre_g": 4,
+    "sodium_mg": 1280,
+    "tags": [
+      "high_fat",
+      "high_saturated_fat",
+      "contains_dairy",
+      "contains_cheese",
+      "contains_gluten",
+      "contains_wheat",
+      "cost_medium"
+    ],
+    "allergens": [
+      "dairy",
+      "gluten",
+      "wheat"
+    ],
+    "food_categories": [
+      "fast_food",
+      "pizza"
+    ],
+    "micronutrients": {
+      "calcium_mg": 380,
+      "iron_mg": 3.1
+    },
+    "vitamins": [
+      "vitamin_a",
+      "vitamin_b12"
+    ],
+    "minerals": [
+      "calcium",
+      "sodium"
+    ],
+    "cuisine": "Italian",
+    "region": "Mediterranean",
+    "seasonal_tags": [
+      "all-season"
+    ],
+    "prep_time_minutes": 12,
+    "cook_time_minutes": 15,
+    "total_time_minutes": 27,
+    "difficulty": "medium"
+  },
+  {
+    "id": "a16",
+    "name": "Donut and soft drink",
+    "meal_type": "snack",
+    "calories": 600,
+    "protein_g": 6,
+    "carbs_g": 90,
+    "fat_g": 24,
+    "fibre_g": 2,
+    "sodium_mg": 430,
+    "tags": [
+      "dessert",
+      "high_sugar",
+      "added_sugar",
+      "refined_carb",
+      "sugary_drink",
+      "high_fat",
+      "contains_gluten",
+      "contains_wheat",
+      "cost_low"
+    ],
+    "allergens": [
+      "gluten",
+      "wheat"
+    ],
+    "food_categories": [
+      "dessert",
+      "processed_snack"
+    ],
+    "micronutrients": {
+      "iron_mg": 1.8
+    },
+    "vitamins": [],
+    "minerals": [
+      "sodium"
+    ],
+    "cuisine": "Western",
+    "region": "Global",
+    "seasonal_tags": [
+      "all-season"
+    ],
+    "prep_time_minutes": 10,
+    "cook_time_minutes": 0,
+    "total_time_minutes": 10,
+    "difficulty": "easy"
+  },
+  {
+    "id": "a17",
+    "name": "Fresh fruit salad",
+    "meal_type": "snack",
+    "calories": 180,
+    "protein_g": 3,
+    "carbs_g": 42,
+    "fat_g": 1,
+    "fibre_g": 6,
+    "sodium_mg": 15,
+    "tags": [
+      "low_sugar",
+      "low_fat",
+      "low_salt",
+      "vegetarian",
+      "cost_low",
+      "contains_fruit",
+      "contains_apple",
+      "contains_strawberry",
+      "contains_kiwi",
+      "high_fibre"
+    ],
+    "allergens": [
+      "fruit",
+      "apple",
+      "strawberry",
+      "kiwi"
+    ],
+    "food_categories": [
+      "snack",
+      "fruit",
+      "plant_based"
+    ],
+    "micronutrients": {
+      "vitamin_c_mg": 62,
+      "potassium_mg": 430
+    },
+    "vitamins": [
+      "vitamin_c",
+      "folate"
+    ],
+    "minerals": [
+      "potassium"
+    ],
+    "cuisine": "Global Healthy",
+    "region": "Global",
+    "seasonal_tags": [
+      "summer",
+      "spring"
+    ],
+    "prep_time_minutes": 10,
+    "cook_time_minutes": 0,
+    "total_time_minutes": 10,
+    "difficulty": "easy"
+  },
+  {
+    "id": "a18",
+    "name": "Low-fat yoghurt with nuts",
+    "meal_type": "snack",
+    "calories": 220,
+    "protein_g": 11,
+    "carbs_g": 17,
+    "fat_g": 12,
+    "fibre_g": 2,
+    "sodium_mg": 85,
+    "tags": [
+      "low_fat",
+      "contains_yoghurt",
+      "contains_dairy",
+      "contains_nuts",
+      "contains_tree_nut",
+      "cost_medium",
+      "probiotic"
+    ],
+    "allergens": [
+      "dairy",
+      "nuts",
+      "tree_nut"
+    ],
+    "food_categories": [
+      "snack",
+      "probiotic",
+      "healthy_fat"
+    ],
+    "micronutrients": {
+      "calcium_mg": 260,
+      "magnesium_mg": 52
+    },
+    "vitamins": [
+      "vitamin_b12",
+      "vitamin_d"
+    ],
+    "minerals": [
+      "calcium",
+      "magnesium"
+    ],
+    "cuisine": "Mediterranean",
+    "region": "Mediterranean",
+    "seasonal_tags": [
+      "all-season"
+    ],
+    "prep_time_minutes": 10,
+    "cook_time_minutes": 0,
+    "total_time_minutes": 10,
+    "difficulty": "easy"
+  },
+  {
+    "id": "a19",
+    "name": "Greek yoghurt parfait with walnuts",
+    "meal_type": "breakfast",
+    "calories": 340,
+    "protein_g": 20,
+    "carbs_g": 28,
+    "fat_g": 14,
+    "fibre_g": 4,
+    "sodium_mg": 95,
+    "tags": [
+      "high_protein",
+      "contains_dairy",
+      "contains_yoghurt",
+      "contains_nuts",
+      "contains_tree_nut",
+      "cost_medium",
+      "probiotic"
+    ],
+    "allergens": [
+      "dairy",
+      "nuts",
+      "tree_nut"
+    ],
+    "food_categories": [
+      "breakfast",
+      "probiotic",
+      "high_protein"
+    ],
+    "micronutrients": {
+      "calcium_mg": 280,
+      "omega3_g": 1.9,
+      "manganese_mg": 1.4
+    },
+    "vitamins": [
+      "vitamin_b12",
+      "vitamin_d"
+    ],
+    "minerals": [
+      "calcium",
+      "manganese",
+      "phosphorus"
+    ],
+    "cuisine": "Greek",
+    "region": "Mediterranean",
+    "seasonal_tags": [
+      "all-season"
+    ],
+    "prep_time_minutes": 12,
+    "cook_time_minutes": 15,
+    "total_time_minutes": 27,
+    "difficulty": "medium"
+  },
+  {
+    "id": "a20",
+    "name": "Spinach mushroom omelette",
+    "meal_type": "breakfast",
+    "calories": 320,
+    "protein_g": 24,
+    "carbs_g": 10,
+    "fat_g": 20,
+    "fibre_g": 3,
+    "sodium_mg": 320,
+    "tags": [
+      "high_protein",
+      "contains_egg",
+      "low_carb",
+      "soft_food",
+      "cost_medium"
+    ],
+    "allergens": [
+      "egg"
+    ],
+    "food_categories": [
+      "egg_based",
+      "breakfast",
+      "low_carb"
+    ],
+    "micronutrients": {
+      "iron_mg": 3.1,
+      "vitamin_d_iu": 120,
+      "selenium_mcg": 31
+    },
+    "vitamins": [
+      "vitamin_d",
+      "vitamin_a",
+      "folate"
+    ],
+    "minerals": [
+      "iron",
+      "selenium"
+    ],
+    "cuisine": "Western",
+    "region": "European",
+    "seasonal_tags": [
+      "all-season"
+    ],
+    "prep_time_minutes": 12,
+    "cook_time_minutes": 15,
+    "total_time_minutes": 27,
+    "difficulty": "medium"
+  },
+  {
+    "id": "a21",
+    "name": "Chickpea quinoa power bowl",
+    "meal_type": "lunch",
+    "calories": 540,
+    "protein_g": 22,
+    "carbs_g": 72,
+    "fat_g": 16,
+    "fibre_g": 14,
+    "sodium_mg": 300,
+    "tags": [
+      "vegetarian",
+      "high_fibre",
+      "low_salt",
+      "low_gi",
+      "plant_based",
+      "cost_medium"
+    ],
+    "allergens": [],
+    "food_categories": [
+      "grain_bowl",
+      "legume",
+      "plant_based"
+    ],
+    "micronutrients": {
+      "iron_mg": 6.2,
+      "magnesium_mg": 172,
+      "potassium_mg": 910
+    },
+    "vitamins": [
+      "folate",
+      "vitamin_b6"
+    ],
+    "minerals": [
+      "iron",
+      "magnesium",
+      "potassium"
+    ],
+    "cuisine": "Mediterranean",
+    "region": "Mediterranean",
+    "seasonal_tags": [
+      "all-season"
+    ],
+    "prep_time_minutes": 12,
+    "cook_time_minutes": 15,
+    "total_time_minutes": 27,
+    "difficulty": "medium"
+  },
+  {
+    "id": "a22",
+    "name": "Turkey and hummus wrap",
+    "meal_type": "lunch",
+    "calories": 470,
+    "protein_g": 32,
+    "carbs_g": 44,
+    "fat_g": 18,
+    "fibre_g": 8,
+    "sodium_mg": 520,
+    "tags": [
+      "high_protein",
+      "contains_gluten",
+      "contains_wheat",
+      "contains_sesame",
+      "cost_medium"
+    ],
+    "allergens": [
+      "gluten",
+      "wheat",
+      "sesame"
+    ],
+    "food_categories": [
+      "wrap",
+      "lean_protein",
+      "mediterranean"
+    ],
+    "micronutrients": {
+      "iron_mg": 2.6,
+      "calcium_mg": 140,
+      "potassium_mg": 610
+    },
+    "vitamins": [
+      "niacin",
+      "vitamin_b6"
+    ],
+    "minerals": [
+      "iron",
+      "potassium"
+    ],
+    "cuisine": "Turkish",
+    "region": "Mediterranean",
+    "seasonal_tags": [
+      "all-season"
+    ],
+    "prep_time_minutes": 12,
+    "cook_time_minutes": 15,
+    "total_time_minutes": 27,
+    "difficulty": "medium"
+  },
+  {
+    "id": "a23",
+    "name": "Mediterranean tuna salad",
+    "meal_type": "lunch",
+    "calories": 430,
+    "protein_g": 36,
+    "carbs_g": 16,
+    "fat_g": 22,
+    "fibre_g": 7,
+    "sodium_mg": 360,
+    "tags": [
+      "high_protein",
+      "contains_fish",
+      "low_salt",
+      "heart_healthy",
+      "cost_medium"
+    ],
+    "allergens": [
+      "fish"
+    ],
+    "food_categories": [
+      "salad",
+      "seafood",
+      "mediterranean"
+    ],
+    "micronutrients": {
+      "omega3_g": 1.4,
+      "vitamin_e_mg": 3.4,
+      "potassium_mg": 680
+    },
+    "vitamins": [
+      "vitamin_e",
+      "vitamin_b12"
+    ],
+    "minerals": [
+      "potassium",
+      "selenium"
+    ],
+    "cuisine": "Greek",
+    "region": "Mediterranean",
+    "seasonal_tags": [
+      "summer",
+      "spring"
+    ],
+    "prep_time_minutes": 12,
+    "cook_time_minutes": 15,
+    "total_time_minutes": 27,
+    "difficulty": "medium"
+  },
+  {
+    "id": "a24",
+    "name": "Tofu soba noodle bowl",
+    "meal_type": "dinner",
+    "calories": 560,
+    "protein_g": 24,
+    "carbs_g": 64,
+    "fat_g": 20,
+    "fibre_g": 9,
+    "sodium_mg": 450,
+    "tags": [
+      "contains_soy",
+      "vegetarian",
+      "high_fibre",
+      "cost_medium",
+      "asian",
+      "low_gi"
+    ],
+    "allergens": [
+      "soy",
+      "gluten"
+    ],
+    "food_categories": [
+      "noodle_bowl",
+      "plant_protein",
+      "asian"
+    ],
+    "micronutrients": {
+      "calcium_mg": 260,
+      "iron_mg": 4.5,
+      "manganese_mg": 1.8
+    },
+    "vitamins": [
+      "folate",
+      "vitamin_k"
+    ],
+    "minerals": [
+      "calcium",
+      "iron",
+      "manganese"
+    ],
+    "cuisine": "Japanese",
+    "region": "Asian",
+    "seasonal_tags": [
+      "all-season"
+    ],
+    "prep_time_minutes": 12,
+    "cook_time_minutes": 15,
+    "total_time_minutes": 27,
+    "difficulty": "medium"
+  },
+  {
+    "id": "a25",
+    "name": "Grilled barramundi with quinoa",
+    "meal_type": "dinner",
+    "calories": 530,
+    "protein_g": 41,
+    "carbs_g": 40,
+    "fat_g": 19,
+    "fibre_g": 7,
+    "sodium_mg": 290,
+    "tags": [
+      "high_protein",
+      "contains_fish",
+      "low_salt",
+      "heart_healthy",
+      "cost_high",
+      "omega3_rich"
+    ],
+    "allergens": [
+      "fish"
+    ],
+    "food_categories": [
+      "seafood",
+      "grain_plate",
+      "australian"
+    ],
+    "micronutrients": {
+      "selenium_mcg": 47,
+      "magnesium_mg": 102,
+      "potassium_mg": 840
+    },
+    "vitamins": [
+      "vitamin_d",
+      "vitamin_b12"
+    ],
+    "minerals": [
+      "selenium",
+      "magnesium",
+      "potassium"
+    ],
+    "cuisine": "Australian",
+    "region": "Oceania",
+    "seasonal_tags": [
+      "summer",
+      "spring"
+    ],
+    "prep_time_minutes": 12,
+    "cook_time_minutes": 15,
+    "total_time_minutes": 27,
+    "difficulty": "medium"
+  },
+  {
+    "id": "a26",
+    "name": "Bean chili with brown rice",
+    "meal_type": "dinner",
+    "calories": 590,
+    "protein_g": 24,
+    "carbs_g": 84,
+    "fat_g": 16,
+    "fibre_g": 15,
+    "sodium_mg": 420,
+    "tags": [
+      "vegetarian",
+      "high_fibre",
+      "low_fat",
+      "low_gi",
+      "cost_low",
+      "soft_food"
+    ],
+    "allergens": [],
+    "food_categories": [
+      "legume",
+      "stew",
+      "plant_based"
+    ],
+    "micronutrients": {
+      "iron_mg": 6.9,
+      "potassium_mg": 980,
+      "magnesium_mg": 146
+    },
+    "vitamins": [
+      "folate",
+      "vitamin_c"
+    ],
+    "minerals": [
+      "iron",
+      "potassium",
+      "magnesium"
+    ],
+    "cuisine": "Mexican",
+    "region": "Latin American",
+    "seasonal_tags": [
+      "fall",
+      "winter"
+    ],
+    "prep_time_minutes": 12,
+    "cook_time_minutes": 15,
+    "total_time_minutes": 27,
+    "difficulty": "medium"
+  },
+  {
+    "id": "a27",
+    "name": "Cottage cheese with cucumber sticks",
+    "meal_type": "snack",
+    "calories": 170,
+    "protein_g": 16,
+    "carbs_g": 8,
+    "fat_g": 7,
+    "fibre_g": 1,
+    "sodium_mg": 280,
+    "tags": [
+      "high_protein",
+      "contains_dairy",
+      "contains_milk",
+      "low_carb",
+      "cost_low"
+    ],
+    "allergens": [
+      "dairy",
+      "milk"
+    ],
+    "food_categories": [
+      "snack",
+      "dairy",
+      "high_protein"
+    ],
+    "micronutrients": {
+      "calcium_mg": 190,
+      "phosphorus_mg": 220
+    },
+    "vitamins": [
+      "vitamin_b12",
+      "vitamin_a"
+    ],
+    "minerals": [
+      "calcium",
+      "phosphorus"
+    ],
+    "cuisine": "Western",
+    "region": "Global",
+    "seasonal_tags": [
+      "all-season"
+    ],
+    "prep_time_minutes": 10,
+    "cook_time_minutes": 0,
+    "total_time_minutes": 10,
+    "difficulty": "easy"
+  },
+  {
+    "id": "a28",
+    "name": "Edamame and carrot sticks",
+    "meal_type": "snack",
+    "calories": 160,
+    "protein_g": 12,
+    "carbs_g": 14,
+    "fat_g": 6,
+    "fibre_g": 7,
+    "sodium_mg": 35,
+    "tags": [
+      "contains_soy",
+      "high_protein",
+      "high_fibre",
+      "low_salt",
+      "vegetarian",
+      "cost_low"
+    ],
+    "allergens": [
+      "soy"
+    ],
+    "food_categories": [
+      "snack",
+      "plant_protein",
+      "vegetable"
+    ],
+    "micronutrients": {
+      "folate_mcg": 160,
+      "vitamin_k_mcg": 32,
+      "iron_mg": 2.1
+    },
+    "vitamins": [
+      "folate",
+      "vitamin_k",
+      "vitamin_c"
+    ],
+    "minerals": [
+      "iron",
+      "magnesium"
+    ],
+    "cuisine": "Japanese",
+    "region": "Asian",
+    "seasonal_tags": [
+      "all-season"
+    ],
+    "prep_time_minutes": 10,
+    "cook_time_minutes": 0,
+    "total_time_minutes": 10,
+    "difficulty": "easy"
+  },
+  {
+    "id": "a29",
+    "name": "Banana peanut smoothie",
+    "meal_type": "snack",
+    "calories": 290,
+    "protein_g": 12,
+    "carbs_g": 34,
+    "fat_g": 12,
+    "fibre_g": 5,
+    "sodium_mg": 140,
+    "tags": [
+      "contains_peanut",
+      "contains_banana",
+      "contains_dairy",
+      "contains_milk",
+      "soft_food",
+      "cost_low"
+    ],
+    "allergens": [
+      "peanut",
+      "banana",
+      "dairy",
+      "milk"
+    ],
+    "food_categories": [
+      "smoothie",
+      "snack",
+      "energy_boost"
+    ],
+    "micronutrients": {
+      "potassium_mg": 620,
+      "calcium_mg": 240,
+      "vitamin_e_mg": 2.8
+    },
+    "vitamins": [
+      "vitamin_b6",
+      "vitamin_e"
+    ],
+    "minerals": [
+      "potassium",
+      "calcium"
+    ],
+    "cuisine": "Global Healthy",
+    "region": "Global",
+    "seasonal_tags": [
+      "all-season"
+    ],
+    "prep_time_minutes": 10,
+    "cook_time_minutes": 0,
+    "total_time_minutes": 10,
+    "difficulty": "easy"
+  },
+  {
+    "id": "a30",
+    "name": "Baked sweet potato wedges",
+    "meal_type": "snack",
+    "calories": 190,
+    "protein_g": 3,
+    "carbs_g": 37,
+    "fat_g": 4,
+    "fibre_g": 6,
+    "sodium_mg": 85,
+    "tags": [
+      "low_fat",
+      "high_fibre",
+      "vegetarian",
+      "cost_low",
+      "low_salt"
+    ],
+    "allergens": [],
+    "food_categories": [
+      "snack",
+      "vegetable",
+      "baked"
+    ],
+    "micronutrients": {
+      "vitamin_a_rae": 980,
+      "potassium_mg": 430,
+      "manganese_mg": 0.5
+    },
+    "vitamins": [
+      "vitamin_a",
+      "vitamin_c"
+    ],
+    "minerals": [
+      "potassium",
+      "manganese"
+    ],
+    "cuisine": "Western",
+    "region": "Global",
+    "seasonal_tags": [
+      "fall",
+      "winter"
+    ],
+    "prep_time_minutes": 10,
+    "cook_time_minutes": 0,
+    "total_time_minutes": 10,
+    "difficulty": "easy"
+  },
+  {
+    "id": "a31",
+    "name": "Vegetable congee with tofu",
+    "meal_type": "breakfast",
+    "calories": 320,
+    "protein_g": 14,
+    "carbs_g": 48,
+    "fat_g": 8,
+    "fibre_g": 5,
+    "sodium_mg": 280,
+    "tags": [
+      "soft_food",
+      "low_fat",
+      "asian",
+      "contains_soy",
+      "vegetarian",
+      "cost_low",
+      "low_salt"
+    ],
+    "allergens": [
+      "soy"
+    ],
+    "food_categories": [
+      "congee",
+      "plant_protein",
+      "breakfast_bowl"
+    ],
+    "micronutrients": {
+      "iron_mg": 2.7,
+      "potassium_mg": 410,
+      "folate_mcg": 88
+    },
+    "vitamins": [
+      "folate",
+      "vitamin_b1"
+    ],
+    "minerals": [
+      "iron",
+      "potassium",
+      "magnesium"
+    ],
+    "cuisine": "Chinese",
+    "region": "Asian",
+    "seasonal_tags": [
+      "fall",
+      "winter"
+    ],
+    "prep_time_minutes": 10,
+    "cook_time_minutes": 30,
+    "total_time_minutes": 40,
+    "difficulty": "easy"
+  },
+  {
+    "id": "a32",
+    "name": "Miso salmon rice bowl",
+    "meal_type": "lunch",
+    "calories": 560,
+    "protein_g": 38,
+    "carbs_g": 54,
+    "fat_g": 20,
+    "fibre_g": 6,
+    "sodium_mg": 520,
+    "tags": [
+      "high_protein",
+      "contains_fish",
+      "contains_soy",
+      "asian",
+      "omega3_rich",
+      "cost_high"
+    ],
+    "allergens": [
+      "fish",
+      "soy"
+    ],
+    "food_categories": [
+      "rice_bowl",
+      "seafood",
+      "japanese"
+    ],
+    "micronutrients": {
+      "selenium_mcg": 40,
+      "vitamin_d_iu": 430,
+      "potassium_mg": 760
+    },
+    "vitamins": [
+      "vitamin_d",
+      "vitamin_b12",
+      "vitamin_b6"
+    ],
+    "minerals": [
+      "selenium",
+      "potassium",
+      "phosphorus"
+    ],
+    "cuisine": "Japanese",
+    "region": "Asian",
+    "seasonal_tags": [
+      "all-season"
+    ],
+    "prep_time_minutes": 15,
+    "cook_time_minutes": 20,
+    "total_time_minutes": 35,
+    "difficulty": "medium"
+  },
+  {
+    "id": "a33",
+    "name": "Kimchi tofu bibimbap",
+    "meal_type": "dinner",
+    "calories": 610,
+    "protein_g": 24,
+    "carbs_g": 76,
+    "fat_g": 20,
+    "fibre_g": 10,
+    "sodium_mg": 690,
+    "tags": [
+      "asian",
+      "contains_soy",
+      "vegetarian",
+      "high_fibre",
+      "cost_medium"
+    ],
+    "allergens": [
+      "soy"
+    ],
+    "food_categories": [
+      "rice_bowl",
+      "korean",
+      "fermented_food"
+    ],
+    "micronutrients": {
+      "iron_mg": 4.1,
+      "vitamin_c_mg": 26,
+      "calcium_mg": 230
+    },
+    "vitamins": [
+      "vitamin_c",
+      "folate",
+      "vitamin_k"
+    ],
+    "minerals": [
+      "iron",
+      "calcium",
+      "magnesium"
+    ],
+    "cuisine": "Korean",
+    "region": "Asian",
+    "seasonal_tags": [
+      "all-season"
+    ],
+    "prep_time_minutes": 20,
+    "cook_time_minutes": 25,
+    "total_time_minutes": 45,
+    "difficulty": "medium"
+  },
+  {
+    "id": "a34",
+    "name": "Thai basil chicken with jasmine rice",
+    "meal_type": "dinner",
+    "calories": 590,
+    "protein_g": 36,
+    "carbs_g": 58,
+    "fat_g": 22,
+    "fibre_g": 5,
+    "sodium_mg": 640,
+    "tags": [
+      "high_protein",
+      "asian",
+      "cost_medium"
+    ],
+    "allergens": [
+      "soy"
+    ],
+    "food_categories": [
+      "stir_fry",
+      "thai",
+      "rice_plate"
+    ],
+    "micronutrients": {
+      "iron_mg": 2.8,
+      "potassium_mg": 680,
+      "vitamin_b6_mg": 0.8
+    },
+    "vitamins": [
+      "vitamin_b6",
+      "niacin"
+    ],
+    "minerals": [
+      "iron",
+      "potassium",
+      "phosphorus"
+    ],
+    "cuisine": "Thai",
+    "region": "Asian",
+    "seasonal_tags": [
+      "summer",
+      "spring"
+    ],
+    "prep_time_minutes": 15,
+    "cook_time_minutes": 18,
+    "total_time_minutes": 33,
+    "difficulty": "easy"
+  },
+  {
+    "id": "a35",
+    "name": "Chana masala with brown rice",
+    "meal_type": "lunch",
+    "calories": 570,
+    "protein_g": 21,
+    "carbs_g": 82,
+    "fat_g": 16,
+    "fibre_g": 14,
+    "sodium_mg": 430,
+    "tags": [
+      "indian",
+      "vegetarian",
+      "high_fibre",
+      "low_gi",
+      "cost_low"
+    ],
+    "allergens": [],
+    "food_categories": [
+      "curry",
+      "legume",
+      "grain_plate"
+    ],
+    "micronutrients": {
+      "iron_mg": 6.3,
+      "folate_mcg": 210,
+      "potassium_mg": 920
+    },
+    "vitamins": [
+      "folate",
+      "vitamin_c"
+    ],
+    "minerals": [
+      "iron",
+      "potassium",
+      "magnesium"
+    ],
+    "cuisine": "Indian",
+    "region": "Asian",
+    "seasonal_tags": [
+      "all-season"
+    ],
+    "prep_time_minutes": 15,
+    "cook_time_minutes": 30,
+    "total_time_minutes": 45,
+    "difficulty": "medium"
+  },
+  {
+    "id": "a36",
+    "name": "Greek shakshuka with feta",
+    "meal_type": "breakfast",
+    "calories": 390,
+    "protein_g": 22,
+    "carbs_g": 20,
+    "fat_g": 24,
+    "fibre_g": 6,
+    "sodium_mg": 470,
+    "tags": [
+      "high_protein",
+      "contains_egg",
+      "contains_dairy",
+      "mediterranean",
+      "cost_medium"
+    ],
+    "allergens": [
+      "egg",
+      "dairy"
+    ],
+    "food_categories": [
+      "egg_based",
+      "stewed_vegetables",
+      "mediterranean"
+    ],
+    "micronutrients": {
+      "lycopene_mg": 12,
+      "calcium_mg": 210,
+      "iron_mg": 3.2
+    },
+    "vitamins": [
+      "vitamin_a",
+      "vitamin_c",
+      "vitamin_b12"
+    ],
+    "minerals": [
+      "calcium",
+      "iron",
+      "potassium"
+    ],
+    "cuisine": "Greek",
+    "region": "Mediterranean",
+    "seasonal_tags": [
+      "spring",
+      "summer"
+    ],
+    "prep_time_minutes": 12,
+    "cook_time_minutes": 18,
+    "total_time_minutes": 30,
+    "difficulty": "easy"
+  },
+  {
+    "id": "a37",
+    "name": "Italian minestrone with cannellini beans",
+    "meal_type": "dinner",
+    "calories": 460,
+    "protein_g": 18,
+    "carbs_g": 66,
+    "fat_g": 12,
+    "fibre_g": 13,
+    "sodium_mg": 390,
+    "tags": [
+      "vegetarian",
+      "high_fibre",
+      "mediterranean",
+      "soft_food",
+      "cost_low",
+      "low_fat"
+    ],
+    "allergens": [],
+    "food_categories": [
+      "soup",
+      "italian",
+      "legume"
+    ],
+    "micronutrients": {
+      "iron_mg": 4.4,
+      "potassium_mg": 860,
+      "vitamin_c_mg": 30
+    },
+    "vitamins": [
+      "vitamin_c",
+      "folate",
+      "vitamin_a"
+    ],
+    "minerals": [
+      "iron",
+      "potassium",
+      "magnesium"
+    ],
+    "cuisine": "Italian",
+    "region": "Mediterranean",
+    "seasonal_tags": [
+      "fall",
+      "winter"
+    ],
+    "prep_time_minutes": 15,
+    "cook_time_minutes": 35,
+    "total_time_minutes": 50,
+    "difficulty": "easy"
+  },
+  {
+    "id": "a38",
+    "name": "Turkish lentil kofte lettuce wraps",
+    "meal_type": "lunch",
+    "calories": 440,
+    "protein_g": 17,
+    "carbs_g": 58,
+    "fat_g": 14,
+    "fibre_g": 12,
+    "sodium_mg": 300,
+    "tags": [
+      "vegetarian",
+      "high_fibre",
+      "low_salt",
+      "mediterranean",
+      "cost_low"
+    ],
+    "allergens": [],
+    "food_categories": [
+      "wrap",
+      "legume",
+      "turkish"
+    ],
+    "micronutrients": {
+      "iron_mg": 5.1,
+      "folate_mcg": 170,
+      "magnesium_mg": 96
+    },
+    "vitamins": [
+      "folate",
+      "vitamin_b6"
+    ],
+    "minerals": [
+      "iron",
+      "magnesium",
+      "potassium"
+    ],
+    "cuisine": "Turkish",
+    "region": "Mediterranean",
+    "seasonal_tags": [
+      "all-season"
+    ],
+    "prep_time_minutes": 20,
+    "cook_time_minutes": 20,
+    "total_time_minutes": 40,
+    "difficulty": "medium"
+  },
+  {
+    "id": "a39",
+    "name": "Mexican chicken fajita bowl",
+    "meal_type": "lunch",
+    "calories": 550,
+    "protein_g": 35,
+    "carbs_g": 56,
+    "fat_g": 20,
+    "fibre_g": 9,
+    "sodium_mg": 510,
+    "tags": [
+      "high_protein",
+      "latin_american",
+      "cost_medium",
+      "high_fibre"
+    ],
+    "allergens": [],
+    "food_categories": [
+      "rice_bowl",
+      "mexican",
+      "lean_protein"
+    ],
+    "micronutrients": {
+      "vitamin_c_mg": 45,
+      "iron_mg": 2.9,
+      "potassium_mg": 760
+    },
+    "vitamins": [
+      "vitamin_c",
+      "vitamin_b6"
+    ],
+    "minerals": [
+      "iron",
+      "potassium",
+      "magnesium"
+    ],
+    "cuisine": "Mexican",
+    "region": "Latin American",
+    "seasonal_tags": [
+      "summer",
+      "spring"
+    ],
+    "prep_time_minutes": 18,
+    "cook_time_minutes": 18,
+    "total_time_minutes": 36,
+    "difficulty": "easy"
+  },
+  {
+    "id": "a40",
+    "name": "Brazilian black bean stew with farofa",
+    "meal_type": "dinner",
+    "calories": 620,
+    "protein_g": 27,
+    "carbs_g": 78,
+    "fat_g": 22,
+    "fibre_g": 14,
+    "sodium_mg": 540,
+    "tags": [
+      "latin_american",
+      "high_fibre",
+      "cost_medium"
+    ],
+    "allergens": [
+      "gluten"
+    ],
+    "food_categories": [
+      "stew",
+      "brazilian",
+      "legume"
+    ],
+    "micronutrients": {
+      "iron_mg": 6.7,
+      "potassium_mg": 980,
+      "magnesium_mg": 140
+    },
+    "vitamins": [
+      "folate",
+      "vitamin_c"
+    ],
+    "minerals": [
+      "iron",
+      "potassium",
+      "magnesium"
+    ],
+    "cuisine": "Brazilian",
+    "region": "Latin American",
+    "seasonal_tags": [
+      "fall",
+      "winter"
+    ],
+    "prep_time_minutes": 20,
+    "cook_time_minutes": 45,
+    "total_time_minutes": 65,
+    "difficulty": "medium"
+  },
+  {
+    "id": "a41",
+    "name": "Cuban mojo fish with sweet plantain",
+    "meal_type": "dinner",
+    "calories": 540,
+    "protein_g": 34,
+    "carbs_g": 48,
+    "fat_g": 22,
+    "fibre_g": 6,
+    "sodium_mg": 360,
+    "tags": [
+      "contains_fish",
+      "latin_american",
+      "heart_healthy",
+      "cost_medium"
+    ],
+    "allergens": [
+      "fish"
+    ],
+    "food_categories": [
+      "seafood",
+      "cuban",
+      "dinner_plate"
+    ],
+    "micronutrients": {
+      "potassium_mg": 820,
+      "vitamin_c_mg": 34,
+      "selenium_mcg": 32
+    },
+    "vitamins": [
+      "vitamin_c",
+      "vitamin_b12"
+    ],
+    "minerals": [
+      "potassium",
+      "selenium"
+    ],
+    "cuisine": "Cuban",
+    "region": "Latin American",
+    "seasonal_tags": [
+      "summer",
+      "spring"
+    ],
+    "prep_time_minutes": 15,
+    "cook_time_minutes": 22,
+    "total_time_minutes": 37,
+    "difficulty": "easy"
+  },
+  {
+    "id": "a42",
+    "name": "Chicken shawarma quinoa tabbouleh",
+    "meal_type": "lunch",
+    "calories": 530,
+    "protein_g": 36,
+    "carbs_g": 50,
+    "fat_g": 18,
+    "fibre_g": 8,
+    "sodium_mg": 480,
+    "tags": [
+      "high_protein",
+      "middle_eastern",
+      "cost_medium"
+    ],
+    "allergens": [],
+    "food_categories": [
+      "salad_bowl",
+      "middle_eastern",
+      "lean_protein"
+    ],
+    "micronutrients": {
+      "iron_mg": 3.1,
+      "vitamin_c_mg": 28,
+      "potassium_mg": 700
+    },
+    "vitamins": [
+      "vitamin_c",
+      "vitamin_b6"
+    ],
+    "minerals": [
+      "iron",
+      "potassium",
+      "magnesium"
+    ],
+    "cuisine": "Levantine",
+    "region": "Middle Eastern",
+    "seasonal_tags": [
+      "all-season"
+    ],
+    "prep_time_minutes": 20,
+    "cook_time_minutes": 18,
+    "total_time_minutes": 38,
+    "difficulty": "medium"
+  },
+  {
+    "id": "a43",
+    "name": "Persian herb frittata with yoghurt",
+    "meal_type": "breakfast",
+    "calories": 370,
+    "protein_g": 23,
+    "carbs_g": 12,
+    "fat_g": 24,
+    "fibre_g": 4,
+    "sodium_mg": 340,
+    "tags": [
+      "contains_egg",
+      "contains_dairy",
+      "middle_eastern",
+      "high_protein",
+      "cost_medium"
+    ],
+    "allergens": [
+      "egg",
+      "dairy"
+    ],
+    "food_categories": [
+      "egg_based",
+      "persian",
+      "breakfast"
+    ],
+    "micronutrients": {
+      "vitamin_k_mcg": 140,
+      "calcium_mg": 180,
+      "iron_mg": 3.0
+    },
+    "vitamins": [
+      "vitamin_k",
+      "vitamin_b12",
+      "vitamin_d"
+    ],
+    "minerals": [
+      "calcium",
+      "iron",
+      "phosphorus"
+    ],
+    "cuisine": "Persian",
+    "region": "Middle Eastern",
+    "seasonal_tags": [
+      "spring"
+    ],
+    "prep_time_minutes": 15,
+    "cook_time_minutes": 18,
+    "total_time_minutes": 33,
+    "difficulty": "medium"
+  },
+  {
+    "id": "a44",
+    "name": "Baked falafel pita pocket",
+    "meal_type": "lunch",
+    "calories": 500,
+    "protein_g": 19,
+    "carbs_g": 62,
+    "fat_g": 18,
+    "fibre_g": 11,
+    "sodium_mg": 520,
+    "tags": [
+      "middle_eastern",
+      "vegetarian",
+      "high_fibre",
+      "contains_gluten",
+      "contains_wheat",
+      "contains_sesame",
+      "cost_low"
+    ],
+    "allergens": [
+      "gluten",
+      "wheat",
+      "sesame"
+    ],
+    "food_categories": [
+      "pita",
+      "legume",
+      "middle_eastern"
+    ],
+    "micronutrients": {
+      "iron_mg": 4.2,
+      "folate_mcg": 150,
+      "magnesium_mg": 92
+    },
+    "vitamins": [
+      "folate",
+      "vitamin_b6"
+    ],
+    "minerals": [
+      "iron",
+      "magnesium",
+      "zinc"
+    ],
+    "cuisine": "Middle Eastern",
+    "region": "Middle Eastern",
+    "seasonal_tags": [
+      "all-season"
+    ],
+    "prep_time_minutes": 20,
+    "cook_time_minutes": 25,
+    "total_time_minutes": 45,
+    "difficulty": "medium"
+  },
+  {
+    "id": "a45",
+    "name": "Japanese overnight matcha oats",
+    "meal_type": "breakfast",
+    "calories": 330,
+    "protein_g": 13,
+    "carbs_g": 45,
+    "fat_g": 10,
+    "fibre_g": 7,
+    "sodium_mg": 120,
+    "tags": [
+      "vegetarian",
+      "high_fibre",
+      "asian",
+      "contains_dairy",
+      "cost_low"
+    ],
+    "allergens": [
+      "dairy"
+    ],
+    "food_categories": [
+      "overnight_oats",
+      "breakfast_bowl",
+      "japanese"
+    ],
+    "micronutrients": {
+      "calcium_mg": 230,
+      "iron_mg": 2.8,
+      "potassium_mg": 360
+    },
+    "vitamins": [
+      "vitamin_b1",
+      "vitamin_e"
+    ],
+    "minerals": [
+      "calcium",
+      "iron",
+      "magnesium"
+    ],
+    "cuisine": "Japanese",
+    "region": "Asian",
+    "seasonal_tags": [
+      "summer"
+    ],
+    "prep_time_minutes": 8,
+    "cook_time_minutes": 0,
+    "total_time_minutes": 8,
+    "difficulty": "easy"
+  },
+  {
+    "id": "a46",
+    "name": "Thai green papaya salad with tofu",
+    "meal_type": "lunch",
+    "calories": 420,
+    "protein_g": 20,
+    "carbs_g": 38,
+    "fat_g": 18,
+    "fibre_g": 8,
+    "sodium_mg": 410,
+    "tags": [
+      "asian",
+      "contains_soy",
+      "high_fibre",
+      "low_gi",
+      "cost_medium"
+    ],
+    "allergens": [
+      "soy",
+      "peanut"
+    ],
+    "food_categories": [
+      "salad",
+      "thai",
+      "plant_protein"
+    ],
+    "micronutrients": {
+      "vitamin_c_mg": 52,
+      "iron_mg": 3.0,
+      "potassium_mg": 610
+    },
+    "vitamins": [
+      "vitamin_c",
+      "folate"
+    ],
+    "minerals": [
+      "iron",
+      "potassium",
+      "magnesium"
+    ],
+    "cuisine": "Thai",
+    "region": "Asian",
+    "seasonal_tags": [
+      "summer"
+    ],
+    "prep_time_minutes": 18,
+    "cook_time_minutes": 5,
+    "total_time_minutes": 23,
+    "difficulty": "easy"
+  },
+  {
+    "id": "a47",
+    "name": "Indian dal khichdi",
+    "meal_type": "dinner",
+    "calories": 510,
+    "protein_g": 20,
+    "carbs_g": 74,
+    "fat_g": 14,
+    "fibre_g": 11,
+    "sodium_mg": 350,
+    "tags": [
+      "indian",
+      "vegetarian",
+      "soft_food",
+      "high_fibre",
+      "low_fat",
+      "cost_low"
+    ],
+    "allergens": [],
+    "food_categories": [
+      "one_pot",
+      "legume",
+      "comfort_food"
+    ],
+    "micronutrients": {
+      "iron_mg": 4.9,
+      "magnesium_mg": 118,
+      "potassium_mg": 760
+    },
+    "vitamins": [
+      "folate",
+      "vitamin_b1"
+    ],
+    "minerals": [
+      "iron",
+      "magnesium",
+      "potassium"
+    ],
+    "cuisine": "Indian",
+    "region": "Asian",
+    "seasonal_tags": [
+      "fall",
+      "winter"
+    ],
+    "prep_time_minutes": 12,
+    "cook_time_minutes": 30,
+    "total_time_minutes": 42,
+    "difficulty": "easy"
+  },
+  {
+    "id": "a48",
+    "name": "Italian caprese quinoa salad",
+    "meal_type": "dinner",
+    "calories": 470,
+    "protein_g": 18,
+    "carbs_g": 42,
+    "fat_g": 24,
+    "fibre_g": 7,
+    "sodium_mg": 390,
+    "tags": [
+      "mediterranean",
+      "vegetarian",
+      "contains_dairy",
+      "cost_medium"
+    ],
+    "allergens": [
+      "dairy"
+    ],
+    "food_categories": [
+      "salad",
+      "italian",
+      "grain_plate"
+    ],
+    "micronutrients": {
+      "calcium_mg": 240,
+      "vitamin_c_mg": 22,
+      "potassium_mg": 580
+    },
+    "vitamins": [
+      "vitamin_c",
+      "vitamin_k"
+    ],
+    "minerals": [
+      "calcium",
+      "potassium",
+      "magnesium"
+    ],
+    "cuisine": "Italian",
+    "region": "Mediterranean",
+    "seasonal_tags": [
+      "summer"
+    ],
+    "prep_time_minutes": 15,
+    "cook_time_minutes": 15,
+    "total_time_minutes": 30,
+    "difficulty": "easy"
+  },
+  {
+    "id": "a49",
+    "name": "Greek lemon chicken soup",
+    "meal_type": "dinner",
+    "calories": 430,
+    "protein_g": 32,
+    "carbs_g": 30,
+    "fat_g": 18,
+    "fibre_g": 4,
+    "sodium_mg": 460,
+    "tags": [
+      "mediterranean",
+      "high_protein",
+      "soft_food",
+      "cost_medium"
+    ],
+    "allergens": [
+      "egg"
+    ],
+    "food_categories": [
+      "soup",
+      "greek",
+      "lean_protein"
+    ],
+    "micronutrients": {
+      "selenium_mcg": 30,
+      "vitamin_c_mg": 18,
+      "potassium_mg": 620
+    },
+    "vitamins": [
+      "vitamin_c",
+      "vitamin_b6"
+    ],
+    "minerals": [
+      "selenium",
+      "potassium"
+    ],
+    "cuisine": "Greek",
+    "region": "Mediterranean",
+    "seasonal_tags": [
+      "fall",
+      "winter"
+    ],
+    "prep_time_minutes": 15,
+    "cook_time_minutes": 30,
+    "total_time_minutes": 45,
+    "difficulty": "medium"
+  },
+  {
+    "id": "a50",
+    "name": "Mexican huevos rancheros",
+    "meal_type": "breakfast",
+    "calories": 410,
+    "protein_g": 22,
+    "carbs_g": 36,
+    "fat_g": 20,
+    "fibre_g": 9,
+    "sodium_mg": 470,
+    "tags": [
+      "latin_american",
+      "contains_egg",
+      "high_protein",
+      "high_fibre",
+      "cost_low"
+    ],
+    "allergens": [
+      "egg"
+    ],
+    "food_categories": [
+      "egg_based",
+      "mexican",
+      "breakfast_plate"
+    ],
+    "micronutrients": {
+      "iron_mg": 3.5,
+      "potassium_mg": 700,
+      "folate_mcg": 120
+    },
+    "vitamins": [
+      "folate",
+      "vitamin_c",
+      "vitamin_a"
+    ],
+    "minerals": [
+      "iron",
+      "potassium",
+      "magnesium"
+    ],
+    "cuisine": "Mexican",
+    "region": "Latin American",
+    "seasonal_tags": [
+      "all-season"
+    ],
+    "prep_time_minutes": 12,
+    "cook_time_minutes": 15,
+    "total_time_minutes": 27,
+    "difficulty": "easy"
+  },
+  {
+    "id": "a51",
+    "name": "Brazilian acai yoghurt bowl",
+    "meal_type": "breakfast",
+    "calories": 360,
+    "protein_g": 15,
+    "carbs_g": 44,
+    "fat_g": 14,
+    "fibre_g": 8,
+    "sodium_mg": 95,
+    "tags": [
+      "latin_american",
+      "contains_dairy",
+      "high_fibre",
+      "cost_medium",
+      "probiotic"
+    ],
+    "allergens": [
+      "dairy",
+      "tree_nut"
+    ],
+    "food_categories": [
+      "breakfast_bowl",
+      "brazilian",
+      "fruit"
+    ],
+    "micronutrients": {
+      "calcium_mg": 250,
+      "vitamin_c_mg": 35,
+      "manganese_mg": 1.6
+    },
+    "vitamins": [
+      "vitamin_c",
+      "vitamin_b12"
+    ],
+    "minerals": [
+      "calcium",
+      "manganese",
+      "potassium"
+    ],
+    "cuisine": "Brazilian",
+    "region": "Latin American",
+    "seasonal_tags": [
+      "summer"
+    ],
+    "prep_time_minutes": 10,
+    "cook_time_minutes": 0,
+    "total_time_minutes": 10,
+    "difficulty": "easy"
+  },
+  {
+    "id": "a52",
+    "name": "Cuban black bean rice bowl",
+    "meal_type": "lunch",
+    "calories": 540,
+    "protein_g": 20,
+    "carbs_g": 84,
+    "fat_g": 12,
+    "fibre_g": 14,
+    "sodium_mg": 420,
+    "tags": [
+      "latin_american",
+      "vegetarian",
+      "high_fibre",
+      "low_fat",
+      "cost_low"
+    ],
+    "allergens": [],
+    "food_categories": [
+      "rice_bowl",
+      "cuban",
+      "legume"
+    ],
+    "micronutrients": {
+      "iron_mg": 5.9,
+      "potassium_mg": 940,
+      "folate_mcg": 210
+    },
+    "vitamins": [
+      "folate",
+      "vitamin_c"
+    ],
+    "minerals": [
+      "iron",
+      "potassium",
+      "magnesium"
+    ],
+    "cuisine": "Cuban",
+    "region": "Latin American",
+    "seasonal_tags": [
+      "all-season"
+    ],
+    "prep_time_minutes": 15,
+    "cook_time_minutes": 30,
+    "total_time_minutes": 45,
+    "difficulty": "easy"
+  },
+  {
+    "id": "a53",
+    "name": "Middle Eastern zaatar baked eggs",
+    "meal_type": "breakfast",
+    "calories": 340,
+    "protein_g": 21,
+    "carbs_g": 14,
+    "fat_g": 22,
+    "fibre_g": 4,
+    "sodium_mg": 330,
+    "tags": [
+      "middle_eastern",
+      "contains_egg",
+      "high_protein",
+      "cost_low"
+    ],
+    "allergens": [
+      "egg"
+    ],
+    "food_categories": [
+      "egg_based",
+      "middle_eastern",
+      "baked"
+    ],
+    "micronutrients": {
+      "iron_mg": 2.9,
+      "vitamin_a_rae": 260,
+      "selenium_mcg": 28
+    },
+    "vitamins": [
+      "vitamin_a",
+      "vitamin_d",
+      "vitamin_b12"
+    ],
+    "minerals": [
+      "iron",
+      "selenium"
+    ],
+    "cuisine": "Middle Eastern",
+    "region": "Middle Eastern",
+    "seasonal_tags": [
+      "all-season"
+    ],
+    "prep_time_minutes": 8,
+    "cook_time_minutes": 15,
+    "total_time_minutes": 23,
+    "difficulty": "easy"
+  },
+  {
+    "id": "a54",
+    "name": "Lamb kofta with bulgur and salad",
+    "meal_type": "dinner",
+    "calories": 650,
+    "protein_g": 34,
+    "carbs_g": 48,
+    "fat_g": 34,
+    "fibre_g": 7,
+    "sodium_mg": 560,
+    "tags": [
+      "middle_eastern",
+      "high_protein",
+      "cost_high"
+    ],
+    "allergens": [
+      "gluten",
+      "wheat"
+    ],
+    "food_categories": [
+      "grill",
+      "red_meat",
+      "middle_eastern"
+    ],
+    "micronutrients": {
+      "iron_mg": 5.6,
+      "zinc_mg": 6.0,
+      "vitamin_b12_mcg": 2.4
+    },
+    "vitamins": [
+      "vitamin_b12",
+      "niacin"
+    ],
+    "minerals": [
+      "iron",
+      "zinc",
+      "phosphorus"
+    ],
+    "cuisine": "Middle Eastern",
+    "region": "Middle Eastern",
+    "seasonal_tags": [
+      "all-season"
+    ],
+    "prep_time_minutes": 22,
+    "cook_time_minutes": 20,
+    "total_time_minutes": 42,
+    "difficulty": "medium"
+  },
+  {
+    "id": "a55",
+    "name": "Japanese onigiri with edamame",
+    "meal_type": "snack",
+    "calories": 240,
+    "protein_g": 10,
+    "carbs_g": 34,
+    "fat_g": 6,
+    "fibre_g": 5,
+    "sodium_mg": 210,
+    "tags": [
+      "asian",
+      "contains_soy",
+      "cost_low",
+      "low_fat"
+    ],
+    "allergens": [
+      "soy"
+    ],
+    "food_categories": [
+      "snack",
+      "japanese",
+      "rice_based"
+    ],
+    "micronutrients": {
+      "folate_mcg": 100,
+      "iron_mg": 1.9,
+      "potassium_mg": 360
+    },
+    "vitamins": [
+      "folate",
+      "vitamin_b1"
+    ],
+    "minerals": [
+      "iron",
+      "potassium"
+    ],
+    "cuisine": "Japanese",
+    "region": "Asian",
+    "seasonal_tags": [
+      "all-season"
+    ],
+    "prep_time_minutes": 12,
+    "cook_time_minutes": 10,
+    "total_time_minutes": 22,
+    "difficulty": "easy"
+  },
+  {
+    "id": "a56",
+    "name": "Korean roasted seaweed tofu rolls",
+    "meal_type": "snack",
+    "calories": 210,
+    "protein_g": 12,
+    "carbs_g": 20,
+    "fat_g": 9,
+    "fibre_g": 4,
+    "sodium_mg": 260,
+    "tags": [
+      "asian",
+      "contains_soy",
+      "high_protein",
+      "cost_low"
+    ],
+    "allergens": [
+      "soy"
+    ],
+    "food_categories": [
+      "snack",
+      "korean",
+      "seaweed"
+    ],
+    "micronutrients": {
+      "iodine_mcg": 65,
+      "calcium_mg": 180,
+      "iron_mg": 2.4
+    },
+    "vitamins": [
+      "vitamin_k",
+      "folate"
+    ],
+    "minerals": [
+      "iodine",
+      "calcium",
+      "iron"
+    ],
+    "cuisine": "Korean",
+    "region": "Asian",
+    "seasonal_tags": [
+      "all-season"
+    ],
+    "prep_time_minutes": 15,
+    "cook_time_minutes": 5,
+    "total_time_minutes": 20,
+    "difficulty": "medium"
+  },
+  {
+    "id": "a57",
+    "name": "Thai mango sticky rice cup",
+    "meal_type": "snack",
+    "calories": 260,
+    "protein_g": 4,
+    "carbs_g": 48,
+    "fat_g": 7,
+    "fibre_g": 3,
+    "sodium_mg": 40,
+    "tags": [
+      "asian",
+      "dessert",
+      "contains_mango",
+      "vegetarian",
+      "cost_low"
+    ],
+    "allergens": [
+      "mango"
+    ],
+    "food_categories": [
+      "snack",
+      "thai",
+      "dessert"
+    ],
+    "micronutrients": {
+      "vitamin_c_mg": 24,
+      "potassium_mg": 280,
+      "manganese_mg": 0.9
+    },
+    "vitamins": [
+      "vitamin_c"
+    ],
+    "minerals": [
+      "potassium",
+      "manganese"
+    ],
+    "cuisine": "Thai",
+    "region": "Asian",
+    "seasonal_tags": [
+      "summer"
+    ],
+    "prep_time_minutes": 10,
+    "cook_time_minutes": 15,
+    "total_time_minutes": 25,
+    "difficulty": "easy"
+  },
+  {
+    "id": "a58",
+    "name": "Indian roasted chickpea chaat",
+    "meal_type": "snack",
+    "calories": 220,
+    "protein_g": 9,
+    "carbs_g": 30,
+    "fat_g": 8,
+    "fibre_g": 8,
+    "sodium_mg": 180,
+    "tags": [
+      "indian",
+      "vegetarian",
+      "high_fibre",
+      "cost_low",
+      "low_fat"
+    ],
+    "allergens": [],
+    "food_categories": [
+      "snack",
+      "legume",
+      "indian"
+    ],
+    "micronutrients": {
+      "iron_mg": 2.8,
+      "folate_mcg": 90,
+      "potassium_mg": 420
+    },
+    "vitamins": [
+      "folate",
+      "vitamin_c"
+    ],
+    "minerals": [
+      "iron",
+      "potassium",
+      "magnesium"
+    ],
+    "cuisine": "Indian",
+    "region": "Asian",
+    "seasonal_tags": [
+      "all-season"
+    ],
+    "prep_time_minutes": 15,
+    "cook_time_minutes": 10,
+    "total_time_minutes": 25,
+    "difficulty": "easy"
+  },
+  {
+    "id": "a59",
+    "name": "Mediterranean hummus veggie cup",
+    "meal_type": "snack",
+    "calories": 190,
+    "protein_g": 7,
+    "carbs_g": 18,
+    "fat_g": 10,
+    "fibre_g": 6,
+    "sodium_mg": 170,
+    "tags": [
+      "mediterranean",
+      "vegetarian",
+      "high_fibre",
+      "contains_sesame",
+      "cost_low"
+    ],
+    "allergens": [
+      "sesame"
+    ],
+    "food_categories": [
+      "snack",
+      "dip",
+      "vegetable"
+    ],
+    "micronutrients": {
+      "iron_mg": 2.2,
+      "vitamin_c_mg": 18,
+      "magnesium_mg": 42
+    },
+    "vitamins": [
+      "vitamin_c",
+      "folate"
+    ],
+    "minerals": [
+      "iron",
+      "magnesium"
+    ],
+    "cuisine": "Mediterranean",
+    "region": "Mediterranean",
+    "seasonal_tags": [
+      "spring",
+      "summer"
+    ],
+    "prep_time_minutes": 8,
+    "cook_time_minutes": 0,
+    "total_time_minutes": 8,
+    "difficulty": "easy"
+  },
+  {
+    "id": "a60",
+    "name": "Mexican corn and avocado salsa cup",
+    "meal_type": "snack",
+    "calories": 200,
+    "protein_g": 5,
+    "carbs_g": 24,
+    "fat_g": 10,
+    "fibre_g": 6,
+    "sodium_mg": 140,
+    "tags": [
+      "latin_american",
+      "vegetarian",
+      "high_fibre",
+      "low_salt",
+      "cost_low"
+    ],
+    "allergens": [],
+    "food_categories": [
+      "snack",
+      "mexican",
+      "vegetable"
+    ],
+    "micronutrients": {
+      "vitamin_c_mg": 26,
+      "potassium_mg": 410,
+      "folate_mcg": 70
+    },
+    "vitamins": [
+      "vitamin_c",
+      "folate"
+    ],
+    "minerals": [
+      "potassium",
+      "magnesium"
+    ],
+    "cuisine": "Mexican",
+    "region": "Latin American",
+    "seasonal_tags": [
+      "summer"
+    ],
+    "prep_time_minutes": 10,
+    "cook_time_minutes": 8,
+    "total_time_minutes": 18,
+    "difficulty": "easy"
+  }
+]
