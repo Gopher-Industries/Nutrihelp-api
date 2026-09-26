@@ -34,7 +34,12 @@ const schemas = {
       .items(
         Joi.object({
           name: Joi.string().trim().min(1).max(120).required(),
-          category: Joi.string().trim().max(60).allow('', null)
+          category: Joi.string().trim().max(60).allow('', null),
+          // Optional measure, used to work out a gram weight for nutrition totals.
+          // quantity is null for amounts such as "to taste".
+          quantity: Joi.number().positive().allow(null),
+          unit: Joi.string().trim().max(40).allow('', null),
+          notes: Joi.string().trim().max(200).allow('', null)
         })
       )
       .min(1)

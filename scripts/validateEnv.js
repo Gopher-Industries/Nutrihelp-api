@@ -24,7 +24,11 @@ function validateEnvironmentVariables() {
         'SENDGRID_API_KEY',
         'FROM_EMAIL',
         'NODE_ENV',
-        'CORS_ORIGIN'
+        'CORS_ORIGIN',
+        // Recipe sources and recipe nutrition. Each feature falls back safely when unset.
+        'GEMINI_API_KEY',
+        'OPENROUTER_API_KEY',
+        'USDA_API_KEY'
     ];
     
     let hasErrors = false;
