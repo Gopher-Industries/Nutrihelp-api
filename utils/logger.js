@@ -5,7 +5,7 @@ try {
     level: process.env.LOG_LEVEL || 'info',
     format: winston.format.json(),
     transports: [
-      new winston.transports.File({filename: 'Nutrihelp-api/Nutrihelp-api/logs/SIEM.log'})
+      new winston.transports.File({filename: 'Nutrihelp-api/Nutrihelp-api/logs/SIEM_logs.json'})
     ]
   });
 } catch (e) {
