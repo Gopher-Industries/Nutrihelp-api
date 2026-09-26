@@ -1,10 +1,10 @@
 // routes/security.js
 const express = require('express');
 const router = express.Router();
-const { supabaseAnon } = require('../database/supabase');
+const { createClient } = require('@supabase/supabase-js');
 const { authenticateToken } = require('../middleware/authenticateToken');
 
-const supabase = supabaseAnon;
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
 
 /**
  * Get the latest security assessment report
