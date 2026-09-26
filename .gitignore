@@ -10,7 +10,6 @@ test-results/
 !data/meal_library.json
 server.pid
 server.log
-logs/
 *.bak
 .env
 node_modules
@@ -21,10 +20,3 @@ node_modules
 *.crt
 *.p12
 certs/
-# Local development
-.venv/
-logs/
-uploads/
-
-# Security scanner generated output
-security/output/

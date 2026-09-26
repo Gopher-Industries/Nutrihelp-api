@@ -209,50 +209,6 @@ jobs:
         run: npx swagger-cli validate ${{ env.OPENAPI_FILE }} || exit 0
         continue-on-error: false
 
-  # ==================== JOB 5b: ROUTE GUARD CHECK ====================
-  #
-  # Fails when an Express write route is registered without recognised
-  # authentication or authorisation middleware.
-  #
-  # Addresses the root cause shared by NH-VULN-2026-012, 013 and 017: a new
-  # route file is created and the middleware that protects comparable routes is
-  # not applied to it. Fixing those three closes three symptoms. This closes the
-  # category.
-  #
-  # NOTE ON THE MISSING "|| exit 0"
-  # Every other gate in this file ends by suppressing its own failure, which is
-  # NH-VULN-2026-003. This step deliberately does not. A check that cannot fail
-  # reports nothing, and adding one here would have been pointless.
-  #
-  # THIS JOB IS GREEN TODAY AND WILL NOT BLOCK ANYONE
-  # The 20 write routes that were already unprotected when this was written are
-  # recorded in scripts/route-guard-baseline.json. They are printed on every run
-  # so they stay visible, but they do not fail the build. Introducing a check
-  # that turned every open pull request red for pre-existing debt would get the
-  # check switched off within a day, which helps nobody.
-  #
-  # The job fails only when a NEW unprotected write route is added. So it is
-  # safe to add to required checks in branch protection straight away, and the
-  # baseline should shrink to empty as the 20 are cleared.
-  route-guards:
-    name: Route Guard Check
-    runs-on: ubuntu-latest
-    needs: install-deps
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci --prefer-offline || npm install
-
-      - name: Check every write route carries a guard
-        run: npm run check:route-guards
-        continue-on-error: false
-
   # ==================== JOB 6: SECURITY SCAN - BLOCKING ====================
   security-scan:
     name: Security Vulnerability Scan

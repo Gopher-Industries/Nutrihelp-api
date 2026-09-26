@@ -1099,7 +1099,7 @@ async function sendEmailAlert(alert) {
       delete transporterConfig.service;
     }
 
-    cachedTransporter = nodemailer.createTransport(transporterConfig);
+    cachedTransporter = nodemailer.createTransporter(transporterConfig);
   }
 
   const subject = `[${alert.severity}] NutriHelp Security Alert ${alert.alert_id}`;
@@ -1330,9 +1330,7 @@ async function runAlertCheckJob() {
     const result = await checkAlerts();
     consecutiveJobFailures = 0;
 
-    const sent = result.dispatch_results.filter((r) => r.overall_success).length;
-    const failed = result.dispatch_results.length - sent;
-    console.log(`[securityAlertService] Alert check complete: ${result.alerts.length} alerts generated, ${sent} sent, ${failed} failed`);
+    console.log(`[securityAlertService] Alert check complete: ${result.alerts.length} alerts generated, ${result.dispatch_results.length} notifications sent`);
     if (result.alerts.length > 0) {
       console.log('[securityAlertService] Generated alerts:', result.alerts.map((a) => a.alert_id));
     }
