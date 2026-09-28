@@ -331,7 +331,7 @@ jobs:
   final-gate:
     name: FINAL BLOCKING GATE
     runs-on: ubuntu-latest
-    needs: [unit-tests, openapi-validate, route-guards, build-check]
+    needs: [lint, format-check, unit-tests, openapi-validate, route-guards, security-scan, build-check]
     if: always()
     steps:
       - name: Verify all critical checks passed
