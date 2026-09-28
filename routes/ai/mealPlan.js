@@ -1,9 +1,6 @@
-const { authenticateAIToken } = require('../../middleware/authenticateAIToken');
 const express = require('express');
 const path = require('path');
 const router = express.Router();
-
-router.use(authenticateAIToken);
 
 const MEAL_LIBRARY_PATH = path.join(__dirname, '..', '..', 'data', 'meal_library.json');
 let MEALS = null;

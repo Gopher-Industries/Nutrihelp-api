@@ -1,5 +1,5 @@
 const { validationResult } = require('express-validator');
-let { add, get, getForAuthenticatedUser, deletePlan, saveMealRelation } = require('../model/mealPlan.js');
+let { add, get, deletePlan, saveMealRelation } = require('../model/mealPlan.js');
 const { addAiMealItem, getAiMealItems, deleteAiMealItem } = require('../model/aiMealPlanItem.js');
 const {
   createErrorResponse,
@@ -78,7 +78,7 @@ const addMealPlan = async (req, res) => {
 
     return res.status(201).json(response);
   } catch (error) {
-    console.error({ error });
+    console.error({ error: 'error' });
     return internalFailure(res, 'MEALPLAN_CREATE_FAILED');
   }
 };
@@ -121,59 +121,7 @@ const getMealPlan = async (req, res) => {
 
     return res.status(200).json(response);
   } catch (error) {
-    console.error({ error });
-    return internalFailure(res, 'MEALPLANS_LOAD_FAILED');
-  }
-};
-
-
-const getMyMealPlan = async (req, res) => {
-  try {
-    const userId = req.user?.userId;
-
-    if (!userId) {
-      return res.status(401).json(
-        createErrorResponse('Authenticated user is required', 'UNAUTHENTICATED')
-      );
-    }
-
-    const startDate = req.query?.start_date || null;
-    const endDate = req.query?.end_date || null;
-
-    if (startDate && endDate && startDate > endDate) {
-      return res.status(400).json(
-        createErrorResponse(
-          'start_date must be before or equal to end_date',
-          'INVALID_DATE_RANGE'
-        )
-      );
-    }
-
-    const mealPlans = await getForAuthenticatedUser(userId, {
-      startDate,
-      endDate
-    });
-
-    const items = formatMealPlans(mealPlans || []);
-
-    const response = createSuccessResponse({
-      items: items.map((item) => ({
-        id: item.id,
-        date: item.date,
-        mealType: item.mealType,
-        recipeCount: item.recipeCount,
-        recipes: item.recipes
-      })),
-      summary: buildMealPlanSummary(items)
-    }, {
-      count: items.length,
-      startDate,
-      endDate
-    });
-
-    return res.status(200).json(response);
-  } catch (error) {
-    console.error({ error });
+    console.error({ error: 'error' });
     return internalFailure(res, 'MEALPLANS_LOAD_FAILED');
   }
 };
@@ -198,7 +146,7 @@ const deleteMealPlan = async (req, res) => {
       message: 'Meal plan deleted successfully'
     }));
   } catch (error) {
-    console.error({ error });
+    console.error({ error: 'error' });
     return internalFailure(res, 'MEALPLAN_DELETE_FAILED');
   }
 };
@@ -273,7 +221,6 @@ const deleteAiMealSuggestion = async (req, res) => {
 module.exports = {
   addMealPlan,
   getMealPlan,
-  getMyMealPlan,
   deleteMealPlan,
   addAiMealSuggestion,
   getAiMealSuggestions,

@@ -4,7 +4,7 @@ const { v4: uuidv4 } = require('uuid');
 
 module.exports = (req, res, next) => {
   const startTime = Date.now();
-  const requestId = req.requestId || uuidv4();
+  const requestId = uuidv4();
   const method = req.method;
   const path = req.originalUrl;
 

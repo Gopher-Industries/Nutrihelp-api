@@ -1,12 +1,8 @@
-console.log('🟢 Loaded AuthService from:', __filename);
-console.log('URL:', process.env.SUPABASE_URL);
-console.log('LOGIN FUNCTION HIT');
+console.log("🟢 Loaded AuthService from:", __filename);
+console.log("URL:", process.env.SUPABASE_URL);
+console.log("LOGIN FUNCTION HIT");
 
-// Use the centralized Supabase clients.
-const {
-  supabaseAnon,
-  supabaseServiceRole: supabaseService,
-} = require('../database/supabase');
+const { createClient } = require('@supabase/supabase-js');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
@@ -14,7 +10,16 @@ const { logSecurityEvent } = require('./securityEventService');
 const logLoginEvent = require('../Monitor_&_Logging/loginLogger');
 const { ServiceError } = require('./serviceError');
 const userProfileService = require('./userProfileService');
-const authRepository = require('../repositories/authRepository');
+
+const supabaseAnon = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_ANON_KEY
+);
+
+const supabaseService = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
 
 class AuthService {
   constructor() {
@@ -28,7 +33,11 @@ class AuthService {
      Helper
      ========================= */
   createLookupHash(token) {
-    return crypto.createHash('sha256').update(token).digest('hex').slice(0, 16);
+    return crypto
+      .createHash('sha256')
+      .update(token)
+      .digest('hex')
+      .slice(0, 16);
   }
 
   hashDeviceFingerprint(deviceInfo = {}) {
@@ -68,15 +77,13 @@ class AuthService {
   }
 
   async findUserByEmail(email) {
-    const { data, error } = await supabaseService
+    const { data, error } = await supabaseAnon
       .from('users')
-      .select(
-        `
+      .select(`
         user_id, email, password, name, first_name, last_name, role_id,
         account_status, email_verified,
         user_roles!left(id, role_name)
-      `
-      )
+      `)
       .eq('email', email)
       .maybeSingle();
 
@@ -107,13 +114,11 @@ class AuthService {
     const { data, error } = await supabaseService
       .from('users')
       .insert(payload)
-      .select(
-        `
+      .select(`
         user_id, email, password, name, first_name, last_name, role_id,
         account_status, email_verified,
         user_roles!left(id, role_name)
-      `
-      )
+      `)
       .single();
 
     if (error) {
@@ -131,9 +136,9 @@ class AuthService {
 
     const displayName = metadata.full_name || metadata.name || email.split('@')[0];
     const firstName = metadata.first_name || displayName.split(' ')[0] || null;
-    const lastName =
-      metadata.last_name ||
-      (displayName.includes(' ') ? displayName.split(' ').slice(1).join(' ') : null);
+    const lastName = metadata.last_name || (displayName.includes(' ')
+      ? displayName.split(' ').slice(1).join(' ')
+      : null);
 
     return this.createOAuthUser({
       email,
@@ -162,27 +167,14 @@ class AuthService {
      Register
      ========================= */
   async register(userData) {
-    const {
-      name,
-      email,
-      password,
-      first_name,
-      last_name,
-      contact_number,
-      address,
-      privacy_consent,
-    } = userData;
+    const { name, email, password, first_name, last_name } = userData;
 
     try {
       if (!name || !email || !password) {
         throw new ServiceError(400, 'Name, email, and password are required');
       }
 
-      if (privacy_consent !== true) {
-        throw new ServiceError(400, 'Privacy policy consent is required');
-      }
-
-      const { data: existingUser } = await supabaseService
+      const { data: existingUser } = await supabaseAnon
         .from('users')
         .select('user_id')
         .eq('email', email)
@@ -194,7 +186,7 @@ class AuthService {
 
       const hashedPassword = await bcrypt.hash(password, 12);
 
-      const { data: newUser, error } = await supabaseService
+      const { data: newUser, error } = await supabaseAnon
         .from('users')
         .insert({
           name,
@@ -202,27 +194,21 @@ class AuthService {
           password: hashedPassword,
           first_name,
           last_name,
-          contact_number,
-          address,
           role_id: 7,
           account_status: 'active',
           email_verified: false,
           mfa_enabled: false,
-          registration_date: new Date().toISOString(),
-          privacy_consent_at: new Date().toISOString(),
-          privacy_policy_version: '1.0',
+          registration_date: new Date().toISOString()
         })
         .select('user_id, email, name')
         .single();
 
-      if (error) {
-        throw error;
-      }
+      if (error) throw error;
 
       return {
         success: true,
         user: newUser,
-        message: 'User registered successfully',
+        message: 'User registered successfully'
       };
     } catch (error) {
       if (error instanceof ServiceError) {
@@ -237,7 +223,7 @@ class AuthService {
      Login
      ========================= */
   async login(loginData, deviceInfo = {}) {
-    console.log('LOGIN FUNCTION HIT');
+    console.log("LOGIN FUNCTION HIT");
     const { email, password } = loginData;
 
     try {
@@ -245,30 +231,28 @@ class AuthService {
         throw new ServiceError(400, 'Email and password are required');
       }
 
-      const { data: user, error } = await supabaseService
+      const { data: user, error } = await supabaseAnon
         .from('users')
-        .select(
-          `
+        .select(`
           user_id, email, password, name, role_id,
           account_status, email_verified,
           user_roles!inner(id, role_name)
-        `
-        )
+        `)
         .eq('email', email)
         .single();
 
       if (error || !user) {
         await logSecurityEvent({
-          event_type: 'LOGIN_FAILED',
-          severity: 'medium',
+          event_type: "LOGIN_FAILED",
+          severity: "medium",
           user_id: null,
           ip_address: deviceInfo.ip || null,
           user_agent: deviceInfo.userAgent || null,
-          resource: '/api/auth/login',
+          resource: "/api/auth/login",
           metadata: {
             email,
-            reason: 'user_not_found',
-          },
+            reason: "user_not_found"
+          }
         });
 
         throw new Error('Invalid credentials');
@@ -276,16 +260,16 @@ class AuthService {
 
       if (user.account_status !== 'active') {
         await logSecurityEvent({
-          event_type: 'LOGIN_FAILED',
-          severity: 'medium',
+          event_type: "LOGIN_FAILED",
+          severity: "medium",
           user_id: user.user_id,
           ip_address: deviceInfo.ip || null,
           user_agent: deviceInfo.userAgent || null,
-          resource: '/api/auth/login',
+          resource: "/api/auth/login",
           metadata: {
             email,
-            reason: 'account_inactive',
-          },
+            reason: "account_inactive"
+          }
         });
 
         throw new Error('Account is not active');
@@ -294,25 +278,25 @@ class AuthService {
       const validPassword = await bcrypt.compare(password, user.password);
 
       if (!validPassword) {
-        console.log('LOGIN FAILED TRIGGERED');
+        console.log("LOGIN FAILED TRIGGERED");
         await logSecurityEvent({
-          event_type: 'LOGIN_FAILED',
-          severity: 'medium',
+          event_type: "LOGIN_FAILED",
+          severity: "medium",
           user_id: user.user_id,
           ip_address: deviceInfo.ip || null,
           user_agent: deviceInfo.userAgent || null,
-          resource: '/api/auth/login',
+          resource: "/api/auth/login",
           metadata: {
             email,
-            reason: 'invalid_password',
-          },
+            reason: "invalid_password"
+          }
         });
 
         throw new Error('Invalid credentials');
       }
       const tokens = await this.generateTokenPair(user, deviceInfo);
 
-      await supabaseService
+      await supabaseAnon
         .from('users')
         .update({ last_login: new Date().toISOString() })
         .eq('user_id', user.user_id);
@@ -320,15 +304,15 @@ class AuthService {
       await this.logAuthAttempt(user.user_id, email, true, deviceInfo);
 
       await logSecurityEvent({
-        event_type: 'LOGIN_SUCCESS',
-        severity: 'low',
+        event_type: "LOGIN_SUCCESS",
+        severity: "low",
         user_id: user.user_id,
         ip_address: deviceInfo.ip || null,
         user_agent: deviceInfo.userAgent || null,
-        resource: '/api/auth/login',
+        resource: "/api/auth/login",
         metadata: {
-          email,
-        },
+          email
+        }
       });
 
       return this.formatAuthResponse(user, tokens);
@@ -377,7 +361,7 @@ class AuthService {
         authMethod: 'oauth',
       });
 
-      await supabaseService
+      await supabaseAnon
         .from('users')
         .update({
           last_login: new Date().toISOString(),
@@ -397,7 +381,7 @@ class AuthService {
         metadata: {
           email: user.email,
           provider: resolvedProvider,
-        },
+        }
       });
 
       return this.formatAuthResponse(user, tokens, {
@@ -426,36 +410,46 @@ class AuthService {
         userId: user.user_id,
         email: user.email,
         role: user.user_roles?.role_name || 'user',
-        type: 'access',
+        type: 'access'
       };
 
-      const accessToken = jwt.sign(accessPayload, process.env.JWT_TOKEN, {
-        expiresIn: this.accessTokenExpiry,
-        algorithm: 'HS256',
-      });
+      const accessToken = jwt.sign(
+        accessPayload,
+        process.env.JWT_TOKEN,
+        { expiresIn: this.accessTokenExpiry, algorithm: 'HS256' }
+      );
+
+      await supabaseService
+        .from('user_sessiontoken')
+        .update({ is_active: false })
+        .eq('user_id', user.user_id);
 
       const rawRefreshToken = crypto.randomBytes(32).toString('hex');
       const hashedRefreshToken = await bcrypt.hash(rawRefreshToken, 12);
       const lookupHash = this.createLookupHash(rawRefreshToken);
       const expiresAt = new Date(Date.now() + this.refreshTokenExpiry);
 
-      await authRepository.createRefreshSession({
-        user_id: user.user_id,
-        refresh_token: hashedRefreshToken,
-        refresh_token_lookup: lookupHash,
-        token_type: 'refresh',
-        device_info: deviceInfo,
-        ip_address: deviceInfo.ip || null,
-        user_agent: deviceInfo.userAgent || null,
-        expires_at: expiresAt.toISOString(),
-        is_active: true,
-      });
+      const { error } = await supabaseService
+        .from('user_sessiontoken')
+        .insert({
+          user_id: user.user_id,
+          refresh_token: hashedRefreshToken,
+          refresh_token_lookup: lookupHash,
+          token_type: 'refresh',
+          device_info: deviceInfo,
+          ip_address: deviceInfo.ip || null,
+          user_agent: deviceInfo.userAgent || null,
+          expires_at: expiresAt.toISOString(),
+          is_active: true
+        });
+
+      if (error) throw error;
 
       return {
         accessToken,
         refreshToken: rawRefreshToken,
         expiresIn: 15 * 60,
-        tokenType: 'Bearer',
+        tokenType: 'Bearer'
       };
     } catch (error) {
       throw new Error(`Token generation failed: ${error.message}`);
@@ -473,11 +467,26 @@ class AuthService {
 
       const lookupHash = this.createLookupHash(refreshToken);
 
-      const session = await authRepository.findActiveRefreshSessionByLookupHash(lookupHash);
+      const { data: sessions, error } = await supabaseService
+        .from('user_sessiontoken')
+        .select(`
+          id,
+          user_id,
+          refresh_token,
+          refresh_token_lookup,
+          expires_at,
+          is_active
+        `)
+        .eq('refresh_token_lookup', lookupHash)
+        .eq('is_active', true)
+        .limit(1);
 
-      if (!session) {
+      
+      if (error || !sessions || sessions.length === 0) {
         throw new ServiceError(401, 'Invalid refresh token');
       }
+
+      const session = sessions[0];
 
       const match = await bcrypt.compare(refreshToken, session.refresh_token);
       if (!match) throw new ServiceError(401, 'Invalid refresh token');
@@ -486,9 +495,19 @@ class AuthService {
         throw new ServiceError(401, 'Refresh token expired');
       }
 
-      const user = await authRepository.findUserByIdForSession(session.user_id);
+      const { data: user, error: userError } = await supabaseAnon
+        .from('users')
+        .select(`
+          user_id,
+          email,
+          name,
+          role_id,
+          account_status
+        `)
+        .eq('user_id', session.user_id)
+        .single();
 
-      if (!user) {
+      if (userError || !user) {
         throw new ServiceError(404, 'User not found');
       }
 
@@ -498,11 +517,14 @@ class AuthService {
 
       const newTokens = await this.generateTokenPair(user, deviceInfo);
 
-      await authRepository.deactivateSessionById(session.id);
+      await supabaseService
+        .from('user_sessiontoken')
+        .update({ is_active: false })
+        .eq('id', session.id);
 
       return {
         success: true,
-        ...newTokens,
+        ...newTokens
       };
     } catch (error) {
       if (error instanceof ServiceError) {
@@ -524,7 +546,10 @@ class AuthService {
 
       const lookupHash = this.createLookupHash(refreshToken);
 
-      await authRepository.deactivateSessionByLookupHash(lookupHash);
+      await supabaseService
+        .from('user_sessiontoken')
+        .update({ is_active: false })
+        .eq('refresh_token_lookup', lookupHash);
 
       return { success: true, message: 'Logout successful' };
     } catch (error) {
@@ -547,8 +572,17 @@ class AuthService {
 
       const reason = options.reason || 'logout_all';
       const deviceInfo = options.deviceInfo || {};
-      const trustedDevices = await authRepository.findActiveTrustedDeviceIdsByUserId(userId);
-      await authRepository.deactivateSessionsByUserId(userId);
+      const { data: trustedDevices } = await supabaseService
+        .from('user_sessiontoken')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('token_type', 'trusted_device')
+        .eq('is_active', true);
+
+      await supabaseService
+        .from('user_sessiontoken')
+        .update({ is_active: false })
+        .eq('user_id', userId);
 
       if ((trustedDevices || []).length > 0) {
         await this.logSecurityEvent(userId, 'TRUSTED_DEVICE_REVOKED', deviceInfo, {
@@ -575,22 +609,32 @@ class AuthService {
       const expiresAt = new Date(Date.now() + this.trustedDeviceExpiry);
       const deviceFingerprint = this.hashDeviceFingerprint(deviceInfo);
 
-      await authRepository.deactivateActiveTrustedDeviceForFingerprint(userId, deviceFingerprint);
+      await supabaseService
+        .from('user_sessiontoken')
+        .update({ is_active: false })
+        .eq('user_id', userId)
+        .eq('token_type', 'trusted_device')
+        .eq('is_active', true)
+        .contains('device_info', { userAgentHash: deviceFingerprint });
 
-      await authRepository.createRefreshSession({
-        user_id: userId,
-        refresh_token: hashedTrustedToken,
-        refresh_token_lookup: lookupHash,
-        token_type: 'trusted_device',
-        device_info: {
-          trusted: true,
-          userAgentHash: deviceFingerprint,
-        },
-        ip_address: deviceInfo.ip || null,
-        user_agent: deviceInfo.userAgent || null,
-        expires_at: expiresAt.toISOString(),
-        is_active: true,
-      });
+      const { error } = await supabaseService
+        .from('user_sessiontoken')
+        .insert({
+          user_id: userId,
+          refresh_token: hashedTrustedToken,
+          refresh_token_lookup: lookupHash,
+          token_type: 'trusted_device',
+          device_info: {
+            trusted: true,
+            userAgentHash: deviceFingerprint,
+          },
+          ip_address: deviceInfo.ip || null,
+          user_agent: deviceInfo.userAgent || null,
+          expires_at: expiresAt.toISOString(),
+          is_active: true,
+        });
+
+      if (error) throw error;
 
       await this.logSecurityEvent(userId, 'TRUSTED_DEVICE_CREATED', deviceInfo, {
         expires_at: expiresAt.toISOString(),
@@ -612,18 +656,30 @@ class AuthService {
       }
 
       const lookupHash = this.createLookupHash(rawToken);
-      const trustedDevice = await authRepository.findActiveTrustedDevice(userId, lookupHash);
+      const { data: sessions, error } = await supabaseService
+        .from('user_sessiontoken')
+        .select('id, refresh_token, expires_at, is_active, device_info')
+        .eq('user_id', userId)
+        .eq('token_type', 'trusted_device')
+        .eq('refresh_token_lookup', lookupHash)
+        .eq('is_active', true)
+        .limit(1);
 
-      if (!trustedDevice) {
+      if (error || !sessions || sessions.length === 0) {
         return { valid: false, reason: 'missing' };
       }
+
+      const trustedDevice = sessions[0];
       const tokenMatches = await bcrypt.compare(rawToken, trustedDevice.refresh_token);
       if (!tokenMatches) {
         return { valid: false, reason: 'invalid' };
       }
 
       if (new Date(trustedDevice.expires_at) < new Date()) {
-        await authRepository.deactivateSessionById(trustedDevice.id);
+        await supabaseService
+          .from('user_sessiontoken')
+          .update({ is_active: false })
+          .eq('id', trustedDevice.id);
         return { valid: false, reason: 'expired' };
       }
 
@@ -645,8 +701,18 @@ class AuthService {
 
   async revokeTrustedDevices(userId, reason = 'manual', deviceInfo = {}) {
     try {
-      const trustedDevices = await authRepository.findActiveTrustedDeviceIdsByUserId(userId);
-      await authRepository.deactivateTrustedDevicesByUserId(userId);
+      const { data: trustedDevices } = await supabaseService
+        .from('user_sessiontoken')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('token_type', 'trusted_device')
+        .eq('is_active', true);
+
+      await supabaseService
+        .from('user_sessiontoken')
+        .update({ is_active: false })
+        .eq('user_id', userId)
+        .eq('token_type', 'trusted_device');
 
       if ((trustedDevices || []).length > 0) {
         await this.logSecurityEvent(userId, 'TRUSTED_DEVICE_REVOKED', deviceInfo, {
@@ -671,42 +737,20 @@ class AuthService {
     return jwt.verify(token, process.env.JWT_TOKEN);
   }
 
-  verifyAIToken(token) {
-    const secret = process.env.AI_JWT_TOKEN;
-    const issuer = process.env.AI_JWT_ISSUER;
-    const audience = process.env.AI_JWT_AUDIENCE;
-    const keyId = process.env.AI_JWT_KEY_ID;
-
-    if (!secret || !issuer || !audience || !keyId) {
-      throw new Error('AI JWT configuration is incomplete');
-    }
-
-    const verified = jwt.verify(token, secret, {
-      algorithms: ['HS256'],
-      issuer,
-      audience,
-      complete: true,
-    });
-
-    if (verified.header.kid !== keyId) {
-      throw new jwt.JsonWebTokenError('invalid key id');
-    }
-
-    return verified.payload;
-  }
-
   /* =========================
      Auth Logs
      ========================= */
   async logAuthAttempt(userId, email, success, deviceInfo) {
     try {
-      await supabaseAnon.from('auth_logs').insert({
-        user_id: userId,
-        email,
-        success,
-        ip_address: deviceInfo.ip || null,
-        created_at: new Date().toISOString(),
-      });
+      await supabaseAnon
+        .from('auth_logs')
+        .insert({
+          user_id: userId,
+          email,
+          success,
+          ip_address: deviceInfo.ip || null,
+          created_at: new Date().toISOString()
+        });
     } catch {
       // silent by design
     }
@@ -717,7 +761,10 @@ class AuthService {
      ========================= */
   async cleanupExpiredSessions() {
     try {
-      await authRepository.deactivateExpiredSessions(new Date().toISOString());
+      await supabaseService
+        .from('user_sessiontoken')
+        .update({ is_active: false })
+        .lt('expires_at', new Date().toISOString());
     } catch {
       // silent by design
     }
@@ -733,10 +780,7 @@ class AuthService {
 
   async logLoginAttempt({ email, userId, success, ipAddress, createdAt }) {
     if (!email || success === undefined || !ipAddress || !createdAt) {
-      throw new ServiceError(
-        400,
-        'Missing required fields: email, success, ip_address, created_at'
-      );
+      throw new ServiceError(400, 'Missing required fields: email, success, ip_address, created_at');
     }
 
     const { error } = await supabaseAnon.from('auth_logs').insert([
@@ -745,8 +789,8 @@ class AuthService {
         user_id: userId || null,
         success,
         ip_address: ipAddress,
-        created_at: createdAt,
-      },
+        created_at: createdAt
+      }
     ]);
 
     if (error) {
@@ -761,7 +805,7 @@ class AuthService {
       throw new ServiceError(400, 'Email is required');
     }
 
-    const { data, error } = await supabaseService
+    const { data, error } = await supabaseAnon
       .from('users')
       .select('contact_number')
       .eq('email', email)
@@ -776,7 +820,7 @@ class AuthService {
 
     return {
       message: 'SMS code sent (check server console for code)',
-      phone: data.contact_number,
+      phone: data.contact_number
     };
   }
 }

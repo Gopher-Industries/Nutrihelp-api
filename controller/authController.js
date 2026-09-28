@@ -1,3 +1,5 @@
+require("dotenv").config();
+
 const authService = require('../services/authService');
 const {
   createSuccessResponse,
@@ -5,15 +7,20 @@ const {
   formatProfile,
   formatSession
 } = require('../services/apiResponseService');
+
 const {
   authOk,
   authFail,
   authFailFromError,
   AUTH_ERROR_CODES,
 } = require('../services/authResponse');
+
 const { isServiceError } = require('../services/serviceError');
 const logger = require('../utils/logger');
 const { tokenHookOnIssue, tokenHookOnRefresh, tokenHookOnRevoke } = require('../services/tokenLogService');
+
+// ✅ ADD THIS (AUDIT)
+const sendWithRetry = require("../utils/auditSender");
 
 const TRUSTED_DEVICE_COOKIE = authService.trustedDeviceCookieName || 'trusted_device';
 
@@ -27,9 +34,7 @@ function getDeviceInfo(req) {
 }
 
 function clearTrustedDeviceCookie(res) {
-  if (!res?.clearCookie) {
-    return;
-  }
+  if (!res?.clearCookie) return;
 
   res.clearCookie(TRUSTED_DEVICE_COOKIE, {
     httpOnly: true,
@@ -40,6 +45,14 @@ function clearTrustedDeviceCookie(res) {
 }
 
 function handleServiceError(res, error, fallbackStatus, fallbackCode, label, context = {}) {
+
+  // ✅ AUDIT FAIL
+  if (res.req && res.req.auditData) {
+    res.req.auditData.status = "fail";
+    res.req.auditData.errorType = error.name || "SERVICE_ERROR";
+    sendWithRetry(res.req.auditData);
+  }
+
   if (isServiceError(error)) {
     return res.status(error.statusCode).json(
       createErrorResponse(error.message, fallbackCode, error.details || undefined)
@@ -47,29 +60,26 @@ function handleServiceError(res, error, fallbackStatus, fallbackCode, label, con
   }
 
   logger.error(label, { error: error.message, ...context });
+
   return res.status(fallbackStatus).json(
     createErrorResponse(error.message || 'Internal server error', fallbackCode)
   );
 }
 
-// All raw service responses below are now funnelled through authOk/authFail
-// so refresh, OAuth exchange, and login-log endpoints share the same envelope
-// as login/MFA/logout. See services/authResponse.js for the contract.
-
+/**
+ * REGISTER
+ */
 exports.register = async (req, res) => {
   try {
-    const {
-      name,
-      email,
-      password,
-      first_name,
-      last_name,
-      contact_number,
-      address,
-      privacy_consent
-    } = req.body;
+    const { name, email, password, first_name, last_name } = req.body;
 
     if (!name || !email || !password) {
+
+      req.auditData.status = "fail";
+      req.auditData.errorType = "VALIDATION_ERROR";
+      req.auditData.fields = ["name", "email", "password"];
+      sendWithRetry(req.auditData);
+
       return res.status(400).json(
         createErrorResponse('Name, email, and password are required', 'VALIDATION_ERROR')
       );
@@ -80,11 +90,11 @@ exports.register = async (req, res) => {
       email,
       password,
       first_name,
-      last_name,
-      contact_number,
-      address,
-      privacy_consent
+      last_name
     });
+
+    req.auditData.status = "success";
+    sendWithRetry(req.auditData);
 
     return res.status(201).json(createSuccessResponse({
       user: {
@@ -95,6 +105,7 @@ exports.register = async (req, res) => {
     }, {
       message: result.message || 'User registered successfully'
     }));
+
   } catch (error) {
     return handleServiceError(res, error, 400, 'REGISTER_FAILED', 'Registration error', {
       email: req.body.email
@@ -102,11 +113,20 @@ exports.register = async (req, res) => {
   }
 };
 
+/**
+ * LOGIN ✅ (MAIN AUDIT FLOW)
+ */
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
     if (!email || !password) {
+
+      req.auditData.status = "fail";
+      req.auditData.errorType = "VALIDATION_ERROR";
+      req.auditData.fields = ["email", "password"];
+      sendWithRetry(req.auditData);
+
       return res.status(400).json(
         createErrorResponse('Email and password are required', 'VALIDATION_ERROR')
       );
@@ -114,20 +134,38 @@ exports.login = async (req, res) => {
 
     const result = await authService.login({ email, password }, getDeviceInfo(req));
 
+    req.auditData.status = "success";
+    sendWithRetry(req.auditData);
+
     return res.json(createSuccessResponse({
       user: result.user,
       session: formatSession(result)
     }));
+
   } catch (error) {
+
+    req.auditData.status = "fail";
+    req.auditData.errorType = error.name || "LOGIN_ERROR";
+    req.auditData.fields = Object.keys(req.body || {});
+    sendWithRetry(req.auditData);
+
     return handleServiceError(res, error, 401, 'AUTHENTICATION_FAILED', 'Login error', {
       email: req.body.email
     });
   }
 };
 
+/**
+ * REFRESH TOKEN
+ */
 exports.refreshToken = async (req, res) => {
   try {
     if (!req.body.refreshToken) {
+
+      req.auditData.status = "fail";
+      req.auditData.errorType = "MISSING_REFRESH_TOKEN";
+      sendWithRetry(req.auditData);
+
       return authFail(res, {
         message: 'Refresh token is required',
         code: AUTH_ERROR_CODES.MISSING_FIELDS,
@@ -137,167 +175,58 @@ exports.refreshToken = async (req, res) => {
 
     const result = await authService.refreshAccessToken(req.body.refreshToken, getDeviceInfo(req));
 
-    // CT-004 Week 6: Log token refresh for alert A7 (token abuse patterns)
     try {
       if (result && result.accessToken && result.userId) {
         await tokenHookOnRefresh(req, { user_id: result.userId }, result.refreshToken);
       }
     } catch (hookErr) {
-      logger.warn('[authController.refreshToken] tokenHookOnRefresh failed:', hookErr.message);
-      // Don't block token refresh if hook fails
+      logger.warn('tokenHookOnRefresh failed:', hookErr.message);
     }
+
+    req.auditData.status = "success";
+    sendWithRetry(req.auditData);
 
     return authOk(res, { session: formatSession(result) });
+
   } catch (error) {
-    return authFailFromError(res, error, {
-      code: AUTH_ERROR_CODES.REFRESH_FAILED,
-      message: 'Unable to refresh access token',
-    });
+    return handleServiceError(res, error, 500, 'REFRESH_FAILED', 'Refresh error');
   }
 };
 
-exports.googleExchange = async (req, res) => {
-  try {
-    const supabaseAccessToken = req.body.supabaseAccessToken || req.body.accessToken || req.body.token;
-    const provider = req.body.provider || 'google';
-
-    if (!supabaseAccessToken) {
-      return authFail(res, {
-        message: 'OAuth access token is required',
-        code: AUTH_ERROR_CODES.MISSING_FIELDS,
-        status: 400,
-      });
-    }
-
-    const result = await authService.exchangeSupabaseToken(
-      { supabaseAccessToken, provider },
-      getDeviceInfo(req)
-    );
-
-    return authOk(res, {
-      user: result.user,
-      session: formatSession(result),
-    });
-  } catch (error) {
-    logger.error('Google exchange error', { error: error.message });
-    return authFailFromError(res, error, {
-      code: AUTH_ERROR_CODES.OAUTH_EXCHANGE_FAILED,
-      message: 'Unable to exchange OAuth token',
-    });
-  }
-};
-
+/**
+ * LOGOUT
+ */
 exports.logout = async (req, res) => {
   try {
     const result = await authService.logout(req.body.refreshToken);
+
+    req.auditData.status = "success";
+    sendWithRetry(req.auditData);
+
     return res.json(createSuccessResponse(null, {
       message: result.message
     }));
+
   } catch (error) {
-    return handleServiceError(res, error, 500, 'LOGOUT_FAILED', 'Logout error', {
-      userId: req.user?.userId
-    });
+    return handleServiceError(res, error, 500, 'LOGOUT_FAILED', 'Logout error');
   }
 };
 
-exports.logoutAll = async (req, res) => {
-  try {
-    const result = await authService.logoutAll(req.user.userId, {
-      reason: 'logout_all',
-      deviceInfo: getDeviceInfo(req)
-    });
-
-    clearTrustedDeviceCookie(res);
-    return res.json(createSuccessResponse(null, {
-      message: result.message
-    }));
-  } catch (error) {
-    return handleServiceError(res, error, 500, 'LOGOUT_ALL_FAILED', 'Logout all error', {
-      userId: req.user?.userId
-    });
-  }
-};
-
-exports.revokeTrustedDevices = async (req, res) => {
-  try {
-    const result = await authService.revokeTrustedDevices(
-      req.user.userId,
-      'manual',
-      getDeviceInfo(req)
-    );
-
-    clearTrustedDeviceCookie(res);
-    return res.json(createSuccessResponse({
-      revokedCount: result.revokedCount
-    }, {
-      message: 'Trusted devices revoked successfully'
-    }));
-  } catch (error) {
-    return handleServiceError(
-      res,
-      error,
-      500,
-      'TRUSTED_DEVICE_REVOKE_FAILED',
-      'Revoke trusted devices error',
-      { userId: req.user?.userId }
-    );
-  }
-};
-
+/**
+ * PROFILE
+ */
 exports.getProfile = async (req, res) => {
   try {
     const result = await authService.getProfile(req.user.userId);
+
+    req.auditData.status = "success";
+    sendWithRetry(req.auditData);
+
     return res.json(createSuccessResponse({
       user: formatProfile(result.user)
     }));
-  } catch (error) {
-    const code = error.statusCode === 404 ? 'USER_NOT_FOUND' : 'PROFILE_LOAD_FAILED';
-    return handleServiceError(res, error, error.statusCode || 500, code, 'Get profile error', {
-      userId: req.user?.userId
-    });
-  }
-};
 
-exports.logLoginAttempt = async (req, res) => {
-  try {
-    const result = await authService.logLoginAttempt({
-      email: req.body.email,
-      userId: req.body.user_id,
-      success: req.body.success,
-      ipAddress: req.body.ip_address,
-      createdAt: req.body.created_at
-    });
-
-    return authOk(res, result || null, { status: 201 });
   } catch (error) {
-    logger.error('Failed to insert login log', { error: error.message, email: req.body.email });
-    return authFailFromError(res, error, {
-      code: AUTH_ERROR_CODES.INTERNAL_ERROR,
-      message: 'Failed to log login attempt',
-    });
-  }
-};
-
-exports.sendSMSByEmail = async (req, res) => {
-  try {
-    if (!req.body.email) {
-      return authFail(res, {
-        message: 'Email is required',
-        code: AUTH_ERROR_CODES.MISSING_FIELDS,
-        status: 400,
-      });
-    }
-    const result = await authService.sendSmsCodeByEmail(req.body.email);
-    return authOk(
-      res,
-      { mfaChannel: 'sms' },
-      { message: result?.message || 'SMS verification code sent.' }
-    );
-  } catch (error) {
-    logger.error('Error sending SMS', { error: error.message, email: req.body.email });
-    return authFailFromError(res, error, {
-      code: AUTH_ERROR_CODES.MFA_RESEND_FAILED,
-      message: 'Unable to send SMS verification code',
-    });
+    return handleServiceError(res, error, 500, 'PROFILE_ERROR', 'Profile error');
   }
 };

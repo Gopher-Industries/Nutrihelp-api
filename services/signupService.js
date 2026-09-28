@@ -6,7 +6,7 @@ const { ServiceError } = require('./serviceError');
 
 function isStrongPassword(pw = '') {
   // At least 8 chars, upper, lower, digit, special
-  return /(?=.{8,})(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9])/.test(pw);
+  return /(?=.{8,})(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[^A-Za-z0-9])/.test(pw);
 }
 
 async function signup({ email, password } = {}) {
@@ -14,8 +14,6 @@ async function signup({ email, password } = {}) {
     throw new ServiceError(400, 'Email and password are required');
   }
 
-  console.log('DEBUG password received:', JSON.stringify(password));
-  console.log('DEBUG isStrongPassword result:', isStrongPassword(password));
   if (!isStrongPassword(password)) {
     throw new ServiceError(
       400,

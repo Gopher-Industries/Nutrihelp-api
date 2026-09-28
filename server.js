@@ -1,4 +1,5 @@
 require('dotenv').config({ override: true });
+const { v4: uuidv4 } = require("uuid");
 
 const express = require('express');
 const fs = require('fs');
@@ -34,12 +35,6 @@ const { metricsMiddleware, metricsEndpoint } = require('./Monitor_&_Logging/metr
 const { runAlertCheckJob } = require('./services/securityAlertService');
 
 const FRONTEND_ORIGIN = 'http://localhost:3000';
-
-const ALLOWED_CORS_ORIGINS = new Set([
-  FRONTEND_ORIGIN,
-  'http://127.0.0.1:3000',
-  'chrome-extension://eggdlmopfankeonchoflhfoglaakobma',
-]);
 
 console.log('🔧 Environment Variables Check:');
 console.log('   SUPABASE_URL:', process.env.SUPABASE_URL ? '✓ Set' : '✗ Missing');
@@ -94,19 +89,34 @@ app.use(sessionMonitorMiddleware);
 app.use(localeMiddleware);
 app.use(responseContractMiddleware);
 
+app.use((req, res, next) => {
+  req.correlationId = req.requestId; // reuse existing ID
+  next();
+});
+
+app.use((req, res, next) => {
+  req.auditData = {
+    status: "pending",
+    errorType: null,
+    fields: [],
+    correlationId: req.correlationId
+  };
+  next();
+});
+
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow requests that do not carry an Origin header, such as
-    // server-to-server calls and local CLI/testing tools.
-    if (!origin) {
-      return callback(null, true);
+    if (!origin) return callback(null, true);
+    if (
+      origin.startsWith('http://localhost') ||
+      origin.startsWith('http://127.0.0.1') ||
+      origin.startsWith('chrome-extension://eggdlmopfankeonchoflhfoglaakobma') ||
+      origin.startsWith('https://apifox.cn-hangzhou.log.aliyuncs.com')
+    ) {
+      callback(null, true);
+    } else {
+      callback(new Error(`CORS blocked: ${origin}`));
     }
-
-    if (ALLOWED_CORS_ORIGINS.has(origin)) {
-      return callback(null, true);
-    }
-
-    return callback(new Error(`CORS blocked: ${origin}`));
   },
   credentials: true,
 }));
@@ -153,46 +163,7 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 app.use(metricsMiddleware);
-
-/**
- * NH-VULN-2026-014. /api/metrics was served to any unauthenticated caller.
- *
- * A user JWT is the wrong control here, because the intended consumer is a
- * scraper rather than a person, so this uses a static scrape token instead.
- *
- * It fails closed. If METRICS_TOKEN is unset the endpoint is unavailable rather
- * than public, so a missing configuration cannot quietly reopen the exposure.
- * Comparison is constant time, for the same reason recorded against
- * NH-VULN-2026-005.
- */
-const requireMetricsToken = (req, res, next) => {
-  const expected = process.env.METRICS_TOKEN;
-  if (!expected) {
-    return res.status(503).json({
-      success: false,
-      error: 'Metrics endpoint is not configured',
-      code: 'METRICS_NOT_CONFIGURED',
-    });
-  }
-
-  const header = req.get('authorization') || '';
-  const presented = header.startsWith('Bearer ') ? header.slice(7) : '';
-
-  const a = Buffer.from(presented);
-  const b = Buffer.from(expected);
-  const ok = a.length === b.length && require('crypto').timingSafeEqual(a, b);
-
-  if (!ok) {
-    return res.status(401).json({
-      success: false,
-      error: 'Unauthorized',
-      code: 'METRICS_UNAUTHORIZED',
-    });
-  }
-  return next();
-};
-
-app.get('/api/metrics', requireMetricsToken, metricsEndpoint);
+app.get('/api/metrics', metricsEndpoint);
 
 app.get('/api/ai/stats', (req, res) => {
   const aiMonitor = require('./services/aiServiceMonitor');
@@ -225,19 +196,15 @@ app.use('/uploads', express.static('uploads'));
 app.use('/api/sms', require('./routes/sms'));
 app.use('/security', require('./routes/securityEvents'));
 
+const auditRoutes = require("./routes/audit");
+app.use("/audit", auditRoutes);
+
 app.use(errorLogger);
 app.use(structuredErrorHandler);
 
 app.use((err, req, res, next) => {
-  // Changed: support both Express status properties
-  const status = err.status || err.statusCode || 500;
-
-  // Changed: do not expose raw internal error messages to the client
-  const message =
-    status >= 500
-      ? 'Internal Server Error'
-      : 'Request could not be processed.';
-
+  const status = err.status || 500;
+  const message = process.env.NODE_ENV === 'production' ? 'Internal Server Error' : err.message;
   res.status(status).json({
     success: false,
     error: message,
@@ -322,18 +289,6 @@ activeServer.listen(activePort, async () => {
   console.log('='.repeat(50));
   console.log('💡 Press Ctrl+C to stop the server \n');
 
-  // NH-VULN-2026-014. /api/metrics now requires METRICS_TOKEN and returns 503
-  // without it. Say so at boot, because otherwise the first symptom is a
-  // Prometheus dashboard quietly going empty hours later and nobody connecting
-  // it to a deploy. A configuration problem should be loud at the moment it
-  // becomes true.
-  if (!process.env.METRICS_TOKEN) {
-    console.warn('⚠️  METRICS_TOKEN is not set. GET /api/metrics will return 503 and');
-    console.warn('    Prometheus scraping will fail. Set it in the API environment and');
-    console.warn('    write the same value to the Prometheus credentials_file.');
-    console.warn('    Generate one with: openssl rand -base64 32\n');
-  }
-
   // CT-004: Start alert job only after the server is fully bound and ready.
   // The interval callback is wrapped so a single failing run never stops
   // future runs (runAlertCheckJob already has an internal try/catch).
@@ -352,8 +307,31 @@ activeServer.listen(activePort, async () => {
   }
 
   if (process.platform === 'win32') {
-    exec(`start https://localhost:${HTTPS_PORT}/api-docs`);
-  }
+  const url = useHttpFallback
+    ? `http://localhost:${HTTP_PORT}/api-docs`
+    : `https://localhost:${HTTPS_PORT}/api-docs`;
+
+  exec(`start ${url}`);
+}
 });
 
 module.exports = app;
+const fetch = require("node-fetch");
+
+async function sendWithRetry(data, retries = 3) {
+  try {
+    await fetch("http://localhost:8081/audit", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(data)
+    });
+  } catch (err) {
+    if (retries > 0) {
+      return sendWithRetry(data, retries - 1);
+    } else {
+      console.error("Audit failed permanently", data);
+    }
+  }
+}

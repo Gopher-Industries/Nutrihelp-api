@@ -1,24 +1,20 @@
 const multer = require('multer');
 const logger = require('../utils/logger');
-const { supabaseService: supabase } = require('../services/supabaseClient');
-const crypto = require('crypto');
-const path = require('path');
-const { spawn } = require('child_process');
-const { fileTypeFromBuffer } = require('file-type');
+const { createClient } = require('@supabase/supabase-js');
 
-// Single source of truth for allowed file types — used by both
-// the initial mimetype check (fileFilter) and the real content check (uploadFile)
-const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'application/pdf'];
-const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_ANON_KEY
+);
 
-const storage = multer.memoryStorage();
 
+const storage = multer.memoryStorage();  
 const upload = multer({
   storage: storage,
-  limits: { fileSize: MAX_FILE_SIZE_BYTES },
-
+  limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
-    if (ALLOWED_TYPES.includes(file.mimetype)) {
+    const allowedTypes = ['image/jpeg', 'image/png', 'application/pdf'];
+    if (allowedTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
       cb(new Error('Unsupported file type'), false);
@@ -26,226 +22,63 @@ const upload = multer({
   }
 }).single('file');
 
-function reencodeImage(buffer) {
-  return new Promise((resolve, reject) => {
-    const child = spawn('node', [path.join(__dirname, 'reencode.js')]);
-    let out = [];
-    child.stdout.on('data', (d) => out.push(d));
-    child.on('close', (code) => {
-      code === 0 ? resolve(Buffer.concat(out)) : reject(new Error('Reencode failed'));
-    });
-    child.stdin.write(buffer);
-    child.stdin.end();
-  });
-}
 
-/**
- * Improve Upload Audit Logging
- *
- * Writes one row to upload_logs for every upload attempt — not just successes —
- * so the audit trail can answer "who tried to upload what, when, and did it work."
- * A logging failure here must never break the actual upload response, so this
- * is intentionally fire-and-forget with its own error handling.
- */
-async function logUploadAttempt({
-  req,
-  status,
-  originalFilename = null,
-  storedPath = null,
-  fileSizeBytes = null,
-  mimeType = null,
-  errorReason = null
-}) {
-  const user_id = req.user?.userId ?? null;
+exports.uploadFile = async (req, res) => {
+  const token = req.headers.authorization?.split(' ')[1];
+  
+  if (!token) {
+    return res.status(401).json({ error: 'No authorization token provided' });
+  }
 
-  try {
-    const { error: logError } = await supabase.from('upload_logs').insert([
-      {
-        user_id,
-        status,
-        original_filename: originalFilename,
-        stored_path: storedPath,
-        file_size_bytes: fileSizeBytes,
-        mime_type: mimeType,
-        error_reason: errorReason,
-        ip_address: req.ip || req.headers['x-forwarded-for'] || null
-      }
-    ]);
-
-    if (logError) {
-      // Don't throw — a broken audit log must not take down the upload endpoint.
-      logger.warn('Failed to write upload audit log', {
-        error: logError.message,
-        userId: user_id,
-        status
-      });
+  upload(req, res, async (err) => {
+    if (err) {
+      return res.status(400).json({ error: err.message });
     }
-  } catch (error) {
-    logger.warn('Unexpected error writing upload audit log', {
-      error: error.message,
-      userId: user_id,
-      status
-    });
-  }
 
-  // Mirror every audit event to the application log too, so it shows up in
-  // operational monitoring/alerting, not just the database table.
-  const logPayload = { userId: user_id, status, originalFilename, mimeType, errorReason };
-  if (status === 'success') {
-    logger.info('Upload attempt', logPayload);
-  } else {
-    logger.warn('Upload attempt', logPayload);
-  }
-}
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
 
-exports.uploadFile = (req, res) => {
-  // multer's upload() is callback-based. Wrapping it in a Promise means callers
-  // (and tests) that `await uploadFile(req, res)` genuinely wait for the whole
-  // request/response cycle to finish, not just for multer to start parsing.
-  return new Promise((resolve) => {
-    upload(req, res, async (err) => {
-      if (err) {
-        // multer's own errors: bad declared mimetype (fileFilter) or file too large (limits).
-        const isSizeError = err.code === 'LIMIT_FILE_SIZE';
-        await logUploadAttempt({
-          req,
-          status: isSizeError ? 'rejected_size' : 'rejected_type',
-          originalFilename: req.file?.originalname || null,
-          fileSizeBytes: req.file?.size || null,
-          mimeType: req.file?.mimetype || null,
-          errorReason: err.message
+    const { user_id } = req.body;
+    const file = req.file;
+    const uploadTime = new Date().toISOString();
+    const filePath = `files/${user_id}/${file.originalname}`;
+
+    try {
+    
+      const { data, error } = await supabase.storage
+        .from('uploads')
+        .upload(filePath, file.buffer, {
+          contentType: file.mimetype,
+          cacheControl: '3600',
         });
 
-        resolve(res.status(400).json({
-          success: false,
-          error: err.message
-        }));
-        return;
-      }
+      if (error) throw error;
 
-      if (!req.file) {
-        await logUploadAttempt({
-          req,
-          status: 'error',
-          errorReason: 'No file uploaded'
-        });
+      const { data: urlData, error: urlError } = await supabase
+        .storage
+        .from('uploads')
+        .getPublicUrl(filePath);
 
-        resolve(res.status(400).json({
-          success: false,
-          error: 'No file uploaded'
-        }));
-        return;
-      }
+      if (urlError || !urlData) throw urlError;
 
-      const user_id = req.user.userId;
-      const file = req.file;
+      const fileUrl = urlData.publicUrl;
 
-      const detectedType = await fileTypeFromBuffer(file.buffer);
-
-      if (!detectedType || !ALLOWED_TYPES.includes(detectedType.mime)) {
-        await logUploadAttempt({
-          req,
-          status: 'rejected_type',
-          originalFilename: file.originalname,
-          fileSizeBytes: file.size,
-          mimeType: file.mimetype,
-          errorReason: 'File content does not match an allowed file type (jpeg, png, or pdf).'
-        });
-
-        resolve(res.status(400).json({
-          success: false,
-          error: 'File content does not match an allowed file type (jpeg, png, or pdf).'
-        }));
-        return;
-      }
-
-      if (detectedType.mime !== file.mimetype) {
-        await logUploadAttempt({
-          req,
-          status: 'rejected_type',
-          originalFilename: file.originalname,
-          fileSizeBytes: file.size,
-          mimeType: file.mimetype,
-          errorReason: `Declared type (${file.mimetype}) did not match actual content (${detectedType.mime}).`
-        });
-
-        resolve(res.status(400).json({
-          success: false,
-          error: 'Declared file type does not match actual file content.'
-        }));
-        return;
-      }
-
-      // --- Task 4: sanitize filename before it touches storage ---
-      const safeName = crypto.randomBytes(16).toString('hex');
-      const ext = path.extname(file.originalname).toLowerCase();
-      const filePath = `files/${user_id}/${safeName}${ext}`;
-
-      try {
-        let fileBuffer = file.buffer;
-
-        if (file.mimetype === 'image/jpeg' || file.mimetype === 'image/png') {
-        fileBuffer = await reencodeImage(file.buffer);}
-
-  const { error: uploadError } = await supabase.storage
-    .from('uploads')
-    .upload(filePath, fileBuffer, {
-            contentType: file.mimetype,
-            cacheControl: '3600',
-          });
-
-        if (uploadError) {
-          throw uploadError;
+      const { error: logError } = await supabase.from('upload_logs').insert([
+        {
+          user_id,
+          file_name: file.originalname,
+          file_url: fileUrl,
+          upload_time: uploadTime,
         }
+      ]);
 
-        const { data: urlData, error: urlError } = supabase.storage
-          .from('uploads')
-          .getPublicUrl(filePath);
+      if (logError) throw logError;
 
-        if (urlError || !urlData) {
-          throw urlError || new Error('Failed to generate file URL');
-        }
-
-        const fileUrl = urlData.publicUrl;
-
-        await logUploadAttempt({
-          req,
-          status: 'success',
-          originalFilename: file.originalname,
-          storedPath: filePath,
-          fileSizeBytes: file.size,
-          mimeType: file.mimetype
-        });
-
-        resolve(res.status(201).json({
-          success: true,
-          message: 'File uploaded successfully',
-          fileUrl
-        }));
-
-      } catch (error) {
-        await logUploadAttempt({
-          req,
-          status: 'error',
-          originalFilename: file.originalname,
-          fileSizeBytes: file.size,
-          mimeType: file.mimetype,
-          errorReason: error.message
-        });
-
-        logger.error('File upload failed', {
-          error: error.message,
-          userId: req.user?.userId
-        });
-
-        resolve(res.status(500).json({
-          success: false,
-          error: 'File upload failed'
-        }));
-      }
-    });
+      return res.status(201).json({ message: 'File uploaded successfully', fileUrl: fileUrl });
+    } catch (error) {
+      logger.error('File upload failed', { error: error.message, userId: req.user?.userId });
+      return res.status(500).json({ error: 'File upload failed' });
+    }
   });
 };
-
-// Exported for tests only.
-exports._testInternals = { ALLOWED_TYPES, MAX_FILE_SIZE_BYTES, logUploadAttempt };

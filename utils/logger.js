@@ -3,10 +3,7 @@ try {
   const winston = require('winston');
   logger = winston.createLogger({
     level: process.env.LOG_LEVEL || 'info',
-    format: winston.format.json(),
-    transports: [
-      new winston.transports.File({filename: 'Nutrihelp-api/Nutrihelp-api/logs/SIEM_logs.json'})
-    ]
+    transports: [ new winston.transports.Console({ format: winston.format.simple() }) ]
   });
 } catch (e) {
   logger = {

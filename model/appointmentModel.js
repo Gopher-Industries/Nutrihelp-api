@@ -1,4 +1,4 @@
-const supabase = require('../dbConnection');
+const supabase = require("../dbConnection.js");
 
 async function getAppointmentsByUserId(userId) {
   try {
@@ -37,7 +37,6 @@ async function addAppointmentModelV2({
   phone,
   notes,
   reminder,
-  status = "scheduled",
 }) {
   try {
     const { data, error } = await supabase
@@ -54,7 +53,6 @@ async function addAppointmentModelV2({
         phone,
         notes,
         reminder,
-        status,
       })
       .select()
       .single();
@@ -80,7 +78,6 @@ async function updateAppointmentModel(
     phone,
     notes,
     reminder,
-    status,
   },
 ) {
   try {
@@ -97,7 +94,6 @@ async function updateAppointmentModel(
         phone,
         notes,
         reminder,
-        ...(status !== undefined && { status }),
       })
       .eq("id", id)
       .eq("user_id", userId)
@@ -111,10 +107,27 @@ async function updateAppointmentModel(
   }
 }
 
+async function deleteAppointmentById(id, userId) {
+  try {
+    const { data, error } = await supabase
+      .from("appointments")
+      .delete()
+      .eq("id", id)
+      .eq("user_id", userId)
+      .select()
+      .single();
+
+    if (error && error.code !== "PGRST116") throw error;
+    return data;
+  } catch (err) {
+    throw err;
+  }
+}
 
 module.exports = {
   getAppointmentsByUserId,
   addAppointment,
   addAppointmentModelV2,
   updateAppointmentModel,
+  deleteAppointmentById,
 };
