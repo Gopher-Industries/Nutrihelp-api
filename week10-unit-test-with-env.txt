@@ -1,0 +1,332 @@
+
+> nutrihelp-api@1.0.0 test:unit
+> mocha ./test/unit/**/*.test.js --timeout 5000 --exit
+
+
+
+  Basic Unit Tests
+    ✔ should pass basic assertion
+    ✔ should handle strings correctly
+    ✔ should validate array operations
+
+  Meal Plan model security
+    ✔ scopes authenticated meal-plan queries by user ID and date range
+    ✔ does not apply date filters when they are not supplied
+
+  normalizeText
+    ✔ lowercases, strips punctuation and collapses whitespace
+    ✔ returns an empty string for non-string input
+
+  checkFidelity
+    ✔ accepts a draft whose content all traces back to the source
+    ✔ rejects an ingredient that never appears in the source
+    ✔ rejects an instruction step invented wholesale
+    ✔ allows short connective steps that cannot be meaningfully compared
+    ✔ treats a draft with no ingredients and no instructions as passing
+
+  resolveIngredients
+    ✔ matches an existing ingredient exactly, ignoring case and whitespace
+    ✔ matches across a simple plural
+    ✔ falls back to the head noun when the full name is absent
+    ✔ does not insert anything unless createMissing is set
+    ✔ creates the missing ingredient when createMissing is set
+    ✔ resolves a duplicate name within one recipe to the row it just created
+    ✔ reports status failed when the insert errors
+    ✔ retries once against a fresh max id when the insert hits a duplicate key
+    ✔ gives up after a single retry when the duplicate key persists
+    ✔ does not retry an insert failure that is not a key collision
+    ✔ returns an empty array without touching the database for no ingredients
+
+  normalizeName
+    ✔ lowercases and strips punctuation
+    ✔ collapses whitespace
+    ✔ returns an empty string for non-strings
+
+  singularize
+    ✔ folds simple plurals
+    ✔ folds -ies plurals
+    ✔ folds -es plurals
+    ✔ leaves -ss words alone
+    ✔ leaves short words alone
+
+  resolveIngredients semantic tier
+    ✔ matches via the LLM when mechanical tiers fail, validated against the vocabulary
+    ✔ rejects an off-vocabulary answer and treats the name as new
+    ✔ proceeds without the tier when the LLM fails
+    ✔ does not call the LLM when everything matched mechanically
+    ✔ runs mechanical-only when no generate is provided
+
+  buildMapPrompt
+    ✔ embeds the source recipe and forbids invention
+
+  deterministicMap
+    ✔ maps source fields across without an LLM
+    ✔ leaves fields the source cannot supply as null
+
+  mapRecipe
+info: [recipeSources][mapper] start {"external_id":"52771","model":"injected","promptChars":3108,"provider":"injected","source":"themealdb","sourceIngredients":3,"title":"Spicy Arrabiata Penne"}
+info: [recipeSources][mapper] llm responded {"attempt":1,"external_id":"52771","ms":1,"parsed":true,"responseChars":631,"source":"themealdb","title":"Spicy Arrabiata Penne"}
+info: [recipeSources][mapper] done {"attempt":1,"external_id":"52771","ingredients":3,"instructions":3,"source":"themealdb","strategy":"llm","title":"Spicy Arrabiata Penne","totalMs":4,"unmappedCount":11}
+warn: [recipeSources][mapper] source image fetch failed {"error":"image fetch stubbed","imageUrl":"https://example.com/thumb.jpg"}
+    ✔ uses the LLM draft when it validates and passes fidelity
+info: [recipeSources][mapper] start {"external_id":"52771","model":"injected","promptChars":3108,"provider":"injected","source":"themealdb","sourceIngredients":3,"title":"Spicy Arrabiata Penne"}
+info: [recipeSources][mapper] llm responded {"attempt":1,"external_id":"52771","ms":0,"parsed":true,"responseChars":631,"source":"themealdb","title":"Spicy Arrabiata Penne"}
+info: [recipeSources][mapper] done {"attempt":1,"external_id":"52771","ingredients":3,"instructions":3,"source":"themealdb","strategy":"llm","title":"Spicy Arrabiata Penne","totalMs":0,"unmappedCount":11}
+warn: [recipeSources][mapper] source image fetch failed {"error":"image fetch stubbed","imageUrl":"https://example.com/thumb.jpg"}
+    ✔ reports fields the source could not fill
+info: [recipeSources][mapper] start {"external_id":"52771","model":"injected","promptChars":3108,"provider":"injected","source":"themealdb","sourceIngredients":3,"title":"Spicy Arrabiata Penne"}
+info: [recipeSources][mapper] llm responded {"attempt":1,"external_id":"52771","ms":0,"parsed":true,"responseChars":631,"source":"themealdb","title":"Spicy Arrabiata Penne"}
+info: [recipeSources][mapper] done {"attempt":1,"external_id":"52771","ingredients":3,"instructions":3,"source":"themealdb","strategy":"llm","title":"Spicy Arrabiata Penne","totalMs":0,"unmappedCount":11}
+warn: [recipeSources][mapper] source image fetch failed {"error":"image fetch stubbed","imageUrl":"https://example.com/thumb.jpg"}
+    ✔ returns source attribution metadata
+info: [recipeSources][mapper] start {"external_id":"52771","model":"injected","promptChars":3108,"provider":"injected","source":"themealdb","sourceIngredients":3,"title":"Spicy Arrabiata Penne"}
+info: [recipeSources][mapper] llm responded {"attempt":1,"external_id":"52771","ms":0,"parsed":true,"responseChars":643,"source":"themealdb","title":"Spicy Arrabiata Penne"}
+info: [recipeSources][mapper] done {"attempt":1,"external_id":"52771","ingredients":3,"instructions":3,"source":"themealdb","strategy":"llm","title":"Spicy Arrabiata Penne","totalMs":1,"unmappedCount":11}
+warn: [recipeSources][mapper] source image fetch failed {"error":"image fetch stubbed","imageUrl":"https://example.com/thumb.jpg"}
+    ✔ strips markdown fences before parsing
+info: [recipeSources][mapper] start {"external_id":"52771","model":"injected","promptChars":3108,"provider":"injected","source":"themealdb","sourceIngredients":3,"title":"Spicy Arrabiata Penne"}
+info: [recipeSources][mapper] llm responded {"attempt":1,"external_id":"52771","ms":0,"parsed":false,"responseChars":29,"source":"themealdb","title":"Spicy Arrabiata Penne"}
+warn: [recipeSources][mapper] output not parseable as JSON {"attempt":1,"external_id":"52771","source":"themealdb","title":"Spicy Arrabiata Penne"}
+info: [recipeSources][mapper] llm responded {"attempt":2,"external_id":"52771","ms":1,"parsed":true,"responseChars":631,"source":"themealdb","title":"Spicy Arrabiata Penne"}
+info: [recipeSources][mapper] done {"attempt":2,"external_id":"52771","ingredients":3,"instructions":3,"source":"themealdb","strategy":"llm","title":"Spicy Arrabiata Penne","totalMs":1,"unmappedCount":11}
+warn: [recipeSources][mapper] source image fetch failed {"error":"image fetch stubbed","imageUrl":"https://example.com/thumb.jpg"}
+    ✔ retries once on unparseable output, then succeeds
+info: [recipeSources][mapper] start {"external_id":"52771","model":"injected","promptChars":3108,"provider":"injected","source":"themealdb","sourceIngredients":3,"title":"Spicy Arrabiata Penne"}
+info: [recipeSources][mapper] llm responded {"attempt":1,"external_id":"52771","ms":0,"parsed":false,"responseChars":14,"source":"themealdb","title":"Spicy Arrabiata Penne"}
+warn: [recipeSources][mapper] output not parseable as JSON {"attempt":1,"external_id":"52771","source":"themealdb","title":"Spicy Arrabiata Penne"}
+info: [recipeSources][mapper] llm responded {"attempt":2,"external_id":"52771","ms":0,"parsed":false,"responseChars":14,"source":"themealdb","title":"Spicy Arrabiata Penne"}
+warn: [recipeSources][mapper] output not parseable as JSON {"attempt":2,"external_id":"52771","source":"themealdb","title":"Spicy Arrabiata Penne"}
+warn: [recipeSources][mapper] done via deterministic fallback {"attempts":2,"external_id":"52771","ingredients":3,"instructions":3,"source":"themealdb","strategy":"fallback","title":"Spicy Arrabiata Penne","totalMs":0,"unmappedCount":11,"violations":[]}
+warn: [recipeSources][mapper] source image fetch failed {"error":"image fetch stubbed","imageUrl":"https://example.com/thumb.jpg"}
+    ✔ falls back to deterministic mapping when output stays unparseable
+info: [recipeSources][mapper] start {"external_id":"52771","model":"injected","promptChars":3108,"provider":"injected","source":"themealdb","sourceIngredients":3,"title":"Spicy Arrabiata Penne"}
+info: [recipeSources][mapper] llm responded {"attempt":1,"external_id":"52771","ms":0,"parsed":true,"responseChars":694,"source":"themealdb","title":"Spicy Arrabiata Penne"}
+warn: [recipeSources][mapper] fidelity check rejected llm output {"attempt":1,"external_id":"52771","source":"themealdb","title":"Spicy Arrabiata Penne","violations":["ingredient \"white truffle\" does not appear in the source recipe"]}
+info: [recipeSources][mapper] llm responded {"attempt":2,"external_id":"52771","ms":0,"parsed":true,"responseChars":694,"source":"themealdb","title":"Spicy Arrabiata Penne"}
+warn: [recipeSources][mapper] fidelity check rejected llm output {"attempt":2,"external_id":"52771","source":"themealdb","title":"Spicy Arrabiata Penne","violations":["ingredient \"white truffle\" does not appear in the source recipe"]}
+warn: [recipeSources][mapper] done via deterministic fallback {"attempts":2,"external_id":"52771","ingredients":3,"instructions":3,"source":"themealdb","strategy":"fallback","title":"Spicy Arrabiata Penne","totalMs":0,"unmappedCount":11,"violations":["ingredient \"white truffle\" does not appear in the source recipe"]}
+warn: [recipeSources][mapper] source image fetch failed {"error":"image fetch stubbed","imageUrl":"https://example.com/thumb.jpg"}
+    ✔ falls back when the model invents an ingredient
+info: [recipeSources][mapper] start {"external_id":"52771","model":"injected","promptChars":3108,"provider":"injected","source":"themealdb","sourceIngredients":3,"title":"Spicy Arrabiata Penne"}
+info: [recipeSources][mapper] llm responded {"attempt":1,"external_id":"52771","ms":0,"parsed":true,"responseChars":48,"source":"themealdb","title":"Spicy Arrabiata Penne"}
+warn: [recipeSources][mapper] schema validation failed {"attempt":1,"external_id":"52771","source":"themealdb","title":"Spicy Arrabiata Penne","violations":["\"ingredients\" must be an array","\"instructions\" is required"]}
+info: [recipeSources][mapper] llm responded {"attempt":2,"external_id":"52771","ms":0,"parsed":true,"responseChars":48,"source":"themealdb","title":"Spicy Arrabiata Penne"}
+warn: [recipeSources][mapper] schema validation failed {"attempt":2,"external_id":"52771","source":"themealdb","title":"Spicy Arrabiata Penne","violations":["\"ingredients\" must be an array","\"instructions\" is required"]}
+warn: [recipeSources][mapper] done via deterministic fallback {"attempts":2,"external_id":"52771","ingredients":3,"instructions":3,"source":"themealdb","strategy":"fallback","title":"Spicy Arrabiata Penne","totalMs":1,"unmappedCount":11,"violations":["\"ingredients\" must be an array","\"instructions\" is required"]}
+warn: [recipeSources][mapper] source image fetch failed {"error":"image fetch stubbed","imageUrl":"https://example.com/thumb.jpg"}
+    ✔ falls back when the model returns the wrong shape
+info: [recipeSources][mapper] start {"external_id":"52771","model":"injected","promptChars":3108,"provider":"injected","source":"themealdb","sourceIngredients":3,"title":"Spicy Arrabiata Penne"}
+warn: [recipeSources][mapper] provider error {"attempt":1,"error":"provider down","external_id":"52771","ms":0,"source":"themealdb","title":"Spicy Arrabiata Penne"}
+warn: [recipeSources][mapper] provider error {"attempt":2,"error":"provider down","external_id":"52771","ms":0,"source":"themealdb","title":"Spicy Arrabiata Penne"}
+warn: [recipeSources][mapper] done via deterministic fallback {"attempts":2,"external_id":"52771","ingredients":3,"instructions":3,"source":"themealdb","strategy":"fallback","title":"Spicy Arrabiata Penne","totalMs":1,"unmappedCount":11,"violations":["provider error: provider down"]}
+warn: [recipeSources][mapper] source image fetch failed {"error":"image fetch stubbed","imageUrl":"https://example.com/thumb.jpg"}
+    ✔ falls back when the LLM call throws on every attempt
+info: [recipeSources][mapper] start {"external_id":"52771","model":"injected","promptChars":3108,"provider":"injected","source":"themealdb","sourceIngredients":3,"title":"Spicy Arrabiata Penne"}
+warn: [recipeSources][mapper] provider error {"attempt":1,"error":"[503 Service Unavailable] high demand","external_id":"52771","ms":0,"source":"themealdb","title":"Spicy Arrabiata Penne"}
+info: [recipeSources][mapper] llm responded {"attempt":2,"external_id":"52771","ms":0,"parsed":true,"responseChars":631,"source":"themealdb","title":"Spicy Arrabiata Penne"}
+info: [recipeSources][mapper] done {"attempt":2,"external_id":"52771","ingredients":3,"instructions":3,"source":"themealdb","strategy":"llm","title":"Spicy Arrabiata Penne","totalMs":0,"unmappedCount":11}
+warn: [recipeSources][mapper] source image fetch failed {"error":"image fetch stubbed","imageUrl":"https://example.com/thumb.jpg"}
+    ✔ retries a transient provider error and succeeds on the second attempt
+info: [recipeSources][mapper] start {"external_id":"52771","model":"injected","promptChars":3108,"provider":"injected","source":"themealdb","sourceIngredients":3,"title":"Spicy Arrabiata Penne"}
+info: [recipeSources][mapper] llm responded {"attempt":1,"external_id":"52771","ms":0,"parsed":true,"responseChars":631,"source":"themealdb","title":"Spicy Arrabiata Penne"}
+info: [recipeSources][mapper] done {"attempt":1,"external_id":"52771","ingredients":3,"instructions":3,"source":"themealdb","strategy":"llm","title":"Spicy Arrabiata Penne","totalMs":0,"unmappedCount":11}
+warn: [recipeSources][mapper] source image fetch failed {"error":"image fetch stubbed","imageUrl":"https://example.com/thumb.jpg"}
+    ✔ exposes every target field on the draft
+
+  controlled vocabularies
+info: [recipeSources][mapper] start {"external_id":"52771","model":"injected","promptChars":3108,"provider":"injected","source":"themealdb","sourceIngredients":3,"title":"Spicy Arrabiata Penne"}
+info: [recipeSources][mapper] llm responded {"attempt":1,"external_id":"52771","ms":0,"parsed":true,"responseChars":633,"source":"themealdb","title":"Spicy Arrabiata Penne"}
+info: [recipeSources][mapper] done {"attempt":1,"external_id":"52771","ingredients":3,"instructions":3,"source":"themealdb","strategy":"llm","title":"Spicy Arrabiata Penne","totalMs":1,"unmappedCount":10}
+warn: [recipeSources][mapper] source image fetch failed {"error":"image fetch stubbed","imageUrl":"https://example.com/thumb.jpg"}
+    ✔ keeps a cooking method that is on the list
+info: [recipeSources][mapper] start {"external_id":"52771","model":"injected","promptChars":3108,"provider":"injected","source":"themealdb","sourceIngredients":3,"title":"Spicy Arrabiata Penne"}
+info: [recipeSources][mapper] llm responded {"attempt":1,"external_id":"52771","ms":0,"parsed":true,"responseChars":638,"source":"themealdb","title":"Spicy Arrabiata Penne"}
+info: [recipeSources][mapper] done {"attempt":1,"external_id":"52771","ingredients":3,"instructions":3,"source":"themealdb","strategy":"llm","title":"Spicy Arrabiata Penne","totalMs":0,"unmappedCount":11}
+warn: [recipeSources][mapper] source image fetch failed {"error":"image fetch stubbed","imageUrl":"https://example.com/thumb.jpg"}
+    ✔ nulls out an off-list cooking method and reports it as unmapped
+info: [recipeSources][mapper] start {"external_id":"52771","model":"injected","promptChars":3108,"provider":"injected","source":"themealdb","sourceIngredients":3,"title":"Spicy Arrabiata Penne"}
+info: [recipeSources][mapper] llm responded {"attempt":1,"external_id":"52771","ms":0,"parsed":true,"responseChars":640,"source":"themealdb","title":"Spicy Arrabiata Penne"}
+info: [recipeSources][mapper] done {"attempt":1,"external_id":"52771","ingredients":3,"instructions":3,"source":"themealdb","strategy":"llm","title":"Spicy Arrabiata Penne","totalMs":1,"unmappedCount":10}
+warn: [recipeSources][mapper] source image fetch failed {"error":"image fetch stubbed","imageUrl":"https://example.com/thumb.jpg"}
+    ✔ restores the canonical casing of a cooking method
+info: [recipeSources][mapper] start {"external_id":"52771","model":"injected","promptChars":3108,"provider":"injected","source":"themealdb","sourceIngredients":3,"title":"Spicy Arrabiata Penne"}
+info: [recipeSources][mapper] llm responded {"attempt":1,"external_id":"52771","ms":0,"parsed":true,"responseChars":631,"source":"themealdb","title":"Spicy Arrabiata Penne"}
+info: [recipeSources][mapper] done {"attempt":1,"external_id":"52771","ingredients":3,"instructions":3,"source":"themealdb","strategy":"llm","title":"Spicy Arrabiata Penne","totalMs":1,"unmappedCount":11}
+warn: [recipeSources][mapper] source image fetch failed {"error":"image fetch stubbed","imageUrl":"https://example.com/thumb.jpg"}
+    ✔ keeps a cuisine that is on the list
+info: [recipeSources][mapper] start {"external_id":"52771","model":"injected","promptChars":3108,"provider":"injected","source":"themealdb","sourceIngredients":3,"title":"Spicy Arrabiata Penne"}
+info: [recipeSources][mapper] llm responded {"attempt":1,"external_id":"52771","ms":0,"parsed":true,"responseChars":632,"source":"themealdb","title":"Spicy Arrabiata Penne"}
+info: [recipeSources][mapper] done {"attempt":1,"external_id":"52771","ingredients":3,"instructions":3,"source":"themealdb","strategy":"llm","title":"Spicy Arrabiata Penne","totalMs":0,"unmappedCount":12}
+warn: [recipeSources][mapper] source image fetch failed {"error":"image fetch stubbed","imageUrl":"https://example.com/thumb.jpg"}
+    ✔ nulls out an off-list cuisine and reports it as unmapped
+info: [recipeSources][mapper] start {"external_id":"52771","model":"injected","promptChars":3108,"provider":"injected","source":"themealdb","sourceIngredients":3,"title":"Spicy Arrabiata Penne"}
+info: [recipeSources][mapper] llm responded {"attempt":1,"external_id":"52771","ms":1,"parsed":true,"responseChars":637,"source":"themealdb","title":"Spicy Arrabiata Penne"}
+info: [recipeSources][mapper] done {"attempt":1,"external_id":"52771","ingredients":3,"instructions":3,"source":"themealdb","strategy":"llm","title":"Spicy Arrabiata Penne","totalMs":1,"unmappedCount":11}
+warn: [recipeSources][mapper] source image fetch failed {"error":"image fetch stubbed","imageUrl":"https://example.com/thumb.jpg"}
+    ✔ restores the canonical casing of a cuisine
+info: [recipeSources][mapper] start {"external_id":"52771","model":"injected","promptChars":3109,"provider":"injected","source":"themealdb","sourceIngredients":3,"title":"Spicy Arrabiata Penne"}
+info: [recipeSources][mapper] llm responded {"attempt":1,"external_id":"52771","ms":0,"parsed":false,"responseChars":25,"source":"themealdb","title":"Spicy Arrabiata Penne"}
+warn: [recipeSources][mapper] output not parseable as JSON {"attempt":1,"external_id":"52771","source":"themealdb","title":"Spicy Arrabiata Penne"}
+info: [recipeSources][mapper] llm responded {"attempt":2,"external_id":"52771","ms":0,"parsed":false,"responseChars":25,"source":"themealdb","title":"Spicy Arrabiata Penne"}
+warn: [recipeSources][mapper] output not parseable as JSON {"attempt":2,"external_id":"52771","source":"themealdb","title":"Spicy Arrabiata Penne"}
+warn: [recipeSources][mapper] done via deterministic fallback {"attempts":2,"external_id":"52771","ingredients":3,"instructions":3,"source":"themealdb","strategy":"fallback","title":"Spicy Arrabiata Penne","totalMs":0,"unmappedCount":12,"violations":[]}
+warn: [recipeSources][mapper] source image fetch failed {"error":"image fetch stubbed","imageUrl":"https://example.com/thumb.jpg"}
+    ✔ gates the cuisine on the deterministic fallback path too
+
+  withTimeout
+    ✔ resolves with the promise value when it settles in time
+    ✔ rejects once the deadline passes
+    ✔ clears its timer so a settled call leaves nothing pending
+
+  gemini provider timeout
+    ✔ bounds an unbounded generateContent call at LLM_TIMEOUT_MS
+
+  mapRecipe — source image fetch
+info: [recipeSources][mapper] start {"external_id":"52771","model":"injected","promptChars":3108,"provider":"injected","source":"themealdb","sourceIngredients":3,"title":"Spicy Arrabiata Penne"}
+info: [recipeSources][mapper] llm responded {"attempt":1,"external_id":"52771","ms":0,"parsed":true,"responseChars":642,"source":"themealdb","title":"Spicy Arrabiata Penne"}
+info: [recipeSources][mapper] done {"attempt":1,"external_id":"52771","ingredients":3,"instructions":3,"source":"themealdb","strategy":"llm","title":"Spicy Arrabiata Penne","totalMs":0,"unmappedCount":11}
+    ✔ fetches the adapter-supplied thumbnail, never the model-supplied url
+info: [recipeSources][mapper] start {"external_id":"52771","model":"injected","promptChars":3108,"provider":"injected","source":"themealdb","sourceIngredients":3,"title":"Spicy Arrabiata Penne"}
+info: [recipeSources][mapper] llm responded {"attempt":1,"external_id":"52771","ms":0,"parsed":true,"responseChars":631,"source":"themealdb","title":"Spicy Arrabiata Penne"}
+info: [recipeSources][mapper] done {"attempt":1,"external_id":"52771","ingredients":3,"instructions":3,"source":"themealdb","strategy":"llm","title":"Spicy Arrabiata Penne","totalMs":0,"unmappedCount":11}
+    ✔ refuses redirects on the image fetch
+info: [recipeSources][mapper] start {"external_id":"52771","model":"injected","promptChars":3108,"provider":"injected","source":"themealdb","sourceIngredients":3,"title":"Spicy Arrabiata Penne"}
+info: [recipeSources][mapper] llm responded {"attempt":1,"external_id":"52771","ms":0,"parsed":true,"responseChars":631,"source":"themealdb","title":"Spicy Arrabiata Penne"}
+info: [recipeSources][mapper] done {"attempt":1,"external_id":"52771","ingredients":3,"instructions":3,"source":"themealdb","strategy":"llm","title":"Spicy Arrabiata Penne","totalMs":1,"unmappedCount":11}
+    ✔ caps the image at 1 MB
+info: [recipeSources][mapper] start {"external_id":"52771","model":"injected","promptChars":3108,"provider":"injected","source":"themealdb","sourceIngredients":3,"title":"Spicy Arrabiata Penne"}
+info: [recipeSources][mapper] llm responded {"attempt":1,"external_id":"52771","ms":0,"parsed":false,"responseChars":25,"source":"themealdb","title":"Spicy Arrabiata Penne"}
+warn: [recipeSources][mapper] output not parseable as JSON {"attempt":1,"external_id":"52771","source":"themealdb","title":"Spicy Arrabiata Penne"}
+info: [recipeSources][mapper] llm responded {"attempt":2,"external_id":"52771","ms":0,"parsed":false,"responseChars":25,"source":"themealdb","title":"Spicy Arrabiata Penne"}
+warn: [recipeSources][mapper] output not parseable as JSON {"attempt":2,"external_id":"52771","source":"themealdb","title":"Spicy Arrabiata Penne"}
+warn: [recipeSources][mapper] done via deterministic fallback {"attempts":2,"external_id":"52771","ingredients":3,"instructions":3,"source":"themealdb","strategy":"fallback","title":"Spicy Arrabiata Penne","totalMs":1,"unmappedCount":11,"violations":[]}
+    ✔ uses the adapter thumbnail on the deterministic fallback path too
+info: [recipeSources][mapper] start {"external_id":"52771","model":"injected","promptChars":3108,"provider":"injected","source":"themealdb","sourceIngredients":3,"title":"Spicy Arrabiata Penne"}
+info: [recipeSources][mapper] llm responded {"attempt":1,"external_id":"52771","ms":0,"parsed":true,"responseChars":631,"source":"themealdb","title":"Spicy Arrabiata Penne"}
+info: [recipeSources][mapper] done {"attempt":1,"external_id":"52771","ingredients":3,"instructions":3,"source":"themealdb","strategy":"llm","title":"Spicy Arrabiata Penne","totalMs":1,"unmappedCount":11}
+warn: [recipeSources][mapper] source image rejected: unexpected content type {"contentType":"text/html","imageUrl":"https://example.com/thumb.jpg"}
+    ✔ rejects an image whose content type is not an allowed image
+info: [recipeSources][mapper] start {"external_id":"52771","model":"injected","promptChars":3108,"provider":"injected","source":"themealdb","sourceIngredients":3,"title":"Spicy Arrabiata Penne"}
+info: [recipeSources][mapper] llm responded {"attempt":1,"external_id":"52771","ms":1,"parsed":true,"responseChars":631,"source":"themealdb","title":"Spicy Arrabiata Penne"}
+info: [recipeSources][mapper] done {"attempt":1,"external_id":"52771","ingredients":3,"instructions":3,"source":"themealdb","strategy":"llm","title":"Spicy Arrabiata Penne","totalMs":1,"unmappedCount":11}
+warn: [recipeSources][mapper] source image fetch failed {"error":"ECONNREFUSED","imageUrl":"https://example.com/thumb.jpg"}
+    ✔ returns a draft with no image rather than failing when the fetch throws
+
+  POST /api/recipe-sources/map
+🟢 Loaded AuthService from: /Users/kim/Nutrihelp-api/services/authService.js
+URL: https://mdauzoueyzgtqsojttkp.supabase.co
+LOGIN FUNCTION HIT
+info: [recipeSources] POST /map {"externalId":"52771","source":"themealdb","userId":960}
+info: [recipeSources] POST /map 200 {"externalId":"52771","ingredients":1,"instructions":0,"model":"gemini-flash-latest","ms":0,"source":"themealdb","strategy":"llm","unmappedCount":1,"userId":960}
+    ✔ looks the recipe up server-side and returns the mapped draft (161ms)
+info: [recipeSources] POST /map {"externalId":"52771","source":"themealdb","userId":960}
+info: [recipeSources] POST /map 200 {"externalId":"52771","ingredients":1,"instructions":0,"model":"gemini-flash-latest","ms":0,"source":"themealdb","strategy":"llm","unmappedCount":1,"userId":960}
+    ✔ resolves ingredients read-only — previewing never creates rows
+info: [recipeSources] POST /map {"externalId":"52771","source":"themealdb","userId":960}
+info: [recipeSources] POST /map 200 {"externalId":"52771","ingredients":1,"instructions":0,"model":"gemini-flash-latest","ms":1,"source":"themealdb","strategy":"llm","unmappedCount":1,"userId":960}
+    ✔ keeps the mapper category for an unmatched ingredient
+info: [recipeSources] POST /map {"externalId":"52771","source":"themealdb","userId":960}
+info: [recipeSources] POST /map 200 {"externalId":"52771","ingredients":1,"instructions":0,"model":"gemini-flash-latest","ms":0,"source":"themealdb","strategy":"llm","unmappedCount":1,"userId":960}
+    ✔ reports the matched name and id when an ingredient already exists
+info: [recipeSources] POST /map {"externalId":"52771","source":"themealdb","userId":960}
+warn: [recipeSources] ingredient resolution failed {"error":"supabase down","externalId":"52771","source":"themealdb","userId":960}
+info: [recipeSources] POST /map 200 {"externalId":"52771","ingredients":1,"instructions":0,"model":"gemini-flash-latest","ms":0,"source":"themealdb","strategy":"llm","unmappedCount":1,"userId":960}
+    ✔ still returns the draft when resolution blows up
+info: [recipeSources] POST /map {"externalId":"52771","source":"themealdb","userId":960}
+info: [recipeSources] POST /map 200 {"externalId":"52771","ingredients":1,"instructions":0,"model":"gemini-flash-latest","ms":0,"source":"themealdb","strategy":"llm","unmappedCount":1,"userId":960}
+    ✔ ignores any recipe content supplied by the client
+    ✔ returns 400 when external_id is missing
+info: [recipeSources] POST /map {"externalId":"1","source":"notarealsource","userId":960}
+warn: [recipeSources] POST /map 400 unknown source {"externalId":"1","knownSources":["themealdb"],"source":"notarealsource","userId":960}
+    ✔ returns 400 for an unknown source
+info: [recipeSources] POST /map {"externalId":"999999","source":"themealdb","userId":960}
+warn: [recipeSources] POST /map 404 not found at source {"externalId":"999999","ms":0,"source":"themealdb","userId":960}
+    ✔ returns 404 when the source has no recipe with that id
+info: [recipeSources] POST /map {"externalId":"52771","source":"themealdb","userId":960}
+error: [recipeSources] POST /map 502 lookup failed {"error":"timeout","externalId":"52771","ms":0,"source":"themealdb","userId":960}
+    ✔ returns 502 when the source lookup throws
+
+  POST /api/recipe-sources/resolve-ingredients
+info: [recipeSources] POST /resolve-ingredients {"count":2,"userId":960}
+info: [recipeSources] POST /resolve-ingredients 200 {"count":2,"created":1,"failed":0,"matched":1,"ms":0,"userId":960}
+    ✔ creates missing ingredients and returns the resolution
+info: [recipeSources] POST /resolve-ingredients {"count":1,"userId":960}
+info: [recipeSources] POST /resolve-ingredients 200 {"count":1,"created":0,"failed":0,"matched":1,"ms":0,"userId":960}
+    ✔ accepts an ingredient without a category
+    ✔ rejects more than 30 ingredients
+    ✔ rejects an empty ingredient name
+    ✔ rejects a missing ingredients array
+info: [recipeSources] POST /resolve-ingredients {"count":1,"userId":960}
+error: [recipeSources] POST /resolve-ingredients 500 {"count":1,"error":"supabase down","ms":0,"userId":960}
+    ✔ returns 500 when resolution throws
+
+  GET /api/recipe-sources/search
+info: [recipeSources] GET /search {"q":"arrabiata","userId":960}
+info: [recipeSources] GET /search 200 {"ms":0,"q":"arrabiata","results":1,"userId":960}
+    ✔ returns adapter results under data.results
+    ✔ rejects a query shorter than 3 characters with 400
+    ✔ rejects a missing query with 400
+info: [recipeSources] GET /search {"q":"arrabiata","userId":960}
+error: [recipeSources] GET /search 502 {"error":"upstream exploded","ms":0,"q":"arrabiata","userId":960}
+    ✔ returns 502 when the registry throws
+
+  theMealDb adapter — search
+info: [recipeSources][themealdb] search.php response {"ms":0,"query":"arrabiata","results":1}
+    ✔ maps meals to neutral typeahead rows
+info: [recipeSources][themealdb] search.php response {"ms":0,"query":"zzzznotathing","results":0}
+    ✔ returns an empty array when the source reports no matches
+info: [recipeSources][themealdb] search.php response {"ms":1,"query":"penne","results":0}
+    ✔ sends the query to search.php with a timeout
+
+  theMealDb adapter — lookup
+info: [recipeSources][themealdb] lookup.php response {"externalId":"52771","ingredients":2,"instructionChars":57,"ms":0,"title":"Spicy Arrabiata Penne"}
+    ✔ collapses the 20 ingredient slots into a list, dropping empties
+info: [recipeSources][themealdb] lookup.php response {"externalId":"52771","ingredients":1,"instructionChars":57,"ms":0,"title":"Spicy Arrabiata Penne"}
+    ✔ treats whitespace-only ingredient slots as empty
+warn: [recipeSources][themealdb] lookup.php miss {"externalId":"999999","ms":0}
+    ✔ returns null when the id is unknown
+
+  Supabase client configuration contracts
+    ✔ fails closed when required Supabase configuration is missing
+    ✔ allows startup without a service-role key and disables privileged client
+    ✔ preserves legacy compatibility aliases and shims
+    ✔ creates a user-scoped client with the expected Authorization header
+    ✔ rejects an empty token instead of silently creating an anon user client
+
+  updateUserPreferences
+    ✔ rejects invalid user ids with a 400 status
+    ✔ rejects when no supported fields are provided
+    ✔ replaces join tables via RPC for flat payload
+    ✔ accepts canonical nested food_preferences payload
+    ✔ accepts { id } and { referenceId } objects in nested payload
+    ✔ does NOT wipe unrelated join tables when only ui_settings is updated
+    ✔ does NOT wipe food preferences when only health_context is updated
+    ✔ merges notification_preferences with existing stored values
+    ✔ falls back to join-table replacement when RPC is missing
+
+  buildStructuredHealthContext
+    ✔ returns empty arrays when given empty preferences
+    ✔ merges DB-sourced allergies with health_context severity details
+    ✔ includes freeform (non-DB) allergies from health_context
+    ✔ populates normalized_summary.allergyNames as lowercase
+    ✔ deduplicates allergyNames in normalized_summary
+    ✔ merges DB-sourced conditions with health_context status details
+    ✔ defaults condition status to active when not provided
+    ✔ normalizes a complete medication entry
+    ✔ excludes medication entries with no name
+    ✔ omits inactive medications from activeMedicationNames
+    ✔ generates auto-id for medication when id is absent
+
+  buildExtendedPreferences
+    ✔ returns success:true with contractVersion
+    ✔ merges notification defaults with stored overrides
+    ✔ merges ui_settings defaults with stored overrides
+    ✔ groups food preferences under food_preferences key
+
+  userPreferenceState model
+    ✔ returns normalized defaults when no state row exists
+    ✔ upserts normalized preference state into Supabase
+
+
+  124 passing (326ms)
+
