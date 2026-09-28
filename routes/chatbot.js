@@ -2,12 +2,10 @@ const express = require('express');
 const router = express.Router();
 const { aiAndMedical } = require('../controller');
 const { authenticateToken } = require('../middleware/authenticateToken');
-const chatbotLimiter = require('../middleware/chatbotRateLimit');
-const checkPromptInjection = require('../middleware/promptInjectionCheck');
 
 const { chatbot: chatbotController } = aiAndMedical;
 
-router.route('/query').post(authenticateToken, chatbotLimiter, checkPromptInjection, chatbotController.getChatResponse);
+router.route('/query').post(authenticateToken, chatbotController.getChatResponse);
 router.route('/greeting').get(authenticateToken, chatbotController.getGreeting);
 router.route('/scan-verification').post(authenticateToken, chatbotController.verifyScanResult);
 

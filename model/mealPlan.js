@@ -84,38 +84,6 @@ async function get(user_id) {
         throw error;
     }
 }
-
-async function getForAuthenticatedUser(userId, { startDate, endDate } = {}) {
-    if (!userId) {
-        throw new Error('Authenticated user ID is required');
-    }
-
-    let query = supabase
-        .from('meal_plan')
-        .select('id,meal_type,created_at,recipes')
-        .eq('user_id', userId);
-
-    if (startDate) {
-        query = query.gte('created_at', `${startDate}T00:00:00.000Z`);
-    }
-
-    if (endDate) {
-        query = query.lte('created_at', `${endDate}T23:59:59.999Z`);
-    }
-
-    const { data, error } = await query;
-
-    if (error) {
-        throw error;
-    }
-
-    return (data || []).sort((a, b) => {
-        const left = a.created_at ? new Date(a.created_at).getTime() : 0;
-        const right = b.created_at ? new Date(b.created_at).getTime() : 0;
-        return right - left;
-    });
-}
-
 async function deletePlan(id, user_id) {
     try {
         let { data, error } = await supabase
@@ -130,10 +98,4 @@ async function deletePlan(id, user_id) {
     }
 }
 
-module.exports = {
-    add,
-    get,
-    getForAuthenticatedUser,
-    deletePlan,
-    saveMealRelation
-};
+module.exports = { add, get, deletePlan, saveMealRelation };
