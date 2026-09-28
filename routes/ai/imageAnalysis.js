@@ -1,3 +1,4 @@
+const { authenticateAIToken } = require('../../middleware/authenticateAIToken');
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
@@ -12,6 +13,8 @@ const { buildImageScanPayload, SCAN_CONTRACT_VERSION } = require('../../services
 const logger = require('../../utils/logger');
 
 const router = express.Router();
+
+router.use(authenticateAIToken);
 
 const uploadsDir = path.join(__dirname, '..', '..', 'uploads');
 if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });

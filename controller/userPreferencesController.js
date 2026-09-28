@@ -3,6 +3,7 @@ const { ServiceError } = require("../services/serviceError");
 const fetchUserPreferences = require("../model/fetchUserPreferences");
 const updateUserPreferences = require("../model/updateUserPreferences");
 const userPreferencesService = require("../services/userPreferencesService");
+const { logHealthDataAccess } = require('../services/healthDataAuditService');
 
 const isPositiveInteger = (value) => Number.isInteger(value) && value > 0;
 
@@ -38,6 +39,13 @@ const getUserPreferences = async (req, res) => {
     }
 
     const userPreferences = await fetchUserPreferences(userId);
+
+    await logHealthDataAccess({
+      req,
+      targetUserId: userId,
+      resource: 'USER_PREFERENCES',
+    });
+
     return res.status(200).json(userPreferences);
   } catch (error) {
     return handleError(res, error, "Error fetching user preferences", {
@@ -64,9 +72,16 @@ const postUserPreferences = async (req, res) => {
 
 const getExtendedUserPreferences = async (req, res) => {
   try {
-    const response = await userPreferencesService.getExtendedPreferences(
-      req.user.userId
-    );
+    const userId = req.user.userId;
+
+    const response = await userPreferencesService.getExtendedPreferences(userId);
+
+    await logHealthDataAccess({
+      req,
+      targetUserId: userId,
+      resource: 'HEALTH_CONTEXT',
+    });
+
     return res.status(200).json(response);
   } catch (error) {
     return handleError(res, error, "Error fetching extended user preferences", {

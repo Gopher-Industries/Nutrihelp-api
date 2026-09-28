@@ -1,5 +1,6 @@
 const { authAndIdentity } = require('../services');
 const logger = require('../utils/logger');
+const { logHealthDataAccess } = require('../services/healthDataAuditService');
 
 const { userProfileService, serviceError } = authAndIdentity;
 const { ServiceError } = serviceError;
@@ -41,6 +42,13 @@ function handleProfileError(res, error, label, context = {}) {
 const getUserProfile = async (req, res) => {
   try {
     const response = await userProfileService.getCanonicalProfile(resolveTargetLookup(req));
+
+    await logHealthDataAccess({
+      req,
+      targetUserId: response?.profile?.id || req.user?.userId,
+      resource: 'USER_PROFILE',
+    });
+
     return res.status(200).json(response);
   } catch (error) {
     return handleProfileError(res, error, 'Error fetching user profile', {

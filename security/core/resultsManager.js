@@ -11,7 +11,7 @@ class ResultsManager {
         );
     }
 
-    createResults(files, rules, findings, scanDurationMs) {
+    createResults(files, rules, findings, scanDurationMs, omittedRules = []) {
         const severitySummary = {
             Critical: 0,
             High: 0,
@@ -40,6 +40,7 @@ class ResultsManager {
                 scanDurationMs,
                 filesScanned: files.length,
                 rulesLoaded: rules.length,
+                rulesOmitted: omittedRules.length,
                 findingsDetected: findings.length
             },
 
@@ -47,33 +48,63 @@ class ResultsManager {
                 severity: severitySummary
             },
 
+            omittedRules,
             findings
         };
     }
 
     saveResults(results) {
-        try {
-            const outputDirectory = path.dirname(this.outputPath);
+    try {
+        const outputDirectory = path.dirname(this.outputPath);
+        const historyDirectory = path.join(
+            outputDirectory,
+            "history"
+        );
 
-            if (!fs.existsSync(outputDirectory)) {
-                fs.mkdirSync(outputDirectory, {
-                    recursive: true
-                });
-            }
-
-            fs.writeFileSync(
-                this.outputPath,
-                JSON.stringify(results, null, 2),
-                "utf8"
-            );
-
-            return this.outputPath;
-        } catch (error) {
-            throw new Error(
-                `Unable to save scan results: ${error.message}`
-            );
+        if (!fs.existsSync(outputDirectory)) {
+            fs.mkdirSync(outputDirectory, {
+                recursive: true
+            });
         }
+
+        if (!fs.existsSync(historyDirectory)) {
+            fs.mkdirSync(historyDirectory, {
+                recursive: true
+            });
+        }
+
+        const jsonResults = JSON.stringify(results, null, 2);
+
+        // Save latest scan results
+        fs.writeFileSync(
+            this.outputPath,
+            jsonResults,
+            "utf8"
+        );
+
+        // Save historical copy
+        const timestamp = results.scanInformation.timestamp
+            .replace(/:/g, "-")
+            .replace(/\./g, "-");
+
+        const historyFilePath = path.join(
+            historyDirectory,
+            `scan-${timestamp}.json`
+        );
+
+        fs.writeFileSync(
+            historyFilePath,
+            jsonResults,
+            "utf8"
+        );
+
+        return this.outputPath;
+    } catch (error) {
+        throw new Error(
+            `Unable to save scan results: ${error.message}`
+        );
     }
+}
 }
 
 module.exports = ResultsManager;

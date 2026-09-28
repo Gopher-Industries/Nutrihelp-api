@@ -8,7 +8,7 @@ async function addUser(name, email, password, mfa_enabled, contact_number, addre
             .insert({ 
               name: name,
               email: email,
-              password: password,
+              password: password ? JSON.stringify(await encrypt(password)) : password,
               mfa_enabled: mfa_enabled,
               contact_number: contact_number ? JSON.stringify(await encrypt(contact_number)) : contact_number,
               address: address ? JSON.stringify(await encrypt(address)) : address
@@ -16,6 +16,10 @@ async function addUser(name, email, password, mfa_enabled, contact_number, addre
             .select();
 if (data && data.length > 0) {
             const user = data[0];
+            if (user.password) {
+                const encryptedObj = JSON.parse(user.password);
+                user.password = await decrypt(encryptedObj.encrypted, encryptedObj.iv, encryptedObj.authTag);
+            }
             if (user.contact_number) {
                 const encryptedObj = JSON.parse(user.contact_number);
                 user.contact_number = await decrypt(encryptedObj.encrypted, encryptedObj.iv, encryptedObj.authTag);

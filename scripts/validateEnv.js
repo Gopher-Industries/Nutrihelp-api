@@ -13,7 +13,7 @@ function validateEnvironmentVariables() {
     
     // Required environment variables
     const requiredVars = [
-        'JWT_SECRET',
+        'JWT_TOKEN',
         'SUPABASE_URL', 
         'SUPABASE_ANON_KEY',
         'PORT'
@@ -35,7 +35,7 @@ function validateEnvironmentVariables() {
         const value = process.env[varName];
         if (value) {
             // Partially mask sensitive information
-            const displayValue = varName.includes('SECRET') || varName.includes('KEY') 
+            const displayValue = varName.includes('SECRET') || varName.includes('KEY') || varName.includes('TOKEN') 
                 ? `${value.substring(0, 8)}...` 
                 : value;
             console.log(`   ${varName}: ${displayValue}`);
@@ -49,7 +49,7 @@ function validateEnvironmentVariables() {
     optionalVars.forEach(varName => {
         const value = process.env[varName];
         if (value) {
-            const displayValue = varName.includes('SECRET') || varName.includes('KEY') 
+            const displayValue = varName.includes('SECRET') || varName.includes('KEY') || varName.includes('TOKEN') 
                 ? `${value.substring(0, 8)}...` 
                 : value;
             console.log(`   ${varName}: ${displayValue}`);
@@ -58,20 +58,20 @@ function validateEnvironmentVariables() {
         }
     });
     
-    // Verify JWT_SECRET strength
-    console.log('\n🔒 Verify JWT_SECRET security：');
-    const jwtSecret = process.env.JWT_SECRET;
+    // Verify JWT_TOKEN strength
+    console.log('\n🔒 Verify JWT_TOKEN security：');
+    const jwtSecret = process.env.JWT_TOKEN;
     if (jwtSecret) {
         if (jwtSecret.length >= 32) {
-            console.log('   ✅ JWT_SECRET is long enough (>= 32 characters)');
+            console.log('   ✅ JWT_TOKEN is long enough (>= 32 characters)');
         } else {
-            console.log('   ⚠️  JWT_SECRET is too short. It is recommended to be at least 32 characters.');
+            console.log('   ⚠️  JWT_TOKEN is too short. It is recommended to be at least 32 characters.');
         }
         
-        if (jwtSecret !== 'your_super_secret_key') {
-            console.log('   ✅ JWT_SECRET has been modified from the default value');
+        if (jwtSecret !== 'your_jwt_token_here') {
+            console.log('   ✅ JWT_TOKEN has been modified from the default value');
         } else {
-            console.log('   ❌ JWT_SECRET is still the default value, please change it!');
+            console.log('   ❌ JWT_TOKEN is still the default value, please change it!');
             hasErrors = true;
         }
     }
@@ -121,11 +121,11 @@ function testJWTFunctionality() {
         };
         
         // Generate a test token
-        const token = jwt.sign(testPayload, process.env.JWT_SECRET, { expiresIn: '1h' });
+        const token = jwt.sign(testPayload, process.env.JWT_TOKEN, { expiresIn: '1h' });
         console.log('   ✅ JWT Token generation successful');
         
         // Verify the test token
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const decoded = jwt.verify(token, process.env.JWT_TOKEN);
         console.log('   ✅ JWT Token verification successful');
         console.log(`   📄 Decoded content: ${JSON.stringify(decoded, null, 2)}`);
         
