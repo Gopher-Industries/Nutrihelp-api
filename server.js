@@ -35,6 +35,12 @@ const { runAlertCheckJob } = require('./services/securityAlertService');
 
 const FRONTEND_ORIGIN = 'http://localhost:3000';
 
+const ALLOWED_CORS_ORIGINS = new Set([
+  FRONTEND_ORIGIN,
+  'http://127.0.0.1:3000',
+  'chrome-extension://eggdlmopfankeonchoflhfoglaakobma',
+]);
+
 console.log('🔧 Environment Variables Check:');
 console.log('   SUPABASE_URL:', process.env.SUPABASE_URL ? '✓ Set' : '✗ Missing');
 console.log('   SUPABASE_ANON_KEY:', process.env.SUPABASE_ANON_KEY ? '✓ Set' : '✗ Missing');
@@ -90,17 +96,17 @@ app.use(responseContractMiddleware);
 
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin) return callback(null, true);
-    if (
-      origin.startsWith('http://localhost') ||
-      origin.startsWith('http://127.0.0.1') ||
-      origin.startsWith('chrome-extension://eggdlmopfankeonchoflhfoglaakobma') ||
-      origin.startsWith('https://apifox.cn-hangzhou.log.aliyuncs.com')
-    ) {
-      callback(null, true);
-    } else {
-      callback(new Error(`CORS blocked: ${origin}`));
+    // Allow requests that do not carry an Origin header, such as
+    // server-to-server calls and local CLI/testing tools.
+    if (!origin) {
+      return callback(null, true);
     }
+
+    if (ALLOWED_CORS_ORIGINS.has(origin)) {
+      return callback(null, true);
+    }
+
+    return callback(new Error(`CORS blocked: ${origin}`));
   },
   credentials: true,
 }));
