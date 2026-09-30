@@ -1,6 +1,7 @@
 const recipeSources = require('../services/recipeSources');
 const mapperService = require('../services/recipeSources/mapperService');
 const { resolveIngredients } = require('../services/recipeSources/ingredientResolver');
+const { enrichIngredients } = require('../services/nutritionSources/ingredientEnricher');
 
 /**
  * LLM generator for the resolver's semantic-matching tier, or null when no
@@ -140,6 +141,25 @@ exports.mapSource = async (req, res) => {
 };
 
 /**
+ * What the client needs to tell the user how trustworthy the nutrition total
+ * will be, and whom to credit for it.
+ */
+function summariseNutrition(items) {
+  const weighed = items.filter((item) => item.grams !== null && item.grams !== undefined).length;
+  const missing = items.filter((item) => ['missing', 'unavailable'].includes(item.nutrition?.status)).length;
+  return {
+    provider: 'USDA FoodData Central',
+    weighed,
+    unweighed: items.length - weighed,
+    // Weights the LLM estimated because USDA had no portion for the unit.
+    estimated: items.filter((item) => item.grams_source === 'llm_estimate').length,
+    filled: items.filter((item) => item.nutrition?.status === 'filled').length,
+    missing,
+    complete: weighed === items.length && missing === 0,
+  };
+}
+
+/**
  * Save-time counterpart to /map: resolves ingredient names to ids, CREATING the
  * ones NutriHelp does not have yet.
  *
@@ -164,15 +184,33 @@ exports.resolveIngredientsForSave = async (req, res) => {
       generate: semanticGenerate(),
     });
 
+    // Nutrition is best effort: whatever happens to USDA or the fill, the ids
+    // above are enough to save the recipe, so a failure here is never fatal.
+    let enriched = resolved;
+    let nutrition = null;
+    try {
+      enriched = await enrichIngredients(resolved, ingredients, {
+        fillMissing: true,
+        generate: semanticGenerate(),
+      });
+      nutrition = summariseNutrition(enriched);
+    } catch (enrichError) {
+      logger.warn('[recipeSources] nutrition enrichment skipped', {
+        ...trace,
+        error: enrichError.message,
+      });
+    }
+
     logger.info('[recipeSources] POST /resolve-ingredients 200', {
       ...trace,
       matched: resolved.filter((row) => row.status === 'matched').length,
       created: resolved.filter((row) => row.status === 'created').length,
       failed: resolved.filter((row) => row.status === 'failed').length,
+      nutrition,
       ms: Date.now() - startedAt,
     });
 
-    return res.status(200).json({ success: true, data: { resolved } });
+    return res.status(200).json({ success: true, data: { resolved: enriched, nutrition } });
   } catch (err) {
     logger.error('[recipeSources] POST /resolve-ingredients 500', {
       ...trace,

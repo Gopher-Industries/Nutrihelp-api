@@ -171,7 +171,17 @@ const createAndSaveRecipe = async (req, res) => {
 			preparation_time,
 			instructions,
 			cooking_method_id,
-			ingredientCostList
+			ingredientCostList,
+			Array.isArray(req.body.ingredient_unit) ? {
+				unit: req.body.ingredient_unit,
+				notes: req.body.ingredient_notes || [],
+				source_measure: req.body.ingredient_source_measure || [],
+				// Gram weights let the totals cover cups, cloves and spoons.
+				...(Array.isArray(req.body.ingredient_grams) ? {
+					grams: req.body.ingredient_grams,
+					grams_source: req.body.ingredient_grams_source || [],
+				} : {}),
+			} : {}
 		);
 
 		let savedData = await createRecipe.saveRecipe(recipe);
@@ -203,7 +213,16 @@ const createAndSaveRecipe = async (req, res) => {
 			await createRecipe.updateRecipeDislike(dislikes);
 		}
 
-		return res.status(201).json({ message: "success", statusCode: 201 });
+		return res.status(201).json({
+			message: "success",
+			statusCode: 201,
+			recipe_id: savedData[0].id,
+			// Lets the client say "covers 7 of 8 ingredients" or "includes an estimated weight".
+			nutrition: {
+				calories: recipe.calories ?? null,
+				coverage: recipe.ingredients?.nutrition_coverage || null,
+			},
+		});
 	} catch (error) {
 		console.error("Error logging in:", error);
 		return res
@@ -315,10 +334,16 @@ const getRecipes = async (req, res) => {
 		);
 
 		const decoratedRecipes = await decorateRecipes(recipes);
+		// Recipes created without ingredient-link rows still belong in the user's list.
+		// Keep the enriched legacy entries when both queries return the same recipe.
+		const directRecipes = await getDirectUserRecipes(user_id);
+		const allRecipes = [...new Map(
+			[...directRecipes, ...decoratedRecipes].map((recipe) => [String(recipe.id), recipe])
+		).values()];
 
 		return res
 			.status(200)
-			.json({ message: "success", statusCode: 200, recipes: decoratedRecipes });
+			.json({ message: "success", statusCode: 200, recipes: allRecipes });
 	} catch (error) {
 		console.error("Error logging in:", error);
 		return res

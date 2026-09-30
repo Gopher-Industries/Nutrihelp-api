@@ -111,6 +111,18 @@ describe('mapRecipe', () => {
     assert.strictEqual(generate.callCount, 1);
   });
 
+  it('preserves source quantities and omitted ingredients even in a valid model draft', async () => {
+    const payload = JSON.parse(goodLlmPayload());
+    payload.ingredients[1].quantity = 99;
+    payload.ingredients.pop();
+    const result = await mapRecipe(SOURCE, { generate: async () => JSON.stringify(payload) });
+    assert.strictEqual(result.mapper.strategy, 'llm');
+    assert.strictEqual(result.draft.ingredients.length, 3);
+    assert.strictEqual(result.draft.ingredients[1].quantity, 0.25);
+    assert.strictEqual(result.draft.ingredients[1].source_measure, '1/4 cup');
+    assert.strictEqual(result.draft.ingredients[2].unit, 'cloves');
+  });
+
   it('reports fields the source could not fill', async () => {
     const generate = sinon.stub().resolves(goodLlmPayload());
 
