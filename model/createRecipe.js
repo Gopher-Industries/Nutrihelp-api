@@ -1,4 +1,5 @@
 const supabase = require("../dbConnection.js");
+const { computeRecipeTotals } = require("../services/nutritionSources/recipeTotals");
 
 async function createRecipe(
 	user_id,
@@ -41,29 +42,18 @@ async function createRecipe(
 	try {
 		const { data, error } = await supabase.from("ingredients").select("*").in("id", ingredient_id);
 		if (error) throw error;
-		const byId = new Map((data || []).map(row => [Number(row.id), row]));
-		const massFactors = { g: 1, gram: 1, grams: 1, kg: 1000, kilogram: 1000, kilograms: 1000,
-			lb: 453.59237, lbs: 453.59237, pound: 453.59237, pounds: 453.59237,
-			oz: 28.349523125, ounce: 28.349523125, ounces: 28.349523125 };
-		const nutrients = ["calories", "fat", "carbohydrates", "protein", "fiber", "vitamin_a", "vitamin_b", "vitamin_c", "vitamin_d", "sodium", "sugar"];
-		for (const nutrient of nutrients) {
-			let total = 0;
-			for (let i = 0; i < ingredient_id.length; i++) {
-				const value = byId.get(Number(ingredient_id[i]))?.[nutrient];
-				const quantity = ingredient_quantity[i];
-				// Legacy clients supply gram quantities. Explicit cups/pieces or
-				// unspecified amounts cannot be converted without ingredient data.
-				const factor = ingredientMetadata.unit
-					? massFactors[String(ingredientMetadata.unit[i] || '').trim().toLowerCase()]
-					: 1;
-				if (value == null || !Number.isFinite(Number(value)) || quantity == null || !factor) {
-					total = null;
-					break;
-				}
-				total += Number(value) / 100 * quantity * factor;
-			}
-			recipe[nutrient] = total;
-		}
+		// Strict totals for the recipes table, plus coverage for the UI. One unknown
+		// ingredient no longer blanks a total: see nutritionSources/recipeTotals.
+		const { totals, coverage } = computeRecipeTotals({
+			rows: data || [],
+			ingredientIds: ingredient_id,
+			quantities: ingredient_quantity,
+			metadata: ingredientMetadata,
+		});
+		Object.assign(recipe, totals);
+		// JSONB, so this needs no migration. It lets a recipe whose strict total was
+		// withheld still show "about 1,830 kcal, covers 7 of 8 ingredients".
+		recipe.ingredients.nutrition_coverage = coverage;
 		recipe.instructions = instructions;
 
 		return recipe;

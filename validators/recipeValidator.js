@@ -30,10 +30,15 @@ const validateRecipe = [
   body('ingredient_id.*').isInt({ min: 1 }),
   body('ingredient_quantity').custom((values, { req }) => Array.isArray(values) && values.length === req.body.ingredient_id?.length),
   body('ingredient_quantity.*').optional({ nullable: true }).isFloat({ gt: 0 }),
-  ...['ingredient_unit', 'ingredient_notes', 'ingredient_source_measure'].flatMap(field => [
+  ...['ingredient_unit', 'ingredient_notes', 'ingredient_source_measure', 'ingredient_grams_source'].flatMap(field => [
     body(field).optional().isArray().custom((values, { req }) => values.length === req.body.ingredient_id?.length),
-    body(`${field}.*`).optional().isString().isLength({ max: 500 }),
+    body(`${field}.*`).optional({ nullable: true }).isString().isLength({ max: 500 }),
   ]),
+  // Weight of each ingredient in grams, worked out by /recipe-sources/resolve-ingredients.
+  // null means unknown, 0 means negligible (a pinch). 100 kg is far beyond any
+  // home recipe and catches a gram/kilogram mix-up before it reaches the totals.
+  body('ingredient_grams').optional().isArray().custom((values, { req }) => values.length === req.body.ingredient_id?.length),
+  body('ingredient_grams.*').optional({ nullable: true }).isFloat({ min: 0, max: 100000 }),
 ];
 
 module.exports = { recipeSchema, getRecipesSchema, validateRecipe };
