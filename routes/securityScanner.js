@@ -2,6 +2,8 @@ const express = require('express');
 
 const router = express.Router();
 
+const { authenticateToken } = require('../middleware/authenticateToken');
+
 const {
   getScanResults,
   getScanHistory,
@@ -12,6 +14,9 @@ const {
   runScan,
   getRules,
 } = require('../controller/securityScanController');
+
+// Require a valid JWT for all security scanner API routes
+router.use(authenticateToken);
 
 // GET /api/security-scanner/results
 router.get('/results', getScanResults);
