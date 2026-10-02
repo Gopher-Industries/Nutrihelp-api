@@ -1,0 +1,15 @@
+# Dependabot configuration for NutriHelp API
+version: 2
+
+updates:
+  # Monitor Node.js/npm dependencies
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+
+  # Monitor Python/pip dependencies
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
