@@ -1,0 +1,344 @@
+{
+  "id": null,
+  "createdAt": "2026-11-16T19:41:06.747Z",
+  "persisted": false,
+  "persistError": "Your result could not be saved to your history. You can still view and print it now.",
+  "questionnaireVersion": "1.0.0",
+  "answers": {
+    "gender": "male",
+    "age": 45,
+    "heightCm": 178,
+    "weightKg": 92,
+    "waistCm": 101,
+    "vegetableFrequency": 2,
+    "mainMeals": 3,
+    "snacking": "Frequently",
+    "highCalorieFoods": true,
+    "waterIntake": 2,
+    "monitorsCalories": false,
+    "sleepHours": 6.5,
+    "stressLevel": 4,
+    "smoker": false,
+    "alcohol": "Frequently",
+    "screenTime": 1,
+    "activityFrequency": 1,
+    "transport": "Automobile",
+    "familyHistoryOverweight": true,
+    "familyHistoryDiabetes": true,
+    "highBloodGlucose": false,
+    "bloodPressureMedication": false,
+    "primaryGoal": "lose_weight",
+    "targetWeightKg": 80,
+    "daysPerWeek": 3,
+    "workoutPlace": "gym"
+  },
+  "result": {
+    "engineVersion": "1.0.0",
+    "overall": {
+      "score": 56,
+      "band": {
+        "key": "fair",
+        "label": "Fair"
+      },
+      "risk": {
+        "key": "high",
+        "label": "High"
+      }
+    },
+    "domains": [
+      {
+        "key": "body",
+        "label": "Body composition",
+        "score": 70,
+        "weight": 0.2,
+        "band": {
+          "key": "good",
+          "label": "Good"
+        }
+      },
+      {
+        "key": "nutrition",
+        "label": "Nutrition",
+        "score": 59,
+        "weight": 0.2,
+        "band": {
+          "key": "fair",
+          "label": "Fair"
+        }
+      },
+      {
+        "key": "activity",
+        "label": "Physical activity",
+        "score": 48,
+        "weight": 0.2,
+        "band": {
+          "key": "attention",
+          "label": "Needs attention"
+        }
+      },
+      {
+        "key": "metabolic",
+        "label": "Metabolic health",
+        "score": 35,
+        "weight": 0.15,
+        "band": {
+          "key": "priority",
+          "label": "High priority"
+        }
+      },
+      {
+        "key": "lifestyle",
+        "label": "Lifestyle",
+        "score": 70,
+        "weight": 0.15,
+        "band": {
+          "key": "good",
+          "label": "Good"
+        }
+      },
+      {
+        "key": "hydration",
+        "label": "Hydration",
+        "score": 47,
+        "weight": 0.1,
+        "band": {
+          "key": "attention",
+          "label": "Needs attention"
+        }
+      }
+    ],
+    "strengths": [],
+    "focusAreas": [
+      "metabolic",
+      "hydration",
+      "activity"
+    ],
+    "body": {
+      "bmi": 29,
+      "bmiCategory": {
+        "key": "overweight",
+        "label": "Overweight"
+      },
+      "healthyWeightRangeKg": {
+        "min": 58.6,
+        "max": 78.9
+      },
+      "waist": {
+        "key": "increased",
+        "label": "Increased risk",
+        "threshold": 94
+      },
+      "waistToHeightRatio": 0.57
+    },
+    "targets": {
+      "bmr": 1813,
+      "tdee": 2492,
+      "calories": 1990,
+      "calorieStrategy": "Moderate deficit (about 0.5 kg a week)",
+      "proteinGrams": 110,
+      "fibreGrams": 30,
+      "waterLitres": 3.2,
+      "waterCurrentLitres": 1.5,
+      "activityMinutesPerWeek": 150
+    },
+    "diabetesRisk": {
+      "score": 13,
+      "maxScore": 35,
+      "level": {
+        "key": "high",
+        "label": "High"
+      },
+      "factors": [
+        {
+          "label": "Age 45",
+          "points": 4
+        },
+        {
+          "label": "Male sex",
+          "points": 3
+        },
+        {
+          "label": "Family history of diabetes",
+          "points": 3
+        },
+        {
+          "label": "Less than 150 minutes of activity a week",
+          "points": 2
+        },
+        {
+          "label": "Vegetables not eaten daily",
+          "points": 1
+        }
+      ],
+      "waistEstimated": false,
+      "method": "Adapted from AUSDRISK (screening estimate)"
+    },
+    "riskFlags": [
+      {
+        "id": "diabetes_high",
+        "severity": "high",
+        "domain": "metabolic",
+        "title": "High type 2 diabetes risk",
+        "detail": "Your answers indicate a high screening risk. A blood test with your GP is strongly recommended."
+      },
+      {
+        "id": "waist",
+        "severity": "moderate",
+        "domain": "body",
+        "title": "Waist 101 cm",
+        "detail": "Fat stored around the abdomen is closely linked to heart disease and insulin resistance."
+      },
+      {
+        "id": "alcohol",
+        "severity": "moderate",
+        "domain": "lifestyle",
+        "title": "Frequent alcohol use",
+        "detail": "Australian guidelines recommend no more than 10 standard drinks a week and no more than 4 on any one day."
+      },
+      {
+        "id": "bmi_overweight",
+        "severity": "low",
+        "domain": "body",
+        "title": "BMI 29: Overweight",
+        "detail": "A healthy weight for your height is 58.6 to 78.9 kg."
+      },
+      {
+        "id": "stress",
+        "severity": "low",
+        "domain": "lifestyle",
+        "title": "High stress",
+        "detail": "Ongoing stress can drive emotional eating and poor sleep."
+      },
+      {
+        "id": "hydration",
+        "severity": "low",
+        "domain": "hydration",
+        "title": "Low fluid intake",
+        "detail": "You are drinking roughly 1.5 L against a target of 3.2 L."
+      }
+    ],
+    "recommendations": [
+      {
+        "id": "see_gp",
+        "domain": "metabolic",
+        "priority": 1,
+        "title": "Book a blood glucose check with your GP",
+        "rationale": "Early detection of pre-diabetes means it can often be reversed with lifestyle change.",
+        "actions": [
+          "Ask your GP for a fasting glucose or HbA1c test",
+          "Take this assessment summary to the appointment"
+        ]
+      },
+      {
+        "id": "weight",
+        "domain": "body",
+        "priority": 2,
+        "title": "Work towards a healthier weight",
+        "rationale": "Losing even 5 to 10% of your body weight (5 to 9 kg) brings measurable health benefits.",
+        "actions": [
+          "Aim for about 1990 kcal a day",
+          "Fill half your plate with vegetables at lunch and dinner",
+          "Swap sugary drinks for water or sparkling water"
+        ]
+      },
+      {
+        "id": "move_more",
+        "domain": "activity",
+        "priority": 2,
+        "title": "Build up to 150 active minutes a week",
+        "rationale": "Regular movement improves insulin sensitivity, mood and sleep, independent of weight loss.",
+        "actions": [
+          "Start with 3 gym sessions a week mixing cardio and strength",
+          "Add a 10-minute walk after meals",
+          "Include strength work twice a week"
+        ]
+      },
+      {
+        "id": "nutrition",
+        "domain": "nutrition",
+        "priority": 2,
+        "title": "Improve the quality of your meals",
+        "rationale": "A diet rich in vegetables, whole grains and lean protein supports your 30 g daily fibre target.",
+        "actions": [
+          "Add a serve of vegetables to every main meal (target 5 serves a day)",
+          "Limit takeaway and fried food to once a week",
+          "Plan snacks: fruit, yoghurt or a handful of nuts"
+        ]
+      },
+      {
+        "id": "recovery",
+        "domain": "lifestyle",
+        "priority": 2,
+        "title": "Protect your sleep and manage stress",
+        "rationale": "Poor sleep and high stress raise hunger hormones and cravings for high-calorie food.",
+        "actions": [
+          "Keep a consistent sleep and wake time",
+          "Stop screens 30 minutes before bed",
+          "Try 10 minutes of walking or breathing exercises daily"
+        ]
+      },
+      {
+        "id": "alcohol",
+        "domain": "lifestyle",
+        "priority": 2,
+        "title": "Cut back on alcohol",
+        "rationale": "Alcohol adds energy without nutrition and affects sleep and liver health.",
+        "actions": [
+          "Have at least two alcohol-free days a week",
+          "Alternate alcoholic drinks with water"
+        ]
+      },
+      {
+        "id": "hydration",
+        "domain": "hydration",
+        "priority": 3,
+        "title": "Drink about 3.2 L of water a day",
+        "rationale": "Good hydration supports concentration, digestion and appetite control.",
+        "actions": [
+          "Keep a refillable bottle with you",
+          "Have a glass of water with every meal",
+          "Track intake with the NutriHelp water tracker"
+        ]
+      }
+    ]
+  },
+  "ai": {
+    "model": {
+      "available": false,
+      "source": "rules_engine",
+      "reason": "AI model unavailable"
+    },
+    "narrative": {
+      "headline": "A solid start with clear areas to improve",
+      "summary": "Your overall wellness score is 56 out of 100. Your strongest area is body composition (70), while metabolic health (35) offers the biggest opportunity. Start with this: book a blood glucose check with your gp.",
+      "motivation": "Small, consistent changes add up. Reassess in 4 to 6 weeks to see your progress.",
+      "source": "template"
+    }
+  },
+  "planRequest": {
+    "medical_report": [
+      {
+        "bmi": 29,
+        "obesity_prediction": {
+          "obesity_level": "Overweight_Level_I",
+          "confidence": 80
+        },
+        "diabetes_prediction": {
+          "diabetes": true,
+          "confidence": 75
+        }
+      }
+    ],
+    "survey_data": {
+      "Gender": "Male",
+      "Age": 45,
+      "Height": 1.78,
+      "Weight": 92,
+      "days_per_week": 3,
+      "workout_place": "gym",
+      "target_weight": 80
+    }
+  },
+  "comparison": null,
+  "disclaimer": "This assessment is a wellbeing screening tool, not a medical diagnosis. Talk to your GP or an accredited practising dietitian before making major changes, especially if you have a health condition."
+}

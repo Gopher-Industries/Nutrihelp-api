@@ -8,6 +8,8 @@ servers:
 - url: https://localhost:8443/api
   description: Local development (TLS 1.3)
 tags:
+- name: HealthAssessment
+  description: FE-04 AI Health Assessment (scores, AI insights, history, plan)
 - name: System
   description: System and security monitoring endpoints
 - name: LoginDashboard
@@ -3794,6 +3796,154 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
         '500':
           description: Internal server error
+  /health-assessment/questions:
+    get:
+      tags:
+      - HealthAssessment
+      summary: Questionnaire definition for the AI Health Assessment screen (FE-04)
+      description: Sections and questions with types, units, ranges and options. The frontend renders the wizard from this response and the API validates submissions against the same definition.
+      responses:
+        '200':
+          description: Questionnaire
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/HealthAssessmentQuestionnaire'
+  /health-assessment:
+    post:
+      tags:
+      - HealthAssessment
+      summary: Submit a health assessment
+      description: Scores six health domains, screens type 2 diabetes risk (AUSDRISK-adapted), queries the NutriHelp AI model and an LLM for insights (each with fallback), compares with the previous assessment and stores the result encrypted at rest. Rate limited per user.
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HealthAssessmentSubmission'
+      responses:
+        '201':
+          description: Assessment computed and saved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthAssessmentEnvelope'
+        '200':
+          description: Assessment computed but not saved (save=false or storage unavailable)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthAssessmentEnvelope'
+        '400':
+          description: Validation error. details lists each invalid field.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthAssessmentError'
+        '401':
+          description: Not signed in
+        '429':
+          description: Too many submissions
+  /health-assessment/history:
+    get:
+      tags:
+      - HealthAssessment
+      summary: The signed-in user's assessment history, score trend and stats
+      security:
+      - BearerAuth: []
+      parameters:
+      - in: query
+        name: limit
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 50
+          default: 12
+      responses:
+        '200':
+          description: History
+        '401':
+          description: Not signed in
+  /health-assessment/latest:
+    get:
+      tags:
+      - HealthAssessment
+      summary: The signed-in user's most recent full assessment (data is null when none exists)
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          description: Latest assessment or null
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthAssessmentEnvelope'
+        '401':
+          description: Not signed in
+  /health-assessment/{id}:
+    parameters:
+    - in: path
+      name: id
+      required: true
+      schema:
+        type: string
+        format: uuid
+    get:
+      tags:
+      - HealthAssessment
+      summary: One assessment owned by the signed-in user
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          description: Assessment
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthAssessmentEnvelope'
+        '400':
+          description: Invalid id
+        '404':
+          description: Not found or not owned by the user
+    delete:
+      tags:
+      - HealthAssessment
+      summary: Delete one assessment owned by the signed-in user
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          description: Deleted
+        '404':
+          description: Not found or not owned by the user
+  /health-assessment/{id}/plan:
+    parameters:
+    - in: path
+      name: id
+      required: true
+      schema:
+        type: string
+        format: uuid
+    post:
+      tags:
+      - HealthAssessment
+      summary: Generate a 4-week health plan from a saved assessment
+      description: Reuses the weekly-plan generator behind /medical-report/plan (AI plan service with local fallback).
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          description: Weekly plan wrapped in the standard envelope
+        '404':
+          description: Not found or not owned by the user
   /medical-report/retrieve:
     post:
       summary: Retrieve AI medical report
@@ -4190,6 +4340,148 @@ components:
       scheme: bearer
       bearerFormat: JWT
   schemas:
+    HealthAssessmentQuestionnaire:
+      type: object
+      properties:
+        version:
+          type: string
+          example: 1.0.0
+        estimatedMinutes:
+          type: integer
+          example: 4
+        disclaimer:
+          type: string
+        sections:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              title:
+                type: string
+              description:
+                type: string
+              questions:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                    label:
+                      type: string
+                    type:
+                      type: string
+                      enum: [number, single, boolean, scale]
+                    required:
+                      type: boolean
+                    unit:
+                      type: string
+                    min:
+                      type: number
+                    max:
+                      type: number
+                    options:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          value: {}
+                          label:
+                            type: string
+    HealthAssessmentSubmission:
+      type: object
+      required: [consent, answers]
+      properties:
+        consent:
+          type: boolean
+          enum: [true]
+        save:
+          type: boolean
+          default: true
+        answers:
+          type: object
+          description: Keys are question ids from GET /health-assessment/questions.
+          example:
+            gender: female
+            age: 30
+            heightCm: 165
+            weightKg: 60
+            waistCm: 72
+            vegetableFrequency: 3
+            mainMeals: 3
+            snacking: Sometimes
+            highCalorieFoods: false
+            waterIntake: 3
+            monitorsCalories: true
+            sleepHours: 8
+            stressLevel: 2
+            smoker: false
+            alcohol: Sometimes
+            screenTime: 0
+            activityFrequency: 3
+            transport: Walking
+            familyHistoryOverweight: false
+            familyHistoryDiabetes: false
+            highBloodGlucose: false
+            bloodPressureMedication: false
+            primaryGoal: maintain
+            daysPerWeek: 4
+            workoutPlace: home
+    HealthAssessmentEnvelope:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          nullable: true
+          properties:
+            id:
+              type: string
+              format: uuid
+              nullable: true
+            createdAt:
+              type: string
+              format: date-time
+            persisted:
+              type: boolean
+            result:
+              type: object
+              description: Overall score, six domain scores, body metrics, daily targets, diabetes screening, risk flags and prioritised recommendations.
+            ai:
+              type: object
+              description: model (NutriHelp AI predictions or available=false) and narrative (llm or template).
+            comparison:
+              type: object
+              nullable: true
+            planRequest:
+              type: object
+              description: Body accepted by /medical-report/plan.
+            disclaimer:
+              type: string
+    HealthAssessmentError:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+        code:
+          type: string
+          example: HEALTH_ASSESSMENT_VALIDATION
+        details:
+          type: array
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+              message:
+                type: string
     AllergyCheckRequest:
       type: object
       required:

@@ -8,8 +8,35 @@
   "extends": "eslint:recommended",
   "rules": {
     "no-console": "off",
-    "indent": ["error", 2],
-    "quotes": ["error", "single"],
-    "semi": ["error", "always"]
-  }
+    "indent": [
+      "error",
+      2
+    ],
+    "quotes": [
+      "error",
+      "single"
+    ],
+    "semi": [
+      "error",
+      "always"
+    ]
+  },
+  "overrides": [
+    {
+      "files": [
+        "src/**/*.js",
+        "src/**/*.jsx"
+      ],
+      "env": {
+        "browser": true,
+        "node": false
+      },
+      "parserOptions": {
+        "sourceType": "module",
+        "ecmaFeatures": {
+          "jsx": true
+        }
+      }
+    }
+  ]
 }
