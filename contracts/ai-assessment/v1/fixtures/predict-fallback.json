@@ -1,0 +1,41 @@
+{
+  "httpStatus": 200,
+  "body": {
+    "success": true,
+    "data": {
+      "prediction": {
+        "status": "unavailable",
+        "source": "fallback_estimate",
+        "uncertain": true,
+        "bmi": 29.0,
+        "weightCategory": {
+          "code": "overweight",
+          "label": "Overweight",
+          "modelLabel": null,
+          "confidence": null,
+          "agreesWithBmi": null
+        },
+        "diabetes": null
+      },
+      "model": null,
+      "explainability": {
+        "service": "assessment_prediction",
+        "source": "fallback_estimate",
+        "fallbackUsed": true,
+        "timedOut": true,
+        "circuitOpen": false,
+        "durationMs": 8003,
+        "confidenceThreshold": 0.6,
+        "warnings": [
+          "model_timeout"
+        ],
+        "generatedAt": "2026-11-19T05:30:00.000Z",
+        "contractVersion": "v1"
+      },
+      "disclaimer": "This is a screening estimate from an AI model, not a medical diagnosis. Talk to your GP about any health concerns."
+    },
+    "meta": {
+      "contractVersion": "v1"
+    }
+  }
+}

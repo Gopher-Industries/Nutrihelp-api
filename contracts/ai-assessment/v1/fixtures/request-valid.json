@@ -1,0 +1,25 @@
+{
+  "contractVersion": "v1",
+  "inputs": {
+    "sex": "male",
+    "ageYears": 45,
+    "heightCm": 178,
+    "weightKg": 92,
+    "waistCm": 101,
+    "familyHistoryOverweight": true,
+    "familyHistoryDiabetes": true,
+    "highBloodGlucoseHistory": false,
+    "bloodPressureMedication": false,
+    "smoker": false,
+    "vegetableFrequency": "sometimes",
+    "mainMealsPerDay": 3,
+    "snackingFrequency": "frequently",
+    "highCalorieFoods": true,
+    "waterLitresPerDay": 1.5,
+    "monitorsCalories": false,
+    "activityDaysPerWeek": 2,
+    "screenTimeHoursPerDay": 4,
+    "alcoholFrequency": "frequently",
+    "transport": "car"
+  }
+}

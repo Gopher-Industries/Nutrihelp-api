@@ -1,0 +1,8 @@
+{
+  "httpStatus": 401,
+  "body": {
+    "success": false,
+    "error": "Authorization header missing",
+    "code": "TOKEN_MISSING"
+  }
+}

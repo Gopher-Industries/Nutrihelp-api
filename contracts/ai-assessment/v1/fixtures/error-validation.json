@@ -1,0 +1,18 @@
+{
+  "httpStatus": 400,
+  "body": {
+    "success": false,
+    "error": "Validation failed",
+    "code": "VALIDATION_ERROR",
+    "errors": [
+      {
+        "field": "ageYears",
+        "message": "ageYears must be between 16 and 100"
+      },
+      {
+        "field": "transport",
+        "message": "transport must be one of car, public_transport, motorbike, bicycle, walking"
+      }
+    ]
+  }
+}

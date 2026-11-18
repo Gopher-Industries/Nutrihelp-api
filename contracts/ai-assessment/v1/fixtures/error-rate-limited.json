@@ -1,0 +1,8 @@
+{
+  "httpStatus": 429,
+  "body": {
+    "success": false,
+    "error": "You have run several AI checks recently. Please try again in 15 minutes.",
+    "code": "AI_ASSESSMENT_RATE_LIMITED"
+  }
+}
