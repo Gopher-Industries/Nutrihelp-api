@@ -1,0 +1,49 @@
+{
+  "httpStatus": 200,
+  "body": {
+    "success": true,
+    "data": {
+      "prediction": {
+        "status": "available",
+        "source": "ai_model",
+        "uncertain": true,
+        "bmi": 29.0,
+        "weightCategory": {
+          "code": "overweight",
+          "label": "Overweight",
+          "modelLabel": "Overweight_Level_II",
+          "confidence": 0.52,
+          "agreesWithBmi": true
+        },
+        "diabetes": {
+          "positive": false,
+          "riskLevel": "moderate",
+          "probability": 0.41,
+          "confidence": 0.55
+        }
+      },
+      "model": {
+        "name": "nutrihelp-medical-report",
+        "version": "unversioned"
+      },
+      "explainability": {
+        "service": "assessment_prediction",
+        "source": "ai_model",
+        "fallbackUsed": false,
+        "timedOut": false,
+        "circuitOpen": false,
+        "durationMs": 530,
+        "confidenceThreshold": 0.6,
+        "warnings": [
+          "low_confidence"
+        ],
+        "generatedAt": "2026-11-19T05:30:00.000Z",
+        "contractVersion": "v1"
+      },
+      "disclaimer": "This is a screening estimate from an AI model, not a medical diagnosis. Talk to your GP about any health concerns."
+    },
+    "meta": {
+      "contractVersion": "v1"
+    }
+  }
+}

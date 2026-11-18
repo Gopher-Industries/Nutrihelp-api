@@ -53,6 +53,7 @@ const routeGroups = [
       ['/api/imageClassification', './imageClassification'],
       ['/api/recipeImageClassification', './recipeImageClassification'],
       ['/api/medical-report', './medicalPrediction'],
+      ['/api/ai-assessment', './aiAssessment'],
       ['/api/meal-plan', './mealPlanAIRoutes'],
       ['/api/barcode', './barcodeScanning'],
     ],

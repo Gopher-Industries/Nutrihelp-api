@@ -8,6 +8,8 @@ servers:
 - url: https://localhost:8443/api
   description: Local development (TLS 1.3)
 tags:
+- name: AIAssessment
+  description: FE-06 AI model predictions for the assessment screen (contract v1)
 - name: System
   description: System and security monitoring endpoints
 - name: LoginDashboard
@@ -3794,6 +3796,51 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
         '500':
           description: Internal server error
+  /ai-assessment/contract:
+    get:
+      tags:
+      - AIAssessment
+      summary: AI assessment prediction contract (FE-06)
+      description: Contract version, input fields with ranges, enums, error codes and thresholds. Lets web and mobile clients confirm they speak the same version. See technical_docs/AI Assessment Prediction Contract.md.
+      responses:
+        '200':
+          description: Contract definition
+  /ai-assessment/predict:
+    post:
+      tags:
+      - AIAssessment
+      summary: AI model prediction for the assessment screen (FE-06)
+      description: Maps plain-unit inputs to the AI model, normalises its output and always answers in the v1 contract. When the model is down, times out or the circuit is open, returns 200 with prediction.status unavailable and a BMI-only estimate. Rate limited per user.
+      security:
+      - BearerAuth: []
+      parameters:
+      - in: header
+        name: X-Contract-Version
+        required: false
+        schema:
+          type: string
+          example: v1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AIAssessmentPredictRequest'
+      responses:
+        '200':
+          description: Prediction (from the AI model, or a fallback estimate)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AIAssessmentPredictResponse'
+        '400':
+          description: VALIDATION_ERROR (with errors[]) or CONTRACT_VERSION_UNSUPPORTED
+        '401':
+          description: Not signed in
+        '429':
+          description: AI_ASSESSMENT_RATE_LIMITED
+        '500':
+          description: INTERNAL_ERROR
   /medical-report/retrieve:
     post:
       summary: Retrieve AI medical report
@@ -4190,6 +4237,95 @@ components:
       scheme: bearer
       bearerFormat: JWT
   schemas:
+    AIAssessmentPredictRequest:
+      type: object
+      required: [inputs]
+      additionalProperties: false
+      properties:
+        contractVersion:
+          type: string
+          example: v1
+        inputs:
+          type: object
+          additionalProperties: false
+          required: [sex, ageYears, heightCm, weightKg, familyHistoryOverweight, smoker, vegetableFrequency, mainMealsPerDay, snackingFrequency, highCalorieFoods, waterLitresPerDay, monitorsCalories, activityDaysPerWeek, screenTimeHoursPerDay, alcoholFrequency, transport]
+          properties:
+            sex: { type: string, enum: [female, male] }
+            ageYears: { type: integer, minimum: 16, maximum: 100 }
+            heightCm: { type: number, minimum: 120, maximum: 230 }
+            weightKg: { type: number, minimum: 30, maximum: 300 }
+            waistCm: { type: number, minimum: 40, maximum: 200 }
+            familyHistoryOverweight: { type: boolean }
+            familyHistoryDiabetes: { type: boolean }
+            highBloodGlucoseHistory: { type: boolean }
+            bloodPressureMedication: { type: boolean }
+            smoker: { type: boolean }
+            vegetableFrequency: { type: string, enum: [rarely, sometimes, always] }
+            mainMealsPerDay: { type: integer, minimum: 1, maximum: 4 }
+            snackingFrequency: { type: string, enum: [never, sometimes, frequently, always] }
+            highCalorieFoods: { type: boolean }
+            waterLitresPerDay: { type: number, minimum: 0, maximum: 10 }
+            monitorsCalories: { type: boolean }
+            activityDaysPerWeek: { type: integer, minimum: 0, maximum: 7 }
+            screenTimeHoursPerDay: { type: number, minimum: 0, maximum: 24 }
+            alcoholFrequency: { type: string, enum: [never, sometimes, frequently, always] }
+            transport: { type: string, enum: [car, public_transport, motorbike, bicycle, walking] }
+    AIAssessmentPredictResponse:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        meta:
+          type: object
+          properties:
+            contractVersion: { type: string, example: v1 }
+        data:
+          type: object
+          properties:
+            prediction:
+              type: object
+              properties:
+                status: { type: string, enum: [available, unavailable] }
+                source: { type: string, enum: [ai_model, fallback_estimate] }
+                uncertain: { type: boolean }
+                bmi: { type: number, example: 29.0 }
+                weightCategory:
+                  type: object
+                  properties:
+                    code: { type: string, enum: [underweight, healthy, overweight, obese_1, obese_2, obese_3] }
+                    label: { type: string }
+                    modelLabel: { type: string, nullable: true }
+                    confidence: { type: number, nullable: true, minimum: 0, maximum: 1 }
+                    agreesWithBmi: { type: boolean, nullable: true }
+                diabetes:
+                  type: object
+                  nullable: true
+                  properties:
+                    positive: { type: boolean, nullable: true }
+                    riskLevel: { type: string, nullable: true, enum: [low, moderate, high] }
+                    probability: { type: number, nullable: true, minimum: 0, maximum: 1 }
+                    confidence: { type: number, nullable: true, minimum: 0, maximum: 1 }
+            model:
+              type: object
+              nullable: true
+              properties:
+                name: { type: string }
+                version: { type: string }
+            explainability:
+              type: object
+              properties:
+                service: { type: string, example: assessment_prediction }
+                source: { type: string, enum: [ai_model, fallback_estimate] }
+                fallbackUsed: { type: boolean }
+                timedOut: { type: boolean }
+                circuitOpen: { type: boolean }
+                durationMs: { type: integer }
+                confidenceThreshold: { type: number }
+                warnings:
+                  type: array
+                  items: { type: string }
+                generatedAt: { type: string, format: date-time }
+                contractVersion: { type: string, example: v1 }
+            disclaimer: { type: string }
     AllergyCheckRequest:
       type: object
       required:

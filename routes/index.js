@@ -40,6 +40,7 @@ module.exports = app => {
     app.use('/api/upload', require('./upload'));
     app.use("/api/articles", require('./articles'));
     app.use('/api/medical-report', require('./medicalPrediction'));
+    app.use('/api/ai-assessment', require('./aiAssessment')); // FE-06 AI assessment prediction contract
     app.use('/api/recipe/nutritionlog', require('./recipeNutritionlog'));
     app.use('/api/recipe/scale', require('./recipeScaling'));
     app.use('/api/water-intake', require('./waterIntake'));
